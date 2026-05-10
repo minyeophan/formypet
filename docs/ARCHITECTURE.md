@@ -5,10 +5,15 @@
 app/                         # Expo Router 파일 기반 라우팅
 ├── _layout.tsx              # 루트 레이아웃 (PetProvider, GestureHandler, 폰트, SplashScreen)
 ├── onboarding.tsx           # 온보딩 화면 (첫 실행 시)
+├── records.tsx              # 기록 화면
+├── routine.tsx              # 루틴 화면
+├── growth.tsx               # 성장 기록 화면
+├── record-edit/[id].tsx     # 기록 수정 화면
+├── pet/[id].tsx             # 펫 상세 화면
+├── pet/[id]/edit.tsx        # 펫 수정 화면
 └── (tabs)/
     ├── _layout.tsx          # 탭 레이아웃 + RecordModal (탭 바 위에 렌더)
     ├── index.tsx            # 홈 탭
-    ├── records.tsx          # 기록 탭
     ├── community.tsx        # 커뮤니티 탭
     └── my.tsx               # 마이 탭
 
@@ -41,11 +46,9 @@ src/
     │   ├── HealthTab.tsx
     │   └── GrowthTab.tsx     # react-native-gifted-charts
     ├── community/
-    │   ├── PostCard.tsx
-    │   └── PostFeed.tsx      # FlatList
+    │   └── PostCard.tsx
     └── my/
-        ├── PetList.tsx
-        └── AddPetForm.tsx    # @gorhom/bottom-sheet
+        └── PetList.tsx
 ```
 
 ## 패턴

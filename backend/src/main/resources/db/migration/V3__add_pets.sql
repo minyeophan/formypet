@@ -1,0 +1,20 @@
+CREATE TABLE pets (
+    id                          BIGINT          AUTO_INCREMENT PRIMARY KEY,
+    user_id                     BIGINT          NOT NULL,
+    name                        VARCHAR(50)     NOT NULL,
+    species                     VARCHAR(30)     NOT NULL,
+    birth_date                  DATE            NOT NULL,
+    gender                      ENUM('male','female'),
+    weight                      DECIMAL(5,2),
+    animal_registration_number  VARCHAR(20),
+    neutered                    BOOLEAN,
+    diseases                    TEXT,
+    special_notes               TEXT,
+    accent_color                VARCHAR(7)      NOT NULL,
+    bg_light                    VARCHAR(7)      NOT NULL,
+    is_deleted                  BOOLEAN         NOT NULL DEFAULT false,
+    created_at                  DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at                  DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_pet_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    INDEX idx_user_active (user_id, is_deleted)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
