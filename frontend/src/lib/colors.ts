@@ -1,10 +1,14 @@
 export const colors = {
-  background: '#F5F3EF',
+  background: '#F7F4ED',
+  surface: '#FFFCF7',
+  surfaceSoft: '#FFF8F0',
   primary: '#F4A460',
+  primaryPressed: '#E5904B',
   primaryLight: '#FFF8F0',
-  text: '#1A1A1A',
-  textSecondary: '#6B6B6B',
-  border: '#E8E4DE',
+  text: '#1C1C1C',
+  textSecondary: '#5F5F5D',
+  muted: '#A79F94',
+  border: '#ECE7DE',
   white: '#FFFFFF',
 };
 

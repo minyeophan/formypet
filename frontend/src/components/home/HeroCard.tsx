@@ -5,6 +5,7 @@ import { usePets } from '@/src/lib/pet-context';
 import { getLastActivityDate, getWeightHistory } from '@/src/services/records';
 import { getDDay, formatDateShort } from '@/src/lib/utils';
 import { getSpeciesEmoji, SPECIES_LIST } from '@/src/lib/record-types';
+import { colors } from '@/src/lib/colors';
 import AppText from '../shared/AppText';
 
 export default function HeroCard() {
@@ -26,19 +27,19 @@ export default function HeroCard() {
   return (
     <View style={{ marginHorizontal: 20, marginBottom: 4 }}>
     <LinearGradient
-      colors={[pet.bgLight, pet.accentColor + '55']}
+      colors={[colors.surfaceSoft, pet.bgLight, pet.accentColor + '44']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={{ borderRadius: 24, padding: 24 }}
+      style={{ borderRadius: 24, padding: 24, borderWidth: 1, borderColor: colors.border }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <AppText style={{ fontSize: 28 }}>{getSpeciesEmoji(pet.species)}</AppText>
-            <AppText bold style={{ fontSize: 22, color: '#1A1A1A' }}>{pet.name}</AppText>
+            <AppText bold style={{ fontSize: 22, color: colors.text }}>{pet.name}</AppText>
           </View>
 
-          <AppText style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>
+          <AppText style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 4 }}>
             {speciesLabel}{genderText} · {ageText}
           </AppText>
           <AppText style={{ fontSize: 12, color: pet.accentColor, marginBottom: 12 }}>
@@ -47,15 +48,17 @@ export default function HeroCard() {
 
           <View
             style={{
-              backgroundColor: 'rgba(255,255,255,0.7)',
+              backgroundColor: colors.surface,
               borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
               paddingHorizontal: 12,
               paddingVertical: 8,
               alignSelf: 'flex-start',
             }}
           >
-            <AppText style={{ fontSize: 12, color: '#6B6B6B' }}>마지막 기록</AppText>
-            <AppText bold style={{ fontSize: 14, color: '#1A1A1A', marginTop: 2 }}>
+            <AppText style={{ fontSize: 12, color: colors.textSecondary }}>마지막 기록</AppText>
+            <AppText bold style={{ fontSize: 14, color: colors.text, marginTop: 2 }}>
               {lastDate ? formatDateShort(lastDate) : '아직 없어요'}
             </AppText>
           </View>
@@ -67,7 +70,9 @@ export default function HeroCard() {
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: 'rgba(255,255,255,0.6)',
+              backgroundColor: 'rgba(255,252,247,0.72)',
+              borderWidth: 1,
+              borderColor: colors.border,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -78,7 +83,9 @@ export default function HeroCard() {
             onPress={() => router.push('/growth')}
             style={{
               paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.25)',
+              backgroundColor: 'rgba(255,252,247,0.35)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,252,247,0.5)',
             }}
           >
             <AppText style={{ fontSize: 12, color: '#FFFFFF' }}>📈 성장 곡선</AppText>

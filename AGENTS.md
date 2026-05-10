@@ -53,6 +53,16 @@ The test: Every changed line should trace directly to the user's request.
 - After editing Korean text, run a mojibake scan for suspicious fragments before finishing.
 - Do not romanize Korean or replace it with broken text to avoid encoding issues; preserve the original Korean wording.
 
+## Frontend Design System
+
+**UI work must follow the root `DESIGN.md`.**
+
+- Before designing a new screen or changing existing frontend UI, read `DESIGN.md` first.
+- For colors, typography, cards, buttons, toasts, and empty states, `DESIGN.md` is the priority reference.
+- Do not add arbitrary styles that conflict with `DESIGN.md`.
+- If a new design pattern is needed, update `DESIGN.md` first.
+- Include a `DESIGN.md` compliance check in the success criteria for UI work.
+
 ## 4. Goal-Driven Execution
 
 **Define success criteria. Loop until verified.**

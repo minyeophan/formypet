@@ -729,7 +729,7 @@ export default function RecordsScreen() {
 
   return (
     <>
-      <View style={{ flex: 1, backgroundColor: '#F5F3EF', paddingTop: insets.top }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
           <Pressable onPress={() => router.back()} style={{ marginRight: 8 }}>
             <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
@@ -760,7 +760,7 @@ export default function RecordsScreen() {
             onTodayPress={() => setSelectedDate(todayString())}
           />
 
-          <View style={{ marginHorizontal: 20, marginTop: 16, backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', minHeight: 112 }}>
+          <View style={{ marginHorizontal: 20, marginTop: 16, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 112 }}>
             <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <AppText bold style={{ fontSize: 14, color: '#1A1A1A' }}>{dateTitle}</AppText>
               {dayRecords.length > 0 && <AppText style={{ fontSize: 12, color: '#B0A99F' }}>{dayRecords.length}건</AppText>}
@@ -769,7 +769,7 @@ export default function RecordsScreen() {
             {dayRecords.length === 0 ? (
               <View style={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 8, alignItems: 'center', minHeight: 80 }}>
                 <AppText style={{ fontSize: 32, marginBottom: 8 }}>📝</AppText>
-                <AppText style={{ fontSize: 14, color: '#B0A99F' }}>이 날의 기록이 없어요</AppText>
+                <AppText style={{ fontSize: 14, color: colors.muted }}>이 날의 기록이 없어요</AppText>
               </View>
             ) : (
               dayRecords.map((record, index) => {
@@ -777,12 +777,12 @@ export default function RecordsScreen() {
                 const summary = getRecordSummary(record);
                 return (
                   <View key={record.id}>
-                    {index > 0 && <View style={{ height: 1, backgroundColor: '#F0EDE8', marginHorizontal: 16 }} />}
+                    {index > 0 && <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16 }} />}
                     <Pressable
                       onPress={() => openRecordDetail(record)}
                       style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12 }}
                     >
-                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: typeInfo?.bg ?? '#F5F3EF', alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: typeInfo?.bg ?? colors.surfaceSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                         <AppText style={{ fontSize: 20 }}>{typeInfo?.emoji ?? '📌'}</AppText>
                       </View>
                       <View style={{ flex: 1 }}>
@@ -819,7 +819,7 @@ export default function RecordsScreen() {
         enablePanDownToClose
         onClose={handleRecordSheetClose}
         backdropComponent={(props) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />}
-        backgroundStyle={{ backgroundColor: '#FFFFFF', borderRadius: 24 }}
+        backgroundStyle={{ backgroundColor: colors.surface, borderRadius: 24 }}
         handleIndicatorStyle={{ backgroundColor: '#D4CFC8' }}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"

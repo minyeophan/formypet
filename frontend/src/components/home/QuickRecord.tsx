@@ -44,7 +44,7 @@ export default function QuickRecord() {
       {isEditing ? (
         /* 편집 모드: 전체 항목 선택 */
         <>
-          <AppText style={{ fontSize: 12, color: '#B0A99F', marginBottom: 12 }}>
+          <AppText style={{ fontSize: 12, color: colors.muted, marginBottom: 12 }}>
             항목을 눌러 빠른 기록에 추가하거나 제거하세요
           </AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -58,16 +58,16 @@ export default function QuickRecord() {
                     width: 72,
                     aspectRatio: 1,
                     borderRadius: 16,
-                    backgroundColor: selected ? item.bg : '#F5F3EF',
+                    backgroundColor: selected ? item.bg : colors.surfaceSoft,
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 4,
-                    borderWidth: selected ? 2 : 0,
-                    borderColor: selected ? colors.primary : 'transparent',
+                    borderWidth: 1.5,
+                    borderColor: selected ? colors.primary : colors.border,
                   }}
                 >
                   <AppText style={{ fontSize: 24 }}>{item.emoji}</AppText>
-                  <AppText style={{ fontSize: 10, color: selected ? '#1A1A1A' : '#B0A99F' }}>
+                  <AppText style={{ fontSize: 10, color: selected ? colors.text : colors.muted }}>
                     {item.label}
                   </AppText>
                   {selected && (
@@ -89,7 +89,8 @@ export default function QuickRecord() {
         /* 일반 모드: 선택된 항목 가로 스크롤 */
         selectedTypes.length === 0 ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-            <AppText style={{ fontSize: 13, color: '#B0A99F' }}>수정을 눌러 항목을 추가해보세요</AppText>
+            <AppText style={{ fontSize: 26, marginBottom: 6 }}>🐾</AppText>
+            <AppText style={{ fontSize: 13, color: colors.muted }}>수정을 눌러 항목을 추가해보세요</AppText>
           </View>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -105,10 +106,12 @@ export default function QuickRecord() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 4,
+                  borderWidth: 1,
+                  borderColor: colors.border,
                 }}
               >
                 <AppText style={{ fontSize: 26 }}>{item.emoji}</AppText>
-                <AppText style={{ fontSize: 11, color: '#6B6B6B' }}>{item.label}</AppText>
+                <AppText style={{ fontSize: 11, color: colors.textSecondary }}>{item.label}</AppText>
               </Pressable>
             ))}
           </ScrollView>

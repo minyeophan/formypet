@@ -117,10 +117,10 @@ export default function TodayRoutine() {
           <AppText bold style={{ fontSize: 15, color: '#1A1A1A' }}>오늘의 루틴</AppText>
           {activeRoutines.length > 0 && (
             <View style={{
-              backgroundColor: doneCount === activeRoutines.length ? colors.primary : '#E8E4DE',
+              backgroundColor: doneCount === activeRoutines.length ? colors.primary : colors.border,
               borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
             }}>
-              <AppText bold style={{ fontSize: 11, color: doneCount === activeRoutines.length ? '#FFFFFF' : '#6B6B6B' }}>
+              <AppText bold style={{ fontSize: 11, color: doneCount === activeRoutines.length ? '#FFFFFF' : colors.textSecondary }}>
                 {doneCount}/{activeRoutines.length}
               </AppText>
             </View>
@@ -132,12 +132,12 @@ export default function TodayRoutine() {
       </View>
 
       {rows.length === 0 ? (
-        <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-          <AppText style={{ fontSize: 32, marginBottom: 8 }}>📋</AppText>
-          <AppText style={{ fontSize: 13, color: '#B0A99F', marginBottom: 12 }}>아직 등록된 루틴이 없어요</AppText>
+        <View style={{ paddingVertical: 18, alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
+          <AppText style={{ fontSize: 32, marginBottom: 8 }}>🐾</AppText>
+          <AppText style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>아직 등록된 루틴이 없어요</AppText>
           <Pressable
             onPress={() => router.push('/routine')}
-            style={{ backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 20, paddingVertical: 9 }}
+            style={{ backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 9 }}
           >
             <AppText bold style={{ fontSize: 13, color: '#FFFFFF' }}>루틴 등록하기</AppText>
           </Pressable>
@@ -151,7 +151,7 @@ export default function TodayRoutine() {
 
           return (
             <View key={`${row.routineId}-${row.time ?? 'notime'}`}>
-              {index > 0 && <View style={{ height: 1, backgroundColor: '#F0EDE8', marginHorizontal: 4, marginVertical: 2 }} />}
+              {index > 0 && <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4, marginVertical: 2 }} />}
               <Pressable
                 onPress={() => handleTap(row)}
                 onLongPress={() => handleLongPress(row)}
@@ -162,23 +162,25 @@ export default function TodayRoutine() {
                   paddingVertical: 8,
                   paddingHorizontal: 4,
                   borderRadius: 12,
-                  backgroundColor: done ? '#F5F3EF' : 'transparent',
+                  backgroundColor: done ? colors.surfaceSoft : 'transparent',
                 }}
               >
                 <View style={{
                   width: 38, height: 38, borderRadius: 11,
-                  backgroundColor: typeInfo?.bg ?? '#F5F3EF',
+                  backgroundColor: typeInfo?.bg ?? colors.surfaceSoft,
+                  borderWidth: 1,
+                  borderColor: colors.border,
                   alignItems: 'center', justifyContent: 'center',
                   opacity: done ? 0.5 : 1,
                 }}>
                   <AppText style={{ fontSize: 19 }}>{typeInfo?.emoji ?? '📝'}</AppText>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppText bold style={{ fontSize: 14, color: done || overdue ? '#B0A99F' : '#1A1A1A' }}>
+                  <AppText bold style={{ fontSize: 14, color: done || overdue ? colors.muted : colors.text }}>
                     {row.label}
                   </AppText>
                   {row.time && (
-                    <AppText style={{ fontSize: 12, color: overdue ? '#B0A99F' : '#6B6B6B', marginTop: 1 }}>
+                    <AppText style={{ fontSize: 12, color: overdue ? colors.muted : colors.textSecondary, marginTop: 1 }}>
                       {formatTime12h(row.time)}{overdue ? ' (지남)' : ''}
                     </AppText>
                   )}
@@ -188,7 +190,7 @@ export default function TodayRoutine() {
                   width: 26, height: 26, borderRadius: 13,
                   backgroundColor: done ? colors.primary : 'transparent',
                   borderWidth: done ? 0 : 1.5,
-                  borderColor: '#D4CFC8',
+                  borderColor: colors.border,
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   {done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}

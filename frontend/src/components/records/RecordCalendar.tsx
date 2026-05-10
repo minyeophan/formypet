@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { getCalendarDays, todayString } from '@/src/lib/utils';
+import { colors } from '@/src/lib/colors';
 import AppText from '../shared/AppText';
 
 interface Props {
@@ -46,7 +47,7 @@ export default function RecordCalendar({ markedDates, selectedDate, onSelect, ac
   }
 
   return (
-    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, marginHorizontal: 20, padding: 16 }}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border, marginHorizontal: 20, padding: 16 }}>
       {/* 월 헤더 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <Pressable onPress={prevMonth} style={{ padding: 8 }}>

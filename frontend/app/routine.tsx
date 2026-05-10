@@ -363,7 +363,7 @@ export default function RoutineScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#F5F3EF', paddingTop: insets.top }}
+      style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* 헤더 */}
@@ -376,7 +376,7 @@ export default function RoutineScreen() {
 
       <ScrollView keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* 완료 캘린더 */}
-        <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16 }}>
+        <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border, padding: 16 }}>
           {/* 월 네비게이션 */}
           {(() => {
             const now = new Date();
@@ -535,29 +535,30 @@ export default function RoutineScreen() {
           <Pressable
             disabled={deleteBusy}
             onPress={openAdd}
-            style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', opacity: deleteBusy ? 0.6 : 1 }}
+            style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 13, alignItems: 'center', opacity: deleteBusy ? 0.6 : 1 }}
         >
           <AppText bold style={{ color: '#FFFFFF', fontSize: 14 }}>+ 새 루틴 추가</AppText>
         </Pressable>
 
         {/* 루틴 목록 */}
         {filtered.length === 0 ? (
-          <View style={{ marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 32, alignItems: 'center', minHeight: 112 }}>
-            <AppText style={{ fontSize: 14, color: '#B0A99F' }}>등록된 루틴이 없어요. 새 루틴을 추가해 보세요.</AppText>
+          <View style={{ marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border, padding: 32, alignItems: 'center', minHeight: 112 }}>
+            <AppText style={{ fontSize: 32, marginBottom: 8 }}>🐾</AppText>
+            <AppText style={{ fontSize: 14, color: colors.muted }}>등록된 루틴이 없어요. 새 루틴을 추가해 보세요.</AppText>
           </View>
         ) : (
-          <View style={{ marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden' }}>
+          <View style={{ marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
             {filtered.map((r, index) => {
               const typeInfo = QUICK_TYPES.find((t) => t.id === r.typeId);
               return (
                 <View key={r.id}>
-                  {index > 0 && <View style={{ height: 1, backgroundColor: '#F0EDE8', marginHorizontal: 16 }} />}
+                  {index > 0 && <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16 }} />}
                   <Pressable
                     disabled={deleteBusy}
                     onPress={() => openEdit(r)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}
                   >
-                    <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: typeInfo?.bg ?? '#F5F3EF', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: typeInfo?.bg ?? colors.surfaceSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                       <AppText style={{ fontSize: 19 }}>{typeInfo?.emoji ?? '📌'}</AppText>
                     </View>
                     <View style={{ flex: 1 }}>
