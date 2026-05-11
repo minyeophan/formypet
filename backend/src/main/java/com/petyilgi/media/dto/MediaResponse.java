@@ -11,4 +11,8 @@ public record MediaResponse(
     public static MediaResponse of(Long id, String originalName, String contentType, long fileSize, String status) {
         return new MediaResponse(id, "/api/v1/media/" + id, originalName, contentType, fileSize, status);
     }
+
+    public static MediaResponse publicMedia(Long id, String originalName, String contentType, long fileSize, String status) {
+        return new MediaResponse(id, "/api/v1/public/media/" + id, originalName, contentType, fileSize, status);
+    }
 }

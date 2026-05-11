@@ -10,7 +10,6 @@ import { colors } from '@/src/lib/colors';
 import { Routine } from '@/src/types';
 import AppText from '../shared/AppText';
 import { formatTime12h } from '../shared/DrumRollTimePicker';
-import { buildRecordFromRoutineTemplate } from '../shared/RecordDetailForm';
 
 function isActiveToday(r: Routine): boolean {
   const today = todayString();
@@ -49,7 +48,7 @@ interface RoutineRow {
 }
 
 export default function TodayRoutine() {
-  const { pets, activePetId, routines, records, addRecord, deleteRecord, openModal } = usePets();
+  const { pets, activePetId, routines, getRoutineCompletionStatus, markRoutineCompletion, openModal } = usePets();
   const pet = pets.find((p) => p.id === activePetId);
   const today = todayString();
 
@@ -74,24 +73,14 @@ export default function TodayRoutine() {
     return a.time.localeCompare(b.time);
   });
 
-  function isDone(routineId: string, time: string | null): string | null {
-    const rec = records.find(
-      (r) =>
-        r.routineId === routineId &&
-        r.date === today &&
-        (time === null || (r.time ?? '').startsWith(time)),
-    );
-    return rec?.id ?? null;
+  function isDone(routineId: string): boolean {
+    return getRoutineCompletionStatus(routineId, today) === 'COMPLETED';
   }
 
   async function handleTap(row: RoutineRow) {
-    const doneId = isDone(row.routineId, row.time);
+    const done = isDone(row.routineId);
     try {
-      if (doneId) {
-        await deleteRecord(doneId);
-      } else {
-        await addRecord(buildRecordFromRoutineTemplate(row.routine, today, row.time));
-      }
+      await markRoutineCompletion(row.routineId, today, done ? 'PENDING' : 'COMPLETED');
     } catch (error) {
       Toast.show({ type: 'error', text1: error instanceof Error ? error.message : 'Routine update failed' });
     }
@@ -106,8 +95,7 @@ export default function TodayRoutine() {
   }
 
   const doneCount = activeRoutines.filter((r) => {
-    if (r.times.length === 0) return !!isDone(r.id, null);
-    return r.times.every((t) => !!isDone(r.id, t));
+    return isDone(r.id);
   }).length;
 
   return (
@@ -132,21 +120,37 @@ export default function TodayRoutine() {
       </View>
 
       {rows.length === 0 ? (
-        <View style={{ paddingVertical: 18, alignItems: 'center', backgroundColor: colors.surfaceSoft, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
-          <AppText style={{ fontSize: 32, marginBottom: 8 }}>🐾</AppText>
-          <AppText style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>아직 등록된 루틴이 없어요</AppText>
+        <View>
+          <View
+            style={{
+              paddingVertical: 18,
+              alignItems: 'center',
+              backgroundColor: colors.surfaceSoft,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <AppText style={{ fontSize: 32, marginBottom: 8 }}>🐾</AppText>
+            <AppText style={{ fontSize: 13, color: colors.muted }}>아직 등록된 루틴이 없어요</AppText>
+          </View>
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
           <Pressable
             onPress={() => router.push('/routine')}
-            style={{ backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 9 }}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: 16,
+              paddingVertical: 13,
+              alignItems: 'center',
+            }}
           >
-            <AppText bold style={{ fontSize: 13, color: '#FFFFFF' }}>루틴 등록하기</AppText>
+            <AppText bold style={{ fontSize: 14, color: '#FFFFFF' }}>루틴 등록하기</AppText>
           </Pressable>
         </View>
       ) : (
         rows.map((row, index) => {
           const typeInfo = QUICK_TYPES.find((t) => t.id === row.typeId);
-          const doneId = isDone(row.routineId, row.time);
-          const done = !!doneId;
+          const done = isDone(row.routineId);
           const overdue = !done && row.time !== null && isOverdue(row.time);
 
           return (

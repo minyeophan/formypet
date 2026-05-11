@@ -6,7 +6,7 @@ import Toast from 'react-native-toast-message';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { usePets } from '@/src/lib/pet-context';
-import { QUICK_TYPES } from '@/src/lib/record-types';
+import { QUICK_TYPES, SUPPORTED_QUICK_TYPES } from '@/src/lib/record-types';
 import { todayString } from '@/src/lib/utils';
 import { colors } from '@/src/lib/colors';
 import AppText from './AppText';
@@ -101,9 +101,8 @@ export default function RecordModal() {
     if (modalOpen) closeModal();
   }
 
-  function runPendingRecordCreate() {
-    const recordToCreate = pendingRecordCreateRef.current;
-    if (!recordToCreate || isRunningCreateRef.current) return;
+  function runPendingRecordCreate(recordToCreate: Omit<ActivityRecord, 'id'>) {
+    if (isRunningCreateRef.current) return;
     isRunningCreateRef.current = true;
 
     InteractionManager.runAfterInteractions(async () => {
@@ -114,20 +113,18 @@ export default function RecordModal() {
         Toast.show({ type: 'error', text1: error instanceof Error ? error.message : 'Save failed' });
       } finally {
         isRunningCreateRef.current = false;
-        resetAll();
-        setLocalSelectedType(null);
-        setModalStep('type');
-        setSheetMounted(false);
+        updatePendingRecordCreate(null);
         setIsSaving(false);
-        if (modalOpen) closeModal();
       }
     });
   }
 
   function handleSheetChange(index: number) {
     if (index !== -1) return;
-    if (pendingRecordCreateRef.current) {
-      runPendingRecordCreate();
+    const recordToCreate = pendingRecordCreateRef.current;
+    if (recordToCreate) {
+      handleSheetClose();
+      runPendingRecordCreate(recordToCreate);
       return;
     }
     handleSheetClose();
@@ -188,7 +185,7 @@ export default function RecordModal() {
                 <View style={{ marginBottom: 16 }} />
               )}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                {QUICK_TYPES.map((t) => (
+                {SUPPORTED_QUICK_TYPES.map((t) => (
                   <Pressable
                     key={t.id}
                     onPress={() => chooseType(t.id)}

@@ -17,7 +17,7 @@ export default function RecentRecords() {
 
   if (recentRecords.length === 0) {
     return (
-      <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 ,paddingBottom: 16 }}>
         <View style={{ backgroundColor: colors.surfaceSoft, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 24, alignItems: 'center' }}>
           <AppText style={{ fontSize: 32, marginBottom: 8 }}>🐾</AppText>
           <AppText style={{ fontSize: 14, color: colors.muted }}>아직 기록이 없어요</AppText>

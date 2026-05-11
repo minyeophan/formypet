@@ -15,6 +15,8 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -42,7 +44,7 @@ public class MediaService {
     public MediaResponse uploadPetMedia(String email, Long petId, MultipartFile file) {
         User user = findUser(email);
         Pet pet = findOwnedPet(user, petId);
-        return storeAndInsert(user.getId(), pet.getId(), null, file);
+        return storeAndInsert(user.getId(), pet.getId(), null, "PRIVATE", "pet-" + pet.getId(), file);
     }
 
     @Transactional
@@ -50,7 +52,18 @@ public class MediaService {
         User user = findUser(email);
         Pet pet = findOwnedPet(user, petId);
         ensureRecordBelongsToPet(pet.getId(), recordId);
-        return storeAndInsert(user.getId(), pet.getId(), recordId, file);
+        return storeAndInsert(user.getId(), pet.getId(), recordId, "PRIVATE", "pet-" + pet.getId(), file);
+    }
+
+    @Transactional
+    public MediaResponse uploadUserProfileMedia(String email, MultipartFile file) {
+        User user = findUser(email);
+        return storeAndInsert(user.getId(), null, null, "PRIVATE", "profile", file);
+    }
+
+    @Transactional
+    public MediaResponse uploadCommunityMedia(User user, MultipartFile file) {
+        return storeAndInsert(user.getId(), null, null, "PUBLIC", "community", file);
     }
 
     @Transactional(readOnly = true)
@@ -68,42 +81,71 @@ public class MediaService {
         }
     }
 
-    private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, MultipartFile file) {
+    @Transactional(readOnly = true)
+    public LoadedMedia loadPublic(Long mediaId) {
+        Map<String, Object> media = findMedia(mediaId);
+        if (!"PUBLIC".equals(media.get("visibility"))) {
+            throw new AccessDeniedException("Cannot access private media from public endpoint.");
+        }
+        try {
+            return mediaStorage.load((String) media.get("storage_key"), (String) media.get("content_type"));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read media file.", e);
+        }
+    }
+
+    private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, String visibility, String folderName, MultipartFile file) {
         validateFile(file);
         String extension = extension(file.getOriginalFilename());
         StoredMedia stored;
         try {
-            stored = mediaStorage.store(userId, petId, extension, file);
+            stored = mediaStorage.store(userId, folderName, extension, file);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to store media file.", e);
         }
+        String contentType = contentType(extension, stored.contentType());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO media_resources
-                        (user_id, pet_id, record_id, storage_key, original_name, content_type, extension, file_size, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, Statement.RETURN_GENERATED_KEYS);
-            ps.setLong(1, userId);
-            ps.setLong(2, petId);
-            if (recordId == null) {
-                ps.setObject(3, null);
-            } else {
-                ps.setLong(3, recordId);
-            }
-            ps.setString(4, stored.storageKey());
-            ps.setString(5, file.getOriginalFilename());
-            ps.setString(6, stored.contentType());
-            ps.setString(7, extension);
-            ps.setLong(8, stored.fileSize());
-            ps.setString(9, "STORED");
-            ps.setObject(10, LocalDateTime.now());
-            return ps;
-        }, keyHolder);
+        try {
+            jdbcTemplate.update(connection -> {
+                PreparedStatement ps = connection.prepareStatement("""
+                        INSERT INTO media_resources
+                            (user_id, pet_id, record_id, storage_key, original_name, content_type, extension, file_size, status, visibility, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, Statement.RETURN_GENERATED_KEYS);
+                ps.setLong(1, userId);
+                if (petId == null) {
+                    ps.setObject(2, null);
+                } else {
+                    ps.setLong(2, petId);
+                }
+                if (recordId == null) {
+                    ps.setObject(3, null);
+                } else {
+                    ps.setLong(3, recordId);
+                }
+                ps.setString(4, stored.storageKey());
+                ps.setString(5, file.getOriginalFilename());
+                ps.setString(6, contentType);
+                ps.setString(7, extension);
+                ps.setLong(8, stored.fileSize());
+                ps.setString(9, "STORED");
+                ps.setString(10, visibility);
+                ps.setObject(11, LocalDateTime.now());
+                return ps;
+            }, keyHolder);
+        } catch (RuntimeException e) {
+            deleteQuietly(stored.storageKey());
+            throw e;
+        }
+
+        registerRollbackCleanup(stored.storageKey());
 
         Long mediaId = Objects.requireNonNull(keyHolder.getKey()).longValue();
-        return MediaResponse.of(mediaId, file.getOriginalFilename(), stored.contentType(), stored.fileSize(), "STORED");
+        if ("PUBLIC".equals(visibility)) {
+            return MediaResponse.publicMedia(mediaId, file.getOriginalFilename(), contentType, stored.fileSize(), "STORED");
+        }
+        return MediaResponse.of(mediaId, file.getOriginalFilename(), contentType, stored.fileSize(), "STORED");
     }
 
     private void validateFile(MultipartFile file) {
@@ -126,6 +168,37 @@ public class MediaService {
         return originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
     }
 
+    private String contentType(String extension, String fallback) {
+        return switch (extension) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "webp" -> "image/webp";
+            default -> fallback;
+        };
+    }
+
+    private void registerRollbackCleanup(String storageKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    deleteQuietly(storageKey);
+                }
+            }
+        });
+    }
+
+    private void deleteQuietly(String storageKey) {
+        try {
+            mediaStorage.delete(storageKey);
+        } catch (IOException ignored) {
+            // Best-effort orphan cleanup.
+        }
+    }
+
     private void ensureRecordBelongsToPet(Long petId, Long recordId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM activity_records WHERE id = ? AND pet_id = ?",
@@ -140,7 +213,7 @@ public class MediaService {
 
     private Map<String, Object> findMedia(Long mediaId) {
         var rows = jdbcTemplate.queryForList("""
-                SELECT id, user_id, storage_key, content_type
+                SELECT id, user_id, storage_key, content_type, visibility
                 FROM media_resources
                 WHERE id = ?
                 """, mediaId);

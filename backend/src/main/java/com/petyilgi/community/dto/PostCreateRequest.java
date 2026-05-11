@@ -2,8 +2,18 @@ package com.petyilgi.community.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 public record PostCreateRequest(
+        @NotBlank String title,
+        @NotBlank String category,
         @NotBlank String content,
-        String petSpecies
+        String petSpecies,
+        PollCreateRequest poll
 ) {
+    public record PollCreateRequest(
+            @NotBlank String question,
+            List<@NotBlank String> options
+    ) {
+    }
 }

@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Pet, ActivityRecord, Routine } from '../types';
-import { DEFAULT_QUICK_IDS } from './record-types';
+import { DEFAULT_QUICK_IDS, SUPPORTED_RECORD_TYPE_IDS } from './record-types';
 import { todayString } from './utils';
 import { useAuth } from './auth-context';
 import { mediaApi, petApi, recordApi, routineApi } from '../services/api';
+import { saveRecordWithMedia } from './record-save';
+
+type RoutineCompletionStatus = 'PENDING' | 'COMPLETED';
 
 interface PetContextValue {
   isLoading: boolean;
@@ -38,6 +41,8 @@ interface PetContextValue {
   addRoutine: (r: Omit<Routine, 'id' | 'notificationIds'>) => Promise<Routine>;
   updateRoutine: (id: string, updates: Partial<Routine>) => Promise<void>;
   deleteRoutine: (id: string) => Promise<void>;
+  getRoutineCompletionStatus: (routineId: string, date: string) => RoutineCompletionStatus;
+  markRoutineCompletion: (routineId: string, date: string, status: RoutineCompletionStatus) => Promise<void>;
 }
 
 const PetContext = createContext<PetContextValue | null>(null);
@@ -56,6 +61,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   const [modalInitialDraft, setModalInitialDraft] = useState<Partial<ActivityRecord> | undefined>(undefined);
   const [quickTypeIds, setQuickTypeIdsState] = useState<string[]>(DEFAULT_QUICK_IDS);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routineCompletions, setRoutineCompletions] = useState<Record<string, RoutineCompletionStatus>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -63,16 +69,19 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       setIsLoading(true);
       try {
-        const [onboarded, quickIdsRaw] = await Promise.all([
-          AsyncStorage.getItem('hasOnboarded'),
-          AsyncStorage.getItem('quickTypeIds'),
-        ]);
-        if (quickIdsRaw) setQuickTypeIdsState(JSON.parse(quickIdsRaw));
+        const quickIdsRaw = await AsyncStorage.getItem('quickTypeIds');
+        if (quickIdsRaw) {
+          const parsed = JSON.parse(quickIdsRaw);
+          if (Array.isArray(parsed)) {
+            setQuickTypeIdsState(parsed.filter((id) => SUPPORTED_RECORD_TYPE_IDS.includes(id)));
+          }
+        }
 
         if (!isAuthenticated) {
           setPets([]);
           setRecords([]);
           setRoutines([]);
+          setRoutineCompletions({});
           setActivePetId('');
           setHasOnboardedState(false);
           return;
@@ -82,13 +91,31 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setPets(loadedPets);
         setActivePetId((current) => current || loadedPets[0]?.id || '');
-        setHasOnboardedState(!!onboarded || loadedPets.length > 0);
+        setHasOnboardedState(loadedPets.length > 0);
 
         const recordSets = await Promise.all(loadedPets.map((pet) => recordApi.list(pet.id)));
         const routineSets = await Promise.all(loadedPets.map((pet) => routineApi.list(pet.id)));
+        const today = todayString();
+        const todaySets = await Promise.all(loadedPets.map((pet) => routineApi.today(pet.id, today)));
         if (cancelled) return;
         setRecords(recordSets.flat());
         setRoutines(routineSets.flat());
+        setRoutineCompletions(() => {
+          const next: Record<string, RoutineCompletionStatus> = {};
+          for (const item of todaySets.flat()) {
+            next[completionKey(item.completion.routineId, item.completion.scheduledDate)] = item.completion.status;
+          }
+          return next;
+        });
+      } catch {
+        if (!cancelled) {
+          setPets([]);
+          setRecords([]);
+          setRoutines([]);
+          setRoutineCompletions({});
+          setActivePetId('');
+          setHasOnboardedState(false);
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -102,7 +129,6 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
 
   const setHasOnboarded = useCallback((v: boolean) => {
     setHasOnboardedState(v);
-    AsyncStorage.setItem('hasOnboarded', v ? 'true' : '');
   }, []);
 
   const addPet = useCallback(async (pet: Omit<Pet, 'id' | 'accentColor' | 'bgLight'>) => {
@@ -128,12 +154,12 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   }, [activePetId]);
 
   const addRecord = useCallback(async (record: Omit<ActivityRecord, 'id'>) => {
-    const created = await recordApi.create(record.petId, record);
-    const uploadedMedia = await Promise.all((record.poopPhotos ?? []).map((uri) => mediaApi.uploadRecord(record.petId, created.id, uri)));
-    const newRecord = uploadedMedia.length > 0
-      ? { ...created, poopPhotos: uploadedMedia.map((media) => media.url) }
-      : created;
-    setRecords((prev) => [...prev, newRecord]);
+    const saved = await saveRecordWithMedia(record, {
+      createRecord: (draft) => recordApi.create(draft.petId, draft),
+      uploadRecord: mediaApi.uploadRecord,
+      removeRecord: recordApi.remove,
+    });
+    setRecords((prev) => [...prev, saved]);
   }, []);
 
   const updateRecord = useCallback(async (recordId: string, updates: Partial<Omit<ActivityRecord, 'id'>>) => {
@@ -186,11 +212,30 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     const existing = routines.find((r) => r.id === id);
     if (existing) await routineApi.remove(existing.petId, id);
     setRoutines((prev) => prev.filter((r) => r.id !== id));
+    setRoutineCompletions((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (key.startsWith(`${id}:`)) delete next[key];
+      }
+      return next;
+    });
+  }, [routines]);
+
+  const getRoutineCompletionStatus = useCallback((routineId: string, date: string): RoutineCompletionStatus => {
+    return routineCompletions[completionKey(routineId, date)] ?? 'PENDING';
+  }, [routineCompletions]);
+
+  const markRoutineCompletion = useCallback(async (routineId: string, date: string, status: RoutineCompletionStatus) => {
+    const existing = routines.find((r) => r.id === routineId);
+    if (!existing) return;
+    await routineApi.complete(existing.petId, routineId, date, status);
+    setRoutineCompletions((prev) => ({ ...prev, [completionKey(routineId, date)]: status }));
   }, [routines]);
 
   const setQuickTypeIds = useCallback((ids: string[]) => {
-    setQuickTypeIdsState(ids);
-    AsyncStorage.setItem('quickTypeIds', JSON.stringify(ids));
+    const supportedIds = ids.filter((id) => SUPPORTED_RECORD_TYPE_IDS.includes(id));
+    setQuickTypeIdsState(supportedIds);
+    AsyncStorage.setItem('quickTypeIds', JSON.stringify(supportedIds));
   }, []);
 
   const value = useMemo<PetContextValue>(() => ({
@@ -220,6 +265,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     addRoutine,
     updateRoutine,
     deleteRoutine,
+    getRoutineCompletionStatus,
+    markRoutineCompletion,
   }), [
     isLoading,
     hasOnboarded,
@@ -245,6 +292,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     addRoutine,
     updateRoutine,
     deleteRoutine,
+    getRoutineCompletionStatus,
+    markRoutineCompletion,
   ]);
 
   return (
@@ -252,6 +301,10 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
       {children}
     </PetContext.Provider>
   );
+}
+
+function completionKey(routineId: string, date: string): string {
+  return `${routineId}:${date}`;
 }
 
 export function usePets(): PetContextValue {

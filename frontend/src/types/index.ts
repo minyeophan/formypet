@@ -80,9 +80,27 @@ export interface Routine {
 export interface Post {
   id: string;
   author: string;
+  title: string;
+  category: string;
   petSpecies: string;
   content: string;
   likes: number;
+  commentsCount: number;
   likedByMe: boolean;
   createdAt: string; // ISO 날짜 문자열
+  mediaUrls: string[];
+  poll?: PostPoll | null;
+}
+
+export interface PostPoll {
+  id: string;
+  question: string;
+  options: PostPollOption[];
+}
+
+export interface PostPollOption {
+  id: string;
+  label: string;
+  votesCount: number;
+  votedByMe: boolean;
 }

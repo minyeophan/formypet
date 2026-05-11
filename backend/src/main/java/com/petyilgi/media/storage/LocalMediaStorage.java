@@ -23,10 +23,10 @@ public class LocalMediaStorage implements MediaStorage {
     }
 
     @Override
-    public StoredMedia store(Long userId, Long petId, String extension, MultipartFile file) throws IOException {
+    public StoredMedia store(Long userId, String folderName, String extension, MultipartFile file) throws IOException {
         String month = YearMonth.now().format(MONTH_FORMAT);
         String filename = UUID.randomUUID() + "." + extension;
-        Path relativePath = Path.of(userId.toString(), petId.toString(), month, filename);
+        Path relativePath = Path.of(userId.toString(), folderName, month, filename);
         Path target = root.resolve(relativePath);
         Files.createDirectories(target.getParent());
         file.transferTo(target);
@@ -40,5 +40,14 @@ public class LocalMediaStorage implements MediaStorage {
             throw new IllegalArgumentException("Invalid media path.");
         }
         return new LoadedMedia(Files.readAllBytes(target), contentType);
+    }
+
+    @Override
+    public void delete(String storageKey) throws IOException {
+        Path target = root.resolve(storageKey).normalize();
+        if (!target.startsWith(root.normalize())) {
+            throw new IllegalArgumentException("Invalid media path.");
+        }
+        Files.deleteIfExists(target);
     }
 }

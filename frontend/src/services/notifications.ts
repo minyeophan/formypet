@@ -19,6 +19,8 @@ try {
   Notifications = null;
 }
 
+export const notificationsSupported = Notifications !== null;
+
 export async function requestPermission(): Promise<boolean> {
   if (!Notifications) return false;
   const { status: existing } = await Notifications.getPermissionsAsync();

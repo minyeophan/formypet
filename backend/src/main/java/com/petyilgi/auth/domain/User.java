@@ -26,6 +26,9 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    @Column(name = "profile_media_id")
+    private Long profileMediaId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -40,5 +43,15 @@ public class User {
         user.createdAt    = LocalDateTime.now();
         user.updatedAt    = LocalDateTime.now();
         return user;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateProfileMediaId(Long profileMediaId) {
+        this.profileMediaId = profileMediaId;
+        this.updatedAt = LocalDateTime.now();
     }
 }

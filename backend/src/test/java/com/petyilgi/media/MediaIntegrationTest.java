@@ -17,7 +17,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,11 +45,13 @@ class MediaIntegrationTest extends IntegrationTestSupport {
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
+    private static final Path MEDIA_ROOT = Path.of("build/media-test-storage");
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
+        deleteDirectory(MEDIA_ROOT);
     }
 
     @Test
@@ -82,6 +87,43 @@ class MediaIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void recordListIncludesAttachedMediaUrl() throws Exception {
+        String token = registerAndGetToken("record-media-list@example.com", "recordmedialist");
+        Long petId = createPet(token, "Coco");
+        Long recordId = createRecord(token, petId);
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/records/" + recordId + "/media")
+                        .file(image("poop.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/pets/" + petId + "/records")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].mediaUrls[0]").value(matchesPattern("/api/v1/media/[0-9]+")));
+    }
+
+    @Test
+    void webpUploadUsesExtensionContentTypeWhenRequestTypeIsGeneric() throws Exception {
+        String token = registerAndGetToken("webp-content-type@example.com", "webptype");
+        Long petId = createPet(token, "Dubu");
+
+        MvcResult result = mockMvc.perform(multipart("/api/v1/pets/" + petId + "/media")
+                        .file(new MockMultipartFile("file", "photo.webp", MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                                "image-bytes-1".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.contentType").value("image/webp"))
+                .andReturn();
+
+        Long mediaId = readId(result);
+        mockMvc.perform(get("/api/v1/media/" + mediaId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/webp"));
+    }
+
+    @Test
     void otherUserMediaReadReturns403() throws Exception {
         String ownerToken = registerAndGetToken("media-owner@example.com", "owner");
         String otherToken = registerAndGetToken("media-other@example.com", "other");
@@ -91,6 +133,47 @@ class MediaIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/v1/media/" + mediaId)
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void privateMediaCannotBeReadFromPublicEndpoint() throws Exception {
+        String token = registerAndGetToken("private-public-media@example.com", "privatepublic");
+        Long petId = createPet(token, "Bori");
+        Long mediaId = uploadMedia(token, petId, "owner.jpg");
+
+        mockMvc.perform(get("/api/v1/public/media/" + mediaId))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void communityPublicMediaCanBeReadWithoutAuthentication() throws Exception {
+        String token = registerAndGetToken("community-public-media@example.com", "publicmedia");
+        MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/posts")
+                        .file(new MockMultipartFile(
+                                "payload",
+                                "",
+                                MediaType.APPLICATION_JSON_VALUE,
+                                objectMapper.writeValueAsBytes(Map.of(
+                                        "title", "사진 글",
+                                        "category", "FREE",
+                                        "content", "public image"
+                                ))
+                        ))
+                        .file(new MockMultipartFile("files", "community.webp", "image/webp",
+                                "image-bytes-1".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.mediaUrls[0]").value(matchesPattern("/api/v1/public/media/[0-9]+")))
+                .andReturn();
+
+        var data = (Map<?, ?>) objectMapper.readValue(result.getResponse().getContentAsString(), Map.class).get("data");
+        var mediaUrls = (java.util.List<?>) data.get("mediaUrls");
+        String publicUrl = mediaUrls.getFirst().toString();
+
+        mockMvc.perform(get(publicUrl))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/webp"))
+                .andExpect(content().bytes("image-bytes-1".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
@@ -123,6 +206,23 @@ class MediaIntegrationTest extends IntegrationTestSupport {
         assertThat(count).isZero();
     }
 
+    @Test
+    void databaseInsertFailureDeletesStoredFile() throws Exception {
+        String token = registerAndGetToken("media-db-fail@example.com", "dbfail");
+        Long petId = createPet(token, "Dubu");
+        String longName = "a".repeat(260) + ".png";
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/media")
+                        .file(new MockMultipartFile("file", longName, MediaType.IMAGE_PNG_VALUE,
+                                "image-bytes-1".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isInternalServerError());
+
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_resources", Integer.class);
+        assertThat(count).isZero();
+        assertThat(countFiles(MEDIA_ROOT)).isZero();
+    }
+
     private Long uploadMedia(String token, Long petId, String originalName) throws Exception {
         MvcResult result = mockMvc.perform(multipart("/api/v1/pets/" + petId + "/media")
                         .file(image(originalName))
@@ -136,6 +236,26 @@ class MediaIntegrationTest extends IntegrationTestSupport {
         String contentType = originalName.endsWith(".webp") ? "image/webp" : MediaType.IMAGE_PNG_VALUE;
         return new MockMultipartFile("file", originalName, contentType,
                 "image-bytes-1".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private long countFiles(Path root) throws Exception {
+        if (!Files.exists(root)) {
+            return 0;
+        }
+        try (var paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile).count();
+        }
+    }
+
+    private void deleteDirectory(Path root) throws Exception {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (var paths = Files.walk(root)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
     }
 
     private Long createRecord(String token, Long petId) throws Exception {

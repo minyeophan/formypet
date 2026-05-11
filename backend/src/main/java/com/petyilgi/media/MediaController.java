@@ -41,4 +41,12 @@ public class MediaController {
                 .contentType(MediaType.parseMediaType(media.contentType()))
                 .body(media.bytes());
     }
+
+    @GetMapping("/api/v1/public/media/{mediaId}")
+    public ResponseEntity<byte[]> loadPublic(@PathVariable Long mediaId) {
+        LoadedMedia media = mediaService.loadPublic(mediaId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(media.contentType()))
+                .body(media.bytes());
+    }
 }

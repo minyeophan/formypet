@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePets } from '@/src/lib/pet-context';
-import { QUICK_TYPES } from '@/src/lib/record-types';
+import { SUPPORTED_QUICK_TYPES } from '@/src/lib/record-types';
 import { todayString } from '@/src/lib/utils';
 import { colors } from '@/src/lib/colors';
 import AppText from '../shared/AppText';
+import QuickRecordIcon from '../shared/QuickRecordIcon';
 
 export default function QuickRecord() {
   const { openModal, quickTypeIds, setQuickTypeIds, records, activePetId } = usePets();
   const [isEditing, setIsEditing] = useState(false);
 
-  const selectedTypes = QUICK_TYPES.filter((t) => quickTypeIds.includes(t.id));
+  const selectedTypes = SUPPORTED_QUICK_TYPES.filter((t) => quickTypeIds.includes(t.id));
   const todayCount = records.filter((r) => r.petId === activePetId && r.date === todayString()).length;
 
   function toggleType(typeId: string) {
@@ -48,7 +49,7 @@ export default function QuickRecord() {
             항목을 눌러 빠른 기록에 추가하거나 제거하세요
           </AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {QUICK_TYPES.map((item) => {
+            {SUPPORTED_QUICK_TYPES.map((item) => {
               const selected = quickTypeIds.includes(item.id);
               return (
                 <Pressable
@@ -66,7 +67,7 @@ export default function QuickRecord() {
                     borderColor: selected ? colors.primary : colors.border,
                   }}
                 >
-                  <AppText style={{ fontSize: 24 }}>{item.emoji}</AppText>
+                  <QuickRecordIcon typeId={item.id} fallback={item.emoji} size={30} muted={!selected} />
                   <AppText style={{ fontSize: 10, color: selected ? colors.text : colors.muted }}>
                     {item.label}
                   </AppText>
@@ -110,7 +111,7 @@ export default function QuickRecord() {
                   borderColor: colors.border,
                 }}
               >
-                <AppText style={{ fontSize: 26 }}>{item.emoji}</AppText>
+                <QuickRecordIcon typeId={item.id} fallback={item.emoji} size={32} />
                 <AppText style={{ fontSize: 11, color: colors.textSecondary }}>{item.label}</AppText>
               </Pressable>
             ))}

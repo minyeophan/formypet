@@ -21,6 +21,21 @@ export const QUICK_TYPES: QuickType[] = [
   { id: 'weight', label: '체중', emoji: '⚖️', bg: '#F3E5F5', category: 'growth' },
 ];
 
+export const SUPPORTED_RECORD_TYPE_IDS = [
+  'meal',
+  'water',
+  'medicine',
+  'poop',
+  'walk',
+  'sleep',
+  'play',
+  'weight',
+  'vet',
+  'checkup',
+];
+
+export const SUPPORTED_QUICK_TYPES = QUICK_TYPES.filter((type) => SUPPORTED_RECORD_TYPE_IDS.includes(type.id));
+
 export const DEFAULT_QUICK_IDS = ['meal', 'walk', 'poop', 'water'];
 
 export const SPECIES_LIST = [

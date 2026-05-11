@@ -1,9 +1,9 @@
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
-import { Alert, Image, InteractionManager, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, InteractionManager, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import Toast from 'react-native-toast-message';
@@ -572,6 +572,7 @@ export default function RecordsScreen() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeletingRecord, setIsDeletingRecord] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [, setPendingRecordAction] = useState<PendingRecordAction>(null);
   const [pendingTime, setPendingTime] = useState('09:00');
   const [pendingVetDate, setPendingVetDate] = useState(todayString());
@@ -582,6 +583,7 @@ export default function RecordsScreen() {
     onConfirm: (value: string) => void;
     allowDecimal?: boolean;
   } | null>(null);
+  const recordSnapPoints = useMemo(() => ['90%'], []);
 
   if (!pet) return null;
 
@@ -607,12 +609,12 @@ export default function RecordsScreen() {
         if (action.type === 'update') {
           await updateRecord(action.recordId, action.updates);
           showSuccessToast('기록 수정 완료');
-        } else {
+        } else if (action.type === 'delete') {
           await deleteRecord(action.recordId);
           showSuccessToast('기록 삭제 완료');
         }
       } catch (error) {
-        Toast.show({ type: 'error', text1: error instanceof Error ? error.message : action.type === 'update' ? 'Update failed' : 'Delete failed' });
+        Toast.show({ type: 'error', text1: error instanceof Error ? error.message : action.type === 'delete' ? 'Delete failed' : 'Update failed' });
       } finally {
         isRunningRecordActionRef.current = false;
         updatePendingRecordAction(null);
@@ -623,10 +625,13 @@ export default function RecordsScreen() {
   }
 
   function handleRecordSheetClose() {
-    if (pendingRecordActionRef.current) runPendingRecordAction();
+    if (pendingRecordActionRef.current) {
+      runPendingRecordAction();
+    }
     setSheetMode(null);
     setSheetRecord(null);
     setDraft(null);
+    setDeleteConfirmVisible(false);
     if (!pendingRecordActionRef.current) {
       setIsSavingEdit(false);
       setIsDeletingRecord(false);
@@ -634,6 +639,8 @@ export default function RecordsScreen() {
   }
 
   function openRecordDetail(record: ActivityRecord) {
+    setDeleteConfirmVisible(false);
+    setIsDeletingRecord(false);
     setSheetMode('detail');
     setSheetRecord(record);
     setDraft(null);
@@ -642,6 +649,8 @@ export default function RecordsScreen() {
 
   function openRecordEdit(record: ActivityRecord) {
     if (isSavingEdit || isDeletingRecord) return;
+    setDeleteConfirmVisible(false);
+    setIsDeletingRecord(false);
     setSheetMode('edit');
     setSheetRecord(record);
     setDraft(makeDraft(record));
@@ -650,22 +659,19 @@ export default function RecordsScreen() {
     requestAnimationFrame(() => recordSheetRef.current?.expand());
   }
 
+  function startDeleteConfirm() {
+    if (isSavingEdit || isDeletingRecord) return;
+    setDeleteConfirmVisible(true);
+  }
+
   function confirmDelete(id: string) {
     if (isSavingEdit || isDeletingRecord) return;
-    Alert.alert('기록 삭제', '이 기록을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: () => {
-          setIsDeletingRecord(true);
-          updatePendingRecordAction({ type: 'delete', recordId: id });
-          timeSheetRef.current?.close();
-          dateSheetRef.current?.close();
-          recordSheetRef.current?.close();
-        },
-      },
-    ]);
+    setIsDeletingRecord(true);
+    setNumpadConfig(null);
+    timeSheetRef.current?.close();
+    dateSheetRef.current?.close();
+    updatePendingRecordAction({ type: 'delete', recordId: id });
+    recordSheetRef.current?.close();
   }
 
   async function saveEdit() {
@@ -815,10 +821,10 @@ export default function RecordsScreen() {
       <BottomSheet
         ref={recordSheetRef}
         index={-1}
-        snapPoints={[sheetMode === 'edit' ? '90%' : '85%']}
-        enablePanDownToClose
+        snapPoints={recordSnapPoints}
+        enablePanDownToClose={!isDeletingRecord}
         onClose={handleRecordSheetClose}
-        backdropComponent={(props) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />}
+        backdropComponent={(props) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} pressBehavior={isDeletingRecord ? 'none' : 'close'} />}
         backgroundStyle={{ backgroundColor: colors.surface, borderRadius: 24 }}
         handleIndicatorStyle={{ backgroundColor: '#D4CFC8' }}
         keyboardBehavior="interactive"
@@ -869,19 +875,42 @@ export default function RecordsScreen() {
                 }}
               />
               <Pressable
-                disabled={isSavingEdit || isDeletingRecord}
+                disabled={isSavingEdit || isDeletingRecord || deleteConfirmVisible}
                 onPress={saveEdit}
-                style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: isSavingEdit || isDeletingRecord ? 0.6 : 1 }}
+                style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: isSavingEdit || isDeletingRecord || deleteConfirmVisible ? 0.6 : 1 }}
               >
                 <AppText bold style={{ color: '#FFFFFF', fontSize: 15 }}>{isSavingEdit ? '저장 중...' : '수정 완료'}</AppText>
               </Pressable>
-              <Pressable
-                disabled={isSavingEdit || isDeletingRecord}
-                onPress={() => confirmDelete(sheetRecord.id)}
-                style={{ borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#EF4444', opacity: isSavingEdit || isDeletingRecord ? 0.6 : 1 }}
-              >
-                <AppText bold style={{ color: '#EF4444', fontSize: 15 }}>{isDeletingRecord ? '삭제 중...' : '기록 삭제'}</AppText>
-              </Pressable>
+              {deleteConfirmVisible ? (
+                <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2', padding: 12 }}>
+                  <AppText bold style={{ fontSize: 13, color: '#991B1B', marginBottom: 4 }}>기록을 삭제할까요?</AppText>
+                  <AppText style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 12 }}>삭제한 기록은 되돌릴 수 없어요.</AppText>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Pressable
+                      disabled={isDeletingRecord}
+                      onPress={() => setDeleteConfirmVisible(false)}
+                      style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FCA5A5', opacity: isDeletingRecord ? 0.6 : 1 }}
+                    >
+                      <AppText bold style={{ color: '#7F1D1D', fontSize: 13 }}>취소</AppText>
+                    </Pressable>
+                    <Pressable
+                      disabled={isDeletingRecord}
+                      onPress={() => confirmDelete(sheetRecord.id)}
+                      style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: '#EF4444', opacity: isDeletingRecord ? 0.6 : 1 }}
+                    >
+                      <AppText bold style={{ color: '#FFFFFF', fontSize: 13 }}>{isDeletingRecord ? '삭제 중...' : '삭제'}</AppText>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  disabled={isSavingEdit || isDeletingRecord}
+                  onPress={startDeleteConfirm}
+                  style={{ borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#EF4444', opacity: isSavingEdit || isDeletingRecord ? 0.6 : 1 }}
+                >
+                  <AppText bold style={{ color: '#EF4444', fontSize: 15 }}>기록 삭제</AppText>
+                </Pressable>
+              )}
             </>
           ) : null}
         </BottomSheetScrollView>

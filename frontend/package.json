@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "node --experimental-strip-types test/root-redirect.test.mjs && node --experimental-strip-types test/record-save.test.mjs && node --experimental-strip-types test/api-source.test.mjs && node --experimental-strip-types test/pet-context-source.test.mjs && node --experimental-strip-types test/quick-record-icons-source.test.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/noto-sans-kr": "^0.4.3",

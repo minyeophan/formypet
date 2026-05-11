@@ -202,3 +202,24 @@ paa/
 - Remaining: Manual Expo device/emulator verification is still pending for the flicker paths.
 - Next step: Run Expo with backend available, then manually check home quick record, records add/type selection/save, record edit/delete, routine create/update/delete, and routine delete followed by `+ 새 루틴 추가`.
 - Warnings: Frontend is currently untracked in git from this repository state, so `git diff -- frontend/...` does not show these file changes. Keep using UTF-8 reads/scans for Korean text.
+
+## Handover - 2026-05-11 My Page Profile + Routine Empty State
+- Goal: Rework My Page header/management layout, add editable user profile support, and separate the home Today Routine empty-state CTA.
+- Done: Added backend profile endpoints in `UserProfileController`/`UserProfileService`, `UserProfileResponse`, `UserProfileUpdateRequest`, `V9__add_user_profile_media.sql`, and `UserProfileIntegrationTest`. Added frontend `userApi`, profile state/actions in `auth-context.tsx`, `/my/profile`, updated `app/(tabs)/my.tsx`, `app/my/[section].tsx`, and `TodayRoutine.tsx`.
+- Remaining: Manual Expo device/emulator verification is still pending for profile image picker/upload and small-screen visual overlap.
+- Next step: Run backend and Expo together, then verify My Page header navigation, profile name/photo update reflection, notification placeholder route, management tile layout, and Today Routine empty state.
+- Warnings: Existing `V1`-`V8` Flyway files were not modified. Keep using UTF-8 reads/scans for Korean text; do not judge Korean from default Windows console output.
+
+## Handover - 2026-05-11 My Page UI Cleanup
+- Goal: Apply the requested My Page/header cleanup and align the home routine empty-state CTA divider.
+- Done: Removed the My Page header email line, limited the profile navigation press target to avatar/nickname/chevron, removed the pet section title and three summary chips from `frontend/app/(tabs)/my.tsx`, removed unused `records`/`routines` usage and `SummaryChip`, fixed management menu tiles to equal width/flex basis, and added the empty-state divider in `frontend/src/components/home/TodayRoutine.tsx`.
+- Remaining: Manual Expo device/emulator visual verification is still pending.
+- Next step: Run Expo and manually verify My Page header tap areas, notification button navigation, equal management tile sizing, and the Today Routine empty-state divider.
+- Warnings: The workspace already had many unrelated modified/untracked files. Do not revert them. Keep using UTF-8 reads/scans for Korean text.
+
+## Handover - 2026-05-11 Review Fixes
+- Goal: Apply review findings for activity record routine ownership, routine completion toggles, media round-trip, auth boot cleanup, media orphan cleanup, notification MVP consistency, and webp content type handling.
+- Done: Added RED/GREEN backend coverage in `ActivityRecordIntegrationTest` and `MediaIntegrationTest`; validated `routineId` on activity record create/update in `ActivityRecordService`; added `mediaUrls` to `ActivityRecordResponse`; normalized media content types and added rollback/insert-failure file cleanup in `MediaService`/`MediaStorage`; wired frontend `TodayRoutine` through routine completion APIs via `pet-context.tsx` and `routineApi.complete`; mapped backend record `mediaUrls` back to `poopPhotos`; cleared invalid boot tokens in `auth-context.tsx`; disabled notification persistence/UI while `expo-notifications` is not installed.
+- Remaining: Manual Expo device/emulator verification is still pending for TodayRoutine tap/long-press, poop photo reload, invalid-token boot, and disabled notification switch behavior.
+- Next step: Run backend and Expo together, then manually verify those four flows on a device/emulator.
+- Warnings: Existing dirty/untracked files predated this pass and were not reverted. Existing Flyway `V1`-`V9` files were not modified; no `V10` was needed.

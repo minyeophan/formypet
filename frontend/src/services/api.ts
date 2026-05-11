@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { ActivityRecord, Pet, Post, Routine } from '../types';
+import { createUploadFilePart, UploadAsset } from './upload-file-part';
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -30,6 +31,7 @@ type BackendRecord = {
   time?: string | null;
   routineId?: number | null;
   note?: string | null;
+  mediaUrls?: string[] | null;
   detail?: Record<string, unknown> | null;
 };
 
@@ -53,11 +55,25 @@ type BackendRoutine = {
 type BackendPost = {
   id: number;
   authorNickname: string;
+  title: string;
+  category: string;
   petSpecies: string;
   content: string;
   likesCount: number;
+  commentsCount: number;
   liked: boolean;
   createdAt: string;
+  mediaUrls: string[];
+  poll?: {
+    id: number;
+    question: string;
+    options: {
+      id: number;
+      label: string;
+      votesCount: number;
+      votedByMe: boolean;
+    }[];
+  } | null;
 };
 
 type BackendPostLike = {
@@ -68,7 +84,29 @@ type BackendPostLike = {
 
 type FeedResponse = {
   items: BackendPost[];
-  nextCursor: number | null;
+  nextCursor: string | null;
+};
+
+type RoutineCompletionStatus = 'PENDING' | 'COMPLETED';
+
+type BackendRoutineCompletion = {
+  routineId: number;
+  scheduledDate: string;
+  status: RoutineCompletionStatus;
+  completedAt?: string | null;
+};
+
+type BackendTodayRoutineResponse = {
+  routines: {
+    routine: BackendRoutine;
+    completion: BackendRoutineCompletion;
+  }[];
+};
+
+export type UserProfile = {
+  email: string;
+  nickname: string;
+  profileImageUrl?: string | null;
 };
 
 export type MediaResponse = {
@@ -168,6 +206,7 @@ function mapRecord(record: BackendRecord): ActivityRecord {
     ...(record.time ? { time: record.time.slice(0, 5) } : {}),
     ...(record.routineId ? { routineId: String(record.routineId) } : {}),
     ...(record.note ? { note: record.note } : {}),
+    ...(record.mediaUrls && record.mediaUrls.length > 0 ? { poopPhotos: record.mediaUrls.map(mediaUrl) } : {}),
   } as ActivityRecord;
 }
 
@@ -187,11 +226,8 @@ function mediaUrl(url: string): string {
   return url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
 }
 
-function filePart(uri: string) {
-  const name = uri.split('/').pop() || `upload-${Date.now()}.jpg`;
-  const extension = name.split('.').pop()?.toLowerCase();
-  const type = extension === 'png' ? 'image/png' : 'image/jpeg';
-  return { uri, name, type } as unknown as Blob;
+function filePart(asset: string | UploadAsset) {
+  return createUploadFilePart(asset) as unknown as Blob;
 }
 
 function mapRoutine(routine: BackendRoutine): Routine {
@@ -207,7 +243,7 @@ function mapRoutine(routine: BackendRoutine): Routine {
     times: routine.times ?? [],
     ...(routine.note ? { note: routine.note } : {}),
     ...(routine.detail ? { detail: routine.detail as Partial<ActivityRecord> } : {}),
-    notificationEnabled: routine.notificationEnabled ?? false,
+    notificationEnabled: false,
     notificationIds: [],
   };
 }
@@ -221,11 +257,32 @@ function mapPost(post: BackendPost): Post {
   return {
     id: String(post.id),
     author: post.authorNickname,
-    petSpecies: post.petSpecies,
+    title: post.title,
+    category: post.category,
+    petSpecies: post.petSpecies ?? 'dog',
     content: post.content,
     likes: post.likesCount,
+    commentsCount: post.commentsCount,
     likedByMe: post.liked,
     createdAt: post.createdAt,
+    mediaUrls: (post.mediaUrls ?? []).map(mediaUrl),
+    poll: post.poll ? {
+      id: String(post.poll.id),
+      question: post.poll.question,
+      options: post.poll.options.map((option) => ({
+        id: String(option.id),
+        label: option.label,
+        votesCount: option.votesCount,
+        votedByMe: option.votedByMe,
+      })),
+    } : null,
+  };
+}
+
+function mapProfile(profile: UserProfile): UserProfile {
+  return {
+    ...profile,
+    profileImageUrl: profile.profileImageUrl ? mediaUrl(profile.profileImageUrl) : null,
   };
 }
 
@@ -255,6 +312,26 @@ export const authApi = {
       }).catch(() => undefined);
     }
     await clearTokens();
+  },
+};
+
+export const userApi = {
+  async getMe() {
+    return mapProfile(await request<UserProfile>('/api/v1/users/me'));
+  },
+  async updateMe(nickname: string) {
+    return mapProfile(await request<UserProfile>('/api/v1/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ nickname }),
+    }));
+  },
+  async uploadProfileImage(uri: string) {
+    const form = new FormData();
+    form.append('file', filePart(uri));
+    return mapProfile(await request<UserProfile>('/api/v1/users/me/profile-image', {
+      method: 'POST',
+      body: form,
+    }));
   },
 };
 
@@ -306,31 +383,55 @@ export const mediaApi = {
 
 export const routineApi = {
   list: async (petId: string) => (await request<BackendRoutine[]>(`/api/v1/pets/${petId}/routines`)).map(mapRoutine),
+  today: async (petId: string, date: string) =>
+    (await request<BackendTodayRoutineResponse>(`/api/v1/pets/${petId}/routines/today?date=${date}`)).routines.map((item) => ({
+      routine: mapRoutine(item.routine),
+      completion: {
+        routineId: String(item.completion.routineId),
+        scheduledDate: item.completion.scheduledDate,
+        status: item.completion.status,
+      },
+    })),
   create: async (petId: string, routine: Omit<Routine, 'id' | 'notificationIds'>) =>
     mapRoutine(await request<BackendRoutine>(`/api/v1/pets/${petId}/routines`, {
       method: 'POST',
-      body: JSON.stringify(routinePayload(routine)),
+      body: JSON.stringify({ ...routinePayload(routine), notificationEnabled: false }),
     })),
   update: async (petId: string, routineId: string, updates: Partial<Routine>) =>
     mapRoutine(await request<BackendRoutine>(`/api/v1/pets/${petId}/routines/${routineId}`, {
       method: 'PUT',
-      body: JSON.stringify(routinePayload(updates)),
+      body: JSON.stringify({ ...routinePayload(updates), notificationEnabled: false }),
     })),
+  complete: async (petId: string, routineId: string, date: string, status: RoutineCompletionStatus) =>
+    request<BackendRoutineCompletion>(`/api/v1/pets/${petId}/routines/${routineId}/completions/${date}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
   remove: async (petId: string, routineId: string) =>
     request<void>(`/api/v1/pets/${petId}/routines/${routineId}`, { method: 'DELETE' }),
 };
 
 export const communityApi = {
-  async feed(cursor?: string, limit = 20) {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (cursor) params.set('cursor', cursor);
+  async feed(options: { category?: string; sort?: 'latest' | 'popular'; cursor?: string; limit?: number } = {}) {
+    const params = new URLSearchParams({ limit: String(options.limit ?? 10), sort: options.sort ?? 'latest' });
+    if (options.category) params.set('category', options.category);
+    if (options.cursor) params.set('cursor', options.cursor);
     const feed = await request<FeedResponse>(`/api/v1/posts?${params.toString()}`);
-    return { items: feed.items.map(mapPost), nextCursor: feed.nextCursor ? String(feed.nextCursor) : null };
+    return { items: feed.items.map(mapPost), nextCursor: feed.nextCursor };
   },
-  create: async (content: string) =>
-    mapPost(await request<BackendPost>('/api/v1/posts', { method: 'POST', body: JSON.stringify({ content }) })),
+  create: async (
+    payload: { title: string; category: string; content: string; poll?: { question: string; options: string[] } | null },
+    files: UploadAsset[] = [],
+  ) => {
+    const form = new FormData();
+    form.append('payload', JSON.stringify(payload));
+    files.forEach((file) => form.append('files', filePart(file)));
+    return mapPost(await request<BackendPost>('/api/v1/posts', { method: 'POST', body: form }));
+  },
   like: async (postId: string) => {
     const like = await request<BackendPostLike>(`/api/v1/posts/${postId}/like`, { method: 'POST' });
     return { postId: String(like.postId), likedByMe: like.liked, likes: like.likesCount };
   },
+  vote: async (postId: string, optionId: string) =>
+    mapPost(await request<BackendPost>(`/api/v1/posts/${postId}/poll/options/${optionId}/vote`, { method: 'POST' })),
 };

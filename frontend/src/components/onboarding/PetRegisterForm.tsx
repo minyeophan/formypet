@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import AppText from '../shared/AppText';
@@ -15,6 +16,8 @@ interface FormValues {
 
 export default function PetRegisterForm({ onComplete, skipOnboarding }: { onComplete: () => void; skipOnboarding?: boolean }) {
   const { addPet, setHasOnboarded } = usePets();
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: { name: '', species: '', birthDate: todayString(), gender: '' },
   });
@@ -23,15 +26,22 @@ export default function PetRegisterForm({ onComplete, skipOnboarding }: { onComp
   const selectedGender = watch('gender');
 
   async function onSubmit(data: FormValues) {
-    if (!data.name.trim() || !data.species) return;
-    await addPet({
-      name: data.name.trim(),
-      species: data.species,
-      birthDate: data.birthDate,
-      ...(data.gender ? { gender: data.gender } : {}),
-    });
-    if (!skipOnboarding) setHasOnboarded(true);
-    onComplete();
+    if (submittingRef.current || !data.name.trim() || !data.species) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      await addPet({
+        name: data.name.trim(),
+        species: data.species,
+        birthDate: data.birthDate,
+        ...(data.gender ? { gender: data.gender } : {}),
+      });
+      if (!skipOnboarding) setHasOnboarded(true);
+      onComplete();
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -119,12 +129,13 @@ export default function PetRegisterForm({ onComplete, skipOnboarding }: { onComp
       {/* 등록 버튼 */}
       <Pressable
         onPress={handleSubmit(onSubmit)}
+        disabled={submitting}
         style={{
           backgroundColor: '#F4A460', borderRadius: 16, paddingVertical: 16,
-          alignItems: 'center', marginTop: 32,
+          alignItems: 'center', marginTop: 32, opacity: submitting ? 0.7 : 1,
         }}
       >
-        <AppText bold style={{ color: '#FFFFFF', fontSize: 15 }}>시작하기</AppText>
+        <AppText bold style={{ color: '#FFFFFF', fontSize: 15 }}>{submitting ? '등록 중...' : '시작하기'}</AppText>
       </Pressable>
     </ScrollView>
   );

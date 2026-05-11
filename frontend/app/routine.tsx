@@ -9,7 +9,7 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetVie
 import { addDays, differenceInDays, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { usePets } from '@/src/lib/pet-context';
-import { QUICK_TYPES } from '@/src/lib/record-types';
+import { QUICK_TYPES, SUPPORTED_QUICK_TYPES } from '@/src/lib/record-types';
 import { colors } from '@/src/lib/colors';
 import { getCalendarDays, todayString } from '@/src/lib/utils';
 import { Routine } from '@/src/types';
@@ -23,6 +23,7 @@ import DrumRollTimePicker, { formatTime12h } from '@/src/components/shared/DrumR
 import AppText from '@/src/components/shared/AppText';
 import { showSuccessToast } from '@/src/components/shared/AppToast';
 import {
+  notificationsSupported,
   requestPermission,
   scheduleRoutineNotifications,
   cancelRoutineNotifications,
@@ -144,6 +145,8 @@ export default function RoutineScreen() {
   const [pendingTime, setPendingTime] = useState('09:00');
   const [editorBusy, setEditorBusy] = useState(false);
   const [pendingEditorAction, setPendingEditorAction] = useState<PendingEditorAction>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [isDeletingRoutine, setIsDeletingRoutine] = useState(false);
 
   const petRoutines = useMemo(
     () => (pet ? routines.filter((r) => r.petId === pet.id) : []),
@@ -162,12 +165,14 @@ export default function RoutineScreen() {
     [petRoutines, selectedCalDate],
   );
   const currentDetail = form.typeId ? (detailDrafts[form.typeId] ?? createEmptyRecordDetail(form.typeId)) : {};
-  const deleteBusy = editorBusy;
+  const deleteBusy = editorBusy || isDeletingRoutine;
 
   if (!pet) return null;
 
   function openAdd() {
     if (deleteBusy) return;
+    setDeleteConfirmVisible(false);
+    setIsDeletingRoutine(false);
     setEditingId(null);
     setEditingRoutineSnapshot(null);
     setForm({ ...EMPTY_FORM, petId: pet!.id, startDate: todayString(), detail: {} });
@@ -183,6 +188,8 @@ export default function RoutineScreen() {
 
   function openEdit(r: Routine) {
     if (deleteBusy) return;
+    setDeleteConfirmVisible(false);
+    setIsDeletingRoutine(false);
     setEditingId(r.id);
     setEditingRoutineSnapshot(r);
     setForm({
@@ -196,7 +203,7 @@ export default function RoutineScreen() {
       note: r.note ?? '',
       detail: r.detail ?? {},
       monthlyInterval: r.monthlyInterval ?? 1,
-      notificationEnabled: r.notificationEnabled,
+      notificationEnabled: notificationsSupported && r.notificationEnabled,
     });
     setDetailDrafts({ [r.typeId]: r.detail ?? createEmptyRecordDetail(r.typeId) });
     setLabelFocused(false);
@@ -251,17 +258,18 @@ export default function RoutineScreen() {
           } else {
             await updateRoutine(action.routineId, { notificationIds: [] });
           }
-        } else {
+        } else if (action.type === 'delete') {
           if (action.existingRoutine) await cancelRoutineNotifications(action.existingRoutine);
           await deleteRoutine(action.routineId);
           showSuccessToast('루틴 삭제 완료');
         }
       } catch (error) {
-        Alert.alert('', error instanceof Error ? error.message : action.type === 'create' ? 'Create failed' : action.type === 'update' ? 'Update failed' : 'Delete failed');
+        Alert.alert('', error instanceof Error ? error.message : action.type === 'create' ? 'Create failed' : action.type === 'delete' ? 'Delete failed' : 'Update failed');
       } finally {
         isRunningEditorActionRef.current = false;
         updatePendingEditorAction(null);
         setEditorBusy(false);
+        setIsDeletingRoutine(false);
         resetEditorState();
       }
     });
@@ -282,6 +290,7 @@ export default function RoutineScreen() {
       times,
       note: form.note.trim() || undefined,
       detail: sanitizeRecordDetail(form.typeId, currentDetail),
+      notificationEnabled: notificationsSupported && form.notificationEnabled,
     };
 
     if (editingId) {
@@ -296,24 +305,29 @@ export default function RoutineScreen() {
     sheetRef.current?.close();
   }
 
-  function handleDelete(id: string) {
+  function handleDelete() {
     if (deleteBusy) return;
-    Alert.alert('루틴 삭제', '이 루틴을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제', style: 'destructive', onPress: () => {
-          updatePendingEditorAction({ type: 'delete', routineId: id, existingRoutine: editingRoutineSnapshot ?? routines.find((r) => r.id === id) ?? null });
-          setEditorBusy(true);
-          dateSheetRef.current?.close();
-          timeSheetRef.current?.close();
-          sheetRef.current?.close();
-        },
-      },
-    ]);
+    setDeleteConfirmVisible(true);
+  }
+
+  function confirmRoutineDelete(id: string) {
+    if (isDeletingRoutine) return;
+    const existingRoutine = editingRoutineSnapshot ?? routines.find((r) => r.id === id) ?? null;
+    setIsDeletingRoutine(true);
+    dateSheetRef.current?.close();
+    timeSheetRef.current?.close();
+    updatePendingEditorAction({ type: 'delete', routineId: id, existingRoutine });
+    sheetRef.current?.close();
   }
 
   function handleEditorClose() {
-    if (pendingEditorActionRef.current) runPendingEditorAction();
+    if (pendingEditorActionRef.current) {
+      runPendingEditorAction();
+      return;
+    }
+    setDeleteConfirmVisible(false);
+    setIsDeletingRoutine(false);
+    resetEditorState();
   }
 
   function toggleDay(d: number) {
@@ -519,7 +533,7 @@ export default function RoutineScreen() {
           >
             <AppText style={{ fontSize: 13, color: filterTypeId === null ? '#FFFFFF' : '#3A3A3A' }}>전체</AppText>
           </Pressable>
-          {QUICK_TYPES.map((t) => (
+          {SUPPORTED_QUICK_TYPES.map((t) => (
             <Pressable
               key={t.id}
               onPress={() => setFilterTypeId(filterTypeId === t.id ? null : t.id)}
@@ -583,10 +597,10 @@ export default function RoutineScreen() {
         ref={sheetRef}
         index={-1}
         snapPoints={['90%']}
-        enablePanDownToClose
+        enablePanDownToClose={!isDeletingRoutine}
         onClose={handleEditorClose}
         backdropComponent={(props) => (
-          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} pressBehavior={isDeletingRoutine ? 'none' : 'close'} />
         )}
         backgroundStyle={{ backgroundColor: '#FFFFFF', borderRadius: 24 }}
         handleIndicatorStyle={{ backgroundColor: '#D4CFC8' }}
@@ -642,7 +656,7 @@ export default function RoutineScreen() {
           {/* 타입 */}
           <AppText bold style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 8 }}>타입</AppText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            {QUICK_TYPES.map((t) => (
+            {SUPPORTED_QUICK_TYPES.map((t) => (
               <Pressable
                 key={t.id}
                 disabled={deleteBusy}
@@ -835,28 +849,49 @@ export default function RoutineScreen() {
               <AppText style={{ fontSize: 11, color: '#B0A99F', marginTop: 2 }}>시간 설정이 있을 때만 작동해요.</AppText>
             </View>
             <Switch
-              value={form.notificationEnabled}
-              disabled={deleteBusy}
-              onValueChange={(v) => setForm((f) => ({ ...f, notificationEnabled: v }))}
+              value={notificationsSupported && form.notificationEnabled}
+              disabled={deleteBusy || !notificationsSupported}
+              onValueChange={(v) => setForm((f) => ({ ...f, notificationEnabled: notificationsSupported && v }))}
               trackColor={{ false: '#E8E4DE', true: colors.primary }}
               thumbColor="#FFFFFF"
             />
           </View>
 
           <Pressable
-            disabled={deleteBusy}
+            disabled={deleteBusy || deleteConfirmVisible}
             onPress={handleSave}
-            style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', opacity: deleteBusy ? 0.6 : 1 }}
+            style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', opacity: deleteBusy || deleteConfirmVisible ? 0.6 : 1 }}
           >
-            <AppText bold style={{ color: '#FFFFFF', fontSize: 14 }}>{editorBusy && pendingEditorAction?.type !== 'delete' ? '저장 중...' : '루틴 저장'}</AppText>
+            <AppText bold style={{ color: '#FFFFFF', fontSize: 14 }}>{editorBusy && pendingEditorAction ? '저장 중...' : '루틴 저장'}</AppText>
           </Pressable>
-          {editingId ? (
+          {editingId && deleteConfirmVisible ? (
+            <View style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2', padding: 12 }}>
+              <AppText bold style={{ fontSize: 13, color: '#991B1B', marginBottom: 4 }}>루틴을 삭제할까요?</AppText>
+              <AppText style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 12 }}>삭제한 루틴은 되돌릴 수 없어요.</AppText>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable
+                  disabled={isDeletingRoutine}
+                  onPress={() => setDeleteConfirmVisible(false)}
+                  style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FCA5A5', opacity: isDeletingRoutine ? 0.6 : 1 }}
+                >
+                  <AppText bold style={{ color: '#7F1D1D', fontSize: 13 }}>취소</AppText>
+                </Pressable>
+                <Pressable
+                  disabled={isDeletingRoutine}
+                  onPress={() => confirmRoutineDelete(editingId)}
+                  style={{ flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: '#EF4444', opacity: isDeletingRoutine ? 0.6 : 1 }}
+                >
+                  <AppText bold style={{ color: '#FFFFFF', fontSize: 13 }}>{isDeletingRoutine ? '삭제 중...' : '삭제'}</AppText>
+                </Pressable>
+              </View>
+            </View>
+          ) : editingId ? (
             <Pressable
               disabled={deleteBusy}
-              onPress={() => handleDelete(editingId)}
+              onPress={handleDelete}
               style={{ borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#EF4444', opacity: deleteBusy ? 0.6 : 1 }}
             >
-              <AppText bold style={{ color: '#EF4444', fontSize: 14 }}>{editorBusy && pendingEditorAction?.type === 'delete' ? '삭제 중...' : '루틴 삭제'}</AppText>
+              <AppText bold style={{ color: '#EF4444', fontSize: 14 }}>루틴 삭제</AppText>
             </Pressable>
           ) : null}
         </BottomSheetScrollView>

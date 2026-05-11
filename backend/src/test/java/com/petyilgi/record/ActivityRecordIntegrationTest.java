@@ -71,6 +71,7 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     void createRoutineRecordPersistsRoutineId() throws Exception {
         String token = registerAndGetToken("routine-record@example.com", "routine-record");
         Long petId = createPet(token, "Maro");
+        Long routineId = createRoutine(token, petId, "Water", "water");
 
         mockMvc.perform(post(recordsUrl(petId))
                         .header("Authorization", "Bearer " + token)
@@ -79,17 +80,83 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
                                 "typeId", "water",
                                 "date", "2026-05-09",
                                 "time", "08:00",
-                                "routineId", 42,
+                                "routineId", routineId,
                                 "detail", Map.of("amount", 200)
                         ))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.routineId").value(42));
+                .andExpect(jsonPath("$.data.routineId").value(routineId));
 
         mockMvc.perform(get(recordsUrl(petId))
                         .header("Authorization", "Bearer " + token)
                         .param("date", "2026-05-09"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].routineId").value(42));
+                .andExpect(jsonPath("$.data[0].routineId").value(routineId));
+    }
+
+    @Test
+    void createRecordWithUnknownRoutineReturns400() throws Exception {
+        String token = registerAndGetToken("unknown-routine-record@example.com", "unknown-routine");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(post(recordsUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "typeId", "water",
+                                "date", "2026-05-09",
+                                "routineId", 999999,
+                                "detail", Map.of("amount", 200)
+                        ))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createRecordWithOtherPetsRoutineReturns403() throws Exception {
+        String token = registerAndGetToken("other-pet-routine-record@example.com", "other-pet-routine");
+        Long petId = createPet(token, "Maro");
+        Long otherPetId = createPet(token, "Bori");
+        Long otherRoutineId = createRoutine(token, otherPetId, "Other water", "water");
+
+        mockMvc.perform(post(recordsUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "typeId", "water",
+                                "date", "2026-05-09",
+                                "routineId", otherRoutineId,
+                                "detail", Map.of("amount", 200)
+                        ))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRecordRoutineIdRequiresSamePetRoutine() throws Exception {
+        String token = registerAndGetToken("update-routine-record@example.com", "update-routine");
+        Long petId = createPet(token, "Maro");
+        Long otherPetId = createPet(token, "Bori");
+        Long recordId = createRecord(token, petId, "water", Map.of("amount", 200));
+        Long otherRoutineId = createRoutine(token, otherPetId, "Other water", "water");
+
+        mockMvc.perform(put(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("routineId", otherRoutineId))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRecordCanAttachSamePetRoutine() throws Exception {
+        String token = registerAndGetToken("attach-routine-record@example.com", "attach-routine");
+        Long petId = createPet(token, "Maro");
+        Long recordId = createRecord(token, petId, "water", Map.of("amount", 200));
+        Long routineId = createRoutine(token, petId, "Water", "water");
+
+        mockMvc.perform(put(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("routineId", routineId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routineId").value(routineId));
     }
 
     @Test
@@ -205,6 +272,22 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
                                 "date", date,
                                 "time", "09:00",
                                 "detail", detail
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result);
+    }
+
+    private Long createRoutine(String token, Long petId, String label, String typeId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/pets/" + petId + "/routines")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "label", label,
+                                "typeId", typeId,
+                                "repeatType", "daily",
+                                "startDate", "2026-05-09",
+                                "times", java.util.List.of("08:00")
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn();

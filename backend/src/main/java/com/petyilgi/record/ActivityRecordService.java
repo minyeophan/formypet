@@ -41,6 +41,7 @@ public class ActivityRecordService {
     public ActivityRecordResponse create(String email, Long petId, ActivityRecordCreateRequest request) {
         Pet pet = findOwnedPet(email, petId);
         validateType(request.typeId());
+        validateRoutineBelongsToPet(pet.getId(), request.routineId());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
@@ -108,14 +109,16 @@ public class ActivityRecordService {
         Pet pet = findOwnedPet(email, petId);
         Map<String, Object> current = findBaseRecord(pet.getId(), recordId);
         String typeId = (String) current.get("type_id");
+        validateRoutineBelongsToPet(pet.getId(), request.routineId());
 
         jdbcTemplate.update("""
                 UPDATE activity_records
-                SET date = ?, time = ?, note = ?, updated_at = ?
+                SET date = ?, time = ?, routine_id = ?, note = ?, updated_at = ?
                 WHERE id = ? AND pet_id = ?
                 """,
                 request.date() != null ? request.date() : current.get("date"),
                 request.time() != null ? request.time() : current.get("time"),
+                request.routineId() != null ? request.routineId() : current.get("routine_id"),
                 request.note() != null ? request.note() : current.get("note"),
                 LocalDateTime.now(),
                 recordId,
@@ -151,6 +154,7 @@ public class ActivityRecordService {
                 normalizeTime(row.get("time")),
                 row.get("routine_id") == null ? null : ((Number) row.get("routine_id")).longValue(),
                 (String) row.get("note"),
+                findMediaUrls(id),
                 findDetail(id, typeId)
         );
     }
@@ -165,6 +169,17 @@ public class ActivityRecordService {
             throw new IllegalArgumentException("활동 기록을 찾을 수 없습니다.");
         }
         return rows.getFirst();
+    }
+
+    private List<String> findMediaUrls(Long recordId) {
+        return jdbcTemplate.queryForList("""
+                SELECT id
+                FROM media_resources
+                WHERE record_id = ?
+                ORDER BY id
+                """, Long.class, recordId).stream()
+                .map(id -> "/api/v1/media/" + id)
+                .toList();
     }
 
     private Map<String, Object> findDetail(Long recordId, String typeId) {
@@ -267,6 +282,19 @@ public class ActivityRecordService {
     private void validateType(String typeId) {
         if (!SUPPORTED_TYPES.contains(typeId)) {
             throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
+        }
+    }
+
+    private void validateRoutineBelongsToPet(Long petId, Long routineId) {
+        if (routineId == null) {
+            return;
+        }
+        List<Long> petIds = jdbcTemplate.queryForList("SELECT pet_id FROM routines WHERE id = ?", Long.class, routineId);
+        if (petIds.isEmpty()) {
+            throw new IllegalArgumentException("Routine not found.");
+        }
+        if (!petIds.getFirst().equals(petId)) {
+            throw new AccessDeniedException("Cannot attach routine from another pet.");
         }
     }
 
