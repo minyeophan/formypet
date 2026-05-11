@@ -1,1 +1,18 @@
 node_modules
+
+# local agent/config artifacts
+.codex/
+docs/superpowers/plans/
+
+# backend build/runtime artifacts
+backend/.gradle/
+backend/build/
+backend/storage/
+backend/hs_err_pid*.log
+backend/replay_pid*.log
+hs_err_pid*.log
+
+# frontend local runtime artifacts
+frontend/.env
+frontend/*.log
+frontend/*.err.log
