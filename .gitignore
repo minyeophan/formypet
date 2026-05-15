@@ -25,14 +25,14 @@ frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
 
 #제외 문서
-  AGENTS.md
-  CLAUDE.md
-  DESIGN.md
-  docs/ADR.md
-  docs/AI_MISTAKES.md
-  docs/AI_WORKFLOW.md
-  docs/BACKEND_RULES.md
-  docs/CONTEXT.md
-  docs/FRONTEND_STATUS.md
-  docs/PHASE_PLAN.md
-  docs/PRD.md
+AGENTS.md
+CLAUDE.md
+DESIGN.md
+docs/ADR.md
+docs/AI_MISTAKES.md
+docs/AI_WORKFLOW.md
+docs/BACKEND_RULES.md
+docs/CONTEXT.md
+docs/FRONTEND_STATUS.md
+docs/PHASE_PLAN.md
+docs/PRD.md
