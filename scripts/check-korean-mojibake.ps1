@@ -4,6 +4,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
 
 $roots = @(
+    '.codex',
     'docs',
     'tasks',
     'backend/src',
@@ -70,7 +71,8 @@ function Test-IsExcluded([System.IO.FileInfo] $file) {
 }
 
 function Test-IsAllowedExample([string] $relativePath, [string] $line) {
-    return $relativePath -eq 'AGENTS.md' -and $line.Contains('mojibake such as')
+    $allowedExample = -join ([char[]](0xC88F, 0x0020, 0x7337, 0x0020, 0xF9CD, 0x0020, 0xC493))
+    return $relativePath -eq 'docs\AI_MISTAKES.md' -and $line.Contains($allowedExample)
 }
 
 $files = New-Object System.Collections.Generic.List[System.IO.FileInfo]

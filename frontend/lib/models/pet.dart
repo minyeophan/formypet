@@ -1,0 +1,88 @@
+class Pet {
+  final String id;
+  final String name;
+  final String species;
+  final String birthDate;
+  final String accentColor;
+  final String bgLight;
+  final String? gender;
+  final double? weight;
+  final String? animalRegistrationNumber;
+  final bool? neutered;
+  final String? specialNotes;
+  final String? diseases;
+
+  const Pet({
+    required this.id,
+    required this.name,
+    required this.species,
+    required this.birthDate,
+    required this.accentColor,
+    required this.bgLight,
+    this.gender,
+    this.weight,
+    this.animalRegistrationNumber,
+    this.neutered,
+    this.specialNotes,
+    this.diseases,
+  });
+
+  factory Pet.fromJson(Map<String, dynamic> j) => Pet(
+        // Backend returns Long id — convert to String
+        id: j['id'].toString(),
+        name: j['name'] as String,
+        species: j['species'] as String,
+        birthDate: j['birthDate'] as String,
+        accentColor: j['accentColor'] as String? ?? '#FF8A65',
+        bgLight: j['bgLight'] as String? ?? '#FFF3E0',
+        // gender enum: male | female (lowercase) — may be null
+        gender: j['gender'] as String?,
+        weight: j['weight'] != null
+            ? double.tryParse(j['weight'].toString())
+            : null,
+        animalRegistrationNumber:
+            j['animalRegistrationNumber'] as String?,
+        neutered: j['neutered'] as bool?,
+        specialNotes: j['specialNotes'] as String?,
+        diseases: j['diseases'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'species': species,
+        'birthDate': birthDate,
+        'accentColor': accentColor,
+        'bgLight': bgLight,
+        if (gender != null) 'gender': gender,
+        if (weight != null) 'weight': weight,
+        if (animalRegistrationNumber != null)
+          'animalRegistrationNumber': animalRegistrationNumber,
+        if (neutered != null) 'neutered': neutered,
+        if (specialNotes != null) 'specialNotes': specialNotes,
+        if (diseases != null) 'diseases': diseases,
+      };
+
+  Pet copyWith({
+    String? name,
+    String? species,
+    String? birthDate,
+    String? accentColor,
+    String? bgLight,
+    String? gender,
+    double? weight,
+  }) =>
+      Pet(
+        id: id,
+        name: name ?? this.name,
+        species: species ?? this.species,
+        birthDate: birthDate ?? this.birthDate,
+        accentColor: accentColor ?? this.accentColor,
+        bgLight: bgLight ?? this.bgLight,
+        gender: gender ?? this.gender,
+        weight: weight ?? this.weight,
+        animalRegistrationNumber: animalRegistrationNumber,
+        neutered: neutered,
+        specialNotes: specialNotes,
+        diseases: diseases,
+      );
+}

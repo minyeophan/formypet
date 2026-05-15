@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 ## 철학
-MVP 속도 최우선. 로컬 데이터만으로 동작하는 완전한 프론트엔드 MVP 먼저. 외부 의존성 최소화. Expo managed workflow에서 벗어나지 않는다.
+초기에는 프론트엔드 MVP 속도를 우선했고, 현재는 Spring Boot 백엔드와 Expo 앱을 `/api/v1` 계약으로 연동한 상태를 기준으로 한다. Expo managed workflow는 유지한다.
 
 ---
 
@@ -25,10 +25,10 @@ MVP 속도 최우선. 로컬 데이터만으로 동작하는 완전한 프론트
 **이유**: 네이티브 제스처 기반 (react-native-gesture-handler). 부드러운 스냅 포인트 애니메이션. 탭 바 위에 레이어링 가능.
 **트레이드오프**: react-native-reanimated + react-native-gesture-handler peer deps 필수. babel.config.js 플러그인 필요.
 
-### ADR-005: AsyncStorage (로컬 전용)
-**결정**: SQLite / MMKV / 백엔드 API 대신 AsyncStorage 선택
-**이유**: MVP는 로컬 데이터만으로 충분. 설치/설정이 가장 단순. 향후 백엔드 연동 시 마이그레이션 쉬움.
-**트레이드오프**: 비동기 — 초기 로딩 타이밍 관리 필요 (isLoading 패턴). 대용량 데이터에 부적합 (MVP는 무관).
+### ADR-005: AsyncStorage (클라이언트 최소 상태)
+**초기 결정**: SQLite / MMKV 대신 AsyncStorage를 선택했다.
+**현재 기준**: 도메인 데이터는 백엔드 API에서 가져오고, AsyncStorage는 JWT와 최소 클라이언트 상태 저장에만 사용한다.
+**트레이드오프**: 비동기 초기화 타이밍 관리가 필요하다. 민감 정보 저장 범위는 계속 작게 유지한다.
 
 ### ADR-006: react-hook-form + Controller 패턴
 **결정**: Formik / 직접 useState 대신 react-hook-form 선택

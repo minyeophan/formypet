@@ -1,0 +1,81 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import '../providers/pet_provider.dart';
+import '../screens/auth/auth_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/home/home_screen.dart';
+import '../screens/records/records_screen.dart';
+import '../screens/routine/routine_screen.dart';
+import '../screens/community/community_screen.dart';
+import '../screens/community/write_screen.dart';
+import '../screens/pet/pet_detail_screen.dart';
+import '../screens/pet/pet_edit_screen.dart';
+import '../screens/my/my_screen.dart';
+import '../widgets/main_scaffold.dart';
+
+// RouterNotifier listens to auth/pet providers and triggers router refresh.
+// This avoids recreating GoRouter on every state change.
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  _RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(authProvider, (prev, next) => notifyListeners());
+    _ref.listen<PetState>(petProvider, (prev, next) => notifyListeners());
+  }
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final authState = _ref.read(authProvider);
+    final petState = _ref.read(petProvider);
+
+    if (authState.isLoading || petState.isLoading) return null;
+
+    final isAuthenticated = authState.isAuthenticated;
+    final hasOnboarded = petState.hasOnboarded;
+    final path = state.matchedLocation;
+
+    if (!isAuthenticated) {
+      return path == '/auth' ? null : '/auth';
+    }
+    if (!hasOnboarded) {
+      return path == '/onboarding' ? null : '/onboarding';
+    }
+    if (path == '/auth' || path == '/onboarding' || path == '/') {
+      return '/home';
+    }
+    return null;
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = _RouterNotifier(ref);
+  ref.onDispose(notifier.dispose);
+
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: notifier,
+    redirect: notifier.redirect,
+    routes: [
+      GoRoute(path: '/auth', builder: (c, s) => const AuthScreen()),
+      GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
+      ShellRoute(
+        builder: (context, state, child) => MainScaffold(child: child),
+        routes: [
+          GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
+          GoRoute(path: '/community', builder: (c, s) => const CommunityScreen()),
+          GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
+        ],
+      ),
+      GoRoute(path: '/records', builder: (c, s) => const RecordsScreen()),
+      GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
+      GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
+      GoRoute(
+          path: '/pet/:id',
+          builder: (c, s) => PetDetailScreen(petId: s.pathParameters['id']!)),
+      GoRoute(
+          path: '/pet/:id/edit',
+          builder: (c, s) => PetEditScreen(petId: s.pathParameters['id']!)),
+    ],
+  );
+});

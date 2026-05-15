@@ -22,10 +22,11 @@ src/
 ├── lib/
 │   ├── colors.ts            # 색상 상수 + PET_COLORS 쌍 (accent + bgLight)
 │   ├── record-types.ts      # QUICK_TYPES (활동 유형) + SPECIES_EMOJI
-│   ├── mock-data.ts         # MOCK_PETS, MOCK_RECORDS, MOCK_POSTS
+│   ├── auth-context.tsx     # JWT 인증 상태와 사용자 프로필 상태
 │   ├── utils.ts             # date-fns 헬퍼 (D+day, 달력, 날짜 포맷)
-│   └── pet-context.tsx      # PetContext (전역 상태 + AsyncStorage)
+│   └── pet-context.tsx      # PetContext (전역 상태 + 백엔드 API 연동)
 ├── services/
+│   ├── api.ts               # /api/v1 클라이언트와 JWT 저장
 │   └── records.ts           # 기록 필터/집계 로직 (getWeightHistory 등)
 └── components/
     ├── shared/
@@ -60,16 +61,16 @@ src/
 ## 데이터 흐름
 ```
 사용자 액션 (Pressable)
-  → PetContext 함수 호출 (addRecord, openModal 등)
-    → 상태 업데이트 (useState)
-      → AsyncStorage.setItem() 동기 저장
-        → 전체 소비자 리렌더
+    → PetContext/AuthContext 함수 호출
+      → /api/v1 백엔드 API 요청
+        → 상태 업데이트
+          → 전체 소비자 리렌더
 ```
 
 앱 시작 흐름:
 ```
 SplashScreen.preventAutoHideAsync() [모듈 레벨]
-  → PetProvider useEffect: AsyncStorage.getItem (pets, records, hasOnboarded)
+  → AuthProvider/PetProvider useEffect: 저장된 토큰과 서버 데이터 로드
     → isLoading = false
       → useFonts 완료
         → SplashScreen.hideAsync()
@@ -77,6 +78,7 @@ SplashScreen.preventAutoHideAsync() [모듈 레벨]
 ```
 
 ## 상태 관리
-- **PetContext** (단일 전역): pets, activePetId, records, modalOpen, selectedType, isLoading, hasOnboarded
+- **AuthContext**: 인증 토큰, 사용자 정보, 프로필 상태
+- **PetContext**: pets, activePetId, records, routines, modalOpen, selectedType, isLoading, hasOnboarded
 - **로컬 UI 상태**: 탭 선택, 폼 입력값 등은 useState로 컴포넌트 내부 관리
-- **AsyncStorage**: 앱 재시작 후 데이터 유지 — pets, records, hasOnboarded 키로 저장
+- **AsyncStorage**: 토큰과 최소한의 클라이언트 상태 유지

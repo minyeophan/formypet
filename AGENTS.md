@@ -1,190 +1,72 @@
-﻿# AGENTS.md
+# AGENTS.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+이 파일은 AI 작업자가 매 세션에 읽는 최소 라우터다. 세부 규칙은 필요한 경우에만 조건부 문서를 연다.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+## 목적
 
-## 1. Think Before Coding
+- 실제 컨텍스트는 `docs/CONTEXT.md` 한 곳에 모은다.
+- 반복 실수와 검증 규칙은 `docs/AI_MISTAKES.md`에서 확인한다.
+- 백엔드, 워크플로, UI 세부 규칙은 해당 작업일 때만 읽는다.
+- 문서 정리 중에는 애플리케이션 코드, 마이그레이션, 테스트 파일을 건드리지 않는다.
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+## 세션 시작 순서
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-- Always read `docs/AI_MISTAKES.md` before coding. If the same mistake repeats 3 or more times, record it there with the cause and required future verification.
+1. 현재 작업 디렉터리와 `git status --short`로 변경 범위를 확인한다.
+2. `docs/CONTEXT.md`를 읽고 현재 상태, 마지막 검증, 다음 행동을 확인한다.
+3. `docs/AI_MISTAKES.md`를 읽고 반복 실수와 필수 검증을 확인한다.
+4. 작업이 조건부 문서에 해당하는지 판단하고, 필요한 문서만 추가로 읽는다.
+5. 사용자 요청과 현재 상태가 충돌하면 구현 전에 충돌 내용을 짧게 설명하고 확인한다.
 
-## 2. Simplicity First
+## 조건부 문서 읽기
 
-**Minimum code that solves the problem. Nothing speculative.**
+- 백엔드 작업: `docs/BACKEND_RULES.md`
+- 복잡한 리팩터링, 다단계 구현, Handover 작성: `docs/AI_WORKFLOW.md`
+- 프론트 UI 설계 또는 화면 변경: `DESIGN.md`
+- 프론트 API 요구사항 확인: `docs/FRONTEND_STATUS.md`
+- 구조 또는 기술 결정 검토: `docs/ARCHITECTURE.md`, `docs/ADR.md`
+- 데이터 모델 또는 마이그레이션 검토: `docs/ERD.md`
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+조건부 문서는 필요한 작업 범위에만 적용한다. 예를 들어 UI를 수정하지 않는 문서 정리 작업에서는 `DESIGN.md`를 열 필요가 없다.
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+## 작업 원칙 요약
 
-## 3. Surgical Changes
+- 가정은 명시하고, 불명확하면 구현 전에 묻는다.
+- 요청받지 않은 기능, 추상화, 리팩터링을 추가하지 않는다.
+- 변경한 줄은 사용자 요청과 직접 연결되어야 한다.
+- 기존 스타일을 따른다. 주변 코드를 임의로 개선하지 않는다.
+- 내가 만든 미사용 코드와 임포트만 정리한다.
+- 같은 실수가 3회 이상 반복되면 원인과 다음 검증을 `docs/AI_MISTAKES.md`에 기록한다.
 
-**Touch only what you must. Clean up only your own mess.**
+## 검증 원칙 요약
 
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+- 버그 수정은 재현 테스트 또는 명확한 재현 절차를 먼저 확보한다.
+- 기능 추가는 실패하는 테스트 또는 명확한 검증 조건을 먼저 정한다.
+- 다단계 작업은 Phase별 Verify 조건을 통과한 뒤 다음 단계로 이동한다.
+- 검증하지 않은 내용을 완료됐다고 말하지 않는다.
+- 검증을 못 했으면 최종 보고에 이유와 남은 위험을 적는다.
 
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
+## 절대 금지
 
-The test: Every changed line should trace directly to the user's request.
+- 기존 `V*.sql` Flyway 마이그레이션 수정 금지. 변경은 새 `V{n+1}__*.sql`로만 한다.
+- 사용자 요청 없이 `git add`, `git commit`, `git push`를 하지 않는다.
+- 사용자 요청 없이 원격 Git/GitHub 연동을 하지 않는다.
+- 사용자나 이전 작업자의 dirty 변경을 되돌리지 않는다.
+- 문서 정리 작업 중 `backend/`, `frontend/`, `DESIGN.md`를 임의 수정하지 않는다.
+- 테스트를 무력화하거나 삭제해서 통과시키지 않는다.
 
-## Korean / UTF-8 Text Safety
+## Git 최소 사용
 
-**Korean text must stay readable UTF-8.**
+- 작업 시작과 종료 시 `git status --short`로 변경 범위만 확인한다.
+- 변경 이유 확인이 필요할 때만 `git diff -- <path>`를 사용한다.
+- 원격, 브랜치, 로그 조회는 사용자 요청이 있거나 작업상 꼭 필요할 때만 한다.
+- `.codex/`와 `docs/superpowers/plans/`는 로컬 ignored 산출물이다.
 
-- Keep Korean UI text, comments, and Markdown readable. Do not leave mojibake such as `좏`, `猷`, `留`, `쒓`, or replacement characters.
-- Prefer `apply_patch` for manual edits to files containing Korean text.
-- If a bulk rewrite is unavoidable on Windows, explicitly read and write the file as UTF-8. Do not use PowerShell `Set-Content` without `-Encoding utf8`, and do not rely on the default Windows code page.
-- After editing Korean text, run a mojibake scan for suspicious fragments before finishing.
-- Do not romanize Korean or replace it with broken text to avoid encoding issues; preserve the original Korean wording.
+## 한글 / UTF-8 안전
 
-## Frontend Design System
-
-**UI work must follow the root `DESIGN.md`.**
-
-- Before designing a new screen or changing existing frontend UI, read `DESIGN.md` first.
-- For colors, typography, cards, buttons, toasts, and empty states, `DESIGN.md` is the priority reference.
-- Do not add arbitrary styles that conflict with `DESIGN.md`.
-- If a new design pattern is needed, update `DESIGN.md` first.
-- Include a `DESIGN.md` compliance check in the success criteria for UI work.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
-## 5. Session Continuity
-
-**Work context must survive session breaks.**
-
-At the start of a new session:
-- First identify the current working directory and open files.
-- If a previous Handover summary exists, read it before doing anything else.
-- Don't guess state — if uncertain, ask the user.
-
-When a session interruption is likely:
-- Immediately document the current work state.
-- Clearly separate what is done from what is not.
-- Specify the re-entry point for the next session (file, function, command).
-
-## 6. Context Handover
-
-**At session end, leave a summary for the next worker (AI or human).**
-
-A Handover summary must include:
-- **Goal**: What this session was trying to solve
-- **Done**: Work actually completed (include file and function names)
-- **Remaining**: What's left and why it wasn't finished
-- **Next step**: The first concrete action to take when resuming
-- **Warnings**: Things not to touch, known bugs, temporary workarounds
-
-Example format:
-```
-## Handover
-- Goal: Add validation to the login form
-- Done: Email format check implemented in `LoginForm.tsx`
-- Remaining: Password strength check (needs to be added in src/validators.ts)
-- Next step: Write `validatePassword()` then wire it into LoginForm
-- Warnings: Auth token logic is mid-refactor — do not touch
-```
-
-## 7. Phased Execution
-
-**Ship one verified phase before starting the next.**
-
-Each phase must have a single clear Verify condition. Do not start the next phase until the current phase's verify passes.
-
-Phase structure:
-```
-### Phase N — [name]
-**Verify:** [one concrete check — run command, see output, test in app]
-
-[numbered steps]
-```
-
-Rules:
-- If a step fails, fix it before continuing. Do not accumulate broken state.
-- Each phase should leave the codebase in a runnable state.
-- Mark phases complete in the plan file as you finish them.
-- If a phase's Verify is unclear, rewrite it before starting.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-
----
-
-## 백엔드 전용 규칙 (Java 21 / Spring Boot)
-
-### [TDD 강제]
-구현 코드보다 테스트 코드가 반드시 먼저 작성된다.
-1. **Red**: 실패하는 테스트를 먼저 작성한다. 컴파일조차 안 되어도 된다.
-2. **Green**: 테스트를 통과하는 최소한의 코드만 작성한다.
-3. **Refactor**: 동작을 유지하면서 코드를 정리한다.
-
-위 순서를 건너뛰는 구현은 즉시 중단하고 테스트 작성으로 되돌아간다.
-
-### [맥락 동기화]
-새 세션 또는 새 작업 시작 시 반드시 이 순서로 읽는다:
-1. `docs/CONTEXT.md` — 현재 Phase, 마지막 통과 테스트, 다음 목표
-2. `docs/FRONTEND_STATUS.md` — 프론트 요구 API 확인
-3. 현재 Phase의 `tasks/task-XX-*.md` — 세부 실행 계획
-
-읽지 않고 코드부터 작성하는 것은 금지한다.
-
-### [Java 21 최적화]
-- `synchronized` 블록/메서드 **금지** — Virtual Thread Pinning 발생. `ReentrantLock` 사용.
-- `record` 타입을 DTO에 적극 활용. `of(Entity)` / `from(Request)` 정적 팩토리 패턴 강제.
-- `@Transactional` readOnly 분리: 조회는 `readOnly = true`, 변경은 기본값.
-- Testcontainers는 `@Container` + `static` 필드로 컨테이너 재사용 (속도).
-- Entity → DTO 변환 로직은 DTO record 내부에만 위치. Service에 변환 코드 없음.
-
-### [API 표준]
-- 모든 엔드포인트: `/api/v1/` 접두사 고정.
-- 성공 응답: `record ApiResponse<T>(T data, String message)` 공통 래퍼.
-- 오류 응답: RFC 7807 `ProblemDetail` (`type`, `title`, `status`, `detail`, `instance`).
-- 페이지네이션: 커서 기반 (`?cursor=&limit=20`). offset 방식 금지.
-
-### [Flyway 마이그레이션]
-- Entity 필드 추가/변경/삭제 시 반드시 `V{n+1}__describe_change.sql` 신규 파일 작성.
-- 기존 `V*.sql` 파일 **절대 수정 금지** — Flyway checksum 오류로 앱 시작 불가.
-- `ddl-auto: create` / `ddl-auto: update` 프로덕션·스테이징 환경 금지. `validate` 또는 `none` 사용.
-- 테스트 프로파일(`application.yml`의 `test` profile)에서는 Flyway disabled + `ddl-auto: none` + `init-test.sql`.
-
-### [테스트 격리]
-- 통합 테스트 클래스에 `@Transactional` 적용 → 각 테스트 종료 후 자동 롤백.
-- Testcontainers 컨테이너는 `static @Container` 필드로 선언 → 클래스 내 전체 재사용.
-- `@BeforeEach`에서 `repository.deleteAll()` 명시적 정리 — `@Transactional` 롤백으로 커버되지 않는 외부 상태(파일, 메시지큐) 대응.
-- `maxParallelForks = 1` 유지 — Testcontainers 병렬 실행 시 포트 충돌 방지.
-
-### [Surgical Action — 백엔드 적용]
-- 프론트엔드 코드(`frontend/`)는 백엔드 Phase 완료 전까지 수정 금지.
-- 기존 통과 테스트가 깨지면 즉시 수정 후 진행. 테스트 무력화 금지.
+- 한글 UI 텍스트, 주석, Markdown은 반드시 읽을 수 있는 UTF-8로 유지한다.
+- 한글 파일은 가능하면 `apply_patch`로 편집한다.
+- Windows에서 일괄 재작성할 때는 UTF-8 읽기/쓰기를 명시한다.
+- PowerShell `Set-Content` 기본 인코딩에 의존하지 않는다.
+- 기본 콘솔 출력만 보고 한글 파일이 깨졌다고 판단하지 않는다.
+- 한글을 로마자로 바꾸거나 삭제해서 인코딩 문제를 피하지 않는다.
+- 한글을 편집한 뒤에는 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1`를 실행한다.

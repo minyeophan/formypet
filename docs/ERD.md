@@ -156,10 +156,41 @@ erDiagram
     POSTS {
         BIGINT id PK
         BIGINT user_id FK "NOT NULL"
+        VARCHAR(120) title "NOT NULL"
+        VARCHAR(30) category "DEFAULT FREE"
         VARCHAR(30) pet_species
         TEXT content "NOT NULL"
         INT likes_count "DEFAULT 0"
+        INT comments_count "DEFAULT 0"
         DATETIME created_at "NOT NULL"
+    }
+
+    POST_MEDIA {
+        BIGINT post_id PK FK
+        BIGINT media_id PK FK
+        INT sort_order "DEFAULT 0"
+    }
+
+    POST_POLLS {
+        BIGINT id PK
+        BIGINT post_id FK "UNIQUE"
+        VARCHAR(200) question "NOT NULL"
+    }
+
+    POST_POLL_OPTIONS {
+        BIGINT id PK
+        BIGINT poll_id FK
+        VARCHAR(100) label "NOT NULL"
+        INT votes_count "DEFAULT 0"
+        INT sort_order "DEFAULT 0"
+    }
+
+    POST_POLL_VOTES {
+        BIGINT poll_id PK FK
+        BIGINT user_id PK FK
+        BIGINT option_id FK
+        DATETIME created_at "NOT NULL"
+        DATETIME updated_at "NOT NULL"
     }
 
     POST_LIKES {
@@ -199,6 +230,12 @@ erDiagram
     ROUTINE_COMPLETIONS }o--o| ACTIVITY_RECORDS : "completed record"
     PETS ||--o{ ROUTINE_COMPLETIONS : "daily tasks"
     POSTS ||--o{ POST_LIKES : "receives"
+    POSTS ||--o{ POST_MEDIA : "has media"
+    MEDIA_RESOURCES ||--o{ POST_MEDIA : "attached to posts"
+    POSTS ||--o| POST_POLLS : "has poll"
+    POST_POLLS ||--o{ POST_POLL_OPTIONS : "has options"
+    POST_POLLS ||--o{ POST_POLL_VOTES : "receives votes"
+    POST_POLL_OPTIONS ||--o{ POST_POLL_VOTES : "selected option"
 ```
 
 ---
@@ -262,13 +299,16 @@ WHERE ST_Distance_Sphere(
 
 ```
 backend/src/main/resources/db/migration/
-├── V1__init_spatial_test.sql     # Phase 1: Spatial 인프라 검증용 임시 테이블
-├── V2__add_users_and_tokens.sql  # Phase 2: users, refresh_tokens
-├── V3__add_pets.sql              # Phase 3: pets (is_deleted 포함)
-├── V4__add_activity_records.sql  # Phase 4: activity_types 시드 + activity_records + 7개 서브타입
-├── V5__add_media_resources.sql   # Phase 4: media_resources (pets + records + users FK)
-├── V6__add_routines.sql          # Phase 5: routines + routine_completions (파티션 포함)
-└── V7__add_community.sql         # Phase 6: posts, post_likes
+├── V1__create_spatial_test.sql
+├── V2__add_users_and_tokens.sql
+├── V3__add_pets.sql
+├── V4__add_activity_records.sql
+├── V5__add_routines.sql
+├── V6__add_community.sql
+├── V7__add_media_resources.sql
+├── V8__add_routine_record_template.sql
+├── V9__add_user_profile_media.sql
+└── V10__extend_community_posts.sql
 ```
 
 > **규칙:** 한번 배포된 `V*.sql`은 절대 수정 금지. 변경 시 `V{n+1}__alter_xxx.sql` 신규 파일 작성.
