@@ -36,6 +36,9 @@ dependencies:
   intl: ^0.19.0
   logger: ^2.4.0
 
+  #kakao
+  kakao_flutter_sdk_user: ^2.0.0+1 # 카카오 로그인 API 패키지
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
