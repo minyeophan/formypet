@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
 
 class MediaService {
@@ -20,8 +24,12 @@ class MediaService {
     return (unwrap(res) as Map<String, dynamic>)['url'].toString();
   }
 
-  Future<dynamic> _buildForm(String filePath) async {
-    // FormData built by caller with MultipartFile
-    throw UnimplementedError('Use FormData directly');
+  Future<FormData> _buildForm(String filePath) async {
+    return FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split(Platform.pathSeparator).last,
+      ),
+    });
   }
 }

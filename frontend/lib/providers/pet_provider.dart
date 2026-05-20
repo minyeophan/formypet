@@ -34,8 +34,7 @@ class PetState {
     required this.quickTypeIds,
   });
 
-  Pet? get activePet =>
-      pets.where((p) => p.id == activePetId).firstOrNull;
+  Pet? get activePet => pets.where((p) => p.id == activePetId).firstOrNull;
 
   // clearActivePetId: true이면 activePetId를 null로 강제 설정
   PetState copyWith({
@@ -48,28 +47,32 @@ class PetState {
     List<Routine>? routines,
     Map<String, CompletionStatus>? routineCompletions,
     TodayRoutineSummary? todaySummary,
+    bool clearTodaySummary = false,
     List<String>? quickTypeIds,
-  }) =>
-      PetState(
-        isLoading: isLoading ?? this.isLoading,
-        hasOnboarded: hasOnboarded ?? this.hasOnboarded,
-        pets: pets ?? this.pets,
-        activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
-        records: records ?? this.records,
-        routines: routines ?? this.routines,
-        routineCompletions: routineCompletions ?? this.routineCompletions,
-        todaySummary: todaySummary ?? this.todaySummary,
-        quickTypeIds: quickTypeIds ?? this.quickTypeIds,
-      );
+  }) => PetState(
+    isLoading: isLoading ?? this.isLoading,
+    hasOnboarded: hasOnboarded ?? this.hasOnboarded,
+    pets: pets ?? this.pets,
+    activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
+    records: records ?? this.records,
+    routines: routines ?? this.routines,
+    routineCompletions: routineCompletions ?? this.routineCompletions,
+    todaySummary: clearTodaySummary
+        ? null
+        : (todaySummary ?? this.todaySummary),
+    quickTypeIds: quickTypeIds ?? this.quickTypeIds,
+  );
 }
 
 class PetNotifier extends StateNotifier<PetState> {
   final PetService _petSvc;
   final RecordService _recSvc;
   final RoutineService _routSvc;
+  late final Future<void> _preferencesReady;
 
   PetNotifier(this._petSvc, this._recSvc, this._routSvc)
-      : super(PetState(
+    : super(
+        PetState(
           isLoading: true,
           hasOnboarded: false,
           pets: const [],
@@ -77,38 +80,72 @@ class PetNotifier extends StateNotifier<PetState> {
           routines: const [],
           routineCompletions: const {},
           quickTypeIds: kDefaultQuickIds,
-        )) {
-    _init();
+        ),
+      ) {
+    _preferencesReady = _loadQuickTypeIds();
   }
 
-  Future<void> _init() async {
+  PetNotifier.test(super.initialState)
+    : _petSvc = PetService(),
+      _recSvc = RecordService(),
+      _routSvc = RoutineService() {
+    _preferencesReady = Future.value();
+  }
+
+  Future<void> _loadQuickTypeIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final hasOnboarded = prefs.getBool('hasOnboarded') ?? false;
-    final savedQuickIds = prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+    final savedQuickIds =
+        prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+    state = state.copyWith(isLoading: false, quickTypeIds: savedQuickIds);
+  }
 
-    if (!hasOnboarded) {
-      state = state.copyWith(
-          isLoading: false, hasOnboarded: false, quickTypeIds: savedQuickIds);
-      return;
-    }
-
+  Future<void> loadForAuthenticatedUser() async {
+    await _preferencesReady;
+    state = state.copyWith(isLoading: true);
     try {
       final pets = await _petSvc.getPets();
       final activePetId = pets.isNotEmpty ? pets.first.id : null;
-      state = state.copyWith(
+      if (activePetId == null) {
+        state = PetState(
+          isLoading: false,
+          hasOnboarded: false,
+          pets: const [],
+          records: const [],
+          routines: const [],
+          routineCompletions: const {},
+          quickTypeIds: state.quickTypeIds,
+        );
+        return;
+      }
+
+      state = PetState(
         isLoading: false,
         hasOnboarded: true,
         pets: pets,
         activePetId: activePetId,
-        quickTypeIds: savedQuickIds,
+        records: const [],
+        routines: const [],
+        routineCompletions: const {},
+        quickTypeIds: state.quickTypeIds,
       );
-      if (activePetId != null) {
-        await _loadPetData(activePetId);
-      }
+      await _loadPetData(activePetId);
     } catch (_) {
-      // 네트워크 오류 시 hasOnboarded는 SharedPreferences 값을 유지
-      state = state.copyWith(isLoading: false, hasOnboarded: hasOnboarded);
+      state = state.copyWith(isLoading: false);
+      rethrow;
     }
+  }
+
+  Future<void> clearForSignedOutUser() async {
+    await _preferencesReady;
+    state = PetState(
+      isLoading: false,
+      hasOnboarded: false,
+      pets: const [],
+      records: const [],
+      routines: const [],
+      routineCompletions: const {},
+      quickTypeIds: state.quickTypeIds,
+    );
   }
 
   Future<void> _loadPetData(String petId) async {
@@ -145,16 +182,19 @@ class PetNotifier extends StateNotifier<PetState> {
 
   // Pet CRUD
   Future<void> addPet(Map<String, dynamic> body) async {
+    await _preferencesReady;
     final pet = await _petSvc.createPet(body);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasOnboarded', true);
-    final newActivePetId = state.activePetId ?? pet.id;
-    state = state.copyWith(
+    state = PetState(
+      isLoading: false,
       hasOnboarded: true,
       pets: [...state.pets, pet],
-      activePetId: newActivePetId,
+      activePetId: pet.id,
+      records: const [],
+      routines: const [],
+      routineCompletions: const {},
+      quickTypeIds: state.quickTypeIds,
     );
-    await _loadPetData(newActivePetId);
+    await _loadPetData(pet.id);
   }
 
   Future<void> updatePet(String petId, Map<String, dynamic> body) async {
@@ -166,12 +206,26 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<void> deletePet(String petId) async {
     await _petSvc.deletePet(petId);
+    final oldActivePetId = state.activePetId;
     final remaining = state.pets.where((p) => p.id != petId).toList();
     if (remaining.isEmpty) {
-      state = state.copyWith(pets: remaining, clearActivePetId: true);
+      state = PetState(
+        isLoading: false,
+        hasOnboarded: false,
+        pets: const [],
+        records: const [],
+        routines: const [],
+        routineCompletions: const {},
+        quickTypeIds: state.quickTypeIds,
+      );
     } else {
-      final nextId = remaining.first.id;
+      final nextId = remaining.any((p) => p.id == state.activePetId)
+          ? state.activePetId!
+          : remaining.first.id;
       state = state.copyWith(pets: remaining, activePetId: nextId);
+      if (nextId != oldActivePetId) {
+        await _loadPetData(nextId);
+      }
     }
   }
 
@@ -207,7 +261,10 @@ class PetNotifier extends StateNotifier<PetState> {
     state = state.copyWith(routines: [...state.routines, routine]);
   }
 
-  Future<void> updateRoutine(String routineId, Map<String, dynamic> body) async {
+  Future<void> updateRoutine(
+    String routineId,
+    Map<String, dynamic> body,
+  ) async {
     final petId = state.activePetId!;
     final updated = await _routSvc.updateRoutine(petId, routineId, body);
     state = state.copyWith(
@@ -225,12 +282,10 @@ class PetNotifier extends StateNotifier<PetState> {
     );
   }
 
-  Future<void> toggleRoutineCompletion(
-      String routineId, String date) async {
+  Future<void> toggleRoutineCompletion(String routineId, String date) async {
     final petId = state.activePetId!;
     final key = '$routineId:$date';
-    final current =
-        state.routineCompletions[key] ?? CompletionStatus.pending;
+    final current = state.routineCompletions[key] ?? CompletionStatus.pending;
     final next = current == CompletionStatus.completed
         ? CompletionStatus.pending
         : CompletionStatus.completed;
@@ -256,8 +311,9 @@ class PetNotifier extends StateNotifier<PetState> {
 
 final petServiceProvider = Provider<PetService>((_) => PetService());
 final recordServiceProvider = Provider<RecordService>((_) => RecordService());
-final routineServiceProvider =
-    Provider<RoutineService>((_) => RoutineService());
+final routineServiceProvider = Provider<RoutineService>(
+  (_) => RoutineService(),
+);
 
 final petProvider = StateNotifierProvider<PetNotifier, PetState>((ref) {
   return PetNotifier(

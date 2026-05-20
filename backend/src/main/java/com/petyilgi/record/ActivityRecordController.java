@@ -38,6 +38,13 @@ public class ActivityRecordController {
         return ApiResponse.of(activityRecordService.list(email, petId, date, typeId, limit));
     }
 
+    @GetMapping("/{recordId}")
+    public ApiResponse<ActivityRecordResponse> get(@AuthenticationPrincipal String email,
+                                                   @PathVariable Long petId,
+                                                   @PathVariable Long recordId) {
+        return ApiResponse.of(activityRecordService.get(email, petId, recordId));
+    }
+
     @PutMapping("/{recordId}")
     public ApiResponse<ActivityRecordResponse> update(@AuthenticationPrincipal String email,
                                                       @PathVariable Long petId,

@@ -2,6 +2,7 @@ package com.petyilgi.record;
 
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
+import com.petyilgi.media.storage.MediaStorage;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
 import com.petyilgi.record.dto.ActivityRecordCreateRequest;
@@ -14,7 +15,10 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.Date;
@@ -36,6 +40,7 @@ public class ActivityRecordService {
     private final JdbcTemplate jdbcTemplate;
     private final PetRepository petRepository;
     private final UserRepository userRepository;
+    private final MediaStorage mediaStorage;
 
     @Transactional
     public ActivityRecordResponse create(String email, Long petId, ActivityRecordCreateRequest request) {
@@ -104,6 +109,12 @@ public class ActivityRecordService {
         }, params.toArray());
     }
 
+    @Transactional(readOnly = true)
+    public ActivityRecordResponse get(String email, Long petId, Long recordId) {
+        Pet pet = findOwnedPet(email, petId);
+        return findResponse(pet.getId(), recordId);
+    }
+
     @Transactional
     public ActivityRecordResponse update(String email, Long petId, Long recordId, ActivityRecordUpdateRequest request) {
         Pet pet = findOwnedPet(email, petId);
@@ -135,7 +146,9 @@ public class ActivityRecordService {
     public void delete(String email, Long petId, Long recordId) {
         Pet pet = findOwnedPet(email, petId);
         findBaseRecord(pet.getId(), recordId);
+        List<String> storageKeys = findRecordMediaStorageKeys(recordId);
         jdbcTemplate.update("DELETE FROM activity_records WHERE id = ? AND pet_id = ?", recordId, pet.getId());
+        deleteStorageAfterCommit(storageKeys);
     }
 
     private ActivityRecordResponse findResponse(Long petId, Long recordId) {
@@ -180,6 +193,39 @@ public class ActivityRecordService {
                 """, Long.class, recordId).stream()
                 .map(id -> "/api/v1/media/" + id)
                 .toList();
+    }
+
+    private List<String> findRecordMediaStorageKeys(Long recordId) {
+        return jdbcTemplate.queryForList("""
+                SELECT storage_key
+                FROM media_resources
+                WHERE record_id = ?
+                ORDER BY id
+                """, String.class, recordId);
+    }
+
+    private void deleteStorageAfterCommit(List<String> storageKeys) {
+        if (storageKeys.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            storageKeys.forEach(this::deleteStorageQuietly);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                storageKeys.forEach(ActivityRecordService.this::deleteStorageQuietly);
+            }
+        });
+    }
+
+    private void deleteStorageQuietly(String storageKey) {
+        try {
+            mediaStorage.delete(storageKey);
+        } catch (IOException ignored) {
+            // Best-effort cleanup; the DB row has already been removed.
+        }
     }
 
     private Map<String, Object> findDetail(Long recordId, String typeId) {

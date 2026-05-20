@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
 import '../../core/record_utils.dart';
 import '../../widgets/app_text.dart';
 
+enum PetEntryMode { firstPet, additionalPet }
+
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key});
+  final PetEntryMode mode;
+
+  const OnboardingScreen({super.key, this.mode = PetEntryMode.firstPet});
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -47,6 +52,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         'bgLight': color.bgLightHex,
         if (_gender != null) 'gender': _gender,
       });
+      if (mounted && widget.mode == PetEntryMode.additionalPet) {
+        context.go('/home');
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -68,7 +76,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             TextField(
               controller: _nameCtrl,
               decoration: const InputDecoration(
-                  hintText: '반려동물 이름', border: OutlineInputBorder()),
+                hintText: '반려동물 이름',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 20),
             const AppText('종류', fontWeight: FontWeight.bold),
@@ -90,7 +100,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             TextField(
               controller: _birthCtrl,
               decoration: const InputDecoration(
-                  hintText: 'YYYY-MM-DD', border: OutlineInputBorder()),
+                hintText: 'YYYY-MM-DD',
+                border: OutlineInputBorder(),
+              ),
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
@@ -114,14 +126,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ChoiceChip(
                   label: const AppText('남아'),
                   selected: _gender == 'male',
-                  onSelected: (_) =>
-                      setState(() => _gender = _gender == 'male' ? null : 'male'),
+                  onSelected: (_) => setState(
+                    () => _gender = _gender == 'male' ? null : 'male',
+                  ),
                 ),
                 ChoiceChip(
                   label: const AppText('여아'),
                   selected: _gender == 'female',
                   onSelected: (_) => setState(
-                      () => _gender = _gender == 'female' ? null : 'female'),
+                    () => _gender = _gender == 'female' ? null : 'female',
+                  ),
                 ),
               ],
             ),
@@ -159,8 +173,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPressed: _isLoading ? null : _submit,
                 child: _isLoading
                     ? const CircularProgressIndicator()
-                    : const AppText('등록하기',
-                        fontWeight: FontWeight.bold),
+                    : const AppText('등록하기', fontWeight: FontWeight.bold),
               ),
             ),
           ],

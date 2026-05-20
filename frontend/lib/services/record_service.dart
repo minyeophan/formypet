@@ -15,8 +15,10 @@ class RecordService {
     if (typeId != null) params['typeId'] = typeId;
     if (limit != null) params['limit'] = limit;
 
-    final res = await dio.get('/api/v1/pets/$petId/records',
-        queryParameters: params.isNotEmpty ? params : null);
+    final res = await dio.get(
+      '/api/v1/pets/$petId/records',
+      queryParameters: params.isNotEmpty ? params : null,
+    );
     final list = unwrap(res) as List<dynamic>;
     return list
         .map((e) => ActivityRecord.fromJson(e as Map<String, dynamic>))
@@ -24,15 +26,27 @@ class RecordService {
   }
 
   Future<ActivityRecord> createRecord(
-      String petId, Map<String, dynamic> body) async {
+    String petId,
+    Map<String, dynamic> body,
+  ) async {
     final res = await dio.post('/api/v1/pets/$petId/records', data: body);
     return ActivityRecord.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
   Future<ActivityRecord> updateRecord(
-      String petId, String recordId, Map<String, dynamic> body) async {
-    final res =
-        await dio.put('/api/v1/pets/$petId/records/$recordId', data: body);
+    String petId,
+    String recordId,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await dio.put(
+      '/api/v1/pets/$petId/records/$recordId',
+      data: body,
+    );
+    return ActivityRecord.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<ActivityRecord> getRecord(String petId, String recordId) async {
+    final res = await dio.get('/api/v1/pets/$petId/records/$recordId');
     return ActivityRecord.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
@@ -51,9 +65,7 @@ class RecordService {
 
     try {
       await _uploadMedia(petId, record.id, files);
-      // Re-fetch to get mediaUrls populated
-      final res = await dio.get('/api/v1/pets/$petId/records/${record.id}');
-      return ActivityRecord.fromJson(unwrap(res) as Map<String, dynamic>);
+      return getRecord(petId, record.id);
     } catch (e) {
       // Rollback: delete the record if media upload fails
       await deleteRecord(petId, record.id);
@@ -62,14 +74,21 @@ class RecordService {
   }
 
   Future<void> _uploadMedia(
-      String petId, String recordId, List<File> files) async {
-    final formData = FormData.fromMap({
-      'files': await Future.wait(files.map((f) async => MultipartFile.fromFile(
-            f.path,
-            filename: f.path.split(Platform.pathSeparator).last,
-          ))),
-    });
-    await dio.post('/api/v1/pets/$petId/records/$recordId/media',
-        data: formData);
+    String petId,
+    String recordId,
+    List<File> files,
+  ) async {
+    for (final file in files) {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: file.path.split(Platform.pathSeparator).last,
+        ),
+      });
+      await dio.post(
+        '/api/v1/pets/$petId/records/$recordId/media',
+        data: formData,
+      );
+    }
   }
 }
