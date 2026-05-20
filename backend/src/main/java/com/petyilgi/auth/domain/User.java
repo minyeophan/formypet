@@ -26,6 +26,9 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    @Column(name = "registration_source", nullable = false, length = 20)
+    private String registrationSource;
+
     @Column(name = "profile_media_id")
     private Long profileMediaId;
 
@@ -40,8 +43,20 @@ public class User {
         user.email        = email;
         user.passwordHash = passwordHash;
         user.nickname     = nickname;
+        user.registrationSource = "LOCAL";
         user.createdAt    = LocalDateTime.now();
         user.updatedAt    = LocalDateTime.now();
+        return user;
+    }
+
+    public static User createOAuth(String email, String passwordHash, String nickname, String registrationSource) {
+        User user = new User();
+        user.email = email;
+        user.passwordHash = passwordHash;
+        user.nickname = nickname;
+        user.registrationSource = registrationSource;
+        user.createdAt = LocalDateTime.now();
+        user.updatedAt = LocalDateTime.now();
         return user;
     }
 

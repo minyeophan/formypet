@@ -1,5 +1,6 @@
 package com.petyilgi.common.exception;
 
+import com.petyilgi.auth.OAuthLoginConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -58,6 +59,15 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setType(URI.create(ERROR_BASE + "invalid-input"));
         problem.setTitle("잘못된 입력값");
+        return problem;
+    }
+
+    @ExceptionHandler(OAuthLoginConflictException.class)
+    public ProblemDetail handleOAuthLoginConflict(OAuthLoginConflictException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, ex.getMessage());
+        problem.setType(URI.create(ERROR_BASE + "oauth-login-conflict"));
+        problem.setTitle("OAuth Login Conflict");
         return problem;
     }
 

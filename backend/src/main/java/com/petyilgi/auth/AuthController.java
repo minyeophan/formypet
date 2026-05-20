@@ -1,6 +1,7 @@
 package com.petyilgi.auth;
 
 import com.petyilgi.auth.dto.LoginRequest;
+import com.petyilgi.auth.dto.KakaoLoginRequest;
 import com.petyilgi.auth.dto.RefreshRequest;
 import com.petyilgi.auth.dto.RegisterRequest;
 import com.petyilgi.auth.dto.TokenResponse;
@@ -26,6 +27,11 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.of(authService.login(request));
+    }
+
+    @PostMapping("/kakao")
+    public ApiResponse<TokenResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
+        return ApiResponse.of(authService.kakaoLogin(request));
     }
 
     @PostMapping("/refresh")

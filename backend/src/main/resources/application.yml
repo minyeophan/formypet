@@ -33,9 +33,9 @@ spring:
 
 app:
   jwt:
-    secret: "petyilgi-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm"
+    secret: "${JWT_SECRET:petyilgi-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
     access-token-expiration: 1800000    # 30분 (ms)
-    refresh-token-expiration: 604800000 # 7일 (ms)
+    refresh-token-expiration: 2592000000 # 30일 (ms)
 
 springdoc:
   swagger-ui:
