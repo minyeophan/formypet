@@ -94,6 +94,33 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void getRecordReturnsSingleRecord() throws Exception {
+        String token = registerAndGetToken("get-record@example.com", "get-record");
+        Long petId = createPet(token, "Maro");
+        Long recordId = createRecord(token, petId, "water", Map.of("amount", 200));
+
+        mockMvc.perform(get(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(recordId))
+                .andExpect(jsonPath("$.data.petId").value(petId))
+                .andExpect(jsonPath("$.data.typeId").value("water"))
+                .andExpect(jsonPath("$.data.detail.amount").value(200.0));
+    }
+
+    @Test
+    void getOtherUsersPetRecordReturns403() throws Exception {
+        String ownerToken = registerAndGetToken("record-detail-owner@example.com", "owner");
+        String otherToken = registerAndGetToken("record-detail-other@example.com", "other");
+        Long petId = createPet(ownerToken, "OwnerPet");
+        Long recordId = createRecord(ownerToken, petId, "water", Map.of("amount", 200));
+
+        mockMvc.perform(get(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void createRecordWithUnknownRoutineReturns400() throws Exception {
         String token = registerAndGetToken("unknown-routine-record@example.com", "unknown-routine");
         Long petId = createPet(token, "Maro");

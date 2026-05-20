@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -101,6 +103,63 @@ class MediaIntegrationTest extends IntegrationTestSupport {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].mediaUrls[0]").value(matchesPattern("/api/v1/media/[0-9]+")));
+    }
+
+    @Test
+    void recordDetailIncludesAttachedMediaUrl() throws Exception {
+        String token = registerAndGetToken("record-media-detail@example.com", "recordmediadetail");
+        Long petId = createPet(token, "Coco");
+        Long recordId = createRecord(token, petId);
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/records/" + recordId + "/media")
+                        .file(image("poop.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/pets/" + petId + "/records/" + recordId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mediaUrls[0]").value(matchesPattern("/api/v1/media/[0-9]+")));
+    }
+
+    @Test
+    void deletingRecordDeletesMediaRowAndStoredFileAfterCommit() throws Exception {
+        String token = registerAndGetToken("record-media-delete@example.com", "recordmediadelete");
+        Long petId = createPet(token, "Coco");
+        Long recordId = createRecord(token, petId);
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/records/" + recordId + "/media")
+                        .file(image("poop.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        String storageKey = jdbcTemplate.queryForObject("""
+                SELECT storage_key
+                FROM media_resources
+                WHERE record_id = ?
+                """, String.class, recordId);
+        Path storedFile = MEDIA_ROOT.resolve(storageKey);
+        assertThat(Files.exists(storedFile)).isTrue();
+
+        mockMvc.perform(delete("/api/v1/pets/" + petId + "/records/" + recordId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        Integer countBeforeCommit = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM media_resources WHERE record_id = ?",
+                Integer.class,
+                recordId
+        );
+        assertThat(countBeforeCommit).isZero();
+        assertThat(Files.exists(storedFile)).isTrue();
+
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        assertThat(Files.exists(storedFile)).isFalse();
+        assertThat(countFiles(MEDIA_ROOT)).isZero();
+
+        TestTransaction.start();
     }
 
     @Test

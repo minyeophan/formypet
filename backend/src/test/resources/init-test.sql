@@ -19,9 +19,21 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255)   NOT NULL UNIQUE,
     password_hash VARCHAR(255)   NOT NULL,
     nickname      VARCHAR(50)    NOT NULL,
+    registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
     profile_media_id BIGINT      NULL,
     created_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+    id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    user_id          BIGINT       NOT NULL,
+    provider         VARCHAR(20)  NOT NULL,
+    provider_user_id VARCHAR(100) NOT NULL,
+    created_at       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_oauth_account_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    UNIQUE KEY uq_oauth_provider_user (provider, provider_user_id),
+    INDEX idx_oauth_user_id (user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
