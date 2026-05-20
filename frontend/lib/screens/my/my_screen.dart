@@ -16,9 +16,7 @@ class MyScreen extends ConsumerWidget {
     final profile = authState.profile;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const AppText('마이', fontWeight: FontWeight.bold),
-      ),
+      appBar: AppBar(title: const AppText('마이', fontWeight: FontWeight.bold)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -27,10 +25,27 @@ class MyScreen extends ConsumerWidget {
             ListTile(
               leading: CircleAvatar(
                 child: AppText(
-                    profile.nickname.isNotEmpty ? profile.nickname[0] : '?'),
+                  profile.nickname.isNotEmpty ? profile.nickname[0] : '?',
+                ),
               ),
               title: AppText(profile.nickname, fontWeight: FontWeight.bold),
-              subtitle: AppText(profile.email, fontSize: 12),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(profile.email, fontSize: 12),
+                  if (profile.registrationSource == 'KAKAO')
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Chip(
+                        label: Text('카카오로 로그인됨',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF191919))),
+                        backgroundColor: Color(0xFFFEE500),
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                ],
+              ),
             ),
           const Divider(),
           // Pet list
@@ -53,7 +68,7 @@ class MyScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.add),
             title: const AppText('반려동물 추가'),
-            onTap: () => context.push('/onboarding'),
+            onTap: () => context.push('/pets/new'),
           ),
           const Divider(),
           ListTile(

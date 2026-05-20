@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/pet_provider.dart';
 import '../screens/auth/auth_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/records/records_screen.dart';
 import '../screens/routine/routine_screen.dart';
@@ -57,13 +58,25 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
+      GoRoute(path: '/', builder: (c, s) => const SplashScreen()),
       GoRoute(path: '/auth', builder: (c, s) => const AuthScreen()),
-      GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (c, s) => const OnboardingScreen(mode: PetEntryMode.firstPet),
+      ),
+      GoRoute(
+        path: '/pets/new',
+        builder: (c, s) =>
+            const OnboardingScreen(mode: PetEntryMode.additionalPet),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
           GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
-          GoRoute(path: '/community', builder: (c, s) => const CommunityScreen()),
+          GoRoute(
+            path: '/community',
+            builder: (c, s) => const CommunityScreen(),
+          ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
         ],
       ),
@@ -71,11 +84,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
       GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
       GoRoute(
-          path: '/pet/:id',
-          builder: (c, s) => PetDetailScreen(petId: s.pathParameters['id']!)),
+        path: '/pet/:id',
+        builder: (c, s) => PetDetailScreen(petId: s.pathParameters['id']!),
+      ),
       GoRoute(
-          path: '/pet/:id/edit',
-          builder: (c, s) => PetEditScreen(petId: s.pathParameters['id']!)),
+        path: '/pet/:id/edit',
+        builder: (c, s) => PetEditScreen(petId: s.pathParameters['id']!),
+      ),
     ],
   );
 });

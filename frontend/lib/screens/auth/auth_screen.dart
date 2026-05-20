@@ -36,14 +36,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final auth = ref.read(authProvider.notifier);
       if (_isLogin) {
         await auth.login(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text);
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
+        );
       } else {
         await auth.register(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
-            nickname: _nicknameCtrl.text.trim());
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
+          nickname: _nicknameCtrl.text.trim(),
+        );
       }
+    } catch (e) {
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithKakao() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authProvider.notifier).loginWithKakao();
     } catch (e) {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
@@ -70,21 +88,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 TextField(
                   controller: _nicknameCtrl,
                   decoration: const InputDecoration(
-                      labelText: '닉네임', border: OutlineInputBorder()),
+                    labelText: '닉네임',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               if (!_isLogin) const SizedBox(height: 12),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                    labelText: '이메일', border: OutlineInputBorder()),
+                  labelText: '이메일',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _passwordCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                    labelText: '비밀번호', border: OutlineInputBorder()),
+                  labelText: '비밀번호',
+                  border: OutlineInputBorder(),
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -99,14 +123,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : AppText(_isLogin ? '로그인' : '회원가입',
-                          fontWeight: FontWeight.bold),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : AppText(
+                          _isLogin ? '로그인' : '회원가입',
+                          fontWeight: FontWeight.bold,
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFEE500),
+                    foregroundColor: const Color(0xFF191919),
+                  ),
+                  onPressed: _isLoading ? null : _loginWithKakao,
+                  child: AppText('카카오로 로그인', fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
+                onPressed: _isLoading
+                    ? null
+                    : () => setState(() => _isLogin = !_isLogin),
                 child: AppText(
                   _isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인',
                   color: Colors.blue,

@@ -4,15 +4,24 @@ import 'secure_storage.dart';
 
 // Singleton Dio instance used by all services
 late final Dio dio;
+Future<void> Function()? _authExpiredHandler;
 
-void initApiClient(String baseUrl) {
-  dio = Dio(BaseOptions(
-    baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-    headers: {'Content-Type': 'application/json'},
-  ));
-  dio.interceptors.add(_AuthInterceptor(dio));
+void setAuthExpiredHandler(Future<void> Function()? handler) {
+  _authExpiredHandler = handler;
+}
+
+void initApiClient(String baseUrl, {bool includeAuthInterceptor = true}) {
+  dio = Dio(
+    BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      headers: {'Content-Type': 'application/json'},
+    ),
+  );
+  if (includeAuthInterceptor) {
+    dio.interceptors.add(_AuthInterceptor(dio));
+  }
 }
 
 class ApiException implements Exception {
@@ -63,7 +72,9 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
 
   @override
   Future<void> onRequest(
-      RequestOptions options, RequestInterceptorHandler handler) async {
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final token = await getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -73,7 +84,9 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
 
   @override
   Future<void> onError(
-      DioException err, ErrorInterceptorHandler handler) async {
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     if (err.response?.statusCode == 401 &&
         !err.requestOptions.path.contains('/auth/')) {
       if (_isRefreshing) {
@@ -97,9 +110,11 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
         final refresh = await getRefreshToken();
         if (refresh == null) throw Exception('no refresh token');
 
-        final res = await _dio.post('/api/v1/auth/refresh',
-            data: {'refreshToken': refresh},
-            options: Options(headers: {'Authorization': null}));
+        final res = await _dio.post(
+          '/api/v1/auth/refresh',
+          data: {'refreshToken': refresh},
+          options: Options(headers: {'Authorization': null}),
+        );
 
         final newAccess = res.data['data']['accessToken'] as String;
         final newRefresh = res.data['data']['refreshToken'] as String;
@@ -119,18 +134,21 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
         }
         _pendingQueue.clear();
         await clearTokens();
+        await _authExpiredHandler?.call();
         handler.reject(err);
       } finally {
         _isRefreshing = false;
       }
       return;
     }
-    handler.reject(DioException(
-      requestOptions: err.requestOptions,
-      response: err.response,
-      error: _parseError(err),
-      type: err.type,
-    ));
+    handler.reject(
+      DioException(
+        requestOptions: err.requestOptions,
+        response: err.response,
+        error: _parseError(err),
+        type: err.type,
+      ),
+    );
   }
 }
 

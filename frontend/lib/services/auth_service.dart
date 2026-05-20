@@ -1,3 +1,5 @@
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+
 import '../core/api_client.dart';
 import '../core/secure_storage.dart';
 import '../models/user_profile.dart';
@@ -11,11 +13,10 @@ class AuthService {
     required String password,
     required String nickname,
   }) async {
-    final res = await dio.post('/api/v1/auth/register', data: {
-      'email': email,
-      'password': password,
-      'nickname': nickname,
-    });
+    final res = await dio.post(
+      '/api/v1/auth/register',
+      data: {'email': email, 'password': password, 'nickname': nickname},
+    );
     final data = unwrap(res) as Map<String, dynamic>;
     await saveTokens(
       access: data['accessToken'] as String,
@@ -28,16 +29,59 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await dio.post('/api/v1/auth/login', data: {
-      'email': email,
-      'password': password,
-    });
+    final res = await dio.post(
+      '/api/v1/auth/login',
+      data: {'email': email, 'password': password},
+    );
     final data = unwrap(res) as Map<String, dynamic>;
     await saveTokens(
       access: data['accessToken'] as String,
       refresh: data['refreshToken'] as String,
     );
     return getProfile();
+  }
+
+  Future<UserProfile?> loginWithKakao() async {
+    final token = await _loginWithKakaoSdk();
+    if (token == null) {
+      return null;
+    }
+
+    final res = await dio.post(
+      '/api/v1/auth/kakao',
+      data: {'accessToken': token.accessToken},
+    );
+    final data = unwrap(res) as Map<String, dynamic>;
+    await saveTokens(
+      access: data['accessToken'] as String,
+      refresh: data['refreshToken'] as String,
+    );
+    return getProfile();
+  }
+
+  Future<OAuthToken?> _loginWithKakaoSdk() async {
+    if (await isKakaoTalkInstalled()) {
+      try {
+        return await UserApi.instance.loginWithKakaoTalk();
+      } on KakaoClientException catch (e) {
+        if (_isUserCancelled(e)) {
+          return null;
+        }
+      }
+    }
+
+    try {
+      return await UserApi.instance.loginWithKakaoAccount();
+    } on KakaoClientException catch (e) {
+      if (_isUserCancelled(e)) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  bool _isUserCancelled(KakaoClientException exception) {
+    return exception.reason == ClientErrorCause.cancelled;
   }
 
   Future<void> logout() async {
