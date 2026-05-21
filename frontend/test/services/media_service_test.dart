@@ -14,21 +14,27 @@ void main() {
     initApiClient('http://example.test', includeAuthInterceptor: false);
   });
 
-  test('uploadPetPhoto uses file multipart field', () async {
+  test('uploadPetPhoto uses bytes multipart file field', () async {
     final fieldNames = <String>[];
+    final filenames = <String?>[];
     dio.httpClientAdapter = _CannedAdapter((options) {
       final form = options.data as FormData;
       fieldNames.addAll(form.files.map((entry) => entry.key));
+      filenames.addAll(form.files.map((entry) => entry.value.filename));
       return _jsonResponse(options, 201, {
         'data': {'url': '/api/v1/media/1'},
       });
     });
-    final file = await _tempFile('pet-photo.png');
 
-    final url = await MediaService().uploadPetPhoto('1', file.path);
+    final url = await MediaService().uploadPetPhoto(
+      petId: '1',
+      bytes: Uint8List.fromList([1, 2, 3]),
+      filename: 'pet-photo.png',
+    );
 
     expect(url, '/api/v1/media/1');
     expect(fieldNames, ['file']);
+    expect(filenames, ['pet-photo.png']);
   });
 
   test(
@@ -93,6 +99,79 @@ void main() {
       expect(record.mediaUrls, ['/api/v1/media/20', '/api/v1/media/21']);
       expect(uploadFieldNames, ['file', 'file']);
       expect(requestedPaths.where((path) => path.endsWith('/media')).length, 2);
+    },
+  );
+
+  test(
+    'createRecordWithMediaBytes uploads byte files with file multipart field',
+    () async {
+      final uploadFieldNames = <String>[];
+      final uploadFilenames = <String?>[];
+      final requestedPaths = <String>[];
+      dio.httpClientAdapter = _CannedAdapter((options) {
+        requestedPaths.add(options.path);
+        if (options.path == '/api/v1/pets/1/records' &&
+            options.method == 'POST') {
+          return _jsonResponse(options, 201, {
+            'data': {
+              'id': 10,
+              'petId': 1,
+              'typeId': 'meal',
+              'date': '2026-05-21',
+              'mediaUrls': [],
+              'detail': {},
+            },
+          });
+        }
+        if (options.path == '/api/v1/pets/1/records/10/media' &&
+            options.method == 'POST') {
+          final form = options.data as FormData;
+          uploadFieldNames.addAll(form.files.map((entry) => entry.key));
+          uploadFilenames.addAll(
+            form.files.map((entry) => entry.value.filename),
+          );
+          return _jsonResponse(options, 201, {
+            'data': {
+              'id': 20,
+              'url': '/api/v1/media/20',
+              'originalName': 'meal.png',
+              'contentType': 'image/png',
+              'fileSize': 5,
+              'status': 'STORED',
+            },
+          });
+        }
+        if (options.path == '/api/v1/pets/1/records/10' &&
+            options.method == 'GET') {
+          return _jsonResponse(options, 200, {
+            'data': {
+              'id': 10,
+              'petId': 1,
+              'typeId': 'meal',
+              'date': '2026-05-21',
+              'mediaUrls': ['/api/v1/media/20'],
+              'detail': {},
+            },
+          });
+        }
+        fail('Unexpected request: ${options.method} ${options.path}');
+      });
+
+      final record = await RecordService().createRecordWithMediaBytes(
+        petId: '1',
+        body: {'typeId': 'meal', 'date': '2026-05-21'},
+        files: [
+          RecordMediaUpload(
+            bytes: Uint8List.fromList([1, 2, 3]),
+            filename: 'meal.png',
+          ),
+        ],
+      );
+
+      expect(record.mediaUrls, ['/api/v1/media/20']);
+      expect(uploadFieldNames, ['file']);
+      expect(uploadFilenames, ['meal.png']);
+      expect(requestedPaths.where((path) => path.endsWith('/media')).length, 1);
     },
   );
 }

@@ -10,7 +10,7 @@ class RecordType {
 
 // 12 quick types (all supported + diary excluded — diary/groom not supported by backend)
 const List<RecordType> kQuickTypes = [
-  RecordType(id: 'meal', label: '식사', icon: Icons.restaurant),
+  RecordType(id: 'meal', label: '급식', icon: Icons.restaurant),
   RecordType(id: 'water', label: '음수', icon: Icons.water_drop),
   RecordType(id: 'walk', label: '산책', icon: Icons.directions_walk),
   RecordType(id: 'poop', label: '배변', icon: Icons.pets),
@@ -26,12 +26,25 @@ const List<RecordType> kQuickTypes = [
 
 // Backend-supported types (excludes diary/groom from API calls)
 const Set<String> kSupportedTypeIds = {
-  'meal', 'water', 'walk', 'poop', 'play', 'sleep',
-  'medicine', 'weight', 'vet', 'checkup',
+  'meal',
+  'water',
+  'walk',
+  'poop',
+  'play',
+  'sleep',
+  'medicine',
+  'weight',
+  'vet',
+  'checkup',
 };
 
 const List<String> kDefaultQuickIds = [
-  'meal', 'water', 'walk', 'poop', 'play', 'sleep',
+  'meal',
+  'water',
+  'walk',
+  'poop',
+  'play',
+  'sleep',
 ];
 
 // Detail field keys per record type — mirrors DETAIL_KEYS_BY_TYPE in RN
@@ -50,7 +63,14 @@ const Map<String, List<String>> kDetailKeysByType = {
   'groom': ['groomType'],
 };
 
-const List<String> kSpeciesList = ['dog', 'cat', 'rabbit', 'hamster', 'bird', 'other'];
+const List<String> kSpeciesList = [
+  'dog',
+  'cat',
+  'rabbit',
+  'hamster',
+  'bird',
+  'other',
+];
 
 String speciesLabel(String species) {
   const map = {
@@ -65,7 +85,10 @@ String speciesLabel(String species) {
 }
 
 // Strip null/empty detail fields before API send
-Map<String, dynamic> sanitizeDetail(Map<String, dynamic> detail, String typeId) {
+Map<String, dynamic> sanitizeDetail(
+  Map<String, dynamic> detail,
+  String typeId,
+) {
   final keys = kDetailKeysByType[typeId] ?? [];
   final result = <String, dynamic>{};
   for (final k in keys) {

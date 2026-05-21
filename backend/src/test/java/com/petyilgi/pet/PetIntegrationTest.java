@@ -9,10 +9,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -100,6 +102,43 @@ class PetIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(get(PETS_URL).header("Authorization", "Bearer " + tokenB))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)));
+    }
+
+    @Test
+    void listPetsIncludesLatestPetProfileImageUrl() throws Exception {
+        String token = registerAndGetToken("pet-photo-list@example.com", "photoOwner");
+
+        MvcResult created = mockMvc.perform(post(PETS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(petBody("Mochi"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.profileImageUrl").doesNotExist())
+                .andReturn();
+
+        var data = (Map<?, ?>) objectMapper.readValue(
+                created.getResponse().getContentAsString(), Map.class).get("data");
+        Long petId = ((Number) data.get("id")).longValue();
+
+        mockMvc.perform(multipart(PETS_URL + "/" + petId + "/media")
+                        .file(new MockMultipartFile("file", "first.png", MediaType.IMAGE_PNG_VALUE,
+                                "first-image".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        MvcResult latestUpload = mockMvc.perform(multipart(PETS_URL + "/" + petId + "/media")
+                        .file(new MockMultipartFile("file", "latest.png", MediaType.IMAGE_PNG_VALUE,
+                                "latest-image".getBytes(StandardCharsets.UTF_8)))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var latestData = (Map<?, ?>) objectMapper.readValue(
+                latestUpload.getResponse().getContentAsString(), Map.class).get("data");
+        String latestUrl = latestData.get("url").toString();
+
+        mockMvc.perform(get(PETS_URL).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].profileImageUrl").value(latestUrl));
     }
 
     @Test

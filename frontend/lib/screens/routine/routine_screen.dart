@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../models/routine.dart';
 import '../../core/record_utils.dart';
@@ -136,10 +137,18 @@ Future<void> _showAddRoutineDialog(BuildContext context, WidgetRef ref) async {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              await dismissKeyboardBeforeTransition(ctx);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+              }
+            },
             child: const AppText('취소')),
         ElevatedButton(
           onPressed: () async {
+            await dismissKeyboardBeforeTransition(ctx);
+            if (!ctx.mounted) return;
+
             Navigator.pop(ctx);
             final today = todayString();
             await ref.read(petProvider.notifier).addRoutine({

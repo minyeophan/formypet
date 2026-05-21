@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -18,18 +18,22 @@ class MediaService {
   }
 
   // Upload pet photo
-  Future<String> uploadPetPhoto(String petId, String filePath) async {
-    final form = await _buildForm(filePath);
+  Future<String> uploadPetPhoto({
+    required String petId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final form = _buildBytesForm(bytes: bytes, filename: filename);
     final res = await dio.post('/api/v1/pets/$petId/media', data: form);
     return (unwrap(res) as Map<String, dynamic>)['url'].toString();
   }
 
-  Future<FormData> _buildForm(String filePath) async {
+  FormData _buildBytesForm({
+    required Uint8List bytes,
+    required String filename,
+  }) {
     return FormData.fromMap({
-      'file': await MultipartFile.fromFile(
-        filePath,
-        filename: filePath.split(Platform.pathSeparator).last,
-      ),
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
     });
   }
 }

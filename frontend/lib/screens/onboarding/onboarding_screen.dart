@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
 import '../../core/record_utils.dart';
@@ -22,6 +24,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _birthCtrl = TextEditingController();
   String _species = 'dog';
   String? _gender;
+  XFile? _photo;
   int _colorIndex = 0;
   bool _isLoading = false;
   String? _error;
@@ -38,12 +41,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() => _error = '이름과 생년월일을 입력해주세요');
       return;
     }
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
       final color = kPetColors[_colorIndex];
+      final photo = _photo == null
+          ? null
+          : PetPhotoUpload(
+              bytes: await _photo!.readAsBytes(),
+              filename: _photo!.name,
+            );
       await ref.read(petProvider.notifier).addPet({
         'name': _nameCtrl.text.trim(),
         'species': _species,
@@ -51,7 +63,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         'accentColor': color.accentHex,
         'bgLight': color.bgLightHex,
         if (_gender != null) 'gender': _gender,
-      });
+      }, photo: photo);
       if (mounted && widget.mode == PetEntryMode.additionalPet) {
         context.go('/home');
       }
@@ -59,6 +71,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    final photo = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (photo != null) {
+      setState(() => _photo = photo);
     }
   }
 
@@ -71,6 +90,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const AppText('대표 사진 (선택)', fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+            _PhotoPickerTile(photo: _photo, onTap: _pickPhoto),
+            const SizedBox(height: 20),
             const AppText('이름', fontWeight: FontWeight.bold),
             const SizedBox(height: 8),
             TextField(
@@ -174,6 +197,56 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: _isLoading
                     ? const CircularProgressIndicator()
                     : const AppText('등록하기', fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoPickerTile extends StatelessWidget {
+  final XFile? photo;
+  final VoidCallback onTap;
+
+  const _PhotoPickerTile({required this.photo, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        height: 88,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6F8),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.add_a_photo_rounded,
+                color: Color(0xFF8A949E),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: AppText(
+                photo?.name ?? '대표 사진 선택',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

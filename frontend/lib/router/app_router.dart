@@ -7,6 +7,7 @@ import '../screens/auth/auth_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/records/meal_record_screen.dart';
 import '../screens/records/records_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_screen.dart';
@@ -77,10 +78,33 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
           ),
+          GoRoute(
+            path: '/community/category/:category',
+            builder: (c, s) => CommunityCategoryScreen(
+              initialCategory: s.pathParameters['category']!,
+            ),
+          ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
         ],
       ),
-      GoRoute(path: '/records', builder: (c, s) => const RecordsScreen()),
+      GoRoute(
+        path: '/records',
+        redirect: (c, s) =>
+            s.uri.queryParameters['tab'] == 'growth' ? '/records/growth' : null,
+        builder: (c, s) => const RecordsScreen(),
+      ),
+      GoRoute(
+        path: '/records/all',
+        builder: (c, s) => const AllRecordsScreen(),
+      ),
+      GoRoute(
+        path: '/records/growth',
+        builder: (c, s) => const GrowthRecordsScreen(),
+      ),
+      GoRoute(
+        path: '/records/meal/new',
+        builder: (c, s) => const MealRecordScreen(),
+      ),
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
       GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
       GoRoute(

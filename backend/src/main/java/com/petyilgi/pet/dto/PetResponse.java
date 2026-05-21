@@ -18,9 +18,14 @@ public record PetResponse(
         String diseases,
         String specialNotes,
         String accentColor,
-        String bgLight
+        String bgLight,
+        String profileImageUrl
 ) {
     public static PetResponse of(Pet pet) {
+        return of(pet, null);
+    }
+
+    public static PetResponse of(Pet pet, String profileImageUrl) {
         return new PetResponse(
                 pet.getId(),
                 pet.getName(),
@@ -33,7 +38,8 @@ public record PetResponse(
                 pet.getDiseases(),
                 pet.getSpecialNotes(),
                 pet.getAccentColor(),
-                pet.getBgLight()
+                pet.getBgLight(),
+                profileImageUrl
         );
     }
 }

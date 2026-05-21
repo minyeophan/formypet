@@ -1,7 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 import '../models/activity_record.dart';
+
+class RecordMediaUpload {
+  final Uint8List bytes;
+  final String filename;
+
+  const RecordMediaUpload({required this.bytes, required this.filename});
+}
 
 class RecordService {
   Future<List<ActivityRecord>> getRecords(
@@ -73,6 +81,23 @@ class RecordService {
     }
   }
 
+  Future<ActivityRecord> createRecordWithMediaBytes({
+    required String petId,
+    required Map<String, dynamic> body,
+    required List<RecordMediaUpload> files,
+  }) async {
+    final record = await createRecord(petId, body);
+    if (files.isEmpty) return record;
+
+    try {
+      await _uploadMediaBytes(petId, record.id, files);
+      return getRecord(petId, record.id);
+    } catch (e) {
+      await deleteRecord(petId, record.id);
+      rethrow;
+    }
+  }
+
   Future<void> _uploadMedia(
     String petId,
     String recordId,
@@ -84,6 +109,22 @@ class RecordService {
           file.path,
           filename: file.path.split(Platform.pathSeparator).last,
         ),
+      });
+      await dio.post(
+        '/api/v1/pets/$petId/records/$recordId/media',
+        data: formData,
+      );
+    }
+  }
+
+  Future<void> _uploadMediaBytes(
+    String petId,
+    String recordId,
+    List<RecordMediaUpload> files,
+  ) async {
+    for (final file in files) {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(file.bytes, filename: file.filename),
       });
       await dio.post(
         '/api/v1/pets/$petId/records/$recordId/media',

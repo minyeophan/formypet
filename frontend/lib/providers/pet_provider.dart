@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pet.dart';
 import '../models/activity_record.dart';
 import '../models/routine.dart';
 import '../services/pet_service.dart';
+import '../services/media_service.dart';
 import '../services/record_service.dart';
 import '../services/routine_service.dart';
 import '../core/record_utils.dart';
@@ -15,6 +18,7 @@ class PetState {
   final String? activePetId;
   final List<ActivityRecord> records;
   final List<Routine> routines;
+  final List<TodayRoutineItem> todayRoutineItems;
   // completionKey = "routineId:date" → CompletionStatus
   final Map<String, CompletionStatus> routineCompletions;
   // Today's routine summary
@@ -29,6 +33,7 @@ class PetState {
     this.activePetId,
     required this.records,
     required this.routines,
+    required this.todayRoutineItems,
     required this.routineCompletions,
     this.todaySummary,
     required this.quickTypeIds,
@@ -45,6 +50,7 @@ class PetState {
     bool clearActivePetId = false,
     List<ActivityRecord>? records,
     List<Routine>? routines,
+    List<TodayRoutineItem>? todayRoutineItems,
     Map<String, CompletionStatus>? routineCompletions,
     TodayRoutineSummary? todaySummary,
     bool clearTodaySummary = false,
@@ -56,6 +62,7 @@ class PetState {
     activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
     records: records ?? this.records,
     routines: routines ?? this.routines,
+    todayRoutineItems: todayRoutineItems ?? this.todayRoutineItems,
     routineCompletions: routineCompletions ?? this.routineCompletions,
     todaySummary: clearTodaySummary
         ? null
@@ -64,29 +71,51 @@ class PetState {
   );
 }
 
+class PetPhotoUpload {
+  final Uint8List bytes;
+  final String filename;
+
+  const PetPhotoUpload({required this.bytes, required this.filename});
+}
+
+class RecordPhotoUpload {
+  final Uint8List bytes;
+  final String filename;
+
+  const RecordPhotoUpload({required this.bytes, required this.filename});
+}
+
 class PetNotifier extends StateNotifier<PetState> {
   final PetService _petSvc;
+  final MediaService _mediaSvc;
   final RecordService _recSvc;
   final RoutineService _routSvc;
   late final Future<void> _preferencesReady;
 
-  PetNotifier(this._petSvc, this._recSvc, this._routSvc)
-    : super(
-        PetState(
-          isLoading: true,
-          hasOnboarded: false,
-          pets: const [],
-          records: const [],
-          routines: const [],
-          routineCompletions: const {},
-          quickTypeIds: kDefaultQuickIds,
-        ),
-      ) {
+  PetNotifier(
+    this._petSvc,
+    this._recSvc,
+    this._routSvc, [
+    MediaService? mediaSvc,
+  ]) : _mediaSvc = mediaSvc ?? MediaService(),
+       super(
+         PetState(
+           isLoading: true,
+           hasOnboarded: false,
+           pets: const [],
+           records: const [],
+           routines: const [],
+           todayRoutineItems: const [],
+           routineCompletions: const {},
+           quickTypeIds: kDefaultQuickIds,
+         ),
+       ) {
     _preferencesReady = _loadQuickTypeIds();
   }
 
   PetNotifier.test(super.initialState)
     : _petSvc = PetService(),
+      _mediaSvc = MediaService(),
       _recSvc = RecordService(),
       _routSvc = RoutineService() {
     _preferencesReady = Future.value();
@@ -112,6 +141,7 @@ class PetNotifier extends StateNotifier<PetState> {
           pets: const [],
           records: const [],
           routines: const [],
+          todayRoutineItems: const [],
           routineCompletions: const {},
           quickTypeIds: state.quickTypeIds,
         );
@@ -125,6 +155,7 @@ class PetNotifier extends StateNotifier<PetState> {
         activePetId: activePetId,
         records: const [],
         routines: const [],
+        todayRoutineItems: const [],
         routineCompletions: const {},
         quickTypeIds: state.quickTypeIds,
       );
@@ -143,6 +174,7 @@ class PetNotifier extends StateNotifier<PetState> {
       pets: const [],
       records: const [],
       routines: const [],
+      todayRoutineItems: const [],
       routineCompletions: const {},
       quickTypeIds: state.quickTypeIds,
     );
@@ -170,6 +202,7 @@ class PetNotifier extends StateNotifier<PetState> {
     state = state.copyWith(
       records: records,
       routines: routines,
+      todayRoutineItems: todayData.items,
       todaySummary: todayData.summary,
       routineCompletions: completions,
     );
@@ -181,7 +214,10 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   // Pet CRUD
-  Future<void> addPet(Map<String, dynamic> body) async {
+  Future<void> addPet(
+    Map<String, dynamic> body, {
+    PetPhotoUpload? photo,
+  }) async {
     await _preferencesReady;
     final pet = await _petSvc.createPet(body);
     state = PetState(
@@ -191,17 +227,43 @@ class PetNotifier extends StateNotifier<PetState> {
       activePetId: pet.id,
       records: const [],
       routines: const [],
+      todayRoutineItems: const [],
       routineCompletions: const {},
       quickTypeIds: state.quickTypeIds,
     );
+    if (photo != null) {
+      final savedPet = await _uploadPhoto(pet, photo);
+      state = state.copyWith(
+        pets: state.pets.map((p) => p.id == pet.id ? savedPet : p).toList(),
+      );
+    }
     await _loadPetData(pet.id);
   }
 
-  Future<void> updatePet(String petId, Map<String, dynamic> body) async {
+  Future<void> updatePet(
+    String petId,
+    Map<String, dynamic> body, {
+    PetPhotoUpload? photo,
+  }) async {
     final updated = await _petSvc.updatePet(petId, body);
     state = state.copyWith(
       pets: state.pets.map((p) => p.id == petId ? updated : p).toList(),
     );
+    if (photo != null) {
+      final savedPet = await _uploadPhoto(updated, photo);
+      state = state.copyWith(
+        pets: state.pets.map((p) => p.id == petId ? savedPet : p).toList(),
+      );
+    }
+  }
+
+  Future<Pet> _uploadPhoto(Pet pet, PetPhotoUpload photo) async {
+    final url = await _mediaSvc.uploadPetPhoto(
+      petId: pet.id,
+      bytes: photo.bytes,
+      filename: photo.filename,
+    );
+    return pet.copyWith(profileImageUrl: url);
   }
 
   Future<void> deletePet(String petId) async {
@@ -215,6 +277,7 @@ class PetNotifier extends StateNotifier<PetState> {
         pets: const [],
         records: const [],
         routines: const [],
+        todayRoutineItems: const [],
         routineCompletions: const {},
         quickTypeIds: state.quickTypeIds,
       );
@@ -230,9 +293,20 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   // Record CRUD
-  Future<void> addRecord(Map<String, dynamic> body) async {
+  Future<void> addRecord(
+    Map<String, dynamic> body, {
+    RecordPhotoUpload? photo,
+  }) async {
     final petId = state.activePetId!;
-    final record = await _recSvc.createRecord(petId, body);
+    final record = photo == null
+        ? await _recSvc.createRecord(petId, body)
+        : await _recSvc.createRecordWithMediaBytes(
+            petId: petId,
+            body: body,
+            files: [
+              RecordMediaUpload(bytes: photo.bytes, filename: photo.filename),
+            ],
+          );
     state = state.copyWith(records: [...state.records, record]);
   }
 

@@ -1,138 +1,169 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../models/post.dart';
 import '../services/community_service.dart';
 
 class CommunityState {
-  // 8 categories, each with independent post list and cursor
-  final Map<String, List<Post>> postsByCategory;
-  final Map<String, String?> cursorByCategory;
-  final Map<String, bool> loadingByCategory;
-  final String activeCategory;
+  final Map<String, List<Post>> postsByFeedKey;
+  final Map<String, String?> cursorByFeedKey;
+  final Map<String, bool> loadingByFeedKey;
+  final String activeFeedKey;
 
   const CommunityState({
-    required this.postsByCategory,
-    required this.cursorByCategory,
-    required this.loadingByCategory,
-    required this.activeCategory,
+    required this.postsByFeedKey,
+    required this.cursorByFeedKey,
+    required this.loadingByFeedKey,
+    required this.activeFeedKey,
   });
 
-  List<Post> get activePosts => postsByCategory[activeCategory] ?? [];
-  bool get isLoading => loadingByCategory[activeCategory] ?? false;
-  String? get nextCursor => cursorByCategory[activeCategory];
+  List<Post> get activePosts => postsByFeedKey[activeFeedKey] ?? [];
+  bool get isLoading => loadingByFeedKey[activeFeedKey] ?? false;
+  String? get nextCursor => cursorByFeedKey[activeFeedKey];
 
   CommunityState copyWith({
-    Map<String, List<Post>>? postsByCategory,
-    Map<String, String?>? cursorByCategory,
-    Map<String, bool>? loadingByCategory,
-    String? activeCategory,
-  }) =>
-      CommunityState(
-        postsByCategory: postsByCategory ?? this.postsByCategory,
-        cursorByCategory: cursorByCategory ?? this.cursorByCategory,
-        loadingByCategory: loadingByCategory ?? this.loadingByCategory,
-        activeCategory: activeCategory ?? this.activeCategory,
-      );
+    Map<String, List<Post>>? postsByFeedKey,
+    Map<String, String?>? cursorByFeedKey,
+    Map<String, bool>? loadingByFeedKey,
+    String? activeFeedKey,
+  }) => CommunityState(
+    postsByFeedKey: postsByFeedKey ?? this.postsByFeedKey,
+    cursorByFeedKey: cursorByFeedKey ?? this.cursorByFeedKey,
+    loadingByFeedKey: loadingByFeedKey ?? this.loadingByFeedKey,
+    activeFeedKey: activeFeedKey ?? this.activeFeedKey,
+  );
 }
 
 class CommunityNotifier extends StateNotifier<CommunityState> {
   final CommunityService _svc;
 
   CommunityNotifier(this._svc)
-      : super(CommunityState(
-          postsByCategory: {},
-          cursorByCategory: {},
-          loadingByCategory: {},
-          activeCategory: 'all',
-        )) {
+    : super(
+        const CommunityState(
+          postsByFeedKey: {},
+          cursorByFeedKey: {},
+          loadingByFeedKey: {},
+          activeFeedKey: 'popular',
+        ),
+      ) {
     loadFeed();
   }
 
-  Future<void> setCategory(String category) async {
-    state = state.copyWith(activeCategory: category);
-    if ((state.postsByCategory[category] ?? []).isEmpty) {
+  Future<void> setFeedKey(String feedKey) async {
+    final key = _normalizeFeedKey(feedKey);
+    state = state.copyWith(activeFeedKey: key);
+    if ((state.postsByFeedKey[key] ?? []).isEmpty) {
       await loadFeed();
     }
   }
 
   Future<void> loadFeed({bool refresh = false}) async {
-    final cat = state.activeCategory;
-    if (state.loadingByCategory[cat] == true) return;
+    final key = state.activeFeedKey;
+    if (state.loadingByFeedKey[key] == true) return;
 
-    final cursor = refresh ? null : state.cursorByCategory[cat];
-    final loading = Map<String, bool>.from(state.loadingByCategory);
-    loading[cat] = true;
-    state = state.copyWith(loadingByCategory: loading);
+    final cursor = refresh ? null : state.cursorByFeedKey[key];
+    final loading = Map<String, bool>.from(state.loadingByFeedKey);
+    loading[key] = true;
+    state = state.copyWith(loadingByFeedKey: loading);
 
     try {
-      final feed = await _svc.getFeed(category: cat, cursor: cursor);
-      final posts = Map<String, List<Post>>.from(state.postsByCategory);
-      final cursors = Map<String, String?>.from(state.cursorByCategory);
+      final feed = await _svc.getFeed(
+        category: _categoryForKey(key),
+        sort: _sortForKey(key),
+        cursor: cursor,
+      );
+      final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
+      final cursors = Map<String, String?>.from(state.cursorByFeedKey);
 
       if (refresh) {
-        posts[cat] = feed.items;
+        posts[key] = feed.items;
       } else {
-        posts[cat] = [...(posts[cat] ?? []), ...feed.items];
+        posts[key] = [...(posts[key] ?? []), ...feed.items];
       }
-      cursors[cat] = feed.nextCursor;
+      cursors[key] = feed.nextCursor;
 
-      final done = Map<String, bool>.from(state.loadingByCategory);
-      done[cat] = false;
+      final done = Map<String, bool>.from(state.loadingByFeedKey);
+      done[key] = false;
       state = state.copyWith(
-        postsByCategory: posts,
-        cursorByCategory: cursors,
-        loadingByCategory: done,
+        postsByFeedKey: posts,
+        cursorByFeedKey: cursors,
+        loadingByFeedKey: done,
       );
     } catch (_) {
-      final done = Map<String, bool>.from(state.loadingByCategory);
-      done[cat] = false;
-      state = state.copyWith(loadingByCategory: done);
+      final done = Map<String, bool>.from(state.loadingByFeedKey);
+      done[key] = false;
+      state = state.copyWith(loadingByFeedKey: done);
     }
   }
 
   Future<void> loadMore() async {
-    final cat = state.activeCategory;
-    if (state.cursorByCategory[cat] == null) return;
+    final key = state.activeFeedKey;
+    if (state.cursorByFeedKey[key] == null) return;
     await loadFeed();
   }
 
   Future<void> toggleLike(String postId) async {
-    final cat = state.activeCategory;
+    final key = state.activeFeedKey;
     final result = await _svc.toggleLike(postId);
     final liked = result['liked'] as bool;
     final likesCount = result['likesCount'] as int;
 
-    final posts = Map<String, List<Post>>.from(state.postsByCategory);
-    posts[cat] = (posts[cat] ?? [])
-        .map((p) => p.id == postId
-            ? p.copyWith(liked: liked, likesCount: likesCount)
-            : p)
+    final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
+    posts[key] = (posts[key] ?? [])
+        .map(
+          (p) => p.id == postId
+              ? p.copyWith(liked: liked, likesCount: likesCount)
+              : p,
+        )
         .toList();
-    state = state.copyWith(postsByCategory: posts);
+    state = state.copyWith(postsByFeedKey: posts);
   }
 
   Future<Post> createPost({
     required String content,
     String? title,
     required String category,
+    List<XFile> files = const [],
+    PollDraft? poll,
   }) async {
     final post = await _svc.createPost(
-        content: content, title: title, category: category);
-    // Prepend to active category and 'all'
-    final posts = Map<String, List<Post>>.from(state.postsByCategory);
-    for (final cat in [state.activeCategory, 'all']) {
-      if (posts.containsKey(cat)) {
-        posts[cat] = [post, ...(posts[cat] ?? [])];
+      content: content,
+      title: title,
+      category: category,
+      files: files,
+      poll: poll,
+    );
+    final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
+    for (final key in {state.activeFeedKey, 'all', post.category}) {
+      if (posts.containsKey(key)) {
+        posts[key] = [post, ...(posts[key] ?? [])];
       }
     }
-    state = state.copyWith(postsByCategory: posts);
+    state = state.copyWith(postsByFeedKey: posts);
     return post;
   }
+
+  String _normalizeFeedKey(String feedKey) {
+    final normalized = feedKey.toUpperCase();
+    if (normalized == 'POPULAR') return 'popular';
+    if (normalized == 'ALL') return 'all';
+    return normalized;
+  }
+
+  String? _categoryForKey(String key) {
+    if (key == 'popular' || key == 'all') return null;
+    return key;
+  }
+
+  CommunityFeedSort _sortForKey(String key) =>
+      key == 'popular' ? CommunityFeedSort.popular : CommunityFeedSort.latest;
 }
 
-final communityServiceProvider =
-    Provider<CommunityService>((_) => CommunityService());
+final communityServiceProvider = Provider<CommunityService>(
+  (_) => CommunityService(),
+);
 
 final communityProvider =
     StateNotifierProvider<CommunityNotifier, CommunityState>((ref) {
-  return CommunityNotifier(ref.read(communityServiceProvider));
-});
+      return CommunityNotifier(ref.read(communityServiceProvider));
+    });

@@ -8,6 +8,7 @@ import com.petyilgi.pet.dto.PetResponse;
 import com.petyilgi.pet.dto.PetUpdateRequest;
 import com.petyilgi.pet.repository.PetRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class PetService {
 
     private final PetRepository petRepository;
     private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional
     public PetResponse create(String email, PetCreateRequest request) {
@@ -46,7 +48,7 @@ public class PetService {
     public List<PetResponse> list(String email) {
         User user = findUserByEmail(email);
         return petRepository.findByUserId(user.getId()).stream()
-                .map(PetResponse::of)
+                .map(pet -> PetResponse.of(pet, latestPetMediaUrl(pet.getId())))
                 .toList();
     }
 
@@ -57,7 +59,7 @@ public class PetService {
                 request.birthDate() != null ? request.birthDate() : pet.getBirthDate(),
                 request.gender(), request.weight(), request.animalRegistrationNumber(),
                 request.neutered(), request.diseases(), request.specialNotes());
-        return PetResponse.of(pet);
+        return PetResponse.of(pet, latestPetMediaUrl(pet.getId()));
     }
 
     @Transactional
@@ -75,5 +77,19 @@ public class PetService {
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다."));
+    }
+
+    private String latestPetMediaUrl(Long petId) {
+        var ids = jdbcTemplate.queryForList("""
+                SELECT id
+                FROM media_resources
+                WHERE pet_id = ? AND record_id IS NULL AND status = 'STORED'
+                ORDER BY created_at DESC, id DESC
+                LIMIT 1
+                """, Long.class, petId);
+        if (ids.isEmpty()) {
+            return null;
+        }
+        return "/api/v1/media/" + ids.getFirst();
     }
 }

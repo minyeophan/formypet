@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/keyboard_utils.dart';
 import '../core/record_utils.dart';
 import '../providers/pet_provider.dart';
 import '../widgets/app_text.dart';
@@ -128,6 +129,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
   }
 
   Future<void> _save() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+
     // backend doesn't support diary/groom
     if (!kSupportedTypeIds.contains(widget.typeId)) {
       Navigator.pop(context);
@@ -240,7 +244,12 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () async {
+                      await dismissKeyboardBeforeTransition(context);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
                     child: const AppText('취소'),
                   ),
                 ),

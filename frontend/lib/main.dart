@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,8 +10,8 @@ import 'router/app_router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Android emulator → localhost:8080. Change for physical device or iOS simulator.
-  initApiClient('http://10.0.2.2:8080');
+  final baseUrl = kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080';
+  initApiClient(baseUrl);
   await KakaoSdk.init(nativeAppKey: 'c5884b48709cf440cd9cf604168ba0cb');
 
   runApp(const ProviderScope(child: PetyilgiApp()));
