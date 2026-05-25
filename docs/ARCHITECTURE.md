@@ -40,6 +40,8 @@ lib/
 │   │   └── recent_records_card.dart
 │   ├── records/
 │   │   ├── records_screen.dart
+│   │   ├── meal_record_screen.dart
+│   │   ├── record_category_form_screen.dart
 │   │   ├── activity_tab.dart
 │   │   ├── health_tab.dart
 │   │   └── growth_tab.dart
@@ -52,10 +54,14 @@ lib/
 │   │   └── pet_edit_screen.dart
 │   └── my/my_screen.dart
 ├── widgets/
+│   ├── app_header.dart              # 공통 AppBar, 헤더 아이콘 버튼
+│   ├── app_navigation.dart          # 공통 뒤로가기 버튼, 진입 chevron 표시
 │   ├── app_text.dart                # Noto Sans KR 폰트 래퍼
 │   ├── main_scaffold.dart           # 하단 탭 바 + ShellRoute 컨테이너
+│   ├── preparing_toast.dart         # 준비중 공통 토스트
 │   ├── record_modal.dart            # 기록 추가 바텀 시트 (유형 선택 → 입력)
-│   └── record_detail_form.dart
+│   ├── record_detail_form.dart
+│   └── record_inputs/               # 기록 날짜/시간 wheel sheet, 숫자 패널 공통 위젯
 └── routine/
     └── routine_screen.dart
 ```
@@ -63,18 +69,29 @@ lib/
 ## 패턴
 - **go_router ShellRoute**: `/home`, `/community`, `/my`는 ShellRoute로 묶여 탭 바 유지. 나머지(`/records`, `/routine`, `/pet/:id` 등)는 ShellRoute 밖에서 풀스크린 라우트.
 - **AppText 강제 사용**: 모든 텍스트는 `<AppText>`로 — Noto Sans KR 폰트 일관성 보장.
+- **공통 헤더/네비게이션 위젯**: 화면 내비게이션 의미의 뒤로가기는 `AppBackButton`을 사용한다. `AppBackButton`은 UI와 콜백만 담당하고 `context.pop()`, `context.go()` fallback, 키보드 dismiss는 호출 화면에 둔다. 행/카드의 진입 표시는 표시 전용 `AppDisclosureChevron`을 사용하며 tap 처리는 부모 row/card가 담당한다.
+- **AppHeader 사용 범위**: 기본 화면 헤더는 `AppHeader`를 우선 사용하고, 뒤로가기가 필요하면 `showBackButton/onBack` 경로를 사용한다. 헤더 우측 원형 아이콘 버튼은 `AppHeaderIconButton`을 재사용한다.
+- **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
+- **기록 입력 스타일 경계**: 기록 입력 패널의 surface, radius, header height, keypad spacing 같은 모양 값은 `RecordInputStyle`에서 관리한다. 저장 API, payload, schema는 입력 패널 변경과 분리한다.
 - **Riverpod StateNotifier**: 전역 상태는 `StateNotifierProvider`로 관리. `ref.watch`로 UI 구독, `ref.read`로 액션 호출.
 
 ## 라우팅 (go_router)
 ```
 GoRouter
+├── /              → SplashScreen
 ├── /auth           → AuthScreen
 ├── /onboarding     → OnboardingScreen
+├── /pets/new       → OnboardingScreen(additionalPet)
 ├── ShellRoute (MainScaffold — 탭 바)
 │   ├── /home       → HomeScreen
 │   ├── /community  → CommunityScreen
+│   ├── /community/category/:category → CommunityCategoryScreen
 │   └── /my         → MyScreen
 ├── /records        → RecordsScreen
+├── /records/all    → AllRecordsScreen
+├── /records/growth → GrowthRecordsScreen
+├── /records/meal/new → MealRecordScreen
+├── /records/:typeId/new → RecordCategoryFormScreen
 ├── /routine        → RoutineScreen
 ├── /community/write → WriteScreen
 ├── /pet/:id        → PetDetailScreen
