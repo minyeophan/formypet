@@ -8,6 +8,7 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/records/meal_record_screen.dart';
+import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/records_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_screen.dart';
@@ -104,6 +105,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/records/meal/new',
         builder: (c, s) => const MealRecordScreen(),
+      ),
+      GoRoute(
+        path: '/records/:typeId/new',
+        builder: (c, s) =>
+            RecordCategoryFormScreen(typeId: s.pathParameters['typeId']!),
       ),
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
       GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),

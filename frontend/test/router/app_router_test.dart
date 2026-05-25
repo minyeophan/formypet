@@ -132,6 +132,34 @@ void main() {
     expect(find.text('사료 종류'), findsOneWidget);
   });
 
+  testWidgets('/records/:type/new opens category record screens', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+
+    for (final entry in {
+      '/records/poop/new': '배변 기록',
+      '/records/walk/new': '산책 기록',
+      '/records/weight/new': '몸무게 기록',
+      '/records/vet/new': '병원 기록',
+      '/records/medicine/new': '영양/약 기록',
+    }.entries) {
+      await _pumpRouter(
+        tester,
+        initialLocation: entry.key,
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [pet],
+          activePetId: pet.id,
+        ),
+      );
+
+      expect(find.text(entry.value), findsOneWidget);
+    }
+  });
+
   testWidgets('home growth menu opens /records/growth', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -201,6 +229,30 @@ void main() {
 
     expect(find.byType(CommunityCategoryScreen), findsOneWidget);
     expect(find.byType(BottomNavigationBar), findsOneWidget);
+    final bottomNavigationBar = tester.widget<BottomNavigationBar>(
+      find.byType(BottomNavigationBar),
+    );
+    expect(bottomNavigationBar.currentIndex, 1);
+  });
+
+  testWidgets('/community/category/POPULAR opens category screen', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/community/category/POPULAR',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      communityService: _FakeCommunityService(),
+    );
+
+    expect(find.byType(CommunityCategoryScreen), findsOneWidget);
     final bottomNavigationBar = tester.widget<BottomNavigationBar>(
       find.byType(BottomNavigationBar),
     );
