@@ -3,6 +3,7 @@ node_modules
 # local agent/config artifacts
 .codex/
 .claude/
+.superpowers/
 docs/superpowers/plans/
 
 # backend build/runtime artifacts
@@ -17,6 +18,7 @@ hs_err_pid*.log
 frontend/.env
 frontend/*.log
 frontend/*.err.log
+frontend/devtools_options.yaml
 
 # Flutter build outputs
 frontend/build/
@@ -35,6 +37,8 @@ docs/BACKEND_RULES.md
 docs/CONTEXT.md
 docs/FRONTEND_STATUS.md
 docs/FRONTEND_WIDGET_MAP.md
+docs/GIT_WORKFLOW.md
+docs/mockups/
 docs/PHASE_PLAN.md
 docs/PRD.md
 docs/ERD.md
