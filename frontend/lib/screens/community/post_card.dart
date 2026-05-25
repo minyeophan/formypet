@@ -34,8 +34,11 @@ class PostCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppText(post.authorNickname,
-                          fontWeight: FontWeight.bold, fontSize: 13),
+                      AppText(
+                        post.authorNickname,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       AppText(
                         post.createdAt.isNotEmpty
                             ? formatDateShort(post.createdAt.substring(0, 10))
@@ -50,11 +53,15 @@ class PostCard extends StatelessWidget {
             ),
             if (post.title != null) ...[
               const SizedBox(height: 8),
-              AppText(post.title!, fontWeight: FontWeight.bold, fontSize: 15),
+              AppText(post.title!, fontWeight: FontWeight.bold, fontSize: 14),
             ],
             const SizedBox(height: 6),
-            AppText(post.content, fontSize: 14, maxLines: 3,
-                overflow: TextOverflow.ellipsis),
+            AppText(
+              post.content,
+              fontSize: 13,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -73,7 +80,11 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.chat_bubble_outline, size: 18, color: Colors.grey),
+                const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 18,
+                  color: Colors.grey,
+                ),
                 const SizedBox(width: 4),
                 AppText('${post.commentsCount}', fontSize: 13),
               ],

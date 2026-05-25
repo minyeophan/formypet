@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community_service.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 
 class WriteScreen extends ConsumerStatefulWidget {
@@ -97,10 +98,10 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const AppText('글쓰기', fontWeight: FontWeight.bold),
+        title: const AppText('글쓰기', fontSize: 19, fontWeight: FontWeight.bold),
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
-        leading: BackButton(
+        leading: AppBackButton(
           onPressed: () async {
             await dismissKeyboardBeforeTransition(context);
             if (context.mounted) {
@@ -119,6 +120,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                   )
                 : const AppText(
                     '게시',
+                    fontSize: 14,
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
@@ -135,14 +137,17 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                   initialValue: _category,
                   decoration: const InputDecoration(
                     labelText: '카테고리',
+                    labelStyle: TextStyle(fontSize: 13),
                     border: OutlineInputBorder(),
                   ),
+                  style: const TextStyle(fontSize: 13, color: AppColors.text),
                   items: kCommunityCategories
                       .map(
                         (category) => DropdownMenuItem(
                           value: category,
                           child: AppText(
                             kCommunityCategoryLabels[category] ?? category,
+                            fontSize: 13,
                           ),
                         ),
                       )
@@ -152,17 +157,22 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _titleCtrl,
+                  style: const TextStyle(fontSize: 13),
                   decoration: const InputDecoration(
                     hintText: '제목 (선택, 최대 120자)',
+                    hintStyle: TextStyle(fontSize: 13),
                     border: OutlineInputBorder(),
+                    counterStyle: TextStyle(fontSize: 12),
                   ),
                   maxLength: 120,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _contentCtrl,
+                  style: const TextStyle(fontSize: 13),
                   decoration: const InputDecoration(
                     hintText: '내용을 입력해 주세요',
+                    hintStyle: TextStyle(fontSize: 13),
                     border: OutlineInputBorder(),
                   ),
                   minLines: 9,
@@ -177,7 +187,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                 ],
                 if (_error != null) ...[
                   const SizedBox(height: 8),
-                  AppText(_error!, color: Colors.red),
+                  AppText(_error!, fontSize: 12, color: Colors.red),
                 ],
               ],
             ),
@@ -288,8 +298,10 @@ class _PollPanel extends StatelessWidget {
         children: [
           TextField(
             controller: questionCtrl,
+            style: const TextStyle(fontSize: 13),
             decoration: const InputDecoration(
               hintText: '투표 질문',
+              hintStyle: TextStyle(fontSize: 13),
               border: OutlineInputBorder(),
             ),
           ),
@@ -297,8 +309,10 @@ class _PollPanel extends StatelessWidget {
           for (var i = 0; i < optionCtrls.length; i++) ...[
             TextField(
               controller: optionCtrls[i],
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 hintText: '선택지 ${i + 1}',
+                hintStyle: const TextStyle(fontSize: 13),
                 border: const OutlineInputBorder(),
               ),
             ),
