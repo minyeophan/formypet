@@ -14,6 +14,7 @@ import '../../models/pet.dart';
 import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/preparing_toast.dart';
 
 const _appName = 'petyilgi';
 
@@ -77,7 +78,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                         ),
                         _HomeMenuGrid(
-                          onScheduleTap: () => _showHomeToast(context, '준비중'),
+                          onScheduleTap: () => showPreparingToast(context),
+                          onCategoryTap: () => showPreparingToast(context),
                         ),
                         const SizedBox(height: 14),
                         _TodayCareSection(
@@ -392,8 +394,12 @@ class _ProfilePill extends StatelessWidget {
 
 class _HomeMenuGrid extends StatelessWidget {
   final VoidCallback onScheduleTap;
+  final VoidCallback onCategoryTap;
 
-  const _HomeMenuGrid({required this.onScheduleTap});
+  const _HomeMenuGrid({
+    required this.onScheduleTap,
+    required this.onCategoryTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +428,12 @@ class _HomeMenuGrid extends StatelessWidget {
         color: const Color(0xFFBA68C8),
         onTap: () => context.push('/records/growth'),
       ),
-      const _HomeMenuItem.empty(),
+      _HomeMenuItem(
+        label: '반려로그 카테고리',
+        icon: Icons.category_outlined,
+        color: const Color(0xFFE879B9),
+        onTap: onCategoryTap,
+      ),
       const _HomeMenuItem.empty(),
       const _HomeMenuItem.empty(),
       const _HomeMenuItem.empty(),
@@ -497,7 +508,7 @@ class _HomeMenuItem extends StatelessWidget {
               color: AppColors.muted,
             )
           else ...[
-            Icon(icon, color: color, size: 28),
+            Icon(icon, color: color, size: 24),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -728,7 +739,7 @@ class _HomeSectionCard extends StatelessWidget {
         children: [
           AppText(
             title,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
@@ -1049,31 +1060,4 @@ String _speciesEmoji(String species) {
     return '🐦';
   }
   return '🐶';
-}
-
-void _showHomeToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Center(
-          widthFactor: 1,
-          child: AppText(
-            message,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-        width: 112,
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
 }

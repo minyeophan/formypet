@@ -6,6 +6,7 @@ import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 
 class PetEditScreen extends ConsumerStatefulWidget {
@@ -94,7 +95,7 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const AppText('반려동물 수정'),
-        leading: BackButton(
+        leading: AppBackButton(
           onPressed: () async {
             await dismissKeyboardBeforeTransition(context);
             if (context.mounted) {

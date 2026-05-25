@@ -7,6 +7,7 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/records/records_screen.dart';
+import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -24,6 +25,7 @@ void main() {
     expect(find.byKey(const Key('records-calendar')), findsOneWidget);
     expect(find.byKey(const Key('records-selected-date')), findsOneWidget);
     expect(find.byKey(const Key('records-date-dot-$todayIso')), findsOneWidget);
+    expect(find.byType(AppBackButton), findsOneWidget);
 
     for (final typeId in _recordTypeIds) {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
@@ -32,9 +34,24 @@ void main() {
       expect(find.text(label), findsWidgets);
     }
 
-    await tester.tap(find.byKey(const Key('records-type-card-poop')));
+    await tester.tap(find.byKey(const Key('records-type-card-bath')));
     await tester.pump();
     expect(find.text('준비중'), findsOneWidget);
+  });
+
+  testWidgets('record type grid does not overflow on narrow screens', (
+    tester,
+  ) async {
+    await _pumpRecordsScreen(
+      tester,
+      physicalSize: const Size(320, 900),
+      textScaler: TextScaler.linear(1.3),
+    );
+
+    for (final typeId in _recordTypeIds) {
+      expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('meal record type opens full screen meal record form', (
@@ -49,10 +66,32 @@ void main() {
     expect(find.text('등록'), findsOneWidget);
   });
 
+  testWidgets('implemented record types open their category forms', (
+    tester,
+  ) async {
+    for (final entry in {
+      'poop': '배변 기록',
+      'walk': '산책 기록',
+      'weight': '몸무게 기록',
+      'vet': '병원 기록',
+      'medicine': '영양/약 기록',
+    }.entries) {
+      await _pumpRouter(tester, initialLocation: '/records');
+
+      await tester.tap(find.byKey(Key('records-type-card-${entry.key}')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(entry.value), findsOneWidget);
+      expect(find.text('준비중'), findsNothing);
+    }
+  });
+
   testWidgets('records main filters selected date summary in time order', (
     tester,
   ) async {
     await _pumpRecordsScreen(tester);
+    await tester.tap(find.byKey(Key('records-calendar-day-$todayIso')));
+    await tester.pumpAndSettle();
 
     expect(find.text('오전 간식'), findsOneWidget);
     expect(find.text('저녁 산책'), findsOneWidget);
@@ -92,6 +131,7 @@ void main() {
   ) async {
     await _pumpRouter(tester, initialLocation: '/records/all');
 
+    expect(find.byType(AppBackButton), findsOneWidget);
     final todayHeader = find.text('5월 21일');
     final yesterdayHeader = find.text('5월 20일');
 
@@ -111,6 +151,7 @@ void main() {
     (tester) async {
       await _pumpRouter(tester, initialLocation: '/records/growth');
 
+      expect(find.byType(AppBackButton), findsOneWidget);
       expect(find.text('성장곡선'), findsOneWidget);
       expect(find.byKey(const Key('records-growth-chart')), findsOneWidget);
       final latest = find.text('4.5kg');
@@ -165,14 +206,29 @@ const _recordTypeIds = [
 const todayIso = '2026-05-21';
 const yesterdayIso = '2026-05-20';
 
-Future<void> _pumpRecordsScreen(WidgetTester tester) async {
-  _setLargeScreen(tester);
+Future<void> _pumpRecordsScreen(
+  WidgetTester tester, {
+  Size physicalSize = const Size(800, 2200),
+  TextScaler? textScaler,
+}) async {
+  _setScreen(tester, physicalSize);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         petProvider.overrideWith((ref) => PetNotifier.test(_state())),
       ],
-      child: const MaterialApp(home: RecordsScreen()),
+      child: MaterialApp(
+        builder: textScaler == null
+            ? null
+            : (context, child) {
+                final mediaQuery = MediaQuery.of(context);
+                return MediaQuery(
+                  data: mediaQuery.copyWith(textScaler: textScaler),
+                  child: child!,
+                );
+              },
+        home: const RecordsScreen(),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -182,6 +238,8 @@ Future<void> _pumpRouter(
   WidgetTester tester, {
   required String initialLocation,
 }) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   _setLargeScreen(tester);
   await tester.pumpWidget(
     ProviderScope(
@@ -209,7 +267,11 @@ Future<void> _pumpRouter(
 }
 
 void _setLargeScreen(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 2200);
+  _setScreen(tester, const Size(800, 2200));
+}
+
+void _setScreen(WidgetTester tester, Size physicalSize) {
+  tester.view.physicalSize = physicalSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

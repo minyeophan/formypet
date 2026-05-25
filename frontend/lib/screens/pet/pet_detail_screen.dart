@@ -5,6 +5,7 @@ import '../../providers/pet_provider.dart';
 import '../../core/date_utils.dart';
 import '../../core/record_utils.dart';
 import '../../core/pet_colors.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 
 class PetDetailScreen extends ConsumerWidget {
@@ -25,7 +26,7 @@ class PetDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: AppText(pet.name, fontWeight: FontWeight.bold),
-        leading: BackButton(onPressed: () => context.pop()),
+        leading: AppBackButton(onPressed: () => context.pop()),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -49,16 +50,20 @@ class PetDetailScreen extends ConsumerWidget {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: color.accent,
-                    child: AppText(pet.name[0],
-                        fontSize: 32,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
+                    child: AppText(
+                      pet.name[0],
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  AppText(pet.name,
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                  AppText(getDDay(pet.birthDate),
-                      fontSize: 14, color: Colors.grey),
+                  AppText(pet.name, fontSize: 20, fontWeight: FontWeight.bold),
+                  AppText(
+                    getDDay(pet.birthDate),
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
                 ],
               ),
             ),
@@ -83,16 +88,16 @@ class PetDetailScreen extends ConsumerWidget {
                   context: context,
                   builder: (_) => AlertDialog(
                     title: const AppText('반려동물 삭제'),
-                    content:
-                        AppText('${pet.name}을(를) 삭제하시겠습니까?'),
+                    content: AppText('${pet.name}을(를) 삭제하시겠습니까?'),
                     actions: [
                       TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const AppText('취소')),
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const AppText('취소'),
+                      ),
                       ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const AppText('삭제',
-                              color: Colors.red)),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const AppText('삭제', color: Colors.red),
+                      ),
                     ],
                   ),
                 );

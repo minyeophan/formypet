@@ -9,7 +9,9 @@ import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/preparing_toast.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
   const RecordsScreen({super.key});
@@ -98,7 +100,11 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                                 context.push('/records/meal/new');
                                 return;
                               }
-                              _showRecordsToast(context, '준비중');
+                              if (_categoryFormTypeIds.contains(typeId)) {
+                                context.push('/records/$typeId/new');
+                                return;
+                              }
+                              showPreparingToast(context);
                             },
                           ),
                           const SizedBox(height: 14),
@@ -247,12 +253,7 @@ class _RecordsHeader extends StatelessWidget {
       height: 52,
       child: Row(
         children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            color: AppColors.text,
-            tooltip: '뒤로가기',
-          ),
+          AppBackButton(onPressed: onBack),
           Expanded(
             child: AppText(
               title,
@@ -512,7 +513,7 @@ class _RecordTypeGrid extends StatelessWidget {
           crossAxisCount: 3,
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: 1.08,
+          mainAxisExtent: 92,
         ),
         itemBuilder: (context, index) {
           final type = _recordTypes[index];
@@ -978,6 +979,8 @@ const _recordTypes = [
 
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
+const _categoryFormTypeIds = {'poop', 'walk', 'weight', 'vet', 'medicine'};
+
 List<ActivityRecord> _recordsForDate(
   List<ActivityRecord> records,
   DateTime date,
@@ -1058,31 +1061,4 @@ void _goBack(BuildContext context) {
     return;
   }
   context.go('/home');
-}
-
-void _showRecordsToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Center(
-          widthFactor: 1,
-          child: AppText(
-            message,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-        width: 112,
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
 }

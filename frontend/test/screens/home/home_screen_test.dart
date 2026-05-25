@@ -46,7 +46,9 @@ void main() {
     expect(find.text('루틴'), findsOneWidget);
     expect(find.text('일정'), findsOneWidget);
     expect(find.text('성장곡선'), findsOneWidget);
-    expect(find.text('+'), findsNWidgets(4));
+    expect(find.text('반려로그 카테고리'), findsOneWidget);
+    expect(find.byIcon(Icons.category_outlined), findsOneWidget);
+    expect(find.text('+'), findsNWidgets(3));
     expect(find.byKey(const Key('home-menu-panel')), findsOneWidget);
     expect(AppColors.background, const Color(0xFFF8F9FA));
     expect(AppColors.surface, const Color(0xFFFFFFFF));
@@ -63,7 +65,7 @@ void main() {
     final tappableInkWells = tester
         .widgetList<InkWell>(find.byType(InkWell))
         .where((widget) => widget.onTap != null);
-    expect(tappableInkWells, hasLength(greaterThanOrEqualTo(4)));
+    expect(tappableInkWells, hasLength(greaterThanOrEqualTo(5)));
 
     await tester.drag(find.byType(PageView), const Offset(-500, 0));
     await tester.pumpAndSettle();
@@ -71,6 +73,12 @@ void main() {
     expect(notifier.activePetChanges, ['2']);
     expect(find.text('나비'), findsWidgets);
     expect(find.text('🐱'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('반려로그 카테고리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('반려로그 카테고리'));
+    await tester.pump();
+    expect(find.text('준비중'), findsOneWidget);
   });
 
   testWidgets('home bottom cards summarize today routines and recent health', (
