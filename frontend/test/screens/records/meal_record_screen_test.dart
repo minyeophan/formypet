@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +7,10 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
+import 'package:frontend/screens/records/meal_record_screen.dart';
+import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   setUpAll(() {
@@ -17,15 +22,50 @@ void main() {
   ) async {
     await _pumpMealRoute(tester);
 
-    expect(find.text('뒤로'), findsOneWidget);
+    expect(find.byType(AppBackButton), findsOneWidget);
     expect(find.text('급식 기록'), findsOneWidget);
     expect(find.text('등록'), findsOneWidget);
     expect(find.text('날짜/시간'), findsOneWidget);
+    expect(find.byKey(const Key('meal-date-button')), findsOneWidget);
+    expect(find.byKey(const Key('meal-time-button')), findsOneWidget);
+    expect(find.text('현재 시간으로 설정'), findsOneWidget);
     expect(find.text('사료 종류'), findsOneWidget);
     expect(find.text('상세 정보'), findsOneWidget);
-    expect(find.text('추가 정보'), findsOneWidget);
+    expect(find.text('추가 정보 (브랜드/급식방법/메모) 펼치기'), findsOneWidget);
+    expect(find.text('선택 입력'), findsNothing);
     expect(find.text('사진 추가 (0/1)'), findsOneWidget);
     expect(find.text('브랜드명'), findsNothing);
+    expect(find.text('급식 방법'), findsNothing);
+    expect(find.text('메모'), findsNothing);
+  });
+
+  testWidgets('meal screen shows food and consumption emoji card options', (
+    tester,
+  ) async {
+    await _pumpMealRoute(tester);
+
+    for (final label in ['습식', '건식', '간식', '처방식', '생식', '동결건조']) {
+      expect(find.text(label), findsOneWidget);
+    }
+
+    for (final emoji in [
+      '🥫',
+      '🍚',
+      '🦴',
+      '💊',
+      '🥩',
+      '❄️',
+      '😭',
+      '😐',
+      '🙂',
+      '🥰',
+    ]) {
+      expect(find.text(emoji), findsOneWidget);
+    }
+
+    for (final label in ['25%', '50%', '75%', '100%']) {
+      expect(find.text(label), findsOneWidget);
+    }
   });
 
   testWidgets('save stays disabled until required meal fields are filled', (
@@ -36,10 +76,10 @@ void main() {
     expect(_saveButton(tester).onPressed, isNull);
 
     await tester.tap(find.byKey(const Key('meal-food-type-wet')));
-    await tester.enterText(
-      find.byKey(const Key('meal-served-amount-field')),
-      '35',
-    );
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+      '5',
+    ]);
     await tester.tap(find.byKey(const Key('meal-consumed-75')));
     await tester.pump();
 
@@ -52,9 +92,31 @@ void main() {
     await tester.tap(find.byKey(const Key('meal-more-toggle')));
     await tester.pumpAndSettle();
 
+    expect(find.text('선택 입력'), findsOneWidget);
     expect(find.text('브랜드명'), findsOneWidget);
     expect(find.text('급식 방법'), findsOneWidget);
+    expect(find.text('배식'), findsOneWidget);
+    expect(find.text('자율급식'), findsOneWidget);
+    expect(find.text('자동급식기'), findsOneWidget);
     expect(find.text('메모'), findsOneWidget);
+  });
+
+  testWidgets('photo picker callback updates selected photo label', (
+    tester,
+  ) async {
+    await _pumpMealScreen(
+      tester,
+      pickImage: () async => XFile.fromData(
+        Uint8List.fromList([1, 2, 3]),
+        name: 'meal-photo.jpg',
+        mimeType: 'image/jpeg',
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+
+    expect(find.text('사진 추가 (1/1) · meal-photo.jpg'), findsOneWidget);
   });
 
   testWidgets('save builds backend compatible meal payload', (tester) async {
@@ -63,10 +125,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('meal-food-type-wet')));
     await tester.enterText(find.byKey(const Key('meal-product-field')), '치킨캔');
-    await tester.enterText(
-      find.byKey(const Key('meal-served-amount-field')),
-      '35',
-    );
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+      '5',
+    ]);
     await tester.tap(find.byKey(const Key('meal-consumed-75')));
     await tester.tap(find.byKey(const Key('meal-more-toggle')));
     await tester.pumpAndSettle();
@@ -100,10 +162,56 @@ void main() {
       matches(RegExp(r'^\d{2}:\d{2}$')),
     );
   });
+
+  testWidgets('date and time buttons open common picker sheets', (
+    tester,
+  ) async {
+    await _pumpMealRoute(tester);
+
+    await tester.tap(find.byKey(const Key('meal-date-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('record-date-year-wheel')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('record-picker-cancel')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('meal-time-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('record-time-period-wheel')), findsOneWidget);
+  });
+
+  testWidgets('meal amount integer input ignores decimal key', (tester) async {
+    await _pumpMealRoute(tester);
+
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '1',
+      'dot',
+      '2',
+    ]);
+
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('meal-served-amount-field')),
+    );
+    expect(field.controller!.text, '12');
+  });
 }
 
 TextButton _saveButton(WidgetTester tester) =>
     tester.widget<TextButton>(find.byKey(const Key('meal-save-button')));
+
+Future<void> _enterRecordNumber(
+  WidgetTester tester,
+  Key fieldKey,
+  List<String> keys,
+) async {
+  await tester.tap(find.byKey(fieldKey));
+  await tester.pumpAndSettle();
+  for (final key in keys) {
+    await tester.tap(find.byKey(Key('record-number-key-$key')));
+    await tester.pump();
+  }
+  await tester.tap(find.byKey(const Key('record-picker-done')));
+  await tester.pumpAndSettle();
+}
 
 Future<void> _pumpMealRoute(
   WidgetTester tester, {
@@ -134,6 +242,32 @@ Future<void> _pumpMealRoute(
           return MaterialApp.router(routerConfig: router);
         },
       ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpMealScreen(
+  WidgetTester tester, {
+  Future<XFile?> Function()? pickImage,
+  _MealTestPetNotifier? notifier,
+}) async {
+  tester.view.physicalSize = const Size(800, 2200);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => AuthNotifier.test(
+            const AuthState(isLoading: false, isAuthenticated: true),
+          ),
+        ),
+        petProvider.overrideWith((ref) => notifier ?? _MealTestPetNotifier()),
+      ],
+      child: MaterialApp(home: MealRecordScreen(pickImageForTest: pickImage)),
     ),
   );
   await tester.pumpAndSettle();

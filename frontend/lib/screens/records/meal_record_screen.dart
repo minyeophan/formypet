@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,10 +6,16 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../providers/pet_provider.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/record_inputs/record_inputs.dart';
+
+typedef MealImagePicker = Future<XFile?> Function();
 
 class MealRecordScreen extends ConsumerStatefulWidget {
-  const MealRecordScreen({super.key});
+  final MealImagePicker? pickImageForTest;
+
+  const MealRecordScreen({super.key, this.pickImageForTest});
 
   @override
   ConsumerState<MealRecordScreen> createState() => _MealRecordScreenState();
@@ -21,7 +26,6 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   final _amountCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  final _imagePicker = ImagePicker();
 
   late DateTime _date;
   late TimeOfDay _time;
@@ -73,164 +77,111 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 children: [
-                  _SectionCard(
+                  _SectionBlock(
                     title: '날짜/시간',
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: _PickerButton(
-                            key: const Key('meal-date-button'),
-                            icon: Icons.calendar_today_rounded,
-                            label: DateFormat('yyyy.MM.dd').format(_date),
-                            onTap: _pickDate,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _InputBox(
+                                key: const Key('meal-date-button'),
+                                text: DateFormat('yyyy-MM-dd').format(_date),
+                                onTap: _pickDate,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _InputBox(
+                                key: const Key('meal-time-button'),
+                                text: _apiTime,
+                                onTap: _pickTime,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _PickerButton(
-                            key: const Key('meal-time-button'),
-                            icon: Icons.access_time_rounded,
-                            label: _apiTime,
-                            onTap: _pickTime,
-                          ),
-                        ),
+                        const SizedBox(height: 10),
+                        _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _SectionCard(
+                  const SizedBox(height: 22),
+                  _SectionBlock(
                     title: '사료 종류',
-                    child: _OptionWrap(
-                      children: [
-                        for (final option in _foodTypeOptions)
-                          _ChoicePill(
-                            key: Key('meal-food-type-${option.value}'),
-                            label: option.label,
-                            selected: _foodType == option.value,
-                            onTap: () => setState(() {
-                              _foodType = option.value;
-                              _error = null;
-                            }),
-                          ),
-                      ],
+                    child: _FoodTypeGrid(
+                      selectedValue: _foodType,
+                      onSelected: (value) => setState(() {
+                        _foodType = value;
+                        _error = null;
+                      }),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _SectionCard(
+                  const SizedBox(height: 22),
+                  _SectionBlock(
                     title: '상세 정보',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _LabeledField(
-                          key: const Key('meal-product-field'),
-                          controller: _productCtrl,
-                          label: '음식 이름',
-                          hintText: '20자 이내',
-                          maxLength: 20,
-                          onChanged: (_) => setState(() => _error = null),
-                        ),
-                        const SizedBox(height: 12),
-                        _LabeledField(
-                          key: const Key('meal-served-amount-field'),
-                          controller: _amountCtrl,
-                          label: '급여량',
-                          hintText: 'g',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          suffixText: 'g',
-                          onChanged: (_) => setState(() => _error = null),
+                        _LabeledRow(
+                          label: '사료명',
+                          child: _TextInput(
+                            key: const Key('meal-product-field'),
+                            controller: _productCtrl,
+                            hintText: '20자 이내',
+                            maxLength: 20,
+                            onChanged: (_) => setState(() => _error = null),
+                          ),
                         ),
                         const SizedBox(height: 14),
-                        const AppText(
-                          '섭취율',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
+                        _LabeledRow(
+                          label: '급여량',
+                          child: RecordNumberInput(
+                            key: const Key('meal-served-amount-field'),
+                            controller: _amountCtrl,
+                            mode: RecordNumberInputMode.integer,
+                            hintText: '0',
+                            suffixText: 'g',
+                            onChanged: (_) => setState(() => _error = null),
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        _OptionWrap(
-                          children: [
-                            for (final option in _consumeOptions)
-                              _ChoicePill(
-                                key: Key('meal-consumed-${option.value}'),
-                                label: option.label,
-                                selected: _consumedPercent == option.value,
-                                onTap: () => setState(() {
-                                  _consumedPercent = option.value;
-                                  _error = null;
-                                }),
-                              ),
-                          ],
+                        const SizedBox(height: 16),
+                        _LabeledRow(
+                          label: '섭취율',
+                          child: _ConsumeGrid(
+                            selectedValue: _consumedPercent,
+                            onSelected: (value) => setState(() {
+                              _consumedPercent = value;
+                              _error = null;
+                            }),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _SectionCard(
-                    title: '추가 정보',
-                    trailing: Icon(
-                      _showMore
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                    onTapHeader: () => setState(() => _showMore = !_showMore),
-                    headerKey: const Key('meal-more-toggle'),
-                    child: _showMore
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _LabeledField(
-                                key: const Key('meal-brand-field'),
-                                controller: _brandCtrl,
-                                label: '브랜드명',
-                                hintText: '선택',
-                                onChanged: (_) => setState(() => _error = null),
-                              ),
-                              const SizedBox(height: 14),
-                              const AppText(
-                                '급식 방법',
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.text,
-                              ),
-                              const SizedBox(height: 8),
-                              _OptionWrap(
-                                children: [
-                                  for (final option in _feedingMethodOptions)
-                                    _ChoicePill(
-                                      key: Key(
-                                        'meal-feeding-method-${option.value}',
-                                      ),
-                                      label: option.label,
-                                      selected: _feedingMethod == option.value,
-                                      onTap: () => setState(() {
-                                        _feedingMethod = option.value;
-                                        _error = null;
-                                      }),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              _LabeledField(
-                                key: const Key('meal-note-field'),
-                                controller: _noteCtrl,
-                                label: '메모',
-                                hintText: '선택',
-                                maxLines: 3,
-                                onChanged: (_) => setState(() => _error = null),
-                              ),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
+                  const SizedBox(height: 22),
+                  _MoreSection(
+                    expanded: _showMore,
+                    onToggle: () => setState(() => _showMore = !_showMore),
+                    brandController: _brandCtrl,
+                    noteController: _noteCtrl,
+                    feedingMethod: _feedingMethod,
+                    onBrandChanged: (_) => setState(() => _error = null),
+                    onNoteChanged: (_) => setState(() => _error = null),
+                    onFeedingMethodChanged: (value) => setState(() {
+                      _feedingMethod = value;
+                      _error = null;
+                    }),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
                   _PhotoButton(
-                    label: '사진 추가 (${_photo == null ? 0 : 1}/1)',
+                    label: _photo == null
+                        ? '사진 추가 (0/1)'
+                        : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
                     hasPhoto: _photo != null,
                     onTap: _pickPhoto,
                   ),
@@ -254,26 +205,33 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
+    final picked = await showRecordDatePickerSheet(context, initialDate: _date);
     if (picked != null) {
       setState(() => _date = DateTime(picked.year, picked.month, picked.day));
     }
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
+    final picked = await showRecordTimePickerSheet(context, initialTime: _time);
     if (picked != null) {
       setState(() => _time = picked);
     }
   }
 
+  void _setNow() {
+    final now = DateTime.now();
+    setState(() {
+      _date = DateTime(now.year, now.month, now.day);
+      _time = TimeOfDay(hour: now.hour, minute: now.minute);
+      _error = null;
+    });
+  }
+
   Future<void> _pickPhoto() async {
-    final photo = await _imagePicker.pickImage(source: ImageSource.gallery);
+    final pickImage =
+        widget.pickImageForTest ??
+        () => ImagePicker().pickImage(source: ImageSource.gallery);
+    final photo = await pickImage();
     if (photo != null) {
       setState(() {
         _photo = photo;
@@ -378,20 +336,19 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       height: 56,
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       child: Row(
         children: [
           SizedBox(
-            width: 84,
-            child: TextButton(
-              onPressed: onBack,
-              child: const AppText(
-                '뒤로',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
-              ),
+            width: 96,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AppBackButton(onPressed: onBack),
             ),
           ),
           const Expanded(
@@ -404,13 +361,13 @@ class _Header extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 84,
+            width: 96,
             child: TextButton(
               key: const Key('meal-save-button'),
               onPressed: onSave,
               child: AppText(
                 isSaving ? '저장 중' : '등록',
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: canSave ? AppColors.primaryPressed : AppColors.muted,
               ),
@@ -422,106 +379,204 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
+class _SectionBlock extends StatelessWidget {
   final String title;
   final Widget child;
-  final Widget? trailing;
-  final VoidCallback? onTapHeader;
-  final Key? headerKey;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-    this.onTapHeader,
-    this.headerKey,
-  });
+  const _SectionBlock({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final header = Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
+        AppText(
+          title,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          color: AppColors.text,
+        ),
+        const SizedBox(height: 10),
+        child,
+      ],
+    );
+  }
+}
+
+class _InputBox extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+
+  const _InputBox({super.key, required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
           child: AppText(
-            title,
-            fontSize: 15,
+            text,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
         ),
-        ?trailing,
-      ],
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          onTapHeader == null
-              ? header
-              : InkWell(
-                  key: headerKey,
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: onTapHeader,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: header,
-                  ),
-                ),
-          const SizedBox(height: 12),
-          child,
-        ],
       ),
     );
   }
 }
 
-class _PickerButton extends StatelessWidget {
-  final IconData icon;
+class _SubtleButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _PickerButton({
+  const _SubtleButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: AppText(
+            label,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FoodTypeGrid extends StatelessWidget {
+  final String? selectedValue;
+  final ValueChanged<String> onSelected;
+
+  const _FoodTypeGrid({required this.selectedValue, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _foodTypeOptions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisExtent: 86,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemBuilder: (context, index) {
+        final option = _foodTypeOptions[index];
+        return _EmojiOptionCard(
+          key: Key('meal-food-type-${option.value}'),
+          emoji: option.emoji,
+          label: option.label,
+          selected: selectedValue == option.value,
+          onTap: () => onSelected(option.value),
+        );
+      },
+    );
+  }
+}
+
+class _ConsumeGrid extends StatelessWidget {
+  final int? selectedValue;
+  final ValueChanged<int> onSelected;
+
+  const _ConsumeGrid({required this.selectedValue, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _consumeOptions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisExtent: 78,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemBuilder: (context, index) {
+        final option = _consumeOptions[index];
+        return _EmojiOptionCard(
+          key: Key('meal-consumed-${option.value}'),
+          emoji: option.emoji,
+          label: '${option.value}%',
+          selected: selectedValue == option.value,
+          onTap: () => onSelected(option.value),
+        );
+      },
+    );
+  }
+}
+
+class _EmojiOptionCard extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _EmojiOptionCard({
     super.key,
-    required this.icon,
+    required this.emoji,
     required this.label,
+    required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceSoft,
+      color: selected ? _selectedFill : AppColors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : 1,
+            ),
           ),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppColors.primaryPressed, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: AppText(
-                  label,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(emoji, style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 6),
+              AppText(
+                label,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -531,77 +586,47 @@ class _PickerButton extends StatelessWidget {
   }
 }
 
-class _OptionWrap extends StatelessWidget {
-  final List<Widget> children;
-
-  const _OptionWrap({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(spacing: 8, runSpacing: 8, children: children);
-  }
-}
-
-class _ChoicePill extends StatelessWidget {
+class _LabeledRow extends StatelessWidget {
   final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final Widget child;
 
-  const _ChoicePill({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _LabeledRow({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.primary : AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 42),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppColors.primaryPressed : AppColors.border,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 86,
+          height: 48,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: AppText(
+              label,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
             ),
           ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: selected ? AppColors.white : AppColors.text,
-          ),
         ),
-      ),
+        Expanded(child: child),
+      ],
     );
   }
 }
 
-class _LabeledField extends StatelessWidget {
+class _TextInput extends StatelessWidget {
   final TextEditingController controller;
-  final String label;
   final String hintText;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final String? suffixText;
   final int? maxLength;
   final int maxLines;
   final ValueChanged<String>? onChanged;
 
-  const _LabeledField({
+  const _TextInput({
     super.key,
     required this.controller,
-    required this.label,
     required this.hintText,
-    this.keyboardType,
-    this.inputFormatters,
-    this.suffixText,
     this.maxLength,
     this.maxLines = 1,
     this.onChanged,
@@ -612,36 +637,201 @@ class _LabeledField extends StatelessWidget {
     return TextField(
       key: key,
       controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
       maxLength: maxLength,
       maxLines: maxLines,
       onChanged: onChanged,
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: const TextStyle(
         fontSize: 14,
         color: AppColors.text,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
-        labelText: label,
         hintText: hintText,
-        suffixText: suffixText,
         counterText: '',
         filled: true,
-        fillColor: AppColors.surfaceSoft,
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        fillColor: AppColors.white,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 13,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreSection extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onToggle;
+  final TextEditingController brandController;
+  final TextEditingController noteController;
+  final String? feedingMethod;
+  final ValueChanged<String> onBrandChanged;
+  final ValueChanged<String> onNoteChanged;
+  final ValueChanged<String> onFeedingMethodChanged;
+
+  const _MoreSection({
+    required this.expanded,
+    required this.onToggle,
+    required this.brandController,
+    required this.noteController,
+    required this.feedingMethod,
+    required this.onBrandChanged,
+    required this.onNoteChanged,
+    required this.onFeedingMethodChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          key: const Key('meal-more-toggle'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppText(
+                    expanded
+                        ? '추가 정보 (브랜드/급식방법/메모) 접기'
+                        : '추가 정보 (브랜드/급식방법/메모) 펼치기',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                  ),
+                ),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!expanded)
+          const AppText(
+            '브랜드, 급식 방법, 메모는 필요할 때만 입력해요.',
+            fontSize: 12,
+            color: AppColors.muted,
+          )
+        else ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: _selectedFill,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppColors.primary),
+              ),
+              child: const AppText(
+                '선택 입력',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryPressed,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _LabeledRow(
+            label: '브랜드명',
+            child: _TextInput(
+              key: const Key('meal-brand-field'),
+              controller: brandController,
+              hintText: '선택',
+              onChanged: onBrandChanged,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _LabeledRow(
+            label: '급식 방법',
+            child: Row(
+              children: [
+                for (final option in _feedingMethodOptions) ...[
+                  Expanded(
+                    child: _SegmentButton(
+                      key: Key('meal-feeding-method-${option.value}'),
+                      label: option.label,
+                      selected: feedingMethod == option.value,
+                      onTap: () => onFeedingMethodChanged(option.value),
+                    ),
+                  ),
+                  if (option != _feedingMethodOptions.last)
+                    const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _LabeledRow(
+            label: '메모',
+            child: _TextInput(
+              key: const Key('meal-note-field'),
+              controller: noteController,
+              hintText: '선택',
+              maxLines: 3,
+              onChanged: onNoteChanged,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SegmentButton({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? _selectedFill : AppColors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: AppText(
+            label,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: selected ? AppColors.primaryPressed : AppColors.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
     );
@@ -661,76 +851,123 @@ class _PhotoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final content = Container(
+      height: 58,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: hasPhoto ? _selectedFill : AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: hasPhoto ? Border.all(color: AppColors.primary) : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasPhoto ? Icons.check_circle_rounded : Icons.add_a_photo_rounded,
+            color: hasPhoto ? AppColors.primaryPressed : AppColors.muted,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: AppText(
+              label,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(20),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        key: const Key('meal-photo-button'),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Container(
-          key: const Key('meal-photo-button'),
-          constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                hasPhoto
-                    ? Icons.check_circle_rounded
-                    : Icons.add_a_photo_rounded,
-                color: hasPhoto ? AppColors.primaryPressed : AppColors.muted,
-                size: 22,
+        child: hasPhoto
+            ? content
+            : CustomPaint(
+                painter: _DashedBorderPainter(
+                  color: AppColors.border,
+                  radius: 16,
+                ),
+                child: content,
               ),
-              const SizedBox(width: 10),
-              AppText(
-                label,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 }
 
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+      );
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final next = distance + 7;
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + 5;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
+}
+
 class _StringOption {
   final String value;
   final String label;
+  final String emoji;
 
-  const _StringOption(this.value, this.label);
+  const _StringOption(this.value, this.label, this.emoji);
 }
 
 class _IntOption {
   final int value;
-  final String label;
+  final String emoji;
 
-  const _IntOption(this.value, this.label);
+  const _IntOption(this.value, this.emoji);
 }
 
+const _selectedFill = Color(0xFFFFF7EF);
+
 const _foodTypeOptions = [
-  _StringOption('wet', '습식'),
-  _StringOption('dry', '건식'),
-  _StringOption('snack', '간식'),
-  _StringOption('prescription', '처방식'),
-  _StringOption('raw', '생식'),
-  _StringOption('freezeDried', '동결건조'),
+  _StringOption('wet', '습식', '🥫'),
+  _StringOption('dry', '건식', '🍚'),
+  _StringOption('snack', '간식', '🦴'),
+  _StringOption('prescription', '처방식', '💊'),
+  _StringOption('raw', '생식', '🥩'),
+  _StringOption('freezeDried', '동결건조', '❄️'),
 ];
 
 const _consumeOptions = [
-  _IntOption(25, '😭 25%'),
-  _IntOption(50, '😐 50%'),
-  _IntOption(75, '🙂 75%'),
-  _IntOption(100, '🥰 100%'),
+  _IntOption(25, '😭'),
+  _IntOption(50, '😐'),
+  _IntOption(75, '🙂'),
+  _IntOption(100, '🥰'),
 ];
 
 const _feedingMethodOptions = [
-  _StringOption('served', '배식'),
-  _StringOption('freeFeed', '자율급식'),
-  _StringOption('autoFeeder', '자동급식기'),
+  _StringOption('served', '배식', ''),
+  _StringOption('freeFeed', '자율급식', ''),
+  _StringOption('autoFeeder', '자동급식기', ''),
 ];
