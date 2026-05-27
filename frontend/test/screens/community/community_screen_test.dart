@@ -10,6 +10,7 @@ import 'package:frontend/services/community_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   setUpAll(() {
@@ -232,14 +233,152 @@ void main() {
     );
   });
 
-  testWidgets('write screen uses the shared back button', (tester) async {
+  testWidgets(
+    'write screen shows cancel action instead of shared back button',
+    (tester) async {
+      await _pump(
+        tester,
+        const WriteScreen(),
+        service: _FakeCommunityService(),
+      );
+
+      expect(find.byType(AppBackButton), findsNothing);
+      expect(find.text('취소'), findsOneWidget);
+    },
+  );
+
+  testWidgets('write screen category picker updates the selected board', (
+    tester,
+  ) async {
     await _pump(tester, const WriteScreen(), service: _FakeCommunityService());
 
-    expect(find.byType(AppBackButton), findsOneWidget);
+    expect(find.byKey(const Key('community-category-field')), findsOneWidget);
+    expect(find.text('자유'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('community-category-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('community-category-sheet')), findsOneWidget);
+    expect(find.byKey(const Key('community-category-wheel')), findsOneWidget);
+
+    await tester.drag(
+      find.byKey(const Key('community-category-wheel')),
+      const Offset(0, 220),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('community-category-option-CARE')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('완료'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('케어'), findsOneWidget);
+  });
+
+  testWidgets('write screen category picker cancel keeps current category', (
+    tester,
+  ) async {
+    await _pump(tester, const WriteScreen(), service: _FakeCommunityService());
+
+    await tester.tap(find.byKey(const Key('community-category-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('community-category-sheet')),
+        matching: find.text('취소'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('자유'), findsOneWidget);
+  });
+
+  testWidgets('write screen submits selected category, title, and content', (
+    tester,
+  ) async {
+    final service = _FakeCommunityService();
+    await _pumpWriteRouter(tester, service: service);
+
+    await tester.tap(find.byKey(const Key('community-category-field')));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const Key('community-category-wheel')),
+      const Offset(0, 220),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('완료'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('community-title-field')),
+      '산책 질문',
+    );
+    await tester.enterText(
+      find.byKey(const Key('community-content-field')),
+      '오늘 산책을 두 번 해도 될까요?',
+    );
+    await tester.tap(find.text('등록'));
+    await tester.pumpAndSettle();
+
+    expect(service.createPostCallCount, 1);
+    expect(service.lastCreatedCategory, 'CARE');
+    expect(service.lastCreatedTitle, '산책 질문');
+    expect(service.lastCreatedContent, '오늘 산책을 두 번 해도 될까요?');
+  });
+
+  testWidgets('write screen submits free category by default', (tester) async {
+    final service = _FakeCommunityService();
+    await _pumpWriteRouter(tester, service: service);
+
+    await tester.enterText(
+      find.byKey(const Key('community-title-field')),
+      '자유 글',
+    );
+    await tester.enterText(
+      find.byKey(const Key('community-content-field')),
+      '기본 게시판으로 등록합니다.',
+    );
+    await tester.tap(find.text('등록'));
+    await tester.pumpAndSettle();
+
+    expect(service.createPostCallCount, 1);
+    expect(service.lastCreatedCategory, 'FREE');
+  });
+
+  testWidgets('write screen requires title before submit', (tester) async {
+    final service = _FakeCommunityService();
+    await _pump(tester, const WriteScreen(), service: service);
+
+    await tester.enterText(
+      find.byKey(const Key('community-content-field')),
+      '내용만 입력했습니다.',
+    );
+    await tester.tap(find.text('등록'));
+    await tester.pump();
+
+    expect(find.text('제목을 입력해 주세요'), findsOneWidget);
+    expect(service.createPostCallCount, 0);
+  });
+
+  testWidgets('write screen requires content before submit', (tester) async {
+    final service = _FakeCommunityService();
+    await _pump(tester, const WriteScreen(), service: service);
+
+    await tester.enterText(
+      find.byKey(const Key('community-title-field')),
+      '제목만 입력했습니다.',
+    );
+    await tester.tap(find.text('등록'));
+    await tester.pump();
+
+    expect(find.text('내용을 입력해 주세요'), findsOneWidget);
+    expect(service.createPostCallCount, 0);
   });
 
   testWidgets(
-    'write screen shows thumbnail rail, emoji buttons, and poll panel',
+    'write screen shows thumbnail rail, tool buttons, and poll panel',
     (tester) async {
       await _pump(
         tester,
@@ -259,8 +398,8 @@ void main() {
         find.byKey(const Key('community-add-poll-button')),
         findsOneWidget,
       );
-      expect(find.text('🖼'), findsOneWidget);
-      expect(find.text('📊'), findsOneWidget);
+      expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.poll_outlined), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('community-add-poll-button')));
       await tester.pumpAndSettle();
@@ -268,6 +407,46 @@ void main() {
       expect(find.byKey(const Key('community-poll-panel')), findsOneWidget);
     },
   );
+
+  testWidgets('write screen poll button shows the poll creation mock', (
+    tester,
+  ) async {
+    await _pump(tester, const WriteScreen(), service: _FakeCommunityService());
+
+    await tester.tap(find.byKey(const Key('community-add-poll-button')));
+    await tester.pumpAndSettle();
+
+    final pollPanel = find.byKey(const Key('community-poll-panel'));
+    expect(pollPanel, findsOneWidget);
+    expect(
+      find.descendant(of: pollPanel, matching: find.text('투표')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: pollPanel,
+        matching: find.byKey(const Key('community-poll-close-button')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: pollPanel, matching: find.text('항목 입력')),
+      findsNWidgets(2),
+    );
+    expect(
+      find.descendant(of: pollPanel, matching: find.text('항목 추가')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('community-poll-note')), findsOneWidget);
+
+    await tester.tap(find.text('항목 추가'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: pollPanel, matching: find.text('항목 입력')),
+      findsNWidgets(3),
+    );
+  });
 }
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
@@ -315,6 +494,31 @@ Future<void> _pumpRouter(
   );
 }
 
+Future<void> _pumpWriteRouter(
+  WidgetTester tester, {
+  required _FakeCommunityService service,
+}) async {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: TextButton(
+            onPressed: () => context.push('/write'),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+      GoRoute(path: '/write', builder: (context, state) => const WriteScreen()),
+    ],
+  );
+
+  await _pumpRouter(tester, router, service: service);
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+}
+
 Post _post(String content, String category) => Post(
   id: content,
   userId: 'user-1',
@@ -332,6 +536,10 @@ class _FakeCommunityService extends CommunityService {
   _FakeCommunityService({this.posts = const []});
 
   final List<Post> posts;
+  String? lastCreatedCategory;
+  String? lastCreatedTitle;
+  String? lastCreatedContent;
+  int createPostCallCount = 0;
 
   @override
   Future<PostFeed> getFeed({
@@ -340,4 +548,19 @@ class _FakeCommunityService extends CommunityService {
     String? cursor,
     int limit = 20,
   }) async => PostFeed(items: posts, nextCursor: null);
+
+  @override
+  Future<Post> createPost({
+    required String content,
+    String? title,
+    required String category,
+    List<XFile> files = const [],
+    PollDraft? poll,
+  }) async {
+    createPostCallCount++;
+    lastCreatedCategory = category;
+    lastCreatedTitle = title;
+    lastCreatedContent = content;
+    return _post(content, category);
+  }
 }
