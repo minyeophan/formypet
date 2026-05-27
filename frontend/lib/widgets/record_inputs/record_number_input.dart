@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../app_text.dart';
 import 'record_input_style.dart';
 import 'record_picker_sheet.dart';
 import 'record_picker_values.dart';
@@ -76,6 +77,8 @@ class RecordNumberInput extends StatelessWidget {
       initialValue: controller.text,
       mode: mode,
       maxDecimalPlaces: maxDecimalPlaces,
+      suffixText: suffixText,
+      placeholderText: hintText,
     );
     if (value == null) return;
     controller.value = TextEditingValue(
@@ -91,6 +94,8 @@ Future<String?> showRecordNumberPadSheet(
   required String initialValue,
   required RecordNumberInputMode mode,
   int maxDecimalPlaces = 2,
+  String? suffixText,
+  String? placeholderText,
 }) {
   return showRecordPickerSheet<String>(
     context,
@@ -98,6 +103,8 @@ Future<String?> showRecordNumberPadSheet(
       initialValue: initialValue,
       mode: mode,
       maxDecimalPlaces: maxDecimalPlaces,
+      suffixText: suffixText,
+      placeholderText: placeholderText,
     ),
   );
 }
@@ -106,11 +113,15 @@ class _RecordNumberPadSheet extends StatefulWidget {
   final String initialValue;
   final RecordNumberInputMode mode;
   final int maxDecimalPlaces;
+  final String? suffixText;
+  final String? placeholderText;
 
   const _RecordNumberPadSheet({
     required this.initialValue,
     required this.mode,
     required this.maxDecimalPlaces,
+    this.suffixText,
+    this.placeholderText,
   });
 
   @override
@@ -130,6 +141,11 @@ class _RecordNumberPadSheetState extends State<_RecordNumberPadSheet> {
   Widget build(BuildContext context) {
     return RecordPickerSheet<String>(
       value: () => normalizeRecordNumberInput(_value),
+      headerCenter: _NumberPreview(
+        value: _value,
+        suffixText: widget.suffixText,
+        placeholderText: widget.placeholderText,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxHeight: RecordInputStyle.numberPadMaxHeight,
@@ -175,6 +191,40 @@ class _RecordNumberPadSheetState extends State<_RecordNumberPadSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NumberPreview extends StatelessWidget {
+  final String value;
+  final String? suffixText;
+  final String? placeholderText;
+
+  const _NumberPreview({
+    required this.value,
+    this.suffixText,
+    this.placeholderText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaceholder = value.isEmpty;
+    final displayValue = isPlaceholder
+        ? (placeholderText?.isNotEmpty == true ? placeholderText! : '0')
+        : value;
+    final suffix = suffixText?.trim();
+    final text = suffix?.isNotEmpty == true
+        ? '$displayValue $suffix'
+        : displayValue;
+
+    return AppText(
+      text,
+      key: const Key('record-number-preview'),
+      fontSize: 17,
+      fontWeight: FontWeight.bold,
+      color: isPlaceholder ? AppColors.muted : AppColors.text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

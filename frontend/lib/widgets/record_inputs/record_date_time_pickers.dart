@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/calendar_ranges.dart';
 import 'record_input_style.dart';
 import 'record_picker_sheet.dart';
 import 'record_picker_values.dart';
@@ -12,12 +13,12 @@ Future<DateTime?> showRecordDatePickerSheet(
   DateTime? firstDate,
   DateTime? lastDate,
 }) {
-  final first = firstDate ?? DateTime(2020, 1, 1);
-  final last = lastDate ?? DateTime(2100, 12, 31);
+  final first = firstDate ?? calendarFirstDate;
+  final last = lastDate ?? recordCalendarLastDate(DateTime.now());
   return showRecordPickerSheet<DateTime>(
     context,
     builder: (context) => _RecordDatePickerSheet(
-      initialDate: initialDate,
+      initialDate: clampCalendarDate(initialDate, first, last),
       firstDate: first,
       lastDate: last,
     ),

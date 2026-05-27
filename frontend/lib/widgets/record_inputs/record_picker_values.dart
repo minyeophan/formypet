@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/calendar_ranges.dart';
+
 enum RecordNumberInputMode { integer, decimal }
 
 DateTime clampRecordDate(
@@ -9,12 +11,7 @@ DateTime clampRecordDate(
   DateTime firstDate,
   DateTime lastDate,
 ) {
-  final dateOnly = DateTime(value.year, value.month, value.day);
-  final first = DateTime(firstDate.year, firstDate.month, firstDate.day);
-  final last = DateTime(lastDate.year, lastDate.month, lastDate.day);
-  if (dateOnly.isBefore(first)) return first;
-  if (dateOnly.isAfter(last)) return last;
-  return dateOnly;
+  return clampCalendarDate(value, firstDate, lastDate);
 }
 
 int clampRecordDay({required int year, required int month, required int day}) {

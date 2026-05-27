@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/calendar_ranges.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
@@ -154,12 +155,17 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
               ),
               readOnly: true,
               onTap: () async {
+                final now = DateTime.now();
+                final lastDate = birthdayCalendarLastDate(now);
                 final date = await showDatePicker(
                   context: context,
-                  initialDate:
-                      DateTime.tryParse(_birthCtrl.text) ?? DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now(),
+                  initialDate: clampCalendarDate(
+                    DateTime.tryParse(_birthCtrl.text) ?? now,
+                    calendarFirstDate,
+                    lastDate,
+                  ),
+                  firstDate: calendarFirstDate,
+                  lastDate: lastDate,
                 );
                 if (date != null) {
                   _birthCtrl.text =

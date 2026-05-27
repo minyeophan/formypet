@@ -57,6 +57,29 @@ void main() {
     expect(result, DateTime(2026, 5, 23));
   });
 
+  testWidgets('date sheet clamps default range to the current year', (
+    tester,
+  ) async {
+    DateTime? result;
+    await _pumpSheetHost(
+      tester,
+      onPressed: (context) async {
+        result = await showRecordDatePickerSheet(
+          context,
+          initialDate: DateTime(DateTime.now().year + 1, 1, 1),
+        );
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('open-sheet')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('record-picker-done')));
+    await tester.pumpAndSettle();
+
+    final currentYear = DateTime.now().year;
+    expect(result, DateTime(currentYear, 12, 31));
+  });
+
   testWidgets('number pad layout keeps dot left of zero and done in header', (
     tester,
   ) async {
@@ -88,6 +111,50 @@ void main() {
     expect(doneCenter.dx, greaterThan(160));
     expect((doneCenter.dy - cancelCenter.dy).abs(), lessThanOrEqualTo(4));
     expect(doneCenter.dy, lessThan(oneTop));
+  });
+
+  testWidgets('number pad header preview updates before commit', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: '9');
+    addTearDown(controller.dispose);
+
+    await _pumpNumberInput(tester, controller: controller, hintText: '0.0');
+    await tester.tap(find.byKey(const Key('number-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('record-number-preview')), findsOneWidget);
+    expect(find.text('9 km'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('record-number-key-1')));
+    await tester.pump();
+    expect(controller.text, '9');
+    expect(find.text('91 km'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('record-number-key-dot')));
+    await tester.pump();
+    expect(find.text('91. km'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('record-number-key-2')));
+    await tester.pump();
+    expect(find.text('91.2 km'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('record-number-key-backspace')));
+    await tester.pump();
+    expect(find.text('91. km'), findsOneWidget);
+  });
+
+  testWidgets('number pad header preview shows hint when value is empty', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+
+    await _pumpNumberInput(tester, controller: controller, hintText: '0.0');
+    await tester.tap(find.byKey(const Key('number-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0.0 km'), findsOneWidget);
   });
 
   testWidgets('number pad cancel and dismiss keep existing controller value', (
@@ -188,6 +255,7 @@ Future<void> _pumpSheetHost(
 Future<void> _pumpNumberInput(
   WidgetTester tester, {
   required TextEditingController controller,
+  String hintText = '',
   ValueChanged<String>? onChanged,
 }) async {
   await tester.pumpWidget(
@@ -200,6 +268,7 @@ Future<void> _pumpNumberInput(
               key: const Key('number-field'),
               controller: controller,
               mode: RecordNumberInputMode.decimal,
+              hintText: hintText,
               suffixText: 'km',
               onChanged: onChanged,
             ),

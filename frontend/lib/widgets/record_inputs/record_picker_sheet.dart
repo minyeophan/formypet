@@ -22,11 +22,13 @@ Future<T?> showRecordPickerSheet<T>(
 class RecordPickerSheet<T> extends StatelessWidget {
   final Widget child;
   final T Function() value;
+  final Widget? headerCenter;
 
   const RecordPickerSheet({
     super.key,
     required this.child,
     required this.value,
+    this.headerCenter,
   });
 
   @override
@@ -66,7 +68,9 @@ class RecordPickerSheet<T> extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Spacer(),
+                      Expanded(
+                        child: Center(child: headerCenter ?? const SizedBox()),
+                      ),
                       SizedBox(
                         width: 96,
                         child: TextButton(
