@@ -423,13 +423,13 @@ class _HomeMenuGrid extends StatelessWidget {
         onTap: onScheduleTap,
       ),
       _HomeMenuItem(
-        label: '성장곡선',
+        label: '성장',
         icon: Icons.show_chart_rounded,
         color: const Color(0xFFBA68C8),
         onTap: () => context.push('/records/growth'),
       ),
       _HomeMenuItem(
-        label: '반려로그 카테고리',
+        label: '반려로그=',
         icon: Icons.category_outlined,
         color: const Color(0xFFE879B9),
         onTap: onCategoryTap,
