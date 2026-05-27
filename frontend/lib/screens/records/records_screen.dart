@@ -100,6 +100,10 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                                 context.push('/records/meal/new');
                                 return;
                               }
+                              if (typeId == 'expense') {
+                                context.push('/records/expense/new');
+                                return;
+                              }
                               if (_categoryFormTypeIds.contains(typeId)) {
                                 context.push('/records/$typeId/new');
                                 return;
@@ -910,6 +914,12 @@ const _recordTypes = [
     color: Color(0xFFFF8A65),
   ),
   _RecordTypeConfig(
+    id: 'water',
+    label: '음수',
+    icon: Icons.content_cut_rounded,
+    color: Color(0xFFEC407A),
+  ),
+  _RecordTypeConfig(
     id: 'poop',
     label: '배변',
     icon: Icons.pets_rounded,
@@ -923,21 +933,9 @@ const _recordTypes = [
   ),
   _RecordTypeConfig(
     id: 'medicine',
-    label: '영양/약',
+    label: '영양',
     icon: Icons.medication_rounded,
     color: Color(0xFF42A5F5),
-  ),
-  _RecordTypeConfig(
-    id: 'bath',
-    label: '목욕',
-    icon: Icons.bathtub_rounded,
-    color: Color(0xFF26A69A),
-  ),
-  _RecordTypeConfig(
-    id: 'weight',
-    label: '몸무게',
-    icon: Icons.monitor_weight_rounded,
-    color: Color(0xFFAB47BC),
   ),
   _RecordTypeConfig(
     id: 'vet',
@@ -952,10 +950,10 @@ const _recordTypes = [
     color: Color(0xFF5C6BC0),
   ),
   _RecordTypeConfig(
-    id: 'groom',
-    label: '미용',
-    icon: Icons.content_cut_rounded,
-    color: Color(0xFFEC407A),
+    id: 'weight',
+    label: '몸무게',
+    icon: Icons.monitor_weight_rounded,
+    color: Color(0xFFAB47BC),
   ),
   _RecordTypeConfig(
     id: 'expense',

@@ -34,7 +34,7 @@ void main() {
       expect(find.text(label), findsWidgets);
     }
 
-    await tester.tap(find.byKey(const Key('records-type-card-bath')));
+    await tester.tap(find.byKey(const Key('records-type-card-diary')));
     await tester.pump();
     expect(find.text('준비중'), findsOneWidget);
   });
@@ -64,6 +64,25 @@ void main() {
 
     expect(find.text('급식 기록'), findsOneWidget);
     expect(find.text('등록'), findsOneWidget);
+  });
+
+  testWidgets('expense record type opens expense add screen', (tester) async {
+    await _pumpRouter(tester, initialLocation: '/records');
+
+    await tester.tap(find.byKey(const Key('records-type-card-expense')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('비용 추가'), findsOneWidget);
+    expect(find.text('금액'), findsOneWidget);
+  });
+
+  testWidgets('unsupported record type shows preparing toast', (tester) async {
+    await _pumpRouter(tester, initialLocation: '/records');
+
+    await tester.tap(find.byKey(const Key('records-type-card-diary')));
+    await tester.pump();
+
+    expect(find.text('준비중'), findsOneWidget);
   });
 
   testWidgets('implemented record types open their category forms', (
@@ -175,14 +194,13 @@ void main() {
 
 const _recordTypeLabels = [
   '급식',
+  '음수',
   '배변',
   '산책',
-  '영양/약',
-  '목욕',
-  '몸무게',
+  '영양',
   '병원',
   '접종',
-  '미용',
+  '몸무게',
   '지출',
   '일기',
   '기타',
@@ -190,14 +208,13 @@ const _recordTypeLabels = [
 
 const _recordTypeIds = [
   'meal',
+  'water',
   'poop',
   'walk',
   'medicine',
-  'bath',
-  'weight',
   'vet',
   'checkup',
-  'groom',
+  'weight',
   'expense',
   'diary',
   'etc',
