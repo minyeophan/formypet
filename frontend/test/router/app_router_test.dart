@@ -12,6 +12,7 @@ import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
+import 'package:frontend/screens/records/expense_add_screen.dart';
 import 'package:frontend/screens/records/records_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
@@ -130,6 +131,24 @@ void main() {
 
     expect(find.text('급식 기록'), findsOneWidget);
     expect(find.text('사료 종류'), findsOneWidget);
+  });
+
+  testWidgets('/records/expense/new opens expense add screen', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/expense/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.byType(ExpenseAddScreen), findsOneWidget);
+    expect(find.text('비용 추가'), findsOneWidget);
   });
 
   testWidgets('/records/:type/new opens category record screens', (
