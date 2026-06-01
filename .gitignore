@@ -5,6 +5,7 @@ node_modules
 .claude/
 .superpowers/
 docs/superpowers/plans/
+docs/devlog-drafts/
 
 # backend build/runtime artifacts
 backend/.gradle/
