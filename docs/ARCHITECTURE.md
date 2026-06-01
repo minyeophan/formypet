@@ -42,6 +42,10 @@ lib/
 │   │   ├── records_screen.dart
 │   │   ├── meal_record_screen.dart
 │   │   ├── record_category_form_screen.dart
+│   │   ├── expense_add_screen.dart
+│   │   ├── expense_wallet_screen.dart
+│   │   ├── expense_report_screen.dart
+│   │   ├── expense_record_utils.dart
 │   │   ├── activity_tab.dart
 │   │   ├── health_tab.dart
 │   │   └── growth_tab.dart
@@ -71,7 +75,8 @@ lib/
 - **AppText 강제 사용**: 모든 텍스트는 `<AppText>`로 — Noto Sans KR 폰트 일관성 보장.
 - **공통 헤더/네비게이션 위젯**: 화면 내비게이션 의미의 뒤로가기는 `AppBackButton`을 사용한다. `AppBackButton`은 UI와 콜백만 담당하고 `context.pop()`, `context.go()` fallback, 키보드 dismiss는 호출 화면에 둔다. 행/카드의 진입 표시는 표시 전용 `AppDisclosureChevron`을 사용하며 tap 처리는 부모 row/card가 담당한다.
 - **AppHeader 사용 범위**: 기본 화면 헤더는 `AppHeader`를 우선 사용하고, 뒤로가기가 필요하면 `showBackButton/onBack` 경로를 사용한다. 헤더 우측 원형 아이콘 버튼은 `AppHeaderIconButton`을 재사용한다.
-- **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
+- **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. `water`, `diary`도 `RecordCategoryFormScreen` 전체 화면 route를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
+- **지출 UI 경계**: 홈 `지갑`은 `/wallet`로 이동한다. `/wallet`, `/wallet/report`, `/records/expense/new`는 UI가 있지만 지출 저장은 아직 `준비중`이며 백엔드 계약과 분리한다.
 - **기록 입력 스타일 경계**: 기록 입력 패널의 surface, radius, header height, keypad spacing 같은 모양 값은 `RecordInputStyle`에서 관리한다. 저장 API, payload, schema는 입력 패널 변경과 분리한다.
 - **Riverpod StateNotifier**: 전역 상태는 `StateNotifierProvider`로 관리. `ref.watch`로 UI 구독, `ref.read`로 액션 호출.
 
@@ -91,8 +96,13 @@ GoRouter
 ├── /records/all    → AllRecordsScreen
 ├── /records/growth → GrowthRecordsScreen
 ├── /records/meal/new → MealRecordScreen
+├── /records/expense/new → ExpenseAddScreen
 ├── /records/:typeId/new → RecordCategoryFormScreen
+├── /wallet         → ExpenseWalletScreen
+├── /wallet/report  → ExpenseReportScreen
 ├── /routine        → RoutineScreen
+├── /routine/new    → RoutineCreateScreen
+├── /routine/schedule/new → RoutineScheduleCreateScreen
 ├── /community/write → WriteScreen
 ├── /pet/:id        → PetDetailScreen
 └── /pet/:id/edit   → PetEditScreen
