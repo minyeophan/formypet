@@ -3,6 +3,7 @@ enum CompletionStatus { pending, completed, skipped }
 class Routine {
   final String id;
   final String petId;
+  final String label;
   final String typeId;
   final String repeatType; // daily | weekly | biweekly | monthly
   final List<String> times; // HH:MM list
@@ -10,11 +11,13 @@ class Routine {
   final String? note;
   final String startDate;
   final String? endDate;
+  final int monthlyInterval;
   final bool active;
 
   const Routine({
     required this.id,
     required this.petId,
+    required this.label,
     required this.typeId,
     required this.repeatType,
     required this.times,
@@ -22,37 +25,41 @@ class Routine {
     this.note,
     required this.startDate,
     this.endDate,
+    this.monthlyInterval = 1,
     this.active = true,
   });
 
   factory Routine.fromJson(Map<String, dynamic> j) => Routine(
-        id: j['id'].toString(),
-        petId: j['petId'].toString(),
-        typeId: j['typeId'] as String,
-        repeatType: j['repeatType'] as String,
-        times: (j['times'] as List<dynamic>?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [],
-        days: (j['days'] as List<dynamic>?)
-                ?.map((e) => int.parse(e.toString()))
-                .toList() ??
-            [],
-        note: j['note'] as String?,
-        startDate: j['startDate'] as String,
-        endDate: j['endDate'] as String?,
-        active: j['active'] as bool? ?? true,
-      );
+    id: j['id'].toString(),
+    petId: j['petId'].toString(),
+    label: j['label'] as String,
+    typeId: j['typeId'] as String,
+    repeatType: j['repeatType'] as String,
+    times:
+        (j['times'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+    days:
+        (j['days'] as List<dynamic>?)
+            ?.map((e) => int.parse(e.toString()))
+            .toList() ??
+        [],
+    note: j['note'] as String?,
+    startDate: j['startDate'] as String,
+    endDate: j['endDate'] as String?,
+    monthlyInterval: j['monthlyInterval'] as int? ?? 1,
+    active: j['active'] as bool? ?? true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'typeId': typeId,
-        'repeatType': repeatType,
-        'times': times,
-        'days': days,
-        'startDate': startDate,
-        if (endDate != null) 'endDate': endDate,
-        if (note != null) 'note': note,
-      };
+    'label': label,
+    'typeId': typeId,
+    'repeatType': repeatType,
+    'times': times,
+    'days': days,
+    'startDate': startDate,
+    if (endDate != null) 'endDate': endDate,
+    if (note != null) 'note': note,
+    'monthlyInterval': monthlyInterval,
+  };
 }
 
 class RoutineCompletion {
@@ -95,8 +102,11 @@ class TodayRoutineSummary {
   final int done;
   final double rate;
 
-  const TodayRoutineSummary(
-      {required this.total, required this.done, required this.rate});
+  const TodayRoutineSummary({
+    required this.total,
+    required this.done,
+    required this.rate,
+  });
 
   factory TodayRoutineSummary.fromJson(Map<String, dynamic> j) =>
       TodayRoutineSummary(
@@ -114,10 +124,11 @@ class TodayRoutineItem {
   const TodayRoutineItem({required this.routine, required this.completion});
 
   factory TodayRoutineItem.fromJson(Map<String, dynamic> j) => TodayRoutineItem(
-        routine: Routine.fromJson(j['routine'] as Map<String, dynamic>),
-        completion:
-            RoutineCompletion.fromJson(j['completion'] as Map<String, dynamic>),
-      );
+    routine: Routine.fromJson(j['routine'] as Map<String, dynamic>),
+    completion: RoutineCompletion.fromJson(
+      j['completion'] as Map<String, dynamic>,
+    ),
+  );
 }
 
 // Backend TodayRoutineResponse: { routines: List<TodayRoutineItem>, summary: Summary }

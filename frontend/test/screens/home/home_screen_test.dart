@@ -217,6 +217,7 @@ List<TodayRoutineItem> _todayRoutineItems() {
       routine: const Routine(
         id: 'feed',
         petId: '1',
+        label: '사료 주기',
         typeId: 'meal',
         repeatType: 'daily',
         times: ['08:00', '18:00'],
@@ -236,6 +237,7 @@ List<TodayRoutineItem> _todayRoutineItems() {
       routine: const Routine(
         id: 'walk',
         petId: '1',
+        label: '산책',
         typeId: 'walk',
         repeatType: 'daily',
         times: ['20:00'],

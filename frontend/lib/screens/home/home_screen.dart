@@ -978,10 +978,8 @@ bool _hasRecordToday(List<ActivityRecord> records, String typeId) {
 }
 
 String _routineTitle(Routine routine) {
-  final note = _compactText(routine.note);
-  if (note != null) {
-    return note;
-  }
+  final label = _compactText(routine.label);
+  if (label != null) return label;
   return _typeLabel(routine.typeId);
 }
 

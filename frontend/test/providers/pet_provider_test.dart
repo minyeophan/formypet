@@ -89,7 +89,96 @@ void main() {
     expect(notifier.state.routineCompletions, {
       'rt1:2026-05-21': CompletionStatus.completed,
     });
+    expect(notifier.state.todaySummary?.done, 1);
+    expect(notifier.state.todaySummary?.rate, 100.0);
   });
+
+  test('addRoutine appends routine and refreshes today routines', () async {
+    final pet = _pet('1');
+    final original = _routine('rt1', pet.id);
+    final created = _routine('rt2', pet.id);
+    final routineService = _FakeRoutineService(
+      routines: [original],
+      todayItems: [
+        _todayRoutineItem(
+          routine: original,
+          date: '2026-06-01',
+          status: CompletionStatus.pending,
+        ),
+      ],
+      createdRoutine: created,
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      routineService,
+    );
+    await notifier.loadForAuthenticatedUser();
+    routineService.todayItems = [
+      _todayRoutineItem(
+        routine: created,
+        date: '2026-06-01',
+        status: CompletionStatus.completed,
+      ),
+    ];
+
+    await notifier.addRoutine({'label': 'Routine rt2'});
+
+    expect(notifier.state.routines, [original, created]);
+    expect(notifier.state.todayRoutineItems.single.routine, created);
+    expect(notifier.state.routineCompletions, {
+      'rt2:2026-06-01': CompletionStatus.completed,
+    });
+  });
+
+  test('addRoutine keeps local success when today refresh fails', () async {
+    final pet = _pet('1');
+    final created = _routine('rt2', pet.id);
+    final routineService = _FakeRoutineService(createdRoutine: created);
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      routineService,
+    );
+    await notifier.loadForAuthenticatedUser();
+    routineService.failTodayRefresh = true;
+
+    await notifier.addRoutine({'label': 'Routine rt2'});
+
+    expect(notifier.state.routines, [created]);
+  });
+
+  test(
+    'deleteRoutine removes all completion keys for deleted routine',
+    () async {
+      final pet = _pet('1');
+      final routine = _routine('rt1', pet.id);
+      final routineService = _FakeRoutineService(
+        routines: [routine],
+        todayItems: [
+          _todayRoutineItem(
+            routine: routine,
+            date: '2026-06-01',
+            status: CompletionStatus.pending,
+          ),
+        ],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        routineService,
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.toggleRoutineCompletion('rt1', '2026-06-20');
+      routineService.todayItems = const [];
+
+      await notifier.deleteRoutine('rt1');
+
+      expect(notifier.state.routines, isEmpty);
+      expect(notifier.state.routineCompletions, isEmpty);
+      expect(routineService.deletedRoutineIds, [('1', 'rt1')]);
+    },
+  );
 
   test('clearForSignedOutUser clears account-scoped pet data', () async {
     final pet = _pet('1');
@@ -229,6 +318,7 @@ ActivityRecord _record(String id, String petId) =>
 Routine _routine(String id, String petId) => Routine(
   id: id,
   petId: petId,
+  label: 'Routine $id',
   typeId: 'water',
   repeatType: 'daily',
   times: const [],
@@ -325,10 +415,17 @@ class _FakeRecordService extends RecordService {
 }
 
 class _FakeRoutineService extends RoutineService {
-  _FakeRoutineService({this.routines = const [], this.todayItems = const []});
+  _FakeRoutineService({
+    this.routines = const [],
+    this.todayItems = const [],
+    this.createdRoutine,
+  });
 
   final List<Routine> routines;
-  final List<TodayRoutineItem> todayItems;
+  List<TodayRoutineItem> todayItems;
+  final Routine? createdRoutine;
+  bool failTodayRefresh = false;
+  final deletedRoutineIds = <(String petId, String routineId)>[];
   final patchRequests =
       <
         (String petId, String routineId, String date, CompletionStatus status)
@@ -339,18 +436,39 @@ class _FakeRoutineService extends RoutineService {
 
   @override
   Future<TodayRoutineData> getTodayRoutines(String petId) async =>
-      TodayRoutineData(
-        items: todayItems,
-        summary: TodayRoutineSummary(
-          total: todayItems.length,
-          done: todayItems
-              .where(
-                (item) => item.completion.status == CompletionStatus.completed,
-              )
-              .length,
-          rate: 0,
-        ),
-      );
+      failTodayRefresh
+      ? throw Exception('today refresh failed')
+      : TodayRoutineData(
+          items: todayItems,
+          summary: TodayRoutineSummary(
+            total: todayItems.length,
+            done: todayItems
+                .where(
+                  (item) =>
+                      item.completion.status == CompletionStatus.completed,
+                )
+                .length,
+            rate: 0,
+          ),
+        );
+
+  @override
+  Future<Routine> createRoutine(
+    String petId,
+    Map<String, dynamic> body,
+  ) async => createdRoutine ?? _routine('created', petId);
+
+  @override
+  Future<Routine> updateRoutine(
+    String petId,
+    String routineId,
+    Map<String, dynamic> body,
+  ) async => _routine(routineId, petId);
+
+  @override
+  Future<void> deleteRoutine(String petId, String routineId) async {
+    deletedRoutineIds.add((petId, routineId));
+  }
 
   @override
   Future<RoutineCompletion> patchCompletion({

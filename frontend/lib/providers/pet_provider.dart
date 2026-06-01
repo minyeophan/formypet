@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pet.dart';
@@ -333,6 +332,7 @@ class PetNotifier extends StateNotifier<PetState> {
     final petId = state.activePetId!;
     final routine = await _routSvc.createRoutine(petId, body);
     state = state.copyWith(routines: [...state.routines, routine]);
+    await _refreshTodayRoutinesBestEffort(petId);
   }
 
   Future<void> updateRoutine(
@@ -346,14 +346,20 @@ class PetNotifier extends StateNotifier<PetState> {
           .map((r) => r.id == routineId ? updated : r)
           .toList(),
     );
+    await _refreshTodayRoutinesBestEffort(petId);
   }
 
   Future<void> deleteRoutine(String routineId) async {
     final petId = state.activePetId!;
     await _routSvc.deleteRoutine(petId, routineId);
+    final completions = Map<String, CompletionStatus>.from(
+      state.routineCompletions,
+    )..removeWhere((key, _) => key.startsWith('$routineId:'));
     state = state.copyWith(
       routines: state.routines.where((r) => r.id != routineId).toList(),
+      routineCompletions: completions,
     );
+    await _refreshTodayRoutinesBestEffort(petId);
   }
 
   Future<void> toggleRoutineCompletion(String routineId, String date) async {
@@ -372,8 +378,58 @@ class PetNotifier extends StateNotifier<PetState> {
     );
     final newMap = Map<String, CompletionStatus>.from(state.routineCompletions);
     newMap[key] = completion.status;
-    state = state.copyWith(routineCompletions: newMap);
+    final isTodayItem = state.todayRoutineItems.any(
+      (item) =>
+          item.routine.id == routineId && item.completion.scheduledDate == date,
+    );
+    state = state.copyWith(
+      routineCompletions: newMap,
+      todaySummary: isTodayItem ? _todaySummaryFrom(newMap) : null,
+    );
   }
+
+  Future<void> _refreshTodayRoutinesBestEffort(String petId) async {
+    try {
+      final todayData = await _routSvc.getTodayRoutines(petId);
+      if (state.activePetId != petId) return;
+
+      final completions = Map<String, CompletionStatus>.from(
+        state.routineCompletions,
+      );
+      for (final item in state.todayRoutineItems) {
+        completions.remove(_completionKey(item));
+      }
+      for (final item in todayData.items) {
+        completions[_completionKey(item)] = item.completion.status;
+      }
+      state = state.copyWith(
+        todayRoutineItems: todayData.items,
+        todaySummary: todayData.summary,
+        routineCompletions: completions,
+      );
+    } catch (error) {
+      debugPrint('Failed to refresh today routines: $error');
+    }
+  }
+
+  TodayRoutineSummary _todaySummaryFrom(
+    Map<String, CompletionStatus> completions,
+  ) {
+    final total = state.todayRoutineItems.length;
+    final done = state.todayRoutineItems
+        .where(
+          (item) =>
+              completions[_completionKey(item)] == CompletionStatus.completed,
+        )
+        .length;
+    final rate = total == 0
+        ? 0.0
+        : double.parse((done / total * 100).toStringAsFixed(1));
+    return TodayRoutineSummary(total: total, done: done, rate: rate);
+  }
+
+  String _completionKey(TodayRoutineItem item) =>
+      '${item.routine.id}:${item.completion.scheduledDate}';
 
   // QuickTypeIds persistence
   Future<void> setQuickTypeIds(List<String> ids) async {
