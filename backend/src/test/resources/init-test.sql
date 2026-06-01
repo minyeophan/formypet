@@ -86,7 +86,8 @@ INSERT INTO activity_types (id, name, display_order) VALUES
     ('vet',      'vet',      7),
     ('sleep',    'sleep',    8),
     ('play',     'play',     9),
-    ('checkup',  'checkup', 10);
+    ('checkup',  'checkup', 10),
+    ('diary',    'diary',   11);
 
 CREATE TABLE IF NOT EXISTS activity_records (
     id         BIGINT      AUTO_INCREMENT PRIMARY KEY,
