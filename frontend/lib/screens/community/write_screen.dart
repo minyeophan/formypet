@@ -217,7 +217,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                   child: Row(
                     children: [
                       const AppText(
-                        '제목 *',
+                        '제목',
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
