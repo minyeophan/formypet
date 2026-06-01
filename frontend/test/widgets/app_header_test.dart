@@ -72,6 +72,17 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('AppHeader can center its title when requested', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(appBar: AppHeader(title: '루틴 추가', centerTitle: true)),
+      ),
+    );
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.centerTitle, isTrue);
+  });
+
   testWidgets('showPreparingToast shows the shared preparing snack bar', (
     tester,
   ) async {

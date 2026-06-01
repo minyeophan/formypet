@@ -8,6 +8,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
   final bool showBackButton;
+  final bool centerTitle;
   final VoidCallback? onBack;
 
   const AppHeader({
@@ -15,6 +16,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.actions,
     this.showBackButton = false,
+    this.centerTitle = false,
     this.onBack,
   });
 
@@ -26,8 +28,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       automaticallyImplyLeading: false,
       leading: showBackButton
-          ? AppBackButton(onPressed: onBack ?? () {})
+          ? Align(child: AppBackButton(onPressed: onBack ?? () {}))
           : null,
+      centerTitle: centerTitle,
       title: AppText(
         title,
         fontSize: 19,
