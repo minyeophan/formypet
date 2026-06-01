@@ -8,7 +8,7 @@ class RecordType {
   const RecordType({required this.id, required this.label, required this.icon});
 }
 
-// 12 quick types (all supported + diary excluded — diary/groom not supported by backend)
+// Quick/routine types keep diary hidden even though the backend stores it.
 const List<RecordType> kQuickTypes = [
   RecordType(id: 'meal', label: '급식', icon: Icons.restaurant),
   RecordType(id: 'water', label: '음수', icon: Icons.water_drop),
@@ -24,7 +24,23 @@ const List<RecordType> kQuickTypes = [
   RecordType(id: 'groom', label: '미용', icon: Icons.content_cut),
 ];
 
-// Backend-supported types (excludes diary/groom from API calls)
+const Map<String, String> kRecordTypeFallbackLabels = {'diary': '일기'};
+
+const Map<String, IconData> kRecordTypeFallbackIcons = {
+  'diary': Icons.edit_note,
+};
+
+String recordTypeLabel(String typeId) {
+  final quickType = kQuickTypes.where((type) => type.id == typeId).firstOrNull;
+  return quickType?.label ?? kRecordTypeFallbackLabels[typeId] ?? typeId;
+}
+
+IconData recordTypeIcon(String typeId) {
+  final quickType = kQuickTypes.where((type) => type.id == typeId).firstOrNull;
+  return quickType?.icon ?? kRecordTypeFallbackIcons[typeId] ?? Icons.circle;
+}
+
+// Backend-supported types for quick record API calls; diary is intentionally excluded.
 const Set<String> kSupportedTypeIds = {
   'meal',
   'water',

@@ -31,12 +31,13 @@ void main() {
     expect(find.text('현재 시간으로 설정'), findsOneWidget);
     expect(find.text('사료 종류'), findsOneWidget);
     expect(find.text('상세 정보'), findsOneWidget);
-    expect(find.text('추가 정보 (브랜드/급식방법/메모) 펼치기'), findsOneWidget);
+    expect(find.text('메모'), findsOneWidget);
+    expect(find.byKey(const Key('meal-note-field')), findsWidgets);
+    expect(find.text('추가 정보 (브랜드/급식방법) 펼치기'), findsOneWidget);
     expect(find.text('선택 입력'), findsNothing);
     expect(find.text('사진 추가 (0/1)'), findsOneWidget);
     expect(find.text('브랜드명'), findsNothing);
     expect(find.text('급식 방법'), findsNothing);
-    expect(find.text('메모'), findsNothing);
   });
 
   testWidgets('meal screen shows food and consumption emoji card options', (
@@ -98,7 +99,7 @@ void main() {
     expect(find.text('배식'), findsOneWidget);
     expect(find.text('자율급식'), findsOneWidget);
     expect(find.text('자동급식기'), findsOneWidget);
-    expect(find.text('메모'), findsOneWidget);
+    expect(find.byKey(const Key('meal-note-field')), findsWidgets);
   });
 
   testWidgets('photo picker callback updates selected photo label', (
@@ -130,11 +131,11 @@ void main() {
       '5',
     ]);
     await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await tester.enterText(find.byKey(const Key('meal-note-field')), '메모');
     await tester.tap(find.byKey(const Key('meal-more-toggle')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('meal-brand-field')), '브랜드명');
     await tester.tap(find.byKey(const Key('meal-feeding-method-served')));
-    await tester.enterText(find.byKey(const Key('meal-note-field')), '메모');
     await tester.tap(find.byKey(const Key('meal-save-button')));
     await tester.pump();
 

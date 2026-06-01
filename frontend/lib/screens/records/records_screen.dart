@@ -100,10 +100,6 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                                 context.push('/records/meal/new');
                                 return;
                               }
-                              if (typeId == 'expense') {
-                                context.push('/records/expense/new');
-                                return;
-                              }
                               if (_categoryFormTypeIds.contains(typeId)) {
                                 context.push('/records/$typeId/new');
                                 return;
@@ -501,6 +497,10 @@ class _RecordTypeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleTypes = _recordTypes
+        .where((type) => type.id != 'expense' && type.id != 'checkup')
+        .toList(growable: false);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
       padding: const EdgeInsets.all(12),
@@ -512,7 +512,7 @@ class _RecordTypeGrid extends StatelessWidget {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: _recordTypes.length,
+        itemCount: visibleTypes.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           mainAxisSpacing: 10,
@@ -520,7 +520,7 @@ class _RecordTypeGrid extends StatelessWidget {
           mainAxisExtent: 92,
         ),
         itemBuilder: (context, index) {
-          final type = _recordTypes[index];
+          final type = visibleTypes[index];
           return _RecordTypeCard(
             key: Key('records-type-card-${type.id}'),
             type: type,
@@ -596,14 +596,8 @@ class _SelectedDateSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -633,7 +627,110 @@ class _SelectedDateSummary extends StatelessWidget {
           if (records.isEmpty)
             const _EmptyRecordsPanel(message: '아직 기록이 없어요')
           else
-            ...records.map((record) => _RecordSummaryRow(record: record)),
+            _SelectedDateRecordList(records: records),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedDateRecordList extends StatelessWidget {
+  final List<ActivityRecord> records;
+
+  const _SelectedDateRecordList({required this.records});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < records.length; index++) ...[
+            _SelectedDateRecordRow(record: records[index]),
+            if (index < records.length - 1)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.border,
+                indent: 64,
+                endIndent: 12,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedDateRecordRow extends StatelessWidget {
+  final ActivityRecord record;
+
+  const _SelectedDateRecordRow({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final type = _typeConfig(record.typeId);
+    final icon = record.typeId == 'water'
+        ? Icons.water_drop_rounded
+        : type.icon;
+
+    return Container(
+      key: Key('selected-date-record-${record.id}'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: type.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: type.color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText(
+                  type.label,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                AppText(
+                  _recordSummary(record),
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          AppText(
+            _timeLabel(record.time),
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.muted,
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.muted,
+            size: 22,
+          ),
         ],
       ),
     );
@@ -705,7 +802,7 @@ class _RecordSummaryRow extends StatelessWidget {
           SizedBox(
             width: 48,
             child: AppText(
-              record.time ?? '--:--',
+              _timeLabel(record.time),
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: AppColors.muted,
@@ -916,8 +1013,8 @@ const _recordTypes = [
   _RecordTypeConfig(
     id: 'water',
     label: '음수',
-    icon: Icons.content_cut_rounded,
-    color: Color(0xFFEC407A),
+    icon: Icons.water_drop_rounded,
+    color: Color(0xFF42A5F5),
   ),
   _RecordTypeConfig(
     id: 'poop',
@@ -977,7 +1074,15 @@ const _recordTypes = [
 
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
-const _categoryFormTypeIds = {'poop', 'walk', 'weight', 'vet', 'medicine'};
+const _categoryFormTypeIds = {
+  'water',
+  'poop',
+  'walk',
+  'weight',
+  'vet',
+  'medicine',
+  'diary',
+};
 
 List<ActivityRecord> _recordsForDate(
   List<ActivityRecord> records,
@@ -1028,6 +1133,24 @@ String _recordSummary(ActivityRecord record) {
     }
   }
   return '${_typeConfig(record.typeId).label} 기록';
+}
+
+String _timeLabel(String? time) {
+  final value = time?.trim();
+  if (value == null || value.isEmpty) {
+    return '--:--';
+  }
+
+  final parsedDateTime = DateTime.tryParse(value);
+  if (parsedDateTime != null) {
+    return DateFormat('HH:mm').format(parsedDateTime);
+  }
+
+  final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(value);
+  if (match == null) {
+    return value;
+  }
+  return '${match.group(1)!.padLeft(2, '0')}:${match.group(2)!}';
 }
 
 double? _weightValue(ActivityRecord record) {

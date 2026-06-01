@@ -43,12 +43,14 @@ void main() {
     expect(find.byKey(const Key('home-pet-dot-0')), findsOneWidget);
     expect(find.byKey(const Key('home-pet-dot-1')), findsOneWidget);
     expect(find.text('반려기록'), findsOneWidget);
+    expect(find.text('지갑'), findsOneWidget);
     expect(find.text('루틴'), findsOneWidget);
     expect(find.text('일정'), findsOneWidget);
-    expect(find.text('성장곡선'), findsOneWidget);
-    expect(find.text('반려로그 카테고리'), findsOneWidget);
+    expect(find.text('성장'), findsOneWidget);
+    expect(find.text('반려로그'), findsOneWidget);
+    expect(find.byIcon(Icons.account_balance_wallet_rounded), findsOneWidget);
     expect(find.byIcon(Icons.category_outlined), findsOneWidget);
-    expect(find.text('+'), findsNWidgets(3));
+    expect(find.text('+'), findsNWidgets(2));
     expect(find.byKey(const Key('home-menu-panel')), findsOneWidget);
     expect(AppColors.background, const Color(0xFFF8F9FA));
     expect(AppColors.surface, const Color(0xFFFFFFFF));
@@ -74,9 +76,9 @@ void main() {
     expect(find.text('나비'), findsWidgets);
     expect(find.text('🐱'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('반려로그 카테고리'));
+    await tester.ensureVisible(find.text('반려로그'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('반려로그 카테고리'));
+    await tester.tap(find.text('반려로그'));
     await tester.pump();
     expect(find.text('준비중'), findsOneWidget);
   });

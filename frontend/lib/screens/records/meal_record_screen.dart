@@ -160,6 +160,17 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                             }),
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        _LabeledRow(
+                          label: '메모',
+                          child: _TextInput(
+                            key: const Key('meal-note-field'),
+                            controller: _noteCtrl,
+                            hintText: '선택',
+                            maxLines: 3,
+                            onChanged: (_) => setState(() => _error = null),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -168,10 +179,8 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                     expanded: _showMore,
                     onToggle: () => setState(() => _showMore = !_showMore),
                     brandController: _brandCtrl,
-                    noteController: _noteCtrl,
                     feedingMethod: _feedingMethod,
                     onBrandChanged: (_) => setState(() => _error = null),
-                    onNoteChanged: (_) => setState(() => _error = null),
                     onFeedingMethodChanged: (value) => setState(() {
                       _feedingMethod = value;
                       _error = null;
@@ -262,11 +271,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                   ),
           );
       if (!mounted) return;
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go('/records');
-      }
+      context.go('/records');
     } catch (e) {
       if (mounted) {
         setState(() => _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
@@ -673,20 +678,16 @@ class _MoreSection extends StatelessWidget {
   final bool expanded;
   final VoidCallback onToggle;
   final TextEditingController brandController;
-  final TextEditingController noteController;
   final String? feedingMethod;
   final ValueChanged<String> onBrandChanged;
-  final ValueChanged<String> onNoteChanged;
   final ValueChanged<String> onFeedingMethodChanged;
 
   const _MoreSection({
     required this.expanded,
     required this.onToggle,
     required this.brandController,
-    required this.noteController,
     required this.feedingMethod,
     required this.onBrandChanged,
-    required this.onNoteChanged,
     required this.onFeedingMethodChanged,
   });
 
@@ -705,9 +706,7 @@ class _MoreSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: AppText(
-                    expanded
-                        ? '추가 정보 (브랜드/급식방법/메모) 접기'
-                        : '추가 정보 (브랜드/급식방법/메모) 펼치기',
+                    expanded ? '추가 정보 (브랜드/급식방법) 접기' : '추가 정보 (브랜드/급식방법) 펼치기',
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.text,
@@ -725,7 +724,7 @@ class _MoreSection extends StatelessWidget {
         ),
         if (!expanded)
           const AppText(
-            '브랜드, 급식 방법, 메모는 필요할 때만 입력해요.',
+            '브랜드와 급식 방법은 필요할 때만 입력해요.',
             fontSize: 12,
             color: AppColors.muted,
           )
@@ -776,17 +775,6 @@ class _MoreSection extends StatelessWidget {
                     const SizedBox(width: 6),
                 ],
               ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _LabeledRow(
-            label: '메모',
-            child: _TextInput(
-              key: const Key('meal-note-field'),
-              controller: noteController,
-              hintText: '선택',
-              maxLines: 3,
-              onChanged: onNoteChanged,
             ),
           ),
         ],

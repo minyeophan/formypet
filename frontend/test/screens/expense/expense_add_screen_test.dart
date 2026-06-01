@@ -22,7 +22,7 @@ void main() {
       '카테고리',
       '날짜/시간',
       '반려동물',
-      '아이템명',
+      '제품이름',
       '구매처 URL',
       '사진',
       '메모',
@@ -35,6 +35,7 @@ void main() {
     expect(find.text('스마트 입력'), findsNothing);
     expect(find.text('영수증 스캔'), findsNothing);
     expect(find.text('결제 문자'), findsNothing);
+    expect(find.text('+ 카테고리'), findsNothing);
     expect(notifier.addRecordCalls, 0);
   });
 

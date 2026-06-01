@@ -24,19 +24,20 @@ void main() {
     expect(find.text('전체 기록'), findsOneWidget);
     expect(find.byKey(const Key('records-calendar')), findsOneWidget);
     expect(find.byKey(const Key('records-selected-date')), findsOneWidget);
+    expect(find.text('기록 자세히보기'), findsOneWidget);
     expect(find.byKey(const Key('records-date-dot-$todayIso')), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);
 
     for (final typeId in _recordTypeIds) {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
+    expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
+    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     for (final label in _recordTypeLabels) {
       expect(find.text(label), findsWidgets);
     }
 
-    await tester.tap(find.byKey(const Key('records-type-card-diary')));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
+    expect(find.byKey(const Key('records-type-card-diary')), findsOneWidget);
   });
 
   testWidgets('record type grid does not overflow on narrow screens', (
@@ -51,6 +52,8 @@ void main() {
     for (final typeId in _recordTypeIds) {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
+    expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
+    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -66,20 +69,29 @@ void main() {
     expect(find.text('등록'), findsOneWidget);
   });
 
-  testWidgets('expense record type opens expense add screen', (tester) async {
+  testWidgets('water and diary record types open their category forms', (
+    tester,
+  ) async {
     await _pumpRouter(tester, initialLocation: '/records');
 
-    await tester.tap(find.byKey(const Key('records-type-card-expense')));
+    await tester.tap(find.byKey(const Key('records-type-card-water')));
     await tester.pumpAndSettle();
 
-    expect(find.text('비용 추가'), findsOneWidget);
-    expect(find.text('금액'), findsOneWidget);
+    expect(find.text('음수 기록'), findsOneWidget);
+    expect(find.text('음수량'), findsOneWidget);
+
+    await _pumpRouter(tester, initialLocation: '/records');
+    await tester.tap(find.byKey(const Key('records-type-card-diary')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('일기 기록'), findsOneWidget);
+    expect(find.byKey(const Key('category-diary-note-field')), findsWidgets);
   });
 
   testWidgets('unsupported record type shows preparing toast', (tester) async {
     await _pumpRouter(tester, initialLocation: '/records');
 
-    await tester.tap(find.byKey(const Key('records-type-card-diary')));
+    await tester.tap(find.byKey(const Key('records-type-card-etc')));
     await tester.pump();
 
     expect(find.text('준비중'), findsOneWidget);
@@ -94,6 +106,8 @@ void main() {
       'weight': '몸무게 기록',
       'vet': '병원 기록',
       'medicine': '영양/약 기록',
+      'water': '음수 기록',
+      'diary': '일기 기록',
     }.entries) {
       await _pumpRouter(tester, initialLocation: '/records');
 
@@ -112,13 +126,50 @@ void main() {
     await tester.tap(find.byKey(Key('records-calendar-day-$todayIso')));
     await tester.pumpAndSettle();
 
+    final mealRow = find.byKey(const Key('selected-date-record-meal-today'));
+    final walkRow = find.byKey(const Key('selected-date-record-walk-today'));
+
+    expect(mealRow, findsOneWidget);
+    expect(walkRow, findsOneWidget);
+    expect(
+      find.descendant(of: mealRow, matching: find.text('09:10')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: mealRow, matching: find.text('09:10:32')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: mealRow, matching: find.text('오전 간식')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: mealRow,
+        matching: find.byIcon(Icons.chevron_right_rounded),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('오전 간식'), findsOneWidget);
     expect(find.text('저녁 산책'), findsOneWidget);
+    expect(find.text('지출 기록'), findsOneWidget);
     expect(find.text('전날 체중'), findsNothing);
 
     await tester.tap(find.byKey(Key('records-calendar-day-$yesterdayIso')));
     await tester.pumpAndSettle();
 
+    expect(
+      find.byKey(const Key('selected-date-record-meal-today')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('selected-date-record-walk-today')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('selected-date-record-weight-yesterday')),
+      findsOneWidget,
+    );
     expect(find.text('오전 간식'), findsNothing);
     expect(find.text('저녁 산책'), findsNothing);
     expect(find.text('전날 체중'), findsOneWidget);
@@ -199,9 +250,7 @@ const _recordTypeLabels = [
   '산책',
   '영양',
   '병원',
-  '접종',
   '몸무게',
-  '지출',
   '일기',
   '기타',
 ];
@@ -213,9 +262,7 @@ const _recordTypeIds = [
   'walk',
   'medicine',
   'vet',
-  'checkup',
   'weight',
-  'expense',
   'diary',
   'etc',
 ];
@@ -321,7 +368,7 @@ List<ActivityRecord> _records() => [
     petId: 'pet-1',
     typeId: 'meal',
     date: '2026-05-21',
-    time: '09:10',
+    time: '09:10:32',
     note: '오전 간식',
   ),
   const ActivityRecord(
@@ -331,6 +378,13 @@ List<ActivityRecord> _records() => [
     date: '2026-05-21',
     time: '18:40',
     note: '저녁 산책',
+  ),
+  const ActivityRecord(
+    id: 'expense-today',
+    petId: 'pet-1',
+    typeId: 'expense',
+    date: '2026-05-21',
+    time: '20:10',
   ),
   const ActivityRecord(
     id: 'weight-yesterday',

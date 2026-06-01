@@ -8,6 +8,8 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/records/expense_add_screen.dart';
+import '../screens/records/expense_report_screen.dart';
+import '../screens/records/expense_wallet_screen.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/records_screen.dart';
@@ -111,12 +113,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/records/expense/new',
         builder: (c, s) => const ExpenseAddScreen(),
       ),
+      GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
+      GoRoute(
+        path: '/wallet/report',
+        builder: (c, s) => const ExpenseReportScreen(),
+      ),
       GoRoute(
         path: '/records/:typeId/new',
         builder: (c, s) =>
             RecordCategoryFormScreen(typeId: s.pathParameters['typeId']!),
       ),
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
+      GoRoute(
+        path: '/routine/new',
+        builder: (c, s) => const RoutineCreateScreen(),
+      ),
+      GoRoute(
+        path: '/routine/schedule/new',
+        builder: (c, s) => const RoutineScheduleCreateScreen(),
+      ),
       GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
       GoRoute(
         path: '/pet/:id',

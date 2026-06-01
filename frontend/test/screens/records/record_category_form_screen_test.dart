@@ -92,6 +92,29 @@ void main() {
     });
   });
 
+  testWidgets('poop form saves optional note payload', (tester) async {
+    final notifier = _CategoryTestPetNotifier();
+    await _pumpCategoryRoute(tester, '/records/poop/new', notifier: notifier);
+
+    await tester.tap(find.byKey(const Key('category-poop-shape-normal')));
+    await tester.tap(find.byKey(const Key('category-poop-color-brown')));
+    await tester.enterText(
+      find.byKey(const Key('category-note-field')),
+      '산책 후',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('category-save-button')));
+    await tester.pump();
+
+    expect(notifier.savedBodies.single, {
+      'typeId': 'poop',
+      'date': notifier.savedBodies.single['date'],
+      'time': notifier.savedBodies.single['time'],
+      'note': '산책 후',
+      'detail': {'poopShape': 'normal', 'poopColor': 'brown'},
+    });
+  });
+
   testWidgets('poop form saves urine backend compatible payload', (
     tester,
   ) async {
@@ -147,11 +170,63 @@ void main() {
     });
   });
 
+  testWidgets('water form saves amount payload with fixed ml UI unit', (
+    tester,
+  ) async {
+    final notifier = _CategoryTestPetNotifier();
+    await _pumpCategoryRoute(tester, '/records/water/new', notifier: notifier);
+
+    expect(find.text('음수 기록'), findsOneWidget);
+    expect(find.text('음수량'), findsOneWidget);
+    expect(_saveButton(tester).onPressed, isNull);
+
+    await _enterRecordNumber(tester, const Key('category-water-amount-field'), [
+      '2',
+      '5',
+      '0',
+    ]);
+    await tester.tap(find.byKey(const Key('category-save-button')));
+    await tester.pump();
+
+    expect(notifier.savedBodies.single, {
+      'typeId': 'water',
+      'date': notifier.savedBodies.single['date'],
+      'time': notifier.savedBodies.single['time'],
+      'detail': {'amount': 250.0},
+    });
+  });
+
+  testWidgets('diary form saves note-only payload', (tester) async {
+    final notifier = _CategoryTestPetNotifier();
+    await _pumpCategoryRoute(tester, '/records/diary/new', notifier: notifier);
+
+    expect(find.text('일기 기록'), findsOneWidget);
+    expect(find.text('메모'), findsOneWidget);
+    expect(_saveButton(tester).onPressed, isNull);
+
+    await tester.enterText(
+      find.byKey(const Key('category-diary-note-field')),
+      '오늘은 컨디션이 좋았다.',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('category-save-button')));
+    await tester.pump();
+
+    expect(notifier.savedBodies.single, {
+      'typeId': 'diary',
+      'date': notifier.savedBodies.single['date'],
+      'time': notifier.savedBodies.single['time'],
+      'note': '오늘은 컨디션이 좋았다.',
+    });
+  });
+
   testWidgets('weight form saves decimal weight payload', (tester) async {
     final notifier = _CategoryTestPetNotifier();
     await _pumpCategoryRoute(tester, '/records/weight/new', notifier: notifier);
     expect(find.text('최근 기록'), findsOneWidget);
-    expect(find.text('히스토리'), findsOneWidget);
+    expect(find.text('히스토리'), findsNothing);
+    expect(find.text('기록'), findsNothing);
+    expect(find.text('저장하면 이곳에 기록이 쌓여요.'), findsNothing);
     await _enterRecordNumber(tester, const Key('category-weight-field'), [
       '4',
       'dot',
@@ -190,9 +265,11 @@ void main() {
       'typeId': 'vet',
       'date': notifier.savedBodies.single['date'],
       'time': notifier.savedBodies.single['time'],
-      'vetClinicName': '튼튼동물병원',
-      'vetVisitReason': '정기 검진',
-      'vetTreatment': '이상 없음',
+      'detail': {
+        'vetClinicName': '튼튼동물병원',
+        'vetVisitReason': '정기 검진',
+        'vetTreatment': '이상 없음',
+      },
     });
   });
 
@@ -219,8 +296,7 @@ void main() {
       'typeId': 'medicine',
       'date': notifier.savedBodies.single['date'],
       'time': notifier.savedBodies.single['time'],
-      'medicineName': '오메가3',
-      'dosage': '1정',
+      'detail': {'medicineName': '오메가3', 'dosage': '1정'},
     });
   });
 

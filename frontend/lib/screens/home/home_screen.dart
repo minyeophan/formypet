@@ -411,6 +411,12 @@ class _HomeMenuGrid extends StatelessWidget {
         onTap: () => context.push('/records'),
       ),
       _HomeMenuItem(
+        label: '지갑',
+        icon: Icons.account_balance_wallet_rounded,
+        color: const Color(0xFF4F8FCF),
+        onTap: () => context.push('/wallet'),
+      ),
+      _HomeMenuItem(
         label: '루틴',
         icon: Icons.check_circle_outline_rounded,
         color: const Color(0xFF81C784),
@@ -429,12 +435,11 @@ class _HomeMenuGrid extends StatelessWidget {
         onTap: () => context.push('/records/growth'),
       ),
       _HomeMenuItem(
-        label: '반려로그=',
+        label: '반려로그',
         icon: Icons.category_outlined,
         color: const Color(0xFFE879B9),
         onTap: onCategoryTap,
       ),
-      const _HomeMenuItem.empty(),
       const _HomeMenuItem.empty(),
       const _HomeMenuItem.empty(),
     ];
@@ -994,6 +999,7 @@ String _typeLabel(String typeId) {
     'weight': '체중',
     'vet': '병원',
     'checkup': '검진',
+    'diary': '일기',
     'bath': '목욕',
     'groom': '미용',
   };

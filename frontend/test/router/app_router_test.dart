@@ -13,7 +13,9 @@ import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/records/expense_add_screen.dart';
+import 'package:frontend/screens/records/record_category_form_screen.dart';
 import 'package:frontend/screens/records/records_screen.dart';
+import 'package:frontend/screens/routine/routine_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -151,6 +153,106 @@ void main() {
     expect(find.text('비용 추가'), findsOneWidget);
   });
 
+  testWidgets('/wallet opens keeper wallet actions', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.text('집사의 지갑'), findsOneWidget);
+    expect(find.text('비용 추가'), findsOneWidget);
+    expect(find.text('내역 보기'), findsOneWidget);
+    expect(find.text('약 연동'), findsNothing);
+    expect(find.text('빠른 지출'), findsNothing);
+    expect(find.text('빠르게 저장'), findsNothing);
+  });
+
+  testWidgets('/wallet/report opens expense report', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet/report',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.text('지출 리포트'), findsOneWidget);
+    expect(find.text('약 연동'), findsNothing);
+    expect(find.text('빠른 지출'), findsNothing);
+    expect(find.text('빠르게 저장'), findsNothing);
+  });
+
+  testWidgets('home wallet menu opens wallet route', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/home',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    await tester.tap(find.text('지갑'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('집사의 지갑'), findsOneWidget);
+  });
+
+  testWidgets('wallet actions open expense add and report routes', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    await tester.tap(find.text('비용 추가'));
+    await tester.pumpAndSettle();
+    expect(find.text('비용 추가'), findsOneWidget);
+    expect(find.text('금액'), findsOneWidget);
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    await tester.tap(find.text('내역 보기'));
+    await tester.pumpAndSettle();
+    expect(find.text('지출 리포트'), findsOneWidget);
+  });
+
   testWidgets('/records/:type/new opens category record screens', (
     tester,
   ) async {
@@ -162,6 +264,8 @@ void main() {
       '/records/weight/new': '몸무게 기록',
       '/records/vet/new': '병원 기록',
       '/records/medicine/new': '영양/약 기록',
+      '/records/water/new': '음수 기록',
+      '/records/diary/new': '일기 기록',
     }.entries) {
       await _pumpRouter(
         tester,
@@ -176,7 +280,46 @@ void main() {
       );
 
       expect(find.text(entry.value), findsOneWidget);
+      expect(find.byType(RecordCategoryFormScreen), findsOneWidget);
     }
+  });
+
+  testWidgets('/routine/new opens routine creation screen', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.byType(RoutineCreateScreen), findsOneWidget);
+    expect(find.text('루틴 추가'), findsOneWidget);
+  });
+
+  testWidgets('/routine/schedule/new opens schedule creation screen', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/schedule/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.byType(RoutineScheduleCreateScreen), findsOneWidget);
+    expect(find.text('일정 추가'), findsOneWidget);
   });
 
   testWidgets('home growth menu opens /records/growth', (tester) async {
@@ -193,7 +336,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('성장곡선'));
+    await tester.ensureVisible(find.text('성장'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('성장'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GrowthRecordsScreen), findsOneWidget);
@@ -286,6 +431,8 @@ Future<void> _pumpRouter(
   required PetState petState,
   CommunityService? communityService,
 }) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [

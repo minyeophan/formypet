@@ -24,6 +24,7 @@ class _RecordCategoryFormScreenState
     extends ConsumerState<RecordCategoryFormScreen> {
   final _distanceCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
+  final _waterAmountCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _vetClinicCtrl = TextEditingController();
   final _vetReasonCtrl = TextEditingController();
@@ -51,6 +52,7 @@ class _RecordCategoryFormScreenState
   void dispose() {
     _distanceCtrl.dispose();
     _noteCtrl.dispose();
+    _waterAmountCtrl.dispose();
     _weightCtrl.dispose();
     _vetClinicCtrl.dispose();
     _vetReasonCtrl.dispose();
@@ -67,6 +69,8 @@ class _RecordCategoryFormScreenState
         return _poopKind == 'urine'
             ? _poopColor != null
             : _poopShape != null && _poopColor != null;
+      case 'water':
+        return _positiveDouble(_waterAmountCtrl.text) != null;
       case 'walk':
         return _positiveDouble(_distanceCtrl.text) != null;
       case 'weight':
@@ -78,6 +82,8 @@ class _RecordCategoryFormScreenState
       case 'medicine':
         return _medicineNameCtrl.text.trim().isNotEmpty &&
             _dosageCtrl.text.trim().isNotEmpty;
+      case 'diary':
+        return _noteCtrl.text.trim().isNotEmpty;
       default:
         return false;
     }
@@ -159,6 +165,8 @@ class _RecordCategoryFormScreenState
     switch (widget.typeId) {
       case 'poop':
         return _buildPoopBody();
+      case 'water':
+        return _buildWaterBody();
       case 'walk':
         return _buildWalkBody();
       case 'weight':
@@ -167,6 +175,8 @@ class _RecordCategoryFormScreenState
         return _buildVetBody();
       case 'medicine':
         return _buildMedicineBody();
+      case 'diary':
+        return _buildDiaryBody();
       default:
         return const _SectionBlock(
           title: '준비중',
@@ -249,7 +259,36 @@ class _RecordCategoryFormScreenState
           const SizedBox(height: 12),
           const _WarningBox(message: '평소와 다르면 수의사 상담을 권장해요.'),
         ],
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '메모',
+          child: _TextInput(
+            key: const Key('category-note-field'),
+            controller: _noteCtrl,
+            hintText: '선택',
+            maxLines: 3,
+            onChanged: (_) => setState(() => _error = null),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildWaterBody() {
+    return _SectionBlock(
+      title: '음수 정보',
+      child: _LabeledRow(
+        label: '음수량',
+        child: RecordNumberInput(
+          key: const Key('category-water-amount-field'),
+          controller: _waterAmountCtrl,
+          mode: RecordNumberInputMode.decimal,
+          hintText: '0',
+          maxDecimalPlaces: 1,
+          suffixText: 'ml',
+          onChanged: (_) => setState(() => _error = null),
+        ),
+      ),
     );
   }
 
@@ -324,22 +363,6 @@ class _RecordCategoryFormScreenState
                 : '${latest.date} · ${_numberLabel(_weightValue(latest)!)}kg',
           ),
         ),
-        const SizedBox(height: 22),
-        _SectionBlock(
-          title: '히스토리',
-          child: records.isEmpty
-              ? const _InfoPanel(text: '저장하면 이곳에 기록이 쌓여요.')
-              : Column(
-                  children: records
-                      .map(
-                        (record) => _InfoPanel(
-                          text:
-                              '${record.date} · ${_numberLabel(_weightValue(record)!)}kg',
-                        ),
-                      )
-                      .toList(),
-                ),
-        ),
       ],
     );
   }
@@ -413,6 +436,19 @@ class _RecordCategoryFormScreenState
     );
   }
 
+  Widget _buildDiaryBody() {
+    return _SectionBlock(
+      title: '메모',
+      child: _TextInput(
+        key: const Key('category-diary-note-field'),
+        controller: _noteCtrl,
+        hintText: '오늘의 반려일기를 남겨 주세요',
+        maxLines: 8,
+        onChanged: (_) => setState(() => _error = null),
+      ),
+    );
+  }
+
   bool get _showPoopWarning {
     if (_poopKind == 'stool') {
       return _poopShape == 'loose' ||
@@ -455,11 +491,7 @@ class _RecordCategoryFormScreenState
     try {
       await ref.read(petProvider.notifier).addRecord(_buildPayload());
       if (!mounted) return;
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go('/records');
-      }
+      context.go('/records');
     } catch (_) {
       if (mounted) {
         setState(() => _error = '저장에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
@@ -480,11 +512,16 @@ class _RecordCategoryFormScreenState
 
     switch (widget.typeId) {
       case 'poop':
+        final note = _noteCtrl.text.trim();
+        if (note.isNotEmpty) payload['note'] = note;
         payload['typeId'] = 'poop';
         payload['detail'] = {
           'poopShape': _poopKind == 'urine' ? 'urine' : _poopShape,
           'poopColor': _poopColor,
         };
+        break;
+      case 'water':
+        payload['detail'] = {'amount': _positiveDouble(_waterAmountCtrl.text)};
         break;
       case 'walk':
         final note = _noteCtrl.text.trim();
@@ -495,13 +532,20 @@ class _RecordCategoryFormScreenState
         payload['detail'] = {'weight': _positiveDouble(_weightCtrl.text)};
         break;
       case 'vet':
-        payload['vetClinicName'] = _vetClinicCtrl.text.trim();
-        payload['vetVisitReason'] = _vetReasonCtrl.text.trim();
-        payload['vetTreatment'] = _vetTreatmentCtrl.text.trim();
+        payload['detail'] = {
+          'vetClinicName': _vetClinicCtrl.text.trim(),
+          'vetVisitReason': _vetReasonCtrl.text.trim(),
+          'vetTreatment': _vetTreatmentCtrl.text.trim(),
+        };
         break;
       case 'medicine':
-        payload['medicineName'] = _medicineNameCtrl.text.trim();
-        payload['dosage'] = _dosageCtrl.text.trim();
+        payload['detail'] = {
+          'medicineName': _medicineNameCtrl.text.trim(),
+          'dosage': _dosageCtrl.text.trim(),
+        };
+        break;
+      case 'diary':
+        payload['note'] = _noteCtrl.text.trim();
         break;
     }
 
@@ -969,10 +1013,12 @@ const _urineColorOptions = [
 _CategoryConfig _categoryConfig(String typeId) {
   const configs = {
     'poop': _CategoryConfig(id: 'poop', label: '배변'),
+    'water': _CategoryConfig(id: 'water', label: '음수'),
     'walk': _CategoryConfig(id: 'walk', label: '산책'),
     'weight': _CategoryConfig(id: 'weight', label: '몸무게'),
     'vet': _CategoryConfig(id: 'vet', label: '병원'),
     'medicine': _CategoryConfig(id: 'medicine', label: '영양/약'),
+    'diary': _CategoryConfig(id: 'diary', label: '일기'),
   };
   return configs[typeId] ?? _CategoryConfig(id: typeId, label: typeId);
 }

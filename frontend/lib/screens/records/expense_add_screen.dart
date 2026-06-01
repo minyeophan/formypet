@@ -141,7 +141,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
                     child: Column(
                       children: [
                         _LabeledRow(
-                          label: '아이템명',
+                          label: '제품이름',
                           child: _TextInput(
                             key: const Key('expense-item-name-field'),
                             controller: _itemNameCtrl,
@@ -178,8 +178,6 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
                       maxLines: 4,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  const _StaticAction(label: '+ 카테고리'),
                   const SizedBox(height: 24),
                   _SaveButton(canSave: _canSave, onTap: _showPreparing),
                 ],
