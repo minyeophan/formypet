@@ -25,7 +25,7 @@ void main() {
     expect(find.byKey(const Key('records-calendar')), findsOneWidget);
     expect(find.byKey(const Key('records-selected-date')), findsOneWidget);
     expect(find.text('기록 자세히보기'), findsOneWidget);
-    expect(find.byKey(const Key('records-date-dot-$todayIso')), findsOneWidget);
+    expect(find.byKey(Key('records-date-dot-$todayIso')), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);
 
     for (final typeId in _recordTypeIds) {
@@ -184,7 +184,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('전체 기록'), findsOneWidget);
-    expect(find.text('5월 21일'), findsOneWidget);
+    expect(find.text(todayLabel), findsOneWidget);
     expect(find.text('오전 간식'), findsOneWidget);
 
     await tester.tap(find.byTooltip('뒤로가기'));
@@ -202,8 +202,8 @@ void main() {
     await _pumpRouter(tester, initialLocation: '/records/all');
 
     expect(find.byType(AppBackButton), findsOneWidget);
-    final todayHeader = find.text('5월 21일');
-    final yesterdayHeader = find.text('5월 20일');
+    final todayHeader = find.text(todayLabel);
+    final yesterdayHeader = find.text(yesterdayLabel);
 
     expect(todayHeader, findsOneWidget);
     expect(yesterdayHeader, findsOneWidget);
@@ -267,8 +267,12 @@ const _recordTypeIds = [
   'etc',
 ];
 
-const todayIso = '2026-05-21';
-const yesterdayIso = '2026-05-20';
+final todayDate = DateTime.now();
+final yesterdayDate = todayDate.subtract(const Duration(days: 1));
+final todayIso = _isoDate(todayDate);
+final yesterdayIso = _isoDate(yesterdayDate);
+final todayLabel = '${todayDate.month}월 ${todayDate.day}일';
+final yesterdayLabel = '${yesterdayDate.month}월 ${yesterdayDate.day}일';
 
 Future<void> _pumpRecordsScreen(
   WidgetTester tester, {
@@ -363,44 +367,49 @@ PetState _state() => PetState(
 );
 
 List<ActivityRecord> _records() => [
-  const ActivityRecord(
+  ActivityRecord(
     id: 'meal-today',
     petId: 'pet-1',
     typeId: 'meal',
-    date: '2026-05-21',
+    date: todayIso,
     time: '09:10:32',
     note: '오전 간식',
   ),
-  const ActivityRecord(
+  ActivityRecord(
     id: 'walk-today',
     petId: 'pet-1',
     typeId: 'walk',
-    date: '2026-05-21',
+    date: todayIso,
     time: '18:40',
     note: '저녁 산책',
   ),
-  const ActivityRecord(
+  ActivityRecord(
     id: 'expense-today',
     petId: 'pet-1',
     typeId: 'expense',
-    date: '2026-05-21',
+    date: todayIso,
     time: '20:10',
   ),
-  const ActivityRecord(
+  ActivityRecord(
     id: 'weight-yesterday',
     petId: 'pet-1',
     typeId: 'weight',
-    date: '2026-05-20',
+    date: yesterdayIso,
     time: '08:00',
     note: '전날 체중',
     detail: {'value': 4.1, 'unit': 'kg'},
   ),
-  const ActivityRecord(
+  ActivityRecord(
     id: 'weight-today',
     petId: 'pet-1',
     typeId: 'weight',
-    date: '2026-05-21',
+    date: todayIso,
     time: '21:00',
     detail: {'value': 4.5, 'unit': 'kg'},
   ),
 ];
+
+String _isoDate(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
