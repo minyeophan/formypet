@@ -7,7 +7,7 @@
 - `MealRecordScreen`은 섭취율 아래에 메모 필드를 항상 표시하고 payload `note`에 저장한다. 급식/카테고리 기록 저장 성공 후에는 `/records`로 이동한다.
 - 백엔드는 `V12__add_diary_activity_type.sql`로 `diary` 타입을 추가했다. `diary`는 전용 detail 테이블 없이 `activity_records.note`만 사용한다.
 - 홈 메뉴에서 `지갑`이 `/wallet`로 연결되고, `/wallet/report`, `/records/expense/new` 화면이 추가됐다. 지출 저장은 아직 `준비중`이며 백엔드 `expense` 타입은 확정되지 않았다.
-- 루틴 메인은 달력/일정 탭과 월간/주간 달력으로 변경됐다. `/routine/new`는 백엔드 필수 `label`을 포함해 루틴 생성 API에 연결된다. `/routine/schedule/new` 일정 저장은 아직 `준비중`이다.
+- 루틴 메인은 달력/일정 탭과 월간 달력으로 정리됐다. `/routine/new`는 서버 `label`과 `note` 의미를 분리하고 반복 요일을 포함해 루틴 생성 API에 연결된다. `/routine/schedule/new`는 로컬 일정 입력 UI를 제공하며 저장은 아직 `준비중`이다.
 
 ## 2026-05-27 커뮤니티 글쓰기 화면 변경
 
@@ -25,7 +25,7 @@
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
 2. 마지막 확인된 전체 검증: 2026-05-18 백엔드 `.\gradlew.bat clean test`, 프론트 `flutter analyze --no-fatal-infos`, `flutter test`, `flutter build web` 성공.
 3. 최신 스키마: Flyway `V1`부터 `V12__add_diary_activity_type.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
-4. 최근 변경 흐름: `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 달력과 전체 화면 생성 route를 보강했다.
+4. 최근 변경 흐름: `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route를 보강했다.
 5. 다음 우선순위: Android 에뮬레이터 또는 기기에서 백엔드 실행 후 수동 E2E 검증 (인증, 펫, 기록 CRUD/사진, 루틴, 커뮤니티)과 `expense` 저장 계약 결정.
 
 ## 마지막 검증
@@ -40,6 +40,7 @@
 - 기록 타입 그리드 라벨/순서 표시 변경 후 검증: 2026-05-26 한글 깨짐 검사 GREEN. 사용자 요청에 따라 테스트/분석 명령은 실행하지 않음.
 - 숫자 키패드 preview 및 캘린더 연도 범위 변경 후 부분 검증: 2026-05-26 `flutter test test/core/calendar_ranges_test.dart`, `flutter test test/widgets/record_inputs/record_input_pickers_test.dart`, `flutter test test/widgets/record_inputs/record_picker_values_test.dart`, `flutter test test/screens/records/meal_record_screen_test.dart`, `flutter test test/screens/records/record_category_form_screen_test.dart`, `flutter test test/screens/expense/expense_add_screen_test.dart` GREEN. `flutter analyze --no-fatal-infos` Exit 0 (기존 info 3건만). 한글 깨짐 검사 GREEN.
 - 기록 TypeCard 전체 화면 입력 변경 후 부분 검증: 2026-06-01 `flutter test test/screens/records/records_screen_test.dart`, `flutter test test/screens/records/meal_record_screen_test.dart`, `flutter test test/screens/records/record_category_form_screen_test.dart`, `flutter test test/router/app_router_test.dart`, `.\gradlew.bat test --tests com.petyilgi.record.ActivityRecordIntegrationTest` GREEN. 한글 깨짐 검사 GREEN.
+- 루틴 상태 안정화 후 전체 검증: 2026-06-01 `flutter test` GREEN(151 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 루틴 화면 분리 테스트와 날짜 고정 기록 캘린더 fixture 안정화도 함께 반영했다.
 
 ## 다음 행동
 
@@ -60,8 +61,8 @@
 
 ## 최신 Handover
 
-- Goal: 현재 구현된 기록 입력, 지갑, 루틴 화면 흐름과 백엔드 `diary` 추가 내용을 기준 문서에 반영한다.
-- Done: `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 저장 후 `/records` 이동, `V12` diary note-only 계약, 홈 지갑과 지갑/리포트 화면, 루틴 달력과 생성 route를 문서에 반영했다.
-- Remaining: Android 에뮬레이터/기기에서 백엔드와 함께 실제 E2E 검증은 여전히 미실시. `expense`는 UI만 있고 저장 API/typeId 계약이 미확정이다. `/routine/schedule/new` 일정 저장도 아직 `준비중`이다. `bath`, `groom`, `etc` 편입 여부는 계속 미확정이다.
-- Next step: 실제 기기 또는 에뮬레이터에서 `.\gradlew.bat bootRun` + `flutter run`으로 인증, 펫, `water`/`diary` 포함 기록 CRUD, 기록 사진, 루틴 생성/완료, 커뮤니티 흐름을 수동 검증한다. 별도로 `expense` 저장 도메인을 활동 기록에 넣을지 결정한다.
-- Warnings: 기존 dirty worktree 변경이 있고, 이번 문서 정리와 무관한 앱 파일은 되돌리지 않는다. `expense` 지갑/리포트는 현재 records 상태의 `expense` 항목을 읽는 UI이며 저장 연동 완료로 해석하지 않는다.
+- Goal: 케어 캘린더 UI를 월간 단일 보기로 정리하고 루틴 모델, 반복 계산, today 상태를 프론트 범위에서 안정화한다.
+- Done: 루틴 `label`/`note` 분리, `monthlyInterval`, 백엔드 규칙 기반 반복 helper, CRUD 후 today best-effort 재조회, 삭제 completion 정리, 홈 루틴 제목 수정, 월간 캘린더 메인, 분리된 루틴/일정 추가 화면, 일정 범위 보정 helper를 반영했다.
+- Remaining: 일정 DB/API/provider는 여전히 미구현이다. Android 에뮬레이터/기기 E2E도 미실시다.
+- Next step: 실제 기기 또는 에뮬레이터에서 `.\gradlew.bat bootRun` + `flutter run`으로 인증, 펫, 기록 CRUD, 루틴 생성/완료, 커뮤니티 흐름을 수동 검증한다.
+- Warnings: 일정 저장은 입력 후 `준비중` 토스트만 표시한다. 후속 백엔드 작업으로 루틴 요청 invariant 검증과 `record_utils.dart`의 `bath`, `groom` 타입 정리가 필요하다. 기존 dirty 변경은 되돌리지 않는다.

@@ -178,7 +178,7 @@
 
 ### 요약
 
-루틴 CRUD service와 완료 체크가 구현되어 있고, `RoutineScreen`은 달력/일정 탭과 월간/주간 보기로 구성된다. 홈 화면의 오늘 루틴도 provider 상태를 사용한다.
+루틴 CRUD service와 완료 체크가 구현되어 있고, `RoutineScreen`은 달력/일정 탭과 월간 보기로 구성된다. 서버 `label`은 루틴 이름, `note`는 메모로 분리해 표시한다. 홈 화면의 오늘 루틴도 provider 상태를 사용한다.
 
 ### 현재 프론트 구현
 
@@ -190,8 +190,8 @@
 | 루틴 삭제 | 🔌 연동됨 | `routine/routine_screen.dart` |
 | 오늘 루틴 | 🔌 연동됨 | `RoutineService.getTodayRoutines()` |
 | 완료 체크 | 🔌 연동됨 | completion API 호출 |
-| 반복 유형 | ✅ 구현됨 | `daily`, `weekly`, `biweekly`, `monthly` |
-| 달력/일정 탭 | ✅ 구현됨 | `/routine`, 월간/주간 달력과 일정 목록 UI |
+| 반복 유형 | ✅ 구현됨 | `daily`, `weekly`, `biweekly`, `monthly`; 백엔드 규칙과 같은 날짜 helper 사용 |
+| 달력/일정 탭 | ✅ 구현됨 | `/routine`, 월간 달력과 샘플 badge가 있는 일정 목록 UI |
 | 일정 추가 화면 | ✅ 구현됨 | `/routine/schedule/new`, `RoutineScheduleCreateScreen` |
 | 일정 저장 | 🟡 Sync 필요 | 현재 저장 버튼은 `준비중`; 일정 API 계약 미확정 |
 | 푸시 알림 | ❌ 제외 | Phase 5+ 이후 |
@@ -211,7 +211,10 @@
 ### Backend sync needed
 
 - `today` 응답 형태는 현재 프론트가 `{ routines: [{ routine, completion }], summary }`를 기대한다.
+- 루틴 CRUD 후 프론트는 오늘 루틴을 best-effort로 재조회한다. 후속 조회 실패는 저장 실패로 취급하지 않는다.
 - 완료 상태 enum과 날짜 기준 timezone 정책 확인 필요.
+- 서버 요청 검증 강화 필요: `label` 길이, `times` 형식, 주간 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, 날짜 범위.
+- 월간 범위 일정 API가 추가되면 프론트 반복 계산 중복 제거를 검토한다.
 - 푸시 알림은 현재 범위 밖이다.
 
 ---

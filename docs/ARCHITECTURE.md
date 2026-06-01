@@ -56,7 +56,13 @@ lib/
 │   ├── pet/
 │   │   ├── pet_detail_screen.dart
 │   │   └── pet_edit_screen.dart
-│   └── my/my_screen.dart
+│   ├── my/my_screen.dart
+│   └── routine/
+│       ├── routine_screen.dart
+│       ├── routine_create_screen.dart
+│       ├── routine_schedule_create_screen.dart
+│       ├── routine_calendar_values.dart
+│       └── routine_schedule_values.dart
 ├── widgets/
 │   ├── app_header.dart              # 공통 AppBar, 헤더 아이콘 버튼
 │   ├── app_navigation.dart          # 공통 뒤로가기 버튼, 진입 chevron 표시
@@ -66,8 +72,6 @@ lib/
 │   ├── record_modal.dart            # 기록 추가 바텀 시트 (유형 선택 → 입력)
 │   ├── record_detail_form.dart
 │   └── record_inputs/               # 기록 날짜/시간 wheel sheet, 숫자 패널 공통 위젯
-└── routine/
-    └── routine_screen.dart
 ```
 
 ## 패턴
@@ -77,6 +81,7 @@ lib/
 - **AppHeader 사용 범위**: 기본 화면 헤더는 `AppHeader`를 우선 사용하고, 뒤로가기가 필요하면 `showBackButton/onBack` 경로를 사용한다. 헤더 우측 원형 아이콘 버튼은 `AppHeaderIconButton`을 재사용한다.
 - **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. `water`, `diary`도 `RecordCategoryFormScreen` 전체 화면 route를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
 - **지출 UI 경계**: 홈 `지갑`은 `/wallet`로 이동한다. `/wallet`, `/wallet/report`, `/records/expense/new`는 UI가 있지만 지출 저장은 아직 `준비중`이며 백엔드 계약과 분리한다.
+- **루틴 UI 경계**: `/routine`은 월간 캘린더와 일정 샘플 목록을 제공한다. 루틴 생성은 API에 저장하고 일정 생성은 로컬 입력 UI 뒤 `준비중`으로 복귀한다. 반복 날짜와 일정 범위 보정은 `routine_calendar_values.dart`, `routine_schedule_values.dart`의 pure helper를 사용한다.
 - **기록 입력 스타일 경계**: 기록 입력 패널의 surface, radius, header height, keypad spacing 같은 모양 값은 `RecordInputStyle`에서 관리한다. 저장 API, payload, schema는 입력 패널 변경과 분리한다.
 - **Riverpod StateNotifier**: 전역 상태는 `StateNotifierProvider`로 관리. `ref.watch`로 UI 구독, `ref.read`로 액션 호출.
 
