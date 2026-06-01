@@ -5,11 +5,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
-import '../../core/keyboard_utils.dart';
 import '../../core/record_utils.dart';
 import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import 'routine_calendar_values.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
   const RoutineScreen({super.key});
@@ -22,7 +23,6 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   late DateTime _selectedDate;
   late DateTime _visibleMonth;
   _RoutineMainTab _tab = _RoutineMainTab.calendar;
-  _RoutineCalendarMode _mode = _RoutineCalendarMode.month;
 
   @override
   void initState() {
@@ -37,14 +37,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     final state = ref.watch(petProvider);
     final routines =
         state.routines
-            .where((routine) => _routineAppliesOn(routine, _selectedDate))
+            .where((routine) => routineAppliesOn(routine, _selectedDate))
             .toList()
           ..sort(_routineTimeCompare);
-    final allRoutineDates = _routineDatesForMonth(
-      state.routines,
-      _visibleMonth,
-    );
-    final hasCare = state.routines.isNotEmpty;
     final accentColor = _accentColorFromHex(
       state.activePet?.accentColor,
       AppColors.primary,
@@ -52,373 +47,89 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const AppHeader(title: '케어 캘린더'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _RoutineHeader(
-                onAddRoutine: () => context.push('/routine/new'),
-                onAddSchedule: () => context.push('/routine/schedule/new'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: AppText(
+                  '반복 루틴과 중요한 일정을 함께 확인해요',
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 14),
-              _MainTabSwitch(
-                selected: _tab,
-                onChanged: (tab) => setState(() => _tab = tab),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _MainTabSwitch(
+                  selected: _tab,
+                  onChanged: (tab) => setState(() => _tab = tab),
+                ),
               ),
               const SizedBox(height: 12),
               if (_tab == _RoutineMainTab.calendar) ...[
-                _CalendarModeSwitch(
-                  selected: _mode,
-                  onChanged: (mode) => setState(() => _mode = mode),
-                ),
-                const SizedBox(height: 12),
-                if (_mode == _RoutineCalendarMode.month)
-                  _RoutineMonthCalendar(
-                    visibleMonth: _visibleMonth,
-                    selectedDate: _selectedDate,
-                    careDates: allRoutineDates,
-                    accentColor: accentColor,
-                    onPreviousMonth: () => setState(() {
-                      _visibleMonth = DateTime(
-                        _visibleMonth.year,
-                        _visibleMonth.month - 1,
-                      );
-                    }),
-                    onNextMonth: () => setState(() {
-                      _visibleMonth = DateTime(
-                        _visibleMonth.year,
-                        _visibleMonth.month + 1,
-                      );
-                    }),
-                    onSelectDate: (date) => setState(() {
-                      _selectedDate = _dateOnly(date);
-                      _visibleMonth = DateTime(date.year, date.month);
-                    }),
-                  )
-                else
-                  _RoutineWeekCalendar(
-                    selectedDate: _selectedDate,
-                    careDates: allRoutineDates,
-                    accentColor: accentColor,
-                    onSelectDate: (date) => setState(() {
-                      _selectedDate = _dateOnly(date);
-                      _visibleMonth = DateTime(date.year, date.month);
-                    }),
-                  ),
-                const SizedBox(height: 14),
-                _SelectedDateCareList(
+                _RoutineMonthCalendar(
+                  visibleMonth: _visibleMonth,
                   selectedDate: _selectedDate,
-                  routines: routines,
-                  completions: state.routineCompletions,
+                  careDates: routineDatesForMonth(
+                    state.routines,
+                    _visibleMonth,
+                  ),
                   accentColor: accentColor,
-                  showSampleSchedules: hasCare,
-                  onToggle: (routineId) => ref
-                      .read(petProvider.notifier)
-                      .toggleRoutineCompletion(
-                        routineId,
-                        _isoDate(_selectedDate),
-                      ),
-                  onDelete: (routineId) =>
-                      ref.read(petProvider.notifier).deleteRoutine(routineId),
+                  onPreviousMonth: () => setState(() {
+                    _visibleMonth = DateTime(
+                      _visibleMonth.year,
+                      _visibleMonth.month - 1,
+                    );
+                  }),
+                  onNextMonth: () => setState(() {
+                    _visibleMonth = DateTime(
+                      _visibleMonth.year,
+                      _visibleMonth.month + 1,
+                    );
+                  }),
+                  onSelectDate: (date) => setState(() {
+                    _selectedDate = _dateOnly(date);
+                    _visibleMonth = DateTime(date.year, date.month);
+                  }),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _AddButtons(
+                    onAddRoutine: () => context.push('/routine/new'),
+                    onAddSchedule: () => context.push('/routine/schedule/new'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _SelectedDateCareList(
+                    selectedDate: _selectedDate,
+                    routines: routines,
+                    completions: state.routineCompletions,
+                    accentColor: accentColor,
+                    onToggle: (routineId) => ref
+                        .read(petProvider.notifier)
+                        .toggleRoutineCompletion(
+                          routineId,
+                          _isoDate(_selectedDate),
+                        ),
+                    onDelete: (routineId) =>
+                        ref.read(petProvider.notifier).deleteRoutine(routineId),
+                  ),
                 ),
               ] else
-                _ScheduleList(hasCare: hasCare, accentColor: accentColor),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _ScheduleList(accentColor: accentColor),
+                ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class RoutineCreateScreen extends ConsumerStatefulWidget {
-  const RoutineCreateScreen({super.key});
-
-  @override
-  ConsumerState<RoutineCreateScreen> createState() =>
-      _RoutineCreateScreenState();
-}
-
-class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
-  final _nameController = TextEditingController();
-  final _noteController = TextEditingController();
-  final _timeController = TextEditingController(text: '08:00');
-  _RoutineTypeOption? _selectedType;
-  String _repeatType = 'daily';
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _noteController.dispose();
-    _timeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const AppText('루틴 추가', fontWeight: FontWeight.bold),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        foregroundColor: AppColors.text,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: _selectedType == null
-              ? _RoutineTypeStep(onSelect: _selectType)
-              : _RoutineDetailStep(
-                  selectedType: _selectedType!,
-                  nameController: _nameController,
-                  noteController: _noteController,
-                  timeController: _timeController,
-                  repeatType: _repeatType,
-                  saving: _saving,
-                  onRepeatChanged: (value) => setState(() {
-                    _repeatType = value;
-                  }),
-                  onBackToTypes: () => setState(() {
-                    _selectedType = null;
-                  }),
-                  onSave: _saveRoutine,
-                ),
-        ),
-      ),
-    );
-  }
-
-  void _selectType(_RoutineTypeOption option) {
-    setState(() {
-      _selectedType = option;
-      if (_nameController.text.isEmpty) {
-        _nameController.text = option.label;
-      }
-    });
-  }
-
-  Future<void> _saveRoutine() async {
-    final selectedType = _selectedType;
-    if (selectedType == null || _saving) return;
-
-    await dismissKeyboardBeforeTransition(context);
-    if (!mounted) return;
-
-    setState(() => _saving = true);
-    final label = _nameController.text.trim().isNotEmpty
-        ? _nameController.text.trim()
-        : selectedType.label;
-    final note = _noteController.text.trim().isNotEmpty
-        ? _noteController.text.trim()
-        : label;
-
-    await ref.read(petProvider.notifier).addRoutine({
-      'label': label,
-      'typeId': selectedType.typeId,
-      'repeatType': _repeatType,
-      'times': [_timeController.text.trim()],
-      'days': <int>[],
-      'startDate': todayString(),
-      'note': note,
-    });
-
-    if (mounted) {
-      context.go('/routine');
-    }
-  }
-}
-
-class RoutineScheduleCreateScreen extends StatefulWidget {
-  const RoutineScheduleCreateScreen({super.key});
-
-  @override
-  State<RoutineScheduleCreateScreen> createState() =>
-      _RoutineScheduleCreateScreenState();
-}
-
-class _RoutineScheduleCreateScreenState
-    extends State<RoutineScheduleCreateScreen> {
-  final _titleController = TextEditingController();
-  final _placeController = TextEditingController();
-  final _companionController = TextEditingController();
-  final _memoController = TextEditingController();
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _placeController.dispose();
-    _companionController.dispose();
-    _memoController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const AppText('일정 추가', fontWeight: FontWeight.bold),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        foregroundColor: AppColors.text,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: Column(
-            children: [
-              const _ScheduleCategoryPicker(),
-              const SizedBox(height: 12),
-              _FormSection(
-                label: '제목',
-                child: TextField(
-                  controller: _titleController,
-                  decoration: _inputDecoration('일정 이름'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _DateTimePreviewSection(),
-              const SizedBox(height: 12),
-              _FormSection(
-                label: '장소',
-                child: TextField(
-                  controller: _placeController,
-                  decoration: _inputDecoration('병원, 미용실 등'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _FormSection(
-                label: '동반자',
-                child: TextField(
-                  controller: _companionController,
-                  decoration: _inputDecoration('함께 가는 사람'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _FormSection(
-                label: '메모',
-                child: TextField(
-                  controller: _memoController,
-                  minLines: 3,
-                  maxLines: 5,
-                  decoration: _inputDecoration('준비물이나 요청사항'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _ReminderSection(),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 50,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: AppText('준비중')));
-                  },
-                  child: const AppText(
-                    '저장',
-                    color: AppColors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoutineHeader extends StatelessWidget {
-  final VoidCallback onAddRoutine;
-  final VoidCallback onAddSchedule;
-
-  const _RoutineHeader({
-    required this.onAddRoutine,
-    required this.onAddSchedule,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText(
-                '케어 캘린더',
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-              SizedBox(height: 4),
-              AppText(
-                '반복 루틴과 중요한 일정을 함께 확인해요',
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        _SmallActionButton(
-          icon: Icons.add_rounded,
-          label: '루틴 추가',
-          onTap: onAddRoutine,
-        ),
-        const SizedBox(width: 6),
-        _SmallActionButton(
-          icon: Icons.event_available_rounded,
-          label: '일정 추가',
-          onTap: onAddSchedule,
-        ),
-      ],
-    );
-  }
-}
-
-class _SmallActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SmallActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: AppColors.text),
-            const SizedBox(width: 4),
-            AppText(label, fontSize: 12, fontWeight: FontWeight.bold),
-          ],
         ),
       ),
     );
@@ -433,57 +144,6 @@ class _MainTabSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SegmentedSurface(
-      children: [
-        _SegmentButton(
-          label: '캘린더',
-          selected: selected == _RoutineMainTab.calendar,
-          onTap: () => onChanged(_RoutineMainTab.calendar),
-        ),
-        _SegmentButton(
-          label: '일정 목록',
-          selected: selected == _RoutineMainTab.scheduleList,
-          onTap: () => onChanged(_RoutineMainTab.scheduleList),
-        ),
-      ],
-    );
-  }
-}
-
-class _CalendarModeSwitch extends StatelessWidget {
-  final _RoutineCalendarMode selected;
-  final ValueChanged<_RoutineCalendarMode> onChanged;
-
-  const _CalendarModeSwitch({required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return _SegmentedSurface(
-      compact: true,
-      children: [
-        _SegmentButton(
-          label: '월간',
-          selected: selected == _RoutineCalendarMode.month,
-          onTap: () => onChanged(_RoutineCalendarMode.month),
-        ),
-        _SegmentButton(
-          label: '주간',
-          selected: selected == _RoutineCalendarMode.week,
-          onTap: () => onChanged(_RoutineCalendarMode.week),
-        ),
-      ],
-    );
-  }
-}
-
-class _SegmentedSurface extends StatelessWidget {
-  final List<Widget> children;
-  final bool compact;
-
-  const _SegmentedSurface({required this.children, this.compact = false});
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -492,8 +152,18 @@ class _SegmentedSurface extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
-        children: children,
+        children: [
+          _SegmentButton(
+            label: '캘린더',
+            selected: selected == _RoutineMainTab.calendar,
+            onTap: () => onChanged(_RoutineMainTab.calendar),
+          ),
+          _SegmentButton(
+            label: '일정 목록',
+            selected: selected == _RoutineMainTab.scheduleList,
+            onTap: () => onChanged(_RoutineMainTab.scheduleList),
+          ),
+        ],
       ),
     );
   }
@@ -557,9 +227,9 @@ class _RoutineMonthCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final calendarDays = getCalendarDays(visibleMonth.year, visibleMonth.month);
-
     return Container(
       key: const Key('routine-month-calendar'),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: _cardDecoration(),
       child: Column(
@@ -610,68 +280,6 @@ class _RoutineMonthCalendar extends StatelessWidget {
                 onTap: () => onSelectDate(date),
               );
             },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoutineWeekCalendar extends StatelessWidget {
-  final DateTime selectedDate;
-  final Set<String> careDates;
-  final Color accentColor;
-  final ValueChanged<DateTime> onSelectDate;
-
-  const _RoutineWeekCalendar({
-    required this.selectedDate,
-    required this.careDates,
-    required this.accentColor,
-    required this.onSelectDate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final start = selectedDate.subtract(
-      Duration(days: selectedDate.weekday % 7),
-    );
-    final weekDays = List.generate(
-      7,
-      (index) => _dateOnly(start.add(Duration(days: index))),
-    );
-
-    return Container(
-      key: const Key('routine-week-calendar'),
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          AppText(
-            '${DateFormat('M월 d일').format(weekDays.first)} - ${DateFormat('M월 d일').format(weekDays.last)}',
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 12),
-          const _WeekdayHeader(),
-          const SizedBox(height: 6),
-          Row(
-            children: weekDays
-                .map(
-                  (date) => Expanded(
-                    child: _RoutineCalendarDayCell(
-                      date: date,
-                      isoDate: _isoDate(date),
-                      inMonth: true,
-                      isToday: _sameDate(date, DateTime.now()),
-                      isSelected: _sameDate(date, selectedDate),
-                      hasCare: careDates.contains(_isoDate(date)),
-                      accentColor: accentColor,
-                      onTap: () => onSelectDate(date),
-                    ),
-                  ),
-                )
-                .toList(),
           ),
         ],
       ),
@@ -747,7 +355,6 @@ class _RoutineCalendarDayCell extends StatelessWidget {
         : inMonth
         ? AppColors.text
         : AppColors.muted;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -800,12 +407,72 @@ class _RoutineCalendarDayCell extends StatelessWidget {
   }
 }
 
+class _AddButtons extends StatelessWidget {
+  final VoidCallback onAddRoutine;
+  final VoidCallback onAddSchedule;
+
+  const _AddButtons({required this.onAddRoutine, required this.onAddSchedule});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _AddButton(
+            key: const Key('routine-add-button'),
+            icon: Icons.add_rounded,
+            label: '루틴 추가',
+            onTap: onAddRoutine,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _AddButton(
+            key: const Key('schedule-add-button'),
+            icon: Icons.event_available_rounded,
+            label: '일정 추가',
+            onTap: onAddSchedule,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _AddButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        foregroundColor: AppColors.text,
+        side: const BorderSide(color: AppColors.border),
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: AppText(label, fontSize: 13, fontWeight: FontWeight.bold),
+    );
+  }
+}
+
 class _SelectedDateCareList extends StatelessWidget {
   final DateTime selectedDate;
   final List<Routine> routines;
   final Map<String, CompletionStatus> completions;
   final Color accentColor;
-  final bool showSampleSchedules;
   final ValueChanged<String> onToggle;
   final ValueChanged<String> onDelete;
 
@@ -814,18 +481,14 @@ class _SelectedDateCareList extends StatelessWidget {
     required this.routines,
     required this.completions,
     required this.accentColor,
-    required this.showSampleSchedules,
     required this.onToggle,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (routines.isEmpty) return const _EmptyCareState();
     final selectedIso = _isoDate(selectedDate);
-    if (routines.isEmpty && !showSampleSchedules) {
-      return const _EmptyCareState();
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -836,42 +499,19 @@ class _SelectedDateCareList extends StatelessWidget {
           color: AppColors.text,
         ),
         const SizedBox(height: 10),
-        if (routines.isEmpty)
-          const _SoftInfoPanel(text: '선택한 날짜에 표시할 루틴이 없어요')
-        else
-          ...routines.map((routine) {
-            final key = '${routine.id}:$selectedIso';
-            final status = completions[key] ?? CompletionStatus.pending;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _RoutineItemTile(
-                routine: routine,
-                status: status,
-                accentColor: accentColor,
-                onToggle: () => onToggle(routine.id),
-                onDelete: () => onDelete(routine.id),
-              ),
-            );
-          }),
-        if (showSampleSchedules) ...[
-          const SizedBox(height: 8),
-          const AppText(
-            '일정',
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 10),
-          ..._sampleSchedules.map(
-            (schedule) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ScheduleTile(
-                schedule: schedule,
-                accentColor: accentColor,
-              ),
+        ...routines.map((routine) {
+          final key = '${routine.id}:$selectedIso';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _RoutineItemTile(
+              routine: routine,
+              status: completions[key] ?? CompletionStatus.pending,
+              accentColor: accentColor,
+              onToggle: () => onToggle(routine.id),
+              onDelete: () => onDelete(routine.id),
             ),
-          ),
-        ],
+          );
+        }),
       ],
     );
   }
@@ -895,10 +535,7 @@ class _RoutineItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final completed = status == CompletionStatus.completed;
-    final label = routine.note?.trim().isNotEmpty == true
-        ? routine.note!.trim()
-        : recordTypeLabel(routine.typeId);
-
+    final note = routine.note?.trim();
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -923,26 +560,20 @@ class _RoutineItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  label,
+                  _routineTitle(routine),
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: completed ? AppColors.textSecondary : AppColors.text,
                 ),
+                if (note != null && note.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  AppText(note, fontSize: 12, color: AppColors.textSecondary),
+                ],
                 const SizedBox(height: 3),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    AppText(
-                      routine.times.join(', '),
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    AppText(
-                      _repeatLabel(routine.repeatType),
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
+                AppText(
+                  '${routine.times.join(', ')}  ${_repeatLabel(routine.repeatType)}',
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
               ],
             ),
@@ -960,9 +591,7 @@ class _RoutineItemTile extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'delete') {
-                onDelete();
-              }
+              if (value == 'delete') onDelete();
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'delete', child: AppText('삭제')),
@@ -975,17 +604,12 @@ class _RoutineItemTile extends StatelessWidget {
 }
 
 class _ScheduleList extends StatelessWidget {
-  final bool hasCare;
   final Color accentColor;
 
-  const _ScheduleList({required this.hasCare, required this.accentColor});
+  const _ScheduleList({required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
-    if (!hasCare) {
-      return const _EmptyCareState();
-    }
-
     return Column(
       children: _sampleSchedules
           .map(
@@ -1029,11 +653,18 @@ class _ScheduleTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppText(
-                  schedule.title,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppText(
+                        schedule.title,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const _SampleBadge(),
+                  ],
                 ),
                 const SizedBox(height: 3),
                 AppText(
@@ -1050,6 +681,28 @@ class _ScheduleTile extends StatelessWidget {
   }
 }
 
+class _SampleBadge extends StatelessWidget {
+  const _SampleBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const AppText(
+        '샘플',
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
 class _EmptyCareState extends StatelessWidget {
   const _EmptyCareState();
 
@@ -1057,11 +710,7 @@ class _EmptyCareState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
+      decoration: _cardDecoration(),
       child: const Column(
         children: [
           Icon(Icons.event_note_rounded, color: AppColors.muted, size: 36),
@@ -1086,347 +735,6 @@ class _EmptyCareState extends StatelessWidget {
   }
 }
 
-class _SoftInfoPanel extends StatelessWidget {
-  final String text;
-
-  const _SoftInfoPanel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: AppText(text, fontSize: 13, color: AppColors.textSecondary),
-    );
-  }
-}
-
-class _RoutineTypeStep extends StatelessWidget {
-  final ValueChanged<_RoutineTypeOption> onSelect;
-
-  const _RoutineTypeStep({required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const AppText(
-          '루틴 유형 선택',
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppColors.text,
-        ),
-        const SizedBox(height: 6),
-        const AppText(
-          '자주 반복되는 케어 종류를 먼저 골라 주세요',
-          fontSize: 13,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(height: 16),
-        ..._routineTypeOptions.map(
-          (option) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _RoutineTypeCard(
-              option: option,
-              onTap: () => onSelect(option),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RoutineTypeCard extends StatelessWidget {
-  final _RoutineTypeOption option;
-  final VoidCallback onTap;
-
-  const _RoutineTypeCard({required this.option, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: _cardDecoration(),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: option.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(option.icon, color: option.color),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: AppText(
-                option.label,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RoutineDetailStep extends StatelessWidget {
-  final _RoutineTypeOption selectedType;
-  final TextEditingController nameController;
-  final TextEditingController noteController;
-  final TextEditingController timeController;
-  final String repeatType;
-  final bool saving;
-  final ValueChanged<String> onRepeatChanged;
-  final VoidCallback onBackToTypes;
-  final VoidCallback onSave;
-
-  const _RoutineDetailStep({
-    required this.selectedType,
-    required this.nameController,
-    required this.noteController,
-    required this.timeController,
-    required this.repeatType,
-    required this.saving,
-    required this.onRepeatChanged,
-    required this.onBackToTypes,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextButton.icon(
-          onPressed: onBackToTypes,
-          icon: const Icon(Icons.chevron_left_rounded),
-          label: const AppText('유형 다시 선택'),
-        ),
-        const SizedBox(height: 6),
-        const AppText(
-          '루틴 정보',
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppColors.text,
-        ),
-        const SizedBox(height: 14),
-        _FormSection(
-          label: '루틴 이름',
-          child: TextField(
-            key: const Key('routine-name-field'),
-            controller: nameController,
-            decoration: _inputDecoration(selectedType.label),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _FormSection(
-          label: '메모',
-          child: TextField(
-            key: const Key('routine-note-field'),
-            controller: noteController,
-            decoration: _inputDecoration('복용량, 사료명 등'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _FormSection(
-          label: '시간',
-          child: TextField(
-            key: const Key('routine-time-field'),
-            controller: timeController,
-            decoration: _inputDecoration('08:00'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _FormSection(
-          label: '반복',
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _repeatOptions.entries
-                .map(
-                  (entry) => ChoiceChip(
-                    label: AppText(entry.value),
-                    selected: repeatType == entry.key,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.22),
-                    onSelected: (_) => onRepeatChanged(entry.key),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            onPressed: saving ? null : onSave,
-            child: AppText(
-              saving ? '저장 중' : '저장',
-              color: AppColors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FormSection extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _FormSection({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _ScheduleCategoryPicker extends StatelessWidget {
-  const _ScheduleCategoryPicker();
-
-  @override
-  Widget build(BuildContext context) {
-    return _FormSection(
-      label: '카테고리',
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: const [
-          _StaticChip(label: '병원', selected: true),
-          _StaticChip(label: '미용'),
-          _StaticChip(label: '돌봄'),
-          _StaticChip(label: '기타'),
-        ],
-      ),
-    );
-  }
-}
-
-class _DateTimePreviewSection extends StatelessWidget {
-  const _DateTimePreviewSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return _FormSection(
-      label: '일시',
-      child: Row(
-        children: [
-          const Icon(Icons.calendar_today_rounded, size: 18),
-          const SizedBox(width: 8),
-          AppText(
-            '${formatDate(DateTime.now())}  오전 10:00',
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReminderSection extends StatelessWidget {
-  const _ReminderSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _FormSection(
-      label: '알림 시점',
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _StaticChip(label: '없음'),
-          _StaticChip(label: '1시간 전', selected: true),
-          _StaticChip(label: '하루 전'),
-        ],
-      ),
-    );
-  }
-}
-
-class _StaticChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-
-  const _StaticChip({required this.label, this.selected = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected
-            ? AppColors.primary.withValues(alpha: 0.16)
-            : AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
-        ),
-      ),
-      child: AppText(
-        label,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-        color: selected ? AppColors.text : AppColors.textSecondary,
-      ),
-    );
-  }
-}
-
-class _RoutineTypeOption {
-  final String label;
-  final String typeId;
-  final IconData icon;
-  final Color color;
-
-  const _RoutineTypeOption({
-    required this.label,
-    required this.typeId,
-    required this.icon,
-    required this.color,
-  });
-}
-
 class _SampleSchedule {
   final String title;
   final String dateText;
@@ -1443,49 +751,7 @@ class _SampleSchedule {
 
 enum _RoutineMainTab { calendar, scheduleList }
 
-enum _RoutineCalendarMode { month, week }
-
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-
-const _routineTypeOptions = [
-  _RoutineTypeOption(
-    label: '투약',
-    typeId: 'medicine',
-    icon: Icons.medication_rounded,
-    color: Color(0xFF5E9F7B),
-  ),
-  _RoutineTypeOption(
-    label: '급식',
-    typeId: 'meal',
-    icon: Icons.restaurant_rounded,
-    color: Color(0xFFE29B45),
-  ),
-  _RoutineTypeOption(
-    label: '건강체크',
-    typeId: 'checkup',
-    icon: Icons.health_and_safety_rounded,
-    color: Color(0xFF5B8DEF),
-  ),
-  _RoutineTypeOption(
-    label: '특별케어',
-    typeId: 'vet',
-    icon: Icons.local_hospital_rounded,
-    color: Color(0xFFD4667A),
-  ),
-  _RoutineTypeOption(
-    label: '커스텀',
-    typeId: 'play',
-    icon: Icons.tune_rounded,
-    color: Color(0xFF8D7A64),
-  ),
-];
-
-const _repeatOptions = {
-  'daily': '매일',
-  'weekly': '매주',
-  'biweekly': '2주마다',
-  'monthly': '매월',
-};
 
 const _sampleSchedules = [
   _SampleSchedule(
@@ -1502,55 +768,16 @@ const _sampleSchedules = [
   ),
 ];
 
-InputDecoration _inputDecoration(String hint) {
-  return InputDecoration(
-    hintText: hint,
-    filled: true,
-    fillColor: AppColors.surfaceSoft,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-  );
-}
+const _repeatOptions = {
+  'daily': '매일',
+  'weekly': '매주',
+  'biweekly': '2주마다',
+  'monthly': '매월',
+};
 
-BoxDecoration _cardDecoration() {
-  return BoxDecoration(
-    color: AppColors.surface,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(color: AppColors.border),
-  );
-}
-
-Set<String> _routineDatesForMonth(List<Routine> routines, DateTime month) {
-  final last = DateTime(month.year, month.month + 1, 0);
-  final dates = <String>{};
-  for (
-    var day = DateTime(month.year, month.month, 1);
-    !day.isAfter(last);
-    day = day.add(const Duration(days: 1))
-  ) {
-    if (routines.any((routine) => _routineAppliesOn(routine, day))) {
-      dates.add(_isoDate(day));
-    }
-  }
-  return dates;
-}
-
-bool _routineAppliesOn(Routine routine, DateTime date) {
-  if (!routine.active) return false;
-  final target = _dateOnly(date);
-  final start = _tryParseDate(routine.startDate);
-  if (start != null && target.isBefore(start)) return false;
-  final endDate = routine.endDate;
-  final end = endDate == null ? null : _tryParseDate(endDate);
-  if (end != null && target.isAfter(end)) return false;
-  return switch (routine.repeatType) {
-    'daily' => true,
-    'weekly' || 'biweekly' || 'monthly' => true,
-    _ => true,
-  };
+String _routineTitle(Routine routine) {
+  final label = routine.label.trim();
+  return label.isEmpty ? recordTypeLabel(routine.typeId) : label;
 }
 
 int _routineTimeCompare(Routine a, Routine b) {
@@ -1559,16 +786,10 @@ int _routineTimeCompare(Routine a, Routine b) {
   return aTime.compareTo(bTime);
 }
 
-String _repeatLabel(String repeatType) {
-  return _repeatOptions[repeatType] ?? repeatType;
-}
+String _repeatLabel(String repeatType) =>
+    _repeatOptions[repeatType] ?? repeatType;
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
-
-DateTime? _tryParseDate(String value) {
-  final parsed = DateTime.tryParse(value);
-  return parsed == null ? null : _dateOnly(parsed);
-}
 
 String _isoDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -1580,4 +801,12 @@ Color _accentColorFromHex(String? value, Color fallback) {
   final normalized = value.replaceFirst('#', '');
   final parsed = int.tryParse('FF$normalized', radix: 16);
   return parsed == null ? fallback : Color(parsed);
+}
+
+BoxDecoration _cardDecoration() {
+  return BoxDecoration(
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(22),
+    border: Border.all(color: AppColors.border),
+  );
 }

@@ -13,6 +13,8 @@ import '../screens/records/expense_wallet_screen.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/records_screen.dart';
+import '../screens/routine/routine_create_screen.dart';
+import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/write_screen.dart';
