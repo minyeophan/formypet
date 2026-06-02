@@ -154,10 +154,7 @@ class _CommunityHeader extends StatelessWidget {
       key: const Key('community-header'),
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: Row(
         children: [
           SizedBox(
@@ -169,7 +166,9 @@ class _CommunityHeader extends StatelessWidget {
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         context.pop();
+                        return;
                       }
+                      context.go('/community');
                     },
                   )
                 : const SizedBox.shrink(),
@@ -183,6 +182,7 @@ class _CommunityHeader extends StatelessWidget {
                 key: Key('community-header-title'),
                 fontSize: 19,
                 fontWeight: FontWeight.bold,
+                color: AppColors.text,
               ),
             ),
           ),

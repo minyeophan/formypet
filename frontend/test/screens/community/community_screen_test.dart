@@ -8,6 +8,7 @@ import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -49,6 +50,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('community-search-button')), findsOneWidget);
+    _expectCommunityHeaderStyle(tester);
     _expectHeaderActionSurface(tester, 'community-notification-button');
     _expectHeaderActionSurface(tester, 'community-search-button');
 
@@ -216,6 +218,7 @@ void main() {
     final titleFinder = find.byKey(const Key('community-header-title'));
     expect(titleFinder, findsOneWidget);
     expect(find.text('커뮤니티'), findsOneWidget);
+    _expectCommunityHeaderStyle(tester);
 
     final titleLeft = tester.getTopLeft(titleFinder).dx;
     final leadingRight = tester
@@ -233,6 +236,21 @@ void main() {
     );
   });
 
+  testWidgets('category screen direct URL back falls back to community', (
+    tester,
+  ) async {
+    await _pumpDirectCommunityRouter(
+      tester,
+      initialLocation: '/community/category/CARE',
+      service: _FakeCommunityService(posts: [_post('care-1', 'CARE')]),
+    );
+
+    await tester.tap(find.byTooltip('뒤로가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('community-root'), findsOneWidget);
+  });
+
   testWidgets(
     'write screen shows cancel action instead of shared back button',
     (tester) async {
@@ -246,6 +264,51 @@ void main() {
       expect(find.text('취소'), findsOneWidget);
     },
   );
+
+  testWidgets('write screen direct URL cancel falls back to community', (
+    tester,
+  ) async {
+    await _pumpDirectCommunityRouter(
+      tester,
+      initialLocation: '/community/write',
+      service: _FakeCommunityService(),
+    );
+
+    await tester.tap(find.byKey(const Key('community-title-field')));
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(find.text('community-root'), findsOneWidget);
+  });
+
+  testWidgets('write screen direct URL submit falls back to community', (
+    tester,
+  ) async {
+    final service = _FakeCommunityService();
+    await _pumpDirectCommunityRouter(
+      tester,
+      initialLocation: '/community/write',
+      service: service,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('community-title-field')),
+      '직접 진입',
+    );
+    await tester.enterText(
+      find.byKey(const Key('community-content-field')),
+      '등록 후 커뮤니티로 돌아갑니다.',
+    );
+    await tester.tap(find.text('등록'));
+    await tester.pumpAndSettle();
+
+    expect(service.createPostCallCount, 1);
+    expect(find.text('community-root'), findsOneWidget);
+  });
 
   testWidgets('write screen category picker updates the selected board', (
     tester,
@@ -449,6 +512,20 @@ void main() {
   });
 }
 
+void _expectCommunityHeaderStyle(WidgetTester tester) {
+  final header = tester.widget<Container>(
+    find.byKey(const Key('community-header')),
+  );
+  final decoration = header.decoration as BoxDecoration;
+  expect(decoration.color, AppColors.background);
+  expect(decoration.border, isNull);
+
+  final title = tester.widget<AppText>(
+    find.byKey(const Key('community-header-title')),
+  );
+  expect(title.color, AppColors.text);
+}
+
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
   expect(tester.getSize(finder), const Size(38, 38));
@@ -516,6 +593,36 @@ Future<void> _pumpWriteRouter(
 
   await _pumpRouter(tester, router, service: service);
   await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpDirectCommunityRouter(
+  WidgetTester tester, {
+  required String initialLocation,
+  required CommunityService service,
+}) async {
+  final router = GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      GoRoute(
+        path: '/community',
+        builder: (context, state) =>
+            const Scaffold(body: Text('community-root')),
+      ),
+      GoRoute(
+        path: '/community/category/:category',
+        builder: (context, state) => CommunityCategoryScreen(
+          initialCategory: state.pathParameters['category']!,
+        ),
+      ),
+      GoRoute(
+        path: '/community/write',
+        builder: (context, state) => const WriteScreen(),
+      ),
+    ],
+  );
+
+  await _pumpRouter(tester, router, service: service);
   await tester.pumpAndSettle();
 }
 

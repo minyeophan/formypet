@@ -75,7 +75,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
             files: _files,
             poll: _buildPollDraft(),
           );
-      if (mounted) context.pop();
+      if (mounted) await _goBackToCommunity();
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -114,6 +114,16 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
     setState(() => _showPoll = false);
   }
 
+  Future<void> _goBackToCommunity() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/community');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,12 +146,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
-                        onPressed: () async {
-                          await dismissKeyboardBeforeTransition(context);
-                          if (context.mounted) {
-                            context.pop();
-                          }
-                        },
+                        onPressed: _goBackToCommunity,
                         child: const AppText(
                           '취소',
                           fontSize: 14,
