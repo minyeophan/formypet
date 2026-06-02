@@ -18,7 +18,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.showBackButton = false,
     this.centerTitle = false,
     this.onBack,
-  });
+  }) : assert(!showBackButton || onBack != null);
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -28,7 +28,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       automaticallyImplyLeading: false,
       leading: showBackButton
-          ? Align(child: AppBackButton(onPressed: onBack ?? () {}))
+          ? Align(child: AppBackButton(onPressed: onBack!))
           : null,
       centerTitle: centerTitle,
       title: AppText(
@@ -44,10 +44,114 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
+class AppInlineHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onBack;
+  final Widget? trailing;
+
+  const AppInlineHeader({
+    super.key,
+    required this.title,
+    required this.onBack,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: Row(
+        children: [
+          SizedBox(
+            key: const Key('app-inline-header-leading-slot'),
+            width: 84,
+            height: 52,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AppBackButton(onPressed: onBack),
+            ),
+          ),
+          Expanded(
+            child: AppText(
+              title,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(
+            key: const Key('app-inline-header-trailing-slot'),
+            width: 84,
+            height: 52,
+            child: Align(alignment: Alignment.centerRight, child: trailing),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppFormHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onBack;
+  final Widget? trailing;
+
+  const AppFormHeader({
+    super.key,
+    required this.title,
+    required this.onBack,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            key: const Key('app-form-header-leading-slot'),
+            width: 96,
+            height: 56,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AppBackButton(onPressed: onBack),
+            ),
+          ),
+          Expanded(
+            child: AppText(
+              title,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(
+            key: const Key('app-form-header-trailing-slot'),
+            width: 96,
+            height: 56,
+            child: Align(alignment: Alignment.centerRight, child: trailing),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class AppHeaderIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const AppHeaderIconButton({
     super.key,
