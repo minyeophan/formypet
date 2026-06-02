@@ -248,6 +248,41 @@ void main() {
     },
   );
 
+  test('deletePet clears onboarding after deleting the last pet', () async {
+    final pet = _pet('1');
+    final petService = _FakePetService(pets: [pet]);
+    final notifier = PetNotifier(
+      petService,
+      _FakeRecordService(),
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.deletePet(pet.id);
+
+    expect(petService.deletedPetIds, ['1']);
+    expect(notifier.state.hasOnboarded, isFalse);
+    expect(notifier.state.pets, isEmpty);
+    expect(notifier.state.activePetId, isNull);
+  });
+
+  test('deletePet activates and reloads the next pet', () async {
+    final firstPet = _pet('1');
+    final secondPet = _pet('2');
+    final recordService = _FakeRecordService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [firstPet, secondPet]),
+      recordService,
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.deletePet(firstPet.id);
+
+    expect(notifier.state.activePetId, '2');
+    expect(recordService.loadedPetIds, ['1', '2']);
+  });
+
   test('addRecord creates record and appends it locally', () async {
     final pet = _pet('1');
     final recordService = _FakeRecordService(createdRecord: _record('r1', '1'));
@@ -346,6 +381,7 @@ class _FakePetService extends PetService {
 
   final List<Pet> pets;
   final Pet? createdPet;
+  final deletedPetIds = <String>[];
 
   @override
   Future<List<Pet>> getPets() async => pets;
@@ -353,6 +389,11 @@ class _FakePetService extends PetService {
   @override
   Future<Pet> createPet(Map<String, dynamic> body) async =>
       createdPet ?? _pet('created');
+
+  @override
+  Future<void> deletePet(String petId) async {
+    deletedPetIds.add(petId);
+  }
 }
 
 class _FakeMediaService extends MediaService {

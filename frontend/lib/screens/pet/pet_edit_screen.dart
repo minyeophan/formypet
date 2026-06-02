@@ -7,7 +7,8 @@ import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
 import '../../core/record_utils.dart';
-import '../../widgets/app_navigation.dart';
+import '../../models/pet.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 
 class PetEditScreen extends ConsumerStatefulWidget {
@@ -19,30 +20,22 @@ class PetEditScreen extends ConsumerStatefulWidget {
 }
 
 class _PetEditScreenState extends ConsumerState<PetEditScreen> {
-  late TextEditingController _nameCtrl;
-  late TextEditingController _birthCtrl;
-  late String _species;
-  late String? _gender;
+  final _nameCtrl = TextEditingController();
+  final _birthCtrl = TextEditingController();
+  String _species = 'dog';
+  String? _gender;
   XFile? _photo;
-  late int _colorIndex;
+  int _colorIndex = 0;
   bool _isLoading = false;
   String? _error;
+  String? _hydratedPetId;
 
   @override
-  void initState() {
-    super.initState();
-    final pet = ref
-        .read(petProvider)
-        .pets
-        .firstWhere((p) => p.id == widget.petId);
-    _nameCtrl = TextEditingController(text: pet.name);
-    _birthCtrl = TextEditingController(text: pet.birthDate);
-    _species = pet.species;
-    _gender = pet.gender;
-    _colorIndex = kPetColors.indexWhere(
-      (c) => c.accentHex.toLowerCase() == pet.accentColor.toLowerCase(),
-    );
-    if (_colorIndex == -1) _colorIndex = 0;
+  void didUpdateWidget(covariant PetEditScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.petId != widget.petId) {
+      _resetHydration();
+    }
   }
 
   @override
@@ -76,9 +69,14 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
         'bgLight': color.bgLightHex,
         if (_gender != null) 'gender': _gender,
       }, photo: photo);
-      if (mounted) context.pop();
+      if (!mounted) return;
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/pet/${widget.petId}');
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -91,30 +89,66 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
     }
   }
 
+  Future<void> _goBack() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    final petExists = ref
+        .read(petProvider)
+        .pets
+        .any((pet) => pet.id == widget.petId);
+    context.go(petExists ? '/pet/${widget.petId}' : '/my');
+  }
+
+  void _resetHydration() {
+    _nameCtrl.clear();
+    _birthCtrl.clear();
+    _species = 'dog';
+    _gender = null;
+    _photo = null;
+    _colorIndex = 0;
+    _error = null;
+    _hydratedPetId = null;
+  }
+
+  void _hydratePet(Pet pet) {
+    if (!mounted || widget.petId != pet.id || _hydratedPetId == pet.id) {
+      return;
+    }
+    setState(() {
+      _nameCtrl.text = pet.name;
+      _birthCtrl.text = pet.birthDate;
+      _species = pet.species;
+      _gender = pet.gender;
+      _colorIndex = kPetColors.indexWhere(
+        (color) =>
+            color.accentHex.toLowerCase() == pet.accentColor.toLowerCase(),
+      );
+      if (_colorIndex == -1) _colorIndex = 0;
+      _hydratedPetId = pet.id;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(petProvider);
+    final pet = state.pets.where((pet) => pet.id == widget.petId).firstOrNull;
+    if (state.isLoading) {
+      return _buildStatusScaffold(const CircularProgressIndicator());
+    }
+    if (pet == null) {
+      return _buildStatusScaffold(const AppText('반려동물을 찾을 수 없습니다'));
+    }
+    if (_hydratedPetId != pet.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _hydratePet(pet));
+      return _buildStatusScaffold(const CircularProgressIndicator());
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const AppText('반려동물 수정'),
-        leading: AppBackButton(
-          onPressed: () async {
-            await dismissKeyboardBeforeTransition(context);
-            if (context.mounted) {
-              context.pop();
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isLoading ? null : _save,
-            child: const AppText(
-              '저장',
-              color: Colors.blue,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+      appBar: _buildHeader(showSave: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -224,6 +258,38 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Scaffold _buildStatusScaffold(Widget child) {
+    return Scaffold(
+      appBar: _buildHeader(),
+      body: Center(child: child),
+    );
+  }
+
+  AppHeader _buildHeader({bool showSave = false}) {
+    return AppHeader(
+      title: '반려동물 수정',
+      showBackButton: true,
+      centerTitle: true,
+      onBack: _goBack,
+      actions: showSave
+          ? [
+              SizedBox(
+                width: kToolbarHeight,
+                child: TextButton(
+                  key: const Key('pet-edit-save-button'),
+                  onPressed: _isLoading ? null : _save,
+                  child: const AppText(
+                    '저장',
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ]
+          : null,
     );
   }
 }

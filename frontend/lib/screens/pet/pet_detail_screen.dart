@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/app_colors.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/date_utils.dart';
 import '../../core/record_utils.dart';
 import '../../core/pet_colors.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 
 class PetDetailScreen extends ConsumerWidget {
@@ -16,24 +17,42 @@ class PetDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(petProvider);
     final pet = state.pets.where((p) => p.id == petId).firstOrNull;
+    final appBar = AppHeader(
+      title: pet?.name ?? '반려동물 상세',
+      showBackButton: true,
+      centerTitle: true,
+      onBack: () => _goBackToMy(context),
+      actions: pet == null
+          ? null
+          : [
+              AppHeaderIconButton(
+                icon: Icons.edit_outlined,
+                tooltip: '수정',
+                onTap: () => context.push('/pet/${pet.id}/edit'),
+              ),
+            ],
+    );
 
+    if (state.isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: appBar,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     if (pet == null) {
-      return const Scaffold(body: Center(child: AppText('반려동물을 찾을 수 없습니다')));
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: appBar,
+        body: const Center(child: AppText('반려동물을 찾을 수 없습니다')),
+      );
     }
 
     final color = colorPairForHex(pet.accentColor);
 
     return Scaffold(
-      appBar: AppBar(
-        title: AppText(pet.name, fontWeight: FontWeight.bold),
-        leading: AppBackButton(onPressed: () => context.pop()),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => context.push('/pet/${pet.id}/edit'),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
+      appBar: appBar,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -103,7 +122,9 @@ class PetDetailScreen extends ConsumerWidget {
                 );
                 if (confirmed == true) {
                   await ref.read(petProvider.notifier).deletePet(petId);
-                  if (context.mounted) context.pop();
+                  if (!context.mounted) return;
+                  if (!ref.read(petProvider).hasOnboarded) return;
+                  _goBackToMy(context);
                 }
               },
               child: const AppText('삭제', color: Colors.red),
@@ -113,6 +134,14 @@ class PetDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _goBackToMy(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+    return;
+  }
+  context.go('/my');
 }
 
 class _InfoTile extends StatelessWidget {
