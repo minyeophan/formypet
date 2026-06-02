@@ -8,6 +8,7 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/home/home_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -27,6 +28,9 @@ void main() {
     );
 
     expect(find.text('petyilgi'), findsOneWidget);
+    expect(find.byKey(const Key('home-notification-button')), findsOneWidget);
+    expect(find.byType(AppHeaderIconButton), findsOneWidget);
+    _expectDisabledHeaderActionSurface(tester, 'home-notification-button');
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.backgroundColor, const Color(0xFFF8F9FA));
     expect(find.text('몽실이'), findsWidgets);
@@ -138,6 +142,29 @@ void main() {
     expect(find.text('아직 기록이 부족해요'), findsOneWidget);
     expect(find.text('체중, 배변, 급식 기록을 남기면 최근 상태를 보여드릴게요.'), findsOneWidget);
   });
+}
+
+void _expectDisabledHeaderActionSurface(WidgetTester tester, String key) {
+  final finder = find.byKey(Key(key));
+  expect(tester.getSize(finder), const Size(38, 38));
+
+  final container = tester.widget<Container>(
+    find.descendant(of: finder, matching: find.byType(Container)).first,
+  );
+  final decoration = container.decoration as BoxDecoration;
+  expect(decoration.color, AppColors.surface);
+  expect(decoration.border, Border.all(color: AppColors.border));
+
+  final icon = tester.widget<Icon>(
+    find.descendant(of: finder, matching: find.byType(Icon)).first,
+  );
+  expect(icon.size, 20);
+  expect(icon.color, AppColors.textSecondary);
+
+  final inkWell = tester.widget<InkWell>(
+    find.descendant(of: finder, matching: find.byType(InkWell)),
+  );
+  expect(inkWell.onTap, isNull);
 }
 
 Color? _containerColor(Finder finder) {

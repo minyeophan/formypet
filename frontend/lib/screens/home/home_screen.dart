@@ -13,6 +13,7 @@ import '../../models/activity_record.dart';
 import '../../models/pet.dart';
 import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
 
@@ -141,12 +142,16 @@ class _HomeHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            onPressed: null,
-            icon: const Icon(Icons.notifications_none_rounded),
-            color: AppColors.muted,
-            disabledColor: AppColors.muted,
-            tooltip: '알림',
+          const SizedBox.square(
+            dimension: 48,
+            child: Center(
+              child: AppHeaderIconButton(
+                key: Key('home-notification-button'),
+                icon: Icons.notifications_none_rounded,
+                tooltip: '알림',
+                onTap: null,
+              ),
+            ),
           ),
         ],
       ),
