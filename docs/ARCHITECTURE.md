@@ -64,7 +64,7 @@ lib/
 │       ├── routine_calendar_values.dart
 │       └── routine_schedule_values.dart
 ├── widgets/
-│   ├── app_header.dart              # 공통 AppBar, 헤더 아이콘 버튼
+│   ├── app_header.dart              # AppHeader, AppInlineHeader, AppFormHeader
 │   ├── app_navigation.dart          # 공통 뒤로가기 버튼, 진입 chevron 표시
 │   ├── app_text.dart                # Noto Sans KR 폰트 래퍼
 │   ├── main_scaffold.dart           # 하단 탭 바 + ShellRoute 컨테이너
@@ -78,7 +78,8 @@ lib/
 - **go_router ShellRoute**: `/home`, `/community`, `/my`는 ShellRoute로 묶여 탭 바 유지. 나머지(`/records`, `/routine`, `/pet/:id` 등)는 ShellRoute 밖에서 풀스크린 라우트.
 - **AppText 강제 사용**: 모든 텍스트는 `<AppText>`로 — Noto Sans KR 폰트 일관성 보장.
 - **공통 헤더/네비게이션 위젯**: 화면 내비게이션 의미의 뒤로가기는 `AppBackButton`을 사용한다. `AppBackButton`은 UI와 콜백만 담당하고 `context.pop()`, `context.go()` fallback, 키보드 dismiss는 호출 화면에 둔다. 행/카드의 진입 표시는 표시 전용 `AppDisclosureChevron`을 사용하며 tap 처리는 부모 row/card가 담당한다.
-- **AppHeader 사용 범위**: 기본 화면 헤더는 `AppHeader`를 우선 사용하고, 뒤로가기가 필요하면 `showBackButton/onBack` 경로를 사용한다. 헤더 우측 원형 아이콘 버튼은 `AppHeaderIconButton`을 재사용한다.
+- **헤더 역할 경계**: Scaffold `appBar`는 `AppHeader`, 조회형 body 헤더는 높이 `52`와 좌우 `84` 슬롯의 `AppInlineHeader`, 기록 입력형 body 헤더는 높이 `56`과 좌우 `96` 슬롯의 `AppFormHeader`를 사용한다. `AppHeader`는 back 표시 시 `onBack`을 반드시 받는다. 헤더 우측 원형 아이콘 버튼은 `AppHeaderIconButton`을 재사용한다.
+- **화면별 fallback 책임**: 공용 헤더는 라우팅 정책을 알지 못한다. 각 화면은 `pop()`을 우선하고 direct URL fallback을 직접 정한다. 기록 메인·성장·루틴·지갑은 `/home`, 전체 기록은 `/records`, 지출 리포트와 비용 추가는 `/wallet`, 기록 입력은 `/records`, 펫 상세는 `/my`, 정상 펫 수정은 상세 화면, 없는 펫 수정과 추가 등록은 `/my`, 커뮤니티 카테고리·글쓰기 취소·글쓰기 등록 성공은 `/community`로 돌아간다.
 - **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. `water`, `diary`도 `RecordCategoryFormScreen` 전체 화면 route를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
 - **지출 UI 경계**: 홈 `지갑`은 `/wallet`로 이동한다. `/wallet`, `/wallet/report`, `/records/expense/new`는 UI가 있지만 지출 저장은 아직 `준비중`이며 백엔드 계약과 분리한다.
 - **루틴 UI 경계**: `/routine`은 월간 캘린더와 일정 샘플 목록을 제공한다. 루틴 생성은 API에 저장하고 일정 생성은 로컬 입력 UI 뒤 `준비중`으로 복귀한다. 반복 날짜와 일정 범위 보정은 `routine_calendar_values.dart`, `routine_schedule_values.dart`의 pure helper를 사용한다.

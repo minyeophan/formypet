@@ -1,5 +1,19 @@
 # 현재 컨텍스트
 
+## 2026-06-02 Home · Community · My 헤더 색상 및 액션 아이콘 통일
+
+- 탭 헤더 규칙을 `DESIGN.md`에 추가했다. 탭 헤더는 `AppColors.background`, 제목은 `AppColors.text`, 우측 액션은 `38x38` surface와 `20px` `AppColors.textSecondary` 아이콘을 사용한다. 탐색 역할의 뒤로가기 아이콘은 기존 `28px`를 유지한다.
+- `AppHeaderIconButton.onTap`을 nullable로 바꿔 표시 전용 비활성 액션도 공용 surface를 사용할 수 있게 했다. Home 알림 버튼은 `home-notification-button` key와 바깥 `48x48` 슬롯을 유지한 채 공용 버튼으로 교체했다.
+- Community 메인/카테고리 공유 헤더는 `AppColors.background` 배경, border 없음, `AppColors.text` 제목으로 맞췄다. My는 기존 `AppHeader`와 설정 액션을 그대로 유지했다.
+- 관련 회귀 검증: 2026-06-02 `flutter test test/widgets/app_header_test.dart test/screens/home/home_screen_test.dart test/screens/community/community_screen_test.dart test/screens/my/my_screen_test.dart` GREEN(33 tests).
+
+## 2026-06-01 화면 헤더 역할별 통일 및 복귀 안정화
+
+- `frontend/lib/widgets/app_header.dart`에 Scaffold `appBar`용 `AppHeader`, 조회형 body 헤더 `AppInlineHeader`, 입력형 body 헤더 `AppFormHeader`를 구분했다. 공용 헤더는 UI만 담당하고 화면별 `pop()` 우선, direct URL fallback, 키보드 dismiss 정책은 각 화면에 남겼다.
+- 기록, 성장곡선, 지갑, 지출 리포트, 루틴, 기록 입력, 비용 추가, 온보딩, 펫 상세·수정 화면에 역할별 헤더를 적용했다. 커뮤니티 메인/카테고리와 글쓰기는 bespoke 헤더를 유지하되 direct URL fallback을 보강했다.
+- `/records`는 active pet이 없어도 헤더와 뒤로가기를 유지하고 `전체 기록` 액션만 숨긴다. `/pet/:id`는 로딩과 없는 ID를 구분하며, `/pet/:id/edit`는 provider late hydration 중 예외 없이 spinner를 표시하고 같은 ID rebuild가 사용자 편집값을 덮어쓰지 않는다.
+- 마지막 반려동물 삭제 시 상세 화면은 추가 `pop()`을 호출하지 않고 router redirect에 맡긴다. 반려동물이 남아 있을 때만 상세 화면을 이탈한다.
+
 ## 2026-06-01 기록 입력, 지갑, 루틴 화면 변경
 
 - `RecordTypeGrid`에서 `checkup` 카드는 숨기고, `water`, `diary`는 전체 화면 입력 route로 연결했다. `checkup` 백엔드 타입과 기존 표시 config는 유지한다.
@@ -41,6 +55,8 @@
 - 숫자 키패드 preview 및 캘린더 연도 범위 변경 후 부분 검증: 2026-05-26 `flutter test test/core/calendar_ranges_test.dart`, `flutter test test/widgets/record_inputs/record_input_pickers_test.dart`, `flutter test test/widgets/record_inputs/record_picker_values_test.dart`, `flutter test test/screens/records/meal_record_screen_test.dart`, `flutter test test/screens/records/record_category_form_screen_test.dart`, `flutter test test/screens/expense/expense_add_screen_test.dart` GREEN. `flutter analyze --no-fatal-infos` Exit 0 (기존 info 3건만). 한글 깨짐 검사 GREEN.
 - 기록 TypeCard 전체 화면 입력 변경 후 부분 검증: 2026-06-01 `flutter test test/screens/records/records_screen_test.dart`, `flutter test test/screens/records/meal_record_screen_test.dart`, `flutter test test/screens/records/record_category_form_screen_test.dart`, `flutter test test/router/app_router_test.dart`, `.\gradlew.bat test --tests com.petyilgi.record.ActivityRecordIntegrationTest` GREEN. 한글 깨짐 검사 GREEN.
 - 루틴 상태 안정화 후 전체 검증: 2026-06-01 `flutter test` GREEN(151 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 루틴 화면 분리 테스트와 날짜 고정 기록 캘린더 fixture 안정화도 함께 반영했다.
+- 화면 헤더 역할별 통일 및 복귀 안정화 후 전체 검증: 2026-06-01 `flutter test` GREEN(171 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음. 직접 `AppBar`, records private 헤더, 오래된 위젯 맵 참조 검색도 빈 결과다.
+- Home · Community · My 헤더 색상 및 액션 아이콘 통일 후 전체 검증: 2026-06-02 `flutter test` GREEN(172 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음.
 
 ## 다음 행동
 
@@ -61,8 +77,8 @@
 
 ## 최신 Handover
 
-- Goal: 케어 캘린더 UI를 월간 단일 보기로 정리하고 루틴 모델, 반복 계산, today 상태를 프론트 범위에서 안정화한다.
-- Done: 루틴 `label`/`note` 분리, `monthlyInterval`, 백엔드 규칙 기반 반복 helper, CRUD 후 today best-effort 재조회, 삭제 completion 정리, 홈 루틴 제목 수정, 월간 캘린더 메인, 분리된 루틴/일정 추가 화면, 일정 범위 보정 helper를 반영했다.
-- Remaining: 일정 DB/API/provider는 여전히 미구현이다. Android 에뮬레이터/기기 E2E도 미실시다.
-- Next step: 실제 기기 또는 에뮬레이터에서 `.\gradlew.bat bootRun` + `flutter run`으로 인증, 펫, 기록 CRUD, 루틴 생성/완료, 커뮤니티 흐름을 수동 검증한다.
-- Warnings: 일정 저장은 입력 후 `준비중` 토스트만 표시한다. 후속 백엔드 작업으로 루틴 요청 invariant 검증과 `record_utils.dart`의 `bath`, `groom` 타입 정리가 필요하다. 기존 dirty 변경은 되돌리지 않는다.
+- Goal: Home · Community · My 탭 헤더의 neutral-first 색상과 우측 액션 아이콘 규격을 통일한다.
+- Done: 탭 헤더 디자인 계약을 추가하고 `AppHeaderIconButton`이 nullable `onTap`을 허용하게 했다. Home 알림은 공용 비활성 액션 surface로 교체했고, Community 메인/카테고리 헤더는 neutral 배경과 제목 색상으로 통일했다. My의 기존 `AppHeader` 설정 액션은 유지했다.
+- Remaining: 일정 DB/API/provider와 지출 저장 계약은 여전히 미구현이다. Android 에뮬레이터/기기 E2E도 미실시다.
+- Next step: 실제 기기 또는 에뮬레이터에서 `.\gradlew.bat bootRun` + `flutter run`으로 Home · Community · My 탭 헤더와 기존 인증, 펫, 기록, 루틴, 커뮤니티 흐름을 수동 검증한다.
+- Warnings: 일정 저장과 지출 저장은 입력 후 `준비중` 토스트만 표시한다. 이미지 썸네일 관련 위젯 맵 문서 부채는 별도 범위로 남아 있다. 후속 백엔드 작업으로 루틴 요청 invariant 검증과 `record_utils.dart`의 `bath`, `groom` 타입 정리가 필요하다. 기존 dirty 변경은 되돌리지 않는다.
