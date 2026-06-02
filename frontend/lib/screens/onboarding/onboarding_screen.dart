@@ -7,6 +7,7 @@ import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../core/pet_colors.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 
 enum PetEntryMode { firstPet, additionalPet }
@@ -82,10 +83,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  Future<void> _goBack() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/my');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const AppText('반려동물 등록')),
+      appBar: AppHeader(
+        title: '반려동물 등록',
+        centerTitle: true,
+        showBackButton: widget.mode == PetEntryMode.additionalPet,
+        onBack: widget.mode == PetEntryMode.additionalPet ? _goBack : null,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
