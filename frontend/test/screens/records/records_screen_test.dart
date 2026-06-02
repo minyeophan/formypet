@@ -7,6 +7,7 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/records/records_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -27,6 +28,7 @@ void main() {
     expect(find.text('기록 자세히보기'), findsOneWidget);
     expect(find.byKey(Key('records-date-dot-$todayIso')), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);
+    expect(find.byType(AppInlineHeader), findsOneWidget);
 
     for (final typeId in _recordTypeIds) {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
@@ -38,6 +40,18 @@ void main() {
     }
 
     expect(find.byKey(const Key('records-type-card-diary')), findsOneWidget);
+  });
+
+  testWidgets('records empty state keeps header and hides all records action', (
+    tester,
+  ) async {
+    await _pumpRecordsScreen(tester, state: _state(activePetId: null));
+
+    expect(find.byType(AppInlineHeader), findsOneWidget);
+    expect(find.byType(AppBackButton), findsOneWidget);
+    expect(find.text('반려기록'), findsOneWidget);
+    expect(find.text('전체 기록'), findsNothing);
+    expect(find.text('반려동물을 등록해 주세요.'), findsOneWidget);
   });
 
   testWidgets('record type grid does not overflow on narrow screens', (
@@ -278,12 +292,13 @@ Future<void> _pumpRecordsScreen(
   WidgetTester tester, {
   Size physicalSize = const Size(800, 2200),
   TextScaler? textScaler,
+  PetState? state,
 }) async {
   _setScreen(tester, physicalSize);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        petProvider.overrideWith((ref) => PetNotifier.test(_state())),
+        petProvider.overrideWith((ref) => PetNotifier.test(state ?? _state())),
       ],
       child: MaterialApp(
         builder: textScaler == null
@@ -345,9 +360,9 @@ void _setScreen(WidgetTester tester, Size physicalSize) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-PetState _state() => PetState(
+PetState _state({String? activePetId = 'pet-1'}) => PetState(
   isLoading: false,
-  hasOnboarded: true,
+  hasOnboarded: activePetId != null,
   pets: const [
     Pet(
       id: 'pet-1',
@@ -358,7 +373,7 @@ PetState _state() => PetState(
       bgLight: '#FFF8F0',
     ),
   ],
-  activePetId: 'pet-1',
+  activePetId: activePetId,
   records: _records(),
   routines: const [],
   todayRoutineItems: const [],

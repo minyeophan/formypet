@@ -5,6 +5,7 @@ import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/records/expense_add_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -37,6 +38,7 @@ void main() {
     expect(find.text('결제 문자'), findsNothing);
     expect(find.text('+ 카테고리'), findsNothing);
     expect(notifier.addRecordCalls, 0);
+    expect(find.byType(AppFormHeader), findsOneWidget);
   });
 
   testWidgets('save button becomes emphasized after amount and category', (

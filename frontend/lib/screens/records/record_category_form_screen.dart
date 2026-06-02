@@ -4,9 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/keyboard_utils.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 
@@ -98,12 +99,19 @@ class _RecordCategoryFormScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _Header(
+            AppFormHeader(
               title: '${config.label} 기록',
-              canSave: _canSave,
-              isSaving: _isSaving,
               onBack: _goBack,
-              onSave: _canSave ? _save : null,
+              trailing: TextButton(
+                key: const Key('category-save-button'),
+                onPressed: _canSave ? _save : null,
+                child: AppText(
+                  _isSaving ? '저장 중' : '등록',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _canSave ? AppColors.primaryPressed : AppColors.muted,
+                ),
+              ),
             ),
             Expanded(
               child: ListView(
@@ -556,74 +564,14 @@ class _RecordCategoryFormScreenState
       '${_time.hour.toString().padLeft(2, '0')}:'
       '${_time.minute.toString().padLeft(2, '0')}';
 
-  void _goBack() {
+  Future<void> _goBack() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
     if (context.canPop()) {
       context.pop();
       return;
     }
     context.go('/records');
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  final bool canSave;
-  final bool isSaving;
-  final VoidCallback onBack;
-  final VoidCallback? onSave;
-
-  const _Header({
-    required this.title,
-    required this.canSave,
-    required this.isSaving,
-    required this.onBack,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: AppBackButton(onPressed: onBack),
-            ),
-          ),
-          Expanded(
-            child: AppText(
-              title,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(
-            width: 96,
-            child: TextButton(
-              key: const Key('category-save-button'),
-              onPressed: onSave,
-              child: AppText(
-                isSaving ? '저장 중' : '등록',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: canSave ? AppColors.primaryPressed : AppColors.muted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

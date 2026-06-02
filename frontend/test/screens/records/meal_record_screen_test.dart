@@ -8,6 +8,7 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/records/meal_record_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,6 +24,7 @@ void main() {
     await _pumpMealRoute(tester);
 
     expect(find.byType(AppBackButton), findsOneWidget);
+    expect(find.byType(AppFormHeader), findsOneWidget);
     expect(find.text('급식 기록'), findsOneWidget);
     expect(find.text('등록'), findsOneWidget);
     expect(find.text('날짜/시간'), findsOneWidget);

@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
@@ -58,7 +59,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _Header(onBack: _goBack),
+            AppFormHeader(title: '비용 추가', onBack: _goBack),
             Expanded(
               child: ListView(
                 keyboardDismissBehavior:
@@ -220,50 +221,14 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       '${_time.hour.toString().padLeft(2, '0')}:'
       '${_time.minute.toString().padLeft(2, '0')}';
 
-  void _goBack() {
+  Future<void> _goBack() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
     if (context.canPop()) {
       context.pop();
       return;
     }
-    context.go('/records');
-  }
-}
-
-class _Header extends StatelessWidget {
-  final VoidCallback onBack;
-
-  const _Header({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: AppBackButton(onPressed: onBack),
-            ),
-          ),
-          const Expanded(
-            child: AppText(
-              '비용 추가',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 96),
-        ],
-      ),
-    );
+    context.go('/wallet');
   }
 }
 

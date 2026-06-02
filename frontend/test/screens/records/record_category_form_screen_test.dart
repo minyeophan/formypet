@@ -6,6 +6,7 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -20,6 +21,7 @@ void main() {
     await _pumpCategoryRoute(tester, '/records/poop/new');
 
     expect(find.byType(AppBackButton), findsOneWidget);
+    expect(find.byType(AppFormHeader), findsOneWidget);
     expect(find.text('배변 기록'), findsOneWidget);
     expect(find.text('날짜/시간'), findsOneWidget);
     expect(find.text('종류'), findsOneWidget);

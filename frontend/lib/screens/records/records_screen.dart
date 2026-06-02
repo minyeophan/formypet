@@ -9,7 +9,7 @@ import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
 
@@ -43,82 +43,99 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: pet == null
-            ? const Center(
-                child: AppText(
-                  '반려동물을 등록해 주세요.',
-                  color: AppColors.textSecondary,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: AppInlineHeader(
+                  title: pet == null ? '반려기록' : '${pet.name}의 반려기록',
+                  onBack: () => _goBack(context),
+                  trailing: pet == null
+                      ? null
+                      : TextButton(
+                          onPressed: () => context.push('/records/all'),
+                          child: const AppText(
+                            '전체 기록',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            if (pet == null)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: AppText(
+                    '반려동물을 등록해 주세요.',
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               )
-            : CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _RecordsHeader(
-                            title: '${pet.name}의 반려기록',
-                            trailingLabel: '전체 기록',
-                            onBack: () => _goBack(context),
-                            onTrailing: () => context.push('/records/all'),
-                          ),
-                          const SizedBox(height: 8),
-                          _CalendarCard(
-                            visibleMonth: _visibleMonth,
-                            selectedDate: _selectedDate,
-                            recordDates: records.map((r) => r.date).toSet(),
-                            accentColor: accent.accent,
-                            onPreviousMonth: () {
-                              setState(() {
-                                _visibleMonth = DateTime(
-                                  _visibleMonth.year,
-                                  _visibleMonth.month - 1,
-                                );
-                              });
-                            },
-                            onNextMonth: () {
-                              setState(() {
-                                _visibleMonth = DateTime(
-                                  _visibleMonth.year,
-                                  _visibleMonth.month + 1,
-                                );
-                              });
-                            },
-                            onSelectDate: (date) {
-                              setState(() {
-                                _selectedDate = _dateOnly(date);
-                                _visibleMonth = DateTime(date.year, date.month);
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          _RecordTypeGrid(
-                            onTypeTap: (typeId) {
-                              if (typeId == 'meal') {
-                                context.push('/records/meal/new');
-                                return;
-                              }
-                              if (_categoryFormTypeIds.contains(typeId)) {
-                                context.push('/records/$typeId/new');
-                                return;
-                              }
-                              showPreparingToast(context);
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          _SelectedDateSummary(
-                            selectedDate: _selectedDate,
-                            records: selectedRecords,
-                            onViewAll: () => context.push('/records/all'),
-                          ),
-                        ],
+            else
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _CalendarCard(
+                        visibleMonth: _visibleMonth,
+                        selectedDate: _selectedDate,
+                        recordDates: records.map((r) => r.date).toSet(),
+                        accentColor: accent.accent,
+                        onPreviousMonth: () {
+                          setState(() {
+                            _visibleMonth = DateTime(
+                              _visibleMonth.year,
+                              _visibleMonth.month - 1,
+                            );
+                          });
+                        },
+                        onNextMonth: () {
+                          setState(() {
+                            _visibleMonth = DateTime(
+                              _visibleMonth.year,
+                              _visibleMonth.month + 1,
+                            );
+                          });
+                        },
+                        onSelectDate: (date) {
+                          setState(() {
+                            _selectedDate = _dateOnly(date);
+                            _visibleMonth = DateTime(date.year, date.month);
+                          });
+                        },
                       ),
-                    ),
+                      const SizedBox(height: 14),
+                      _RecordTypeGrid(
+                        onTypeTap: (typeId) {
+                          if (typeId == 'meal') {
+                            context.push('/records/meal/new');
+                            return;
+                          }
+                          if (_categoryFormTypeIds.contains(typeId)) {
+                            context.push('/records/$typeId/new');
+                            return;
+                          }
+                          showPreparingToast(context);
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      _SelectedDateSummary(
+                        selectedDate: _selectedDate,
+                        records: selectedRecords,
+                        onViewAll: () => context.push('/records/all'),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
+          ],
+        ),
       ),
     );
   }
@@ -144,9 +161,9 @@ class AllRecordsScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: _RecordsHeader(
+                child: AppInlineHeader(
                   title: '전체 기록',
-                  onBack: () => _goBack(context),
+                  onBack: () => _goBack(context, fallback: '/records'),
                 ),
               ),
             ),
@@ -197,7 +214,7 @@ class GrowthRecordsScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                child: _RecordsHeader(
+                child: AppInlineHeader(
                   title: '성장곡선',
                   onBack: () => _goBack(context),
                 ),
@@ -229,57 +246,6 @@ class GrowthRecordsScreen extends ConsumerWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _RecordsHeader extends StatelessWidget {
-  final String title;
-  final String? trailingLabel;
-  final VoidCallback onBack;
-  final VoidCallback? onTrailing;
-
-  const _RecordsHeader({
-    required this.title,
-    required this.onBack,
-    this.trailingLabel,
-    this.onTrailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: Row(
-        children: [
-          AppBackButton(onPressed: onBack),
-          Expanded(
-            child: AppText(
-              title,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(
-            width: 84,
-            child: trailingLabel == null
-                ? const SizedBox.shrink()
-                : TextButton(
-                    onPressed: onTrailing,
-                    child: AppText(
-                      trailingLabel!,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-          ),
-        ],
       ),
     );
   }
@@ -1176,10 +1142,10 @@ bool _sameDate(DateTime a, DateTime b) {
 
 String _isoDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
-void _goBack(BuildContext context) {
+void _goBack(BuildContext context, {String fallback = '/home'}) {
   if (context.canPop()) {
     context.pop();
     return;
   }
-  context.go('/home');
+  context.go(fallback);
 }

@@ -6,6 +6,7 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/records/expense_report_screen.dart';
 import 'package:frontend/screens/records/expense_wallet_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -28,6 +29,7 @@ void main() {
     expect(find.text('약 연동'), findsNothing);
     expect(find.text('빠른 지출'), findsNothing);
     expect(find.text('빠르게 저장'), findsNothing);
+    expect(find.byType(AppInlineHeader), findsOneWidget);
   });
 
   testWidgets('report screen shows period, category summary, and expenses', (
@@ -45,6 +47,7 @@ void main() {
     expect(find.text('약 연동'), findsNothing);
     expect(find.text('빠른 지출'), findsNothing);
     expect(find.text('빠르게 저장'), findsNothing);
+    expect(find.byType(AppInlineHeader), findsOneWidget);
   });
 }
 

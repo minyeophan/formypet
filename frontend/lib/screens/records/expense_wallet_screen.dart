@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import 'expense_record_utils.dart';
 
@@ -28,7 +28,7 @@ class ExpenseWalletScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _WalletHeader(
+                    AppInlineHeader(
                       title: '집사의 지갑',
                       onBack: () => _goBack(context),
                     ),
@@ -253,37 +253,6 @@ class _ExpenseEmptyPanel extends StatelessWidget {
         fontWeight: FontWeight.bold,
         color: AppColors.textSecondary,
         textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _WalletHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onBack;
-
-  const _WalletHeader({required this.title, required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: Row(
-        children: [
-          AppBackButton(onPressed: onBack),
-          Expanded(
-            child: AppText(
-              title,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 48),
-        ],
       ),
     );
   }

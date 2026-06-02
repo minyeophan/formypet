@@ -5,8 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 
@@ -69,11 +70,19 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _Header(
-              canSave: _canSave,
-              isSaving: _isSaving,
+            AppFormHeader(
+              title: '급식 기록',
               onBack: _goBack,
-              onSave: _canSave ? _save : null,
+              trailing: TextButton(
+                key: const Key('meal-save-button'),
+                onPressed: _canSave ? _save : null,
+                child: AppText(
+                  _isSaving ? '저장 중' : '등록',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _canSave ? AppColors.primaryPressed : AppColors.muted,
+                ),
+              ),
             ),
             Expanded(
               child: ListView(
@@ -317,70 +326,14 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
     return fromPath.isEmpty ? 'meal-photo.jpg' : fromPath;
   }
 
-  void _goBack() {
+  Future<void> _goBack() async {
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
     if (context.canPop()) {
       context.pop();
       return;
     }
     context.go('/records');
-  }
-}
-
-class _Header extends StatelessWidget {
-  final bool canSave;
-  final bool isSaving;
-  final VoidCallback onBack;
-  final VoidCallback? onSave;
-
-  const _Header({
-    required this.canSave,
-    required this.isSaving,
-    required this.onBack,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: AppBackButton(onPressed: onBack),
-            ),
-          ),
-          const Expanded(
-            child: AppText(
-              '급식 기록',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(
-            width: 96,
-            child: TextButton(
-              key: const Key('meal-save-button'),
-              onPressed: onSave,
-              child: AppText(
-                isSaving ? '저장 중' : '등록',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: canSave ? AppColors.primaryPressed : AppColors.muted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
