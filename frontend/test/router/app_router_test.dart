@@ -254,6 +254,91 @@ void main() {
     expect(find.text('지출 리포트'), findsOneWidget);
   });
 
+  testWidgets('direct URL back buttons use their screen fallback routes', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+    );
+
+    for (final entry in {
+      '/routine': '홈',
+      '/records': '홈',
+      '/records/all': 'Pet 1의 반려기록',
+      '/records/growth': '홈',
+      '/wallet': '홈',
+      '/wallet/report': '집사의 지갑',
+      '/records/meal/new': 'Pet 1의 반려기록',
+      '/records/walk/new': 'Pet 1의 반려기록',
+      '/records/expense/new': '집사의 지갑',
+    }.entries) {
+      await _pumpRouter(
+        tester,
+        initialLocation: entry.key,
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+
+      await tester.tap(find.byTooltip('뒤로가기'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(entry.value), findsWidgets, reason: entry.key);
+    }
+  });
+
+  testWidgets(
+    'record form back dismisses keyboard before direct URL fallback',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final pet = _pet('1');
+
+      for (final entry in {
+        '/records/meal/new': (
+          field: const Key('meal-product-field'),
+          fallback: 'Pet 1의 반려기록',
+        ),
+        '/records/walk/new': (
+          field: const Key('category-note-field'),
+          fallback: 'Pet 1의 반려기록',
+        ),
+        '/records/expense/new': (
+          field: const Key('expense-item-name-field'),
+          fallback: '집사의 지갑',
+        ),
+      }.entries) {
+        await _pumpRouter(
+          tester,
+          initialLocation: entry.key,
+          authState: const AuthState(isLoading: false, isAuthenticated: true),
+          petState: _petState(
+            isLoading: false,
+            hasOnboarded: true,
+            pets: [pet],
+            activePetId: pet.id,
+          ),
+        );
+
+        expect(find.byKey(entry.value.field), findsWidgets, reason: entry.key);
+        await tester.tap(find.byKey(entry.value.field).last);
+        await tester.pump();
+        expect(tester.testTextInput.isVisible, isTrue);
+
+        await tester.tap(find.byTooltip('뒤로가기'));
+        await tester.pumpAndSettle();
+
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect(find.text(entry.value.fallback), findsOneWidget);
+      }
+    },
+  );
+
   testWidgets('/records/:type/new opens category record screens', (
     tester,
   ) async {
