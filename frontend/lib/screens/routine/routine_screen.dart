@@ -47,7 +47,12 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AppHeader(title: '케어 캘린더'),
+      appBar: AppHeader(
+        title: '케어 캘린더',
+        showBackButton: true,
+        centerTitle: true,
+        onBack: () => _goBack(context),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
@@ -134,6 +139,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       ),
     );
   }
+}
+
+void _goBack(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+    return;
+  }
+  context.go('/home');
 }
 
 class _MainTabSwitch extends StatelessWidget {

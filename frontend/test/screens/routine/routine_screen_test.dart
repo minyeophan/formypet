@@ -5,6 +5,8 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_screen.dart';
+import 'package:frontend/widgets/app_header.dart';
+import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -24,6 +26,8 @@ void main() {
     expect(find.text('주간'), findsNothing);
     expect(find.byKey(const Key('routine-add-button')), findsOneWidget);
     expect(find.byKey(const Key('schedule-add-button')), findsOneWidget);
+    expect(find.byType(AppHeader), findsOneWidget);
+    expect(find.byType(AppBackButton), findsOneWidget);
   });
 
   testWidgets('selected date list uses label instead of note', (tester) async {
