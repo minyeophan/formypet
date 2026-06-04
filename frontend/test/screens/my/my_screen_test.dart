@@ -8,6 +8,9 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
+import 'package:frontend/screens/my/my_pets_screen.dart';
+import 'package:frontend/screens/my/my_profile_screen.dart';
+import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/pet/pet_detail_screen.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -75,20 +78,12 @@ void main() {
     expect(screen.mode, PetEntryMode.additionalPet);
   });
 
-  testWidgets('unimplemented controls show preparing snack bar', (
+  testWidgets('unsupported menu controls show preparing snack bar', (
     tester,
   ) async {
     await _pumpMyScreen(tester);
 
-    await tester.tap(find.byKey(const Key('my-settings-button')));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('my-view-all-pets')));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
-
-    await _tapMenuRow(tester, '내 프로필 편집');
+    await _tapMenuRow(tester, '공동집사 관리');
     expect(find.text('준비중'), findsOneWidget);
   });
 
@@ -113,10 +108,47 @@ void main() {
     expect(icon.size, 20);
     expect(icon.color, AppColors.textSecondary);
   });
+
+  testWidgets('settings, all pets, and profile controls open real routes', (
+    tester,
+  ) async {
+    await _pumpMyScreen(tester);
+    await tester.tap(find.byKey(const Key('my-settings-button')));
+    await tester.pumpAndSettle();
+    expect(find.byType(MySettingsScreen), findsOneWidget);
+
+    await _pumpMyScreen(tester);
+    await tester.tap(find.byKey(const Key('my-view-all-pets')));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyPetsScreen), findsOneWidget);
+
+    await _pumpMyScreen(tester);
+    await _tapMenuRow(tester, '내 프로필 편집');
+    await tester.pumpAndSettle();
+    expect(find.byType(MyProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('main pet card prefers active pet and shows loading spinner', (
+    tester,
+  ) async {
+    await _pumpMyScreen(tester, pets: [_pet('1'), _pet('2')], activePetId: '2');
+    expect(find.byKey(const Key('my-pet-card-2')), findsOneWidget);
+
+    await _pumpMyScreen(tester, isLoading: true);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 }
 
-Future<void> _pumpMyScreen(WidgetTester tester) async {
-  final pet = _pet('1');
+Future<void> _pumpMyScreen(
+  WidgetTester tester, {
+  List<Pet>? pets,
+  String? activePetId,
+  bool isLoading = false,
+}) async {
+  final resolvedPets = pets ?? [_pet('1')];
+  final resolvedActivePetId = activePetId ?? resolvedPets.first.id;
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -134,8 +166,13 @@ Future<void> _pumpMyScreen(WidgetTester tester) async {
           ),
         ),
         petProvider.overrideWith(
-          (ref) =>
-              PetNotifier.test(_petState(pets: [pet], activePetId: pet.id)),
+          (ref) => PetNotifier.test(
+            _petState(
+              pets: resolvedPets,
+              activePetId: resolvedActivePetId,
+              isLoading: isLoading,
+            ),
+          ),
         ),
       ],
       child: Consumer(
@@ -149,6 +186,10 @@ Future<void> _pumpMyScreen(WidgetTester tester) async {
       ),
     ),
   );
+  if (isLoading) {
+    await tester.pump();
+    return;
+  }
   await tester.pumpAndSettle();
 }
 
@@ -167,22 +208,25 @@ Future<void> _tapMenuRow(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
-PetState _petState({required List<Pet> pets, required String activePetId}) =>
-    PetState(
-      isLoading: false,
-      hasOnboarded: true,
-      pets: pets,
-      activePetId: activePetId,
-      records: const [],
-      routines: const [],
-      todayRoutineItems: const [],
-      routineCompletions: const {},
-      quickTypeIds: const ['meal', 'water'],
-    );
+PetState _petState({
+  required List<Pet> pets,
+  required String activePetId,
+  bool isLoading = false,
+}) => PetState(
+  isLoading: isLoading,
+  hasOnboarded: true,
+  pets: pets,
+  activePetId: activePetId,
+  records: const [],
+  routines: const [],
+  todayRoutineItems: const [],
+  routineCompletions: const {},
+  quickTypeIds: const ['meal', 'water'],
+);
 
 Pet _pet(String id) => Pet(
   id: id,
-  name: '초코',
+  name: id == '1' ? '초코' : '보리',
   species: '푸들',
   birthDate: '2022-03-15',
   accentColor: '#41B883',

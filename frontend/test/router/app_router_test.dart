@@ -11,6 +11,9 @@ import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
+import 'package:frontend/screens/my/my_pets_screen.dart';
+import 'package:frontend/screens/my/my_profile_screen.dart';
+import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/records/expense_add_screen.dart';
 import 'package:frontend/screens/records/record_category_form_screen.dart';
@@ -508,6 +511,81 @@ void main() {
     );
     expect(bottomNavigationBar.currentIndex, 1);
   });
+
+  testWidgets('my subroutes keep bottom navigation and direct URL fallbacks', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+    );
+
+    for (final entry in {
+      '/my/settings': MySettingsScreen,
+      '/my/pets': MyPetsScreen,
+      '/my/profile': MyProfileScreen,
+    }.entries) {
+      await _pumpRouter(
+        tester,
+        initialLocation: entry.key,
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+      expect(find.byType(entry.value), findsOneWidget);
+      final navigation = tester.widget<BottomNavigationBar>(
+        find.byType(BottomNavigationBar),
+      );
+      expect(navigation.currentIndex, 2);
+
+      await tester.tap(find.byTooltip('뒤로가기'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(entry.key == '/my/profile' ? '설정' : '마이페이지'),
+        findsWidgets,
+      );
+    }
+  });
+
+  testWidgets('logout loading does not expose onboarding before auth', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    final authNotifier = _MutableAuthNotifier(
+      const AuthState(isLoading: false, isAuthenticated: true),
+    );
+    final petNotifier = _MutablePetNotifier(
+      _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+    await _pumpRouter(
+      tester,
+      initialLocation: '/my/settings',
+      authState: authNotifier.state,
+      petState: petNotifier.state,
+      authNotifier: authNotifier,
+      petNotifier: petNotifier,
+    );
+
+    authNotifier.replace(
+      const AuthState(isLoading: true, isAuthenticated: true),
+    );
+    petNotifier.replace(_petState(isLoading: false, hasOnboarded: false));
+    await tester.pump();
+    expect(find.byType(OnboardingScreen), findsNothing);
+
+    authNotifier.replace(
+      const AuthState(isLoading: false, isAuthenticated: false),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AuthScreen), findsOneWidget);
+  });
 }
 
 Future<void> _pumpRouter(
@@ -516,14 +594,20 @@ Future<void> _pumpRouter(
   required AuthState authState,
   required PetState petState,
   CommunityService? communityService,
+  AuthNotifier? authNotifier,
+  PetNotifier? petNotifier,
 }) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        authProvider.overrideWith((ref) => AuthNotifier.test(authState)),
-        petProvider.overrideWith((ref) => PetNotifier.test(petState)),
+        authProvider.overrideWith(
+          (ref) => authNotifier ?? AuthNotifier.test(authState),
+        ),
+        petProvider.overrideWith(
+          (ref) => petNotifier ?? PetNotifier.test(petState),
+        ),
         if (communityService != null)
           communityServiceProvider.overrideWithValue(communityService),
       ],
@@ -580,4 +664,16 @@ class _FakeCommunityService extends CommunityService {
     String? cursor,
     int limit = 20,
   }) async => const PostFeed(items: [], nextCursor: null);
+}
+
+class _MutableAuthNotifier extends AuthNotifier {
+  _MutableAuthNotifier(super.initialState) : super.test();
+
+  void replace(AuthState next) => state = next;
+}
+
+class _MutablePetNotifier extends PetNotifier {
+  _MutablePetNotifier(super.initialState) : super.test();
+
+  void replace(PetState next) => state = next;
 }

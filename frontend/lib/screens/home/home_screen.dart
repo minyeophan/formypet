@@ -1,11 +1,7 @@
-import 'dart:typed_data';
-
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_client.dart';
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
@@ -15,6 +11,7 @@ import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 
 const _appName = 'petyilgi';
@@ -287,66 +284,23 @@ class _PetProfileCard extends StatelessWidget {
   }
 }
 
-class _PetProfilePhoto extends StatefulWidget {
+class _PetProfilePhoto extends StatelessWidget {
   final Pet pet;
 
   const _PetProfilePhoto({required this.pet});
 
   @override
-  State<_PetProfilePhoto> createState() => _PetProfilePhotoState();
-}
-
-class _PetProfilePhotoState extends State<_PetProfilePhoto> {
-  Future<Uint8List>? _imageFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _imageFuture = _loadImage();
-  }
-
-  @override
-  void didUpdateWidget(covariant _PetProfilePhoto oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.pet.profileImageUrl != widget.pet.profileImageUrl) {
-      _imageFuture = _loadImage();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: SizedBox(
+      child: AuthenticatedNetworkImage(
+        url: pet.profileImageUrl,
         width: 118,
         height: 138,
-        child: FutureBuilder<Uint8List>(
-          future: _imageFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Image.memory(snapshot.data!, fit: BoxFit.cover);
-            }
-            return _PetEmojiFallback(pet: widget.pet);
-          },
-        ),
+        fit: BoxFit.cover,
+        fallback: _PetEmojiFallback(pet: pet),
       ),
     );
-  }
-
-  Future<Uint8List>? _loadImage() {
-    final url = widget.pet.profileImageUrl;
-    if (url == null || url.isEmpty) {
-      return null;
-    }
-    return _fetchImage(url);
-  }
-
-  Future<Uint8List> _fetchImage(String url) async {
-    final res = await dio.get<List<int>>(
-      url,
-      options: Options(responseType: ResponseType.bytes),
-    );
-    return Uint8List.fromList(res.data ?? const []);
   }
 }
 

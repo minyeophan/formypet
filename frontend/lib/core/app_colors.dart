@@ -12,5 +12,8 @@ class AppColors {
   static const textSecondary = Color(0xFF5F5F5D);
   static const muted = Color(0xFFA79F94);
   static const border = Color(0xFFE5E7EB);
+  static const danger = Color(0xFFB42318);
+  static const dangerSoft = Color(0xFFFFF1F0);
+  static const dangerBorder = Color(0xFFFFD5D2);
   static const white = Color(0xFFFFFFFF);
 }

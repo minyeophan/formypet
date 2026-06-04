@@ -8,6 +8,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 
 class MyScreen extends ConsumerWidget {
@@ -16,7 +17,7 @@ class MyScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final petState = ref.watch(petProvider);
-    final firstPet = petState.pets.firstOrNull;
+    final representativePet = petState.activePet ?? petState.pets.firstOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -27,7 +28,7 @@ class MyScreen extends ConsumerWidget {
             key: const Key('my-settings-button'),
             icon: Icons.settings_outlined,
             tooltip: '설정',
-            onTap: () => showPreparingToast(context),
+            onTap: () => context.push('/my/settings'),
           ),
           const SizedBox(width: 16),
         ],
@@ -40,13 +41,16 @@ class MyScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _MyPetsSection(
-                    pet: firstPet,
-                    onViewAll: () => showPreparingToast(context),
+                    pet: representativePet,
+                    isLoading: petState.isLoading,
+                    onViewAll: () => context.push('/my/pets'),
                   ),
                   for (final group in _menuGroups)
                     _MenuGroup(
                       group: group,
-                      onRowTap: () => showPreparingToast(context),
+                      onRowTap: (item) => item.label == '내 프로필 편집'
+                          ? context.push('/my/profile')
+                          : showPreparingToast(context),
                     ),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 4, 20, 112),
@@ -70,9 +74,14 @@ class MyScreen extends ConsumerWidget {
 
 class _MyPetsSection extends StatelessWidget {
   final Pet? pet;
+  final bool isLoading;
   final VoidCallback onViewAll;
 
-  const _MyPetsSection({required this.pet, required this.onViewAll});
+  const _MyPetsSection({
+    required this.pet,
+    required this.isLoading,
+    required this.onViewAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +139,12 @@ class _MyPetsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: pet == null
+                  child: isLoading
+                      ? const _CardSurface(
+                          minHeight: 126,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : pet == null
                       ? const _EmptyPetCard()
                       : _PetCard(
                           key: Key('my-pet-card-${pet!.id}'),
@@ -212,7 +226,6 @@ class _PetPhotoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = pet.profileImageUrl;
     final fallback = Container(
       width: 72,
       height: 72,
@@ -232,20 +245,14 @@ class _PetPhotoTile extends StatelessWidget {
       ),
     );
 
-    if (url == null || url.isEmpty) {
-      return fallback;
-    }
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: Image.network(
-        url,
+      child: AuthenticatedNetworkImage(
+        url: pet.profileImageUrl,
         width: 72,
         height: 72,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : fallback,
+        fallback: fallback,
       ),
     );
   }
@@ -324,7 +331,7 @@ class _AddIconTile extends StatelessWidget {
 
 class _MenuGroup extends StatelessWidget {
   final _MyMenuGroup group;
-  final VoidCallback onRowTap;
+  final void Function(_MyMenuItem item) onRowTap;
 
   const _MenuGroup({required this.group, required this.onRowTap});
 
@@ -354,7 +361,7 @@ class _MenuGroup extends StatelessWidget {
             _MenuRow(
               item: group.items[index],
               showTopBorder: index > 0,
-              onTap: onRowTap,
+              onTap: () => onRowTap(group.items[index]),
             ),
         ],
       ),
