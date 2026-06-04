@@ -10,6 +10,10 @@ void setAuthExpiredHandler(Future<void> Function()? handler) {
   _authExpiredHandler = handler;
 }
 
+Future<void> notifyAuthExpired() async {
+  await _authExpiredHandler?.call();
+}
+
 void initApiClient(String baseUrl, {bool includeAuthInterceptor = true}) {
   dio = Dio(
     BaseOptions(
@@ -134,7 +138,7 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
         }
         _pendingQueue.clear();
         await clearTokens();
-        await _authExpiredHandler?.call();
+        await notifyAuthExpired();
         handler.reject(err);
       } finally {
         _isRefreshing = false;
