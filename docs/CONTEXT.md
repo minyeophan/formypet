@@ -1,5 +1,19 @@
 # 현재 컨텍스트
 
+## 2026-06-02 My 메뉴 · 설정 · 로그아웃 구현
+
+- My 메인의 설정, 전체 펫, 프로필 편집 진입점을 `/my/settings`, `/my/pets`, `/my/profile`로 연결했다. 대표 펫은 `activePet ?? pets.firstOrNull`을 사용하고 전체 목록에서는 active pet에만 `현재 선택` badge를 표시한다.
+- 인증이 필요한 이미지 bytes 로딩을 `AuthenticatedNetworkImage`로 추출해 Home, My 펫 카드, My 프로필 기존 이미지에 적용했다.
+- 로그아웃은 서비스 호출 직후 loading lock을 걸고, 실패 시 기존 인증 상태를 복원한다. 성공, 인증 만료, 저장 토큰 검증 실패는 펫 정리 실패를 기록하고도 signed-out 상태를 보장하는 공통 helper를 사용한다.
+- 후속 작업: `PetNotifier.clearForSignedOutUser()` 환경설정 Future 실패/무한 대기 방어, 백엔드 사용자 응답과 `UserProfile.id` 매핑 정리, 프로필 저장 API 연결.
+
+## 2026-06-02 사용자 접근 화면 현황 문서 동기화
+
+- `docs/FRONTEND_STATUS.md`를 파일 존재 여부가 아니라 현재 사용자 동선 기준으로 정리했다. `🚧 부분 구현`, `🧭 진입점 없음` 상태를 추가하고 Home, Community, My, Records, Wallet, Routine의 placeholder와 미연결 화면을 표로 기록했다.
+- 기록 문서에서 이전 `QuickRecordRow`, `RecordModal`, records 탭 위젯을 현재 기능처럼 설명하던 내용을 정정했다. 현재 `/records`에서 접근 가능한 타입, 숨겨진 타입, `기타` placeholder, 상세·수정·삭제 UI 부재, 급식 전용 사진 첨부 범위를 분리했다.
+- 루틴 일정 목록은 고정 샘플, 일정 저장과 지도 검색은 `준비중`, 지출 저장과 항목·사진 추가는 미구현, Community 게시글 상세·댓글·이미지/투표 표시와 참여는 미연결, My 메뉴 대부분과 로그아웃 UI는 진입점 없음으로 기록했다.
+- `docs/ARCHITECTURE.md`에서 실제로 없는 `pet_selector.dart` 참조를 제거하고 현재 라우터에서 호출되지 않는 legacy 위젯 경계를 명시했다. 애플리케이션 코드, 테스트, `DESIGN.md`는 수정하지 않았다.
+
 ## 2026-06-02 Home · Community · My 헤더 색상 및 액션 아이콘 통일
 
 - 탭 헤더 규칙을 `DESIGN.md`에 추가했다. 탭 헤더는 `AppColors.background`, 제목은 `AppColors.text`, 우측 액션은 `38x38` surface와 `20px` `AppColors.textSecondary` 아이콘을 사용한다. 탐색 역할의 뒤로가기 아이콘은 기존 `28px`를 유지한다.
@@ -37,10 +51,10 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 전체 검증: 2026-05-18 백엔드 `.\gradlew.bat clean test`, 프론트 `flutter analyze --no-fatal-infos`, `flutter test`, `flutter build web` 성공.
+2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공.
 3. 최신 스키마: Flyway `V1`부터 `V12__add_diary_activity_type.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
 4. 최근 변경 흐름: `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route를 보강했다.
-5. 다음 우선순위: Android 에뮬레이터 또는 기기에서 백엔드 실행 후 수동 E2E 검증 (인증, 펫, 기록 CRUD/사진, 루틴, 커뮤니티)과 `expense` 저장 계약 결정.
+5. 다음 우선순위: My 실제 메뉴와 로그아웃, 일정 저장과 실제 목록, 기록 상세·수정·삭제, Community 상세·댓글·이미지/투표 표시, 지출 저장 순서로 사용자 동선을 완성한다.
 
 ## 마지막 검증
 
@@ -57,6 +71,8 @@
 - 루틴 상태 안정화 후 전체 검증: 2026-06-01 `flutter test` GREEN(151 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 루틴 화면 분리 테스트와 날짜 고정 기록 캘린더 fixture 안정화도 함께 반영했다.
 - 화면 헤더 역할별 통일 및 복귀 안정화 후 전체 검증: 2026-06-01 `flutter test` GREEN(171 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음. 직접 `AppBar`, records private 헤더, 오래된 위젯 맵 참조 검색도 빈 결과다.
 - Home · Community · My 헤더 색상 및 액션 아이콘 통일 후 전체 검증: 2026-06-02 `flutter test` GREEN(172 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음.
+- 사용자 접근 화면 현황 문서 동기화 후 검증: 2026-06-02 오래된 화면 현황 참조 `rg` 검색 빈 결과, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check`, `git diff --cached --check` whitespace 오류 없음, `git status --short backend frontend DESIGN.md` 빈 결과. 문서 전용 작업이므로 애플리케이션 테스트는 다시 실행하지 않았다.
+- My 메뉴 · 설정 · 로그아웃 구현 후 전체 검증: 2026-06-02 `flutter test` GREEN(191 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check`, `git diff --cached --check` whitespace 오류 없음.
 
 ## 다음 행동
 
@@ -77,8 +93,8 @@
 
 ## 최신 Handover
 
-- Goal: Home · Community · My 탭 헤더의 neutral-first 색상과 우측 액션 아이콘 규격을 통일한다.
-- Done: 탭 헤더 디자인 계약을 추가하고 `AppHeaderIconButton`이 nullable `onTap`을 허용하게 했다. Home 알림은 공용 비활성 액션 surface로 교체했고, Community 메인/카테고리 헤더는 neutral 배경과 제목 색상으로 통일했다. My의 기존 `AppHeader` 설정 액션은 유지했다.
-- Remaining: 일정 DB/API/provider와 지출 저장 계약은 여전히 미구현이다. Android 에뮬레이터/기기 E2E도 미실시다.
-- Next step: 실제 기기 또는 에뮬레이터에서 `.\gradlew.bat bootRun` + `flutter run`으로 Home · Community · My 탭 헤더와 기존 인증, 펫, 기록, 루틴, 커뮤니티 흐름을 수동 검증한다.
-- Warnings: 일정 저장과 지출 저장은 입력 후 `준비중` 토스트만 표시한다. 이미지 썸네일 관련 위젯 맵 문서 부채는 별도 범위로 남아 있다. 후속 백엔드 작업으로 루틴 요청 invariant 검증과 `record_utils.dart`의 `bath`, `groom` 타입 정리가 필요하다. 기존 dirty 변경은 되돌리지 않는다.
+- Goal: My 메인의 실제 메뉴 진입점, 설정 로그아웃, 전체 펫 목록, 프로필 편집 골격을 연결한다.
+- Done: `/my/settings`, `/my/pets`, `/my/profile`, 인증 이미지 공용 위젯, 로그아웃 상태 전이 안정화를 구현했다. 대표 펫 표시와 전체 목록 badge, 프로필 로컬 사진 미리보기도 반영했다.
+- Remaining: 프로필 저장 API 연결, `PetNotifier.clearForSignedOutUser()` 환경설정 Future 실패/무한 대기 방어, 백엔드 사용자 응답과 `UserProfile.id` 매핑 정리가 남았다. 일정 저장, 기록 상세, Community 상세, 지출 저장도 미완성이다.
+- Next step: 백엔드 사용자 프로필 응답 계약을 확인하고 `/my/profile` 저장 API를 연결한다.
+- Warnings: 기존 dirty 문서 변경은 유지했다. 프로필 저장은 아직 `준비중` 토스트만 표시하며 일정과 지출 저장도 여전히 `준비중`이다.

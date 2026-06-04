@@ -5,7 +5,7 @@
 ## 주요 문서
 
 - `ARCHITECTURE.md`: Flutter 앱 구조, 라우팅, 상태 관리, 데이터 흐름 정리
-- `FRONTEND_STATUS.md`: 프론트엔드 기능 구현 현황과 백엔드 API 연동 상태
+- `FRONTEND_STATUS.md`: 사용자 접근 가능한 화면 동선, 프론트엔드 구현 현황, 백엔드 API 연동 상태
 - `CONTEXT.md`: 현재 작업 상태와 최근 검증 기록
 - `BACKEND_RULES.md`: 백엔드 작업 시 지켜야 할 마이그레이션, 테스트, API 규칙
 - `ERD.md`, `ADR.md`: 데이터 모델과 주요 기술 결정 기록
