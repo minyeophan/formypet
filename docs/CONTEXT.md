@@ -1,5 +1,20 @@
 # 현재 컨텍스트
 
+## 2026-06-05 PetEdit 입력 UI 보정
+
+- 공통 `PetDateField`를 추가해 PetEdit 생년월일/함께한 날, Onboarding 생년월일을 read-only `TextField`가 아닌 `Material + InkWell` 날짜 선택 필드로 바꿨다. 캘린더 아이콘과 `생년월일을 몰라요` 동작은 유지했다.
+- PetEdit 기본 프로필의 종 선택은 3열 `GridView`로 고정하고, 성별/중성화는 각각 `Row + Expanded 2개`, 특수상태는 dense `PetChoiceButton` 4개 한 줄로 보정했다. 중성화 활성 정책과 저장 payload 보존 정책은 변경하지 않았다.
+- `PetTextField`는 RecordScreen 입력과 맞춰 흰 배경, muted hint, 14px semibold 텍스트, `AppColors.primary` cursor/focused border, 14px radius, tap outside unfocus를 사용한다. selection highlight/handle theme은 바꾸지 않았다.
+- 테스트는 구조 기준으로 보강했다. PetEdit 종 3열 grid, 날짜 필드 타입과 date picker sheet 진입, 성별/중성화/특수상태 row 구조, `PetTextField` focused border 색상을 확인하고 Onboarding 생년월일이 `PetDateField`로 렌더링되는지 확인한다.
+
+## 2026-06-05 기록 입력 날짜 흐름 및 기타 기록 연동
+
+- `/records?date=YYYY-MM-DD`와 `/records/{type}/new?date=YYYY-MM-DD`를 지원한다. route date는 strict `YYYY-MM-DD` 검증 후 유효할 때만 사용하고, 없거나 잘못된 값이면 오늘 날짜로 fallback한다.
+- 기록 메인에서 선택한 날짜를 급식 및 카테고리 입력 화면으로 전달한다. 입력 화면의 날짜 picker는 제거하고 읽기 전용 날짜 라벨만 표시하며, `현재 시간으로 설정`은 날짜를 바꾸지 않고 시간만 현재 시간으로 갱신한다.
+- 급식/카테고리 기록 저장 성공 후에는 `/records?date=<저장 날짜>`로 돌아가 저장한 날짜의 기록 목록을 유지한다. 저장 CTA는 상단 헤더가 아니라 스크롤 콘텐츠 최하단의 `RecordFormSubmitButton`으로 통일했다.
+- `etc` 활동 타입을 추가해 `기타` TypeCard가 전체 화면 입력으로 진입한다. `etc`는 `diary`와 같은 note-only 타입이며 detail 테이블 없이 `activity_records.note`만 사용한다. 빠른 기록용 `record_modal.dart`와 지출 날짜 선택 흐름은 유지했다.
+- 백엔드는 `V13__add_etc_activity_type.sql`, `ActivityRecordService.SUPPORTED_TYPES`, test seed, `ActivityRecordIntegrationTest`에 `etc` create/get/delete note-only 흐름을 반영했다.
+
 ## 2026-06-02 My 메뉴 · 설정 · 로그아웃 구현
 
 - My 메인의 설정, 전체 펫, 프로필 편집 진입점을 `/my/settings`, `/my/pets`, `/my/profile`로 연결했다. 대표 펫은 `activePet ?? pets.firstOrNull`을 사용하고 전체 목록에서는 active pet에만 `현재 선택` badge를 표시한다.
@@ -51,9 +66,9 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공.
-3. 최신 스키마: Flyway `V1`부터 `V12__add_diary_activity_type.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
-4. 최근 변경 흐름: `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route를 보강했다.
+2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공. 2026-06-05 기록 날짜 흐름과 PetEdit 입력 UI 변경은 부분 검증을 통과했다.
+3. 최신 스키마: Flyway `V1`부터 `V13__add_etc_activity_type.sql`까지 기록 관련 migration이 존재한다. 기존 마이그레이션은 수정하지 않는다.
+4. 최근 변경 흐름: PetEdit/Onboarding 날짜 입력 UI 보정, 기록 입력 route date 유지, `etc` note-only 기록, 스크롤 하단 저장 CTA, `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route를 보강했다.
 5. 다음 우선순위: My 실제 메뉴와 로그아웃, 일정 저장과 실제 목록, 기록 상세·수정·삭제, Community 상세·댓글·이미지/투표 표시, 지출 저장 순서로 사용자 동선을 완성한다.
 
 ## 마지막 검증
@@ -73,6 +88,8 @@
 - Home · Community · My 헤더 색상 및 액션 아이콘 통일 후 전체 검증: 2026-06-02 `flutter test` GREEN(172 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음.
 - 사용자 접근 화면 현황 문서 동기화 후 검증: 2026-06-02 오래된 화면 현황 참조 `rg` 검색 빈 결과, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check`, `git diff --cached --check` whitespace 오류 없음, `git status --short backend frontend DESIGN.md` 빈 결과. 문서 전용 작업이므로 애플리케이션 테스트는 다시 실행하지 않았다.
 - My 메뉴 · 설정 · 로그아웃 구현 후 전체 검증: 2026-06-02 `flutter test` GREEN(191 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check`, `git diff --cached --check` whitespace 오류 없음.
+- 기록 입력 날짜 흐름 및 기타 기록 연동 후 부분 검증: 2026-06-05 `.\gradlew.bat test --tests com.petyilgi.record.ActivityRecordIntegrationTest` GREEN, `flutter test test/screens/records/records_screen_test.dart test/screens/records/meal_record_screen_test.dart test/screens/records/record_category_form_screen_test.dart test/router/app_router_test.dart` GREEN(67 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음(CRLF 경고만 출력).
+- PetEdit 입력 UI 보정 후 부분 검증: 2026-06-05 `flutter test test/screens/pet/pet_screen_test.dart test/screens/onboarding/onboarding_screen_test.dart` GREEN(24 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN.
 
 ## 다음 행동
 
@@ -93,8 +110,8 @@
 
 ## 최신 Handover
 
-- Goal: My 메인의 실제 메뉴 진입점, 설정 로그아웃, 전체 펫 목록, 프로필 편집 골격을 연결한다.
-- Done: `/my/settings`, `/my/pets`, `/my/profile`, 인증 이미지 공용 위젯, 로그아웃 상태 전이 안정화를 구현했다. 대표 펫 표시와 전체 목록 badge, 프로필 로컬 사진 미리보기도 반영했다.
+- Goal: Pet 상세/수정 화면을 확장 프로필 중심으로 개편하고, 새 pet 필드와 색상 저장을 백엔드/프론트 계약에 반영한다.
+- Done: `V14__extend_pet_profile_fields.sql`로 pet 확장 필드 6개를 추가하고, create/update/list 응답과 색상 저장을 지원했다. Flutter `Pet` 모델에 확장 필드를 추가했고, 공통 `pet_taxonomy`, `AppSelectField`/`AppPickerSheet`, `PetDateField`, petId 기준 `latestPetWeightProvider`를 추가했다. Pet 상세는 기본정보 4행과 전체 추가정보를 표시하며 삭제 기능을 danger 카드로 유지한다. Pet 수정은 우상단 저장을 제거하고 하단 `수정 완료` CTA를 사용하며 체중/동물등록번호/중성화 hidden 값을 저장 payload에 보존한다. PetEdit 입력 UI는 종 3열 grid, 날짜 선택 박스, 성별/중성화 2분할, 특수상태 4분할로 보정했다.
 - Remaining: 프로필 저장 API 연결, `PetNotifier.clearForSignedOutUser()` 환경설정 Future 실패/무한 대기 방어, 백엔드 사용자 응답과 `UserProfile.id` 매핑 정리가 남았다. 일정 저장, 기록 상세, Community 상세, 지출 저장도 미완성이다.
-- Next step: 백엔드 사용자 프로필 응답 계약을 확인하고 `/my/profile` 저장 API를 연결한다.
-- Warnings: 기존 dirty 문서 변경은 유지했다. 프로필 저장은 아직 `준비중` 토스트만 표시하며 일정과 지출 저장도 여전히 `준비중`이다.
+- Next step: 실제 기기 또는 브라우저에서 `/pet/:id`, `/pet/:id/edit`, 온보딩 펫 등록, 날짜 선택/미상 처리, My/Home 펫 카드 표시를 수동 확인한다.
+- Warnings: 기존 Flyway 마이그레이션은 수정하지 않고 `V14__extend_pet_profile_fields.sql`만 추가했다. 작업 시작 전부터 record 관련 dirty 변경과 `V13__add_etc_activity_type.sql`가 있었으므로 되돌리지 않았다.

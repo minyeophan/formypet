@@ -1,6 +1,6 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
-> 마지막 갱신: 2026-06-02
+> 마지막 갱신: 2026-06-05
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 
 ## 상태 표기
@@ -45,8 +45,7 @@
 | My | 나머지 메뉴 row | 🚧 부분 구현 | `준비중` 토스트만 표시 |
 | My | 로그아웃 | 🔌 연동됨 | 설정의 확인 시트 승인 후 `AuthNotifier.logout()` 호출 |
 | Records | `반려기록` 메인, 전체 기록, 성장 | ✅ 구현됨 | `/records`, `/records/all`, `/records/growth`로 이동 |
-| Records | 급식, 음수, 배변, 산책, 몸무게, 병원, 영양, 일기 | 🔌 연동됨 | 전체 화면 입력 후 기록 생성 API 호출 |
-| Records | `기타` 카드 | 🚧 부분 구현 | 카드가 보이지만 `준비중` 토스트만 표시 |
+| Records | 급식, 음수, 배변, 산책, 몸무게, 병원, 영양, 일기, 기타 | 🔌 연동됨 | 전체 화면 입력 후 기록 생성 API 호출 |
 | Records | 기록 목록 row | 🚧 부분 구현 | 목록 표시는 되지만 상세, 수정, 삭제 진입 UI 없음 |
 | Wallet | 지갑, 지출 리포트, 비용 추가 | 🚧 부분 구현 | 조회·입력 UI는 있으나 비용 저장, 항목 추가, 사진 첨부는 미구현 |
 | Routine | 루틴 생성, 완료 체크, 삭제 | 🔌 연동됨 | API 호출 연결 |
@@ -92,7 +91,7 @@
 
 ### 요약
 
-펫 CRUD, 활성 펫 전환, 프로필 사진 업로드, 생년월일 입력 화면이 구현되어 있다. CRUD와 사진 업로드는 서비스 코드에서 API를 호출한다.
+펫 CRUD, 활성 펫 전환, 프로필 사진 업로드, 생년월일/함께한 날 선택 UI가 구현되어 있다. CRUD와 사진 업로드는 서비스 코드에서 API를 호출한다.
 
 ### 현재 프론트 구현
 
@@ -104,7 +103,9 @@
 | 펫 삭제 | 🔌 연동됨 | `PetService.deletePet()` |
 | 활성 펫 전환 | ✅ 구현됨 | provider 상태로 유지 |
 | 펫 프로필 사진 | 🔌 연동됨 | `services/media_service.dart` |
-| 생년월일 입력 | ✅ 구현됨 | `core/calendar_ranges.dart`, 선택 범위는 `1950-01-01`부터 오늘까지 |
+| 생년월일 입력 | ✅ 구현됨 | `PetDateField`, `core/calendar_ranges.dart`, 선택 범위는 `1950-01-01`부터 오늘까지 |
+| 함께한 날 입력 | ✅ 구현됨 | PetEdit에서 `PetDateField`와 기존 date picker sheet 사용 |
+| PetEdit 입력 레이아웃 | ✅ 구현됨 | 종 3열 grid, 성별/중성화 2분할 row, 특수상태 dense 4분할 row |
 
 ### API 요구사항
 
@@ -116,11 +117,14 @@
 | 삭제 | `DELETE /api/v1/pets/{id}` |
 | 프로필 사진 | `POST /api/v1/pets/{petId}/media` |
 | 생년월일 | `birthDate: YYYY-MM-DD` |
+| 생년월일 미상 | Onboarding은 `birthDate` 생략, PetEdit은 `birthDateUnknown: true` |
+| 확장 프로필 | `breed`, `adoptionDate`, `guardianNickname`, `specialStatus`, `personality`, `primaryHospitalName` |
+| 프로필 색상 | `accentColor`, `bgLight` |
 
 ### Backend sync needed
 
-- `accentColor`, `bgLight`를 서버 생성값으로 둘지, 클라이언트 선택값으로 유지할지 확인 필요.
-- `gender`, `weight`, `animalRegistrationNumber`, `neutered`, `specialNotes`, `diseases`, `profileImageUrl`의 nullable 정책 확인 필요.
+- `accentColor`, `bgLight`는 클라이언트 선택값을 create/update 요청에 포함하면 백엔드가 저장하고, 누락 시 서버 기본값 또는 기존값을 유지한다.
+- `gender`, `weight`, `animalRegistrationNumber`, `neutered`, `specialNotes`, `diseases`, `profileImageUrl`, 확장 프로필 필드는 nullable이다.
 - `/my/profile` 저장은 현재 `준비중` 토스트만 표시한다. 프로필 저장 API 계약 확정 후 연결해야 한다.
 
 ---
@@ -129,7 +133,7 @@
 
 ### 요약
 
-현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다. 기록 목록은 표시되지만 상세, 수정, 삭제 진입 UI는 아직 없다.
+현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. `/records?date=YYYY-MM-DD`와 입력 화면의 `date` query를 지원하며, 메인에서 선택한 날짜를 입력 화면의 고정 날짜로 사용한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다. 기록 목록은 표시되지만 상세, 수정, 삭제 진입 UI는 아직 없다.
 
 ### 현재 프론트 구현
 
@@ -144,9 +148,9 @@
 | 기록 상세/수정/삭제 UI | 🧭 진입점 없음 | provider/service 메서드는 있으나 현재 기록 목록 row에서 들어갈 화면이나 액션 없음 |
 | 미디어 업로드 service | 🔌 연동됨 | `services/record_service.dart`, 기록 생성 후 media 업로드 |
 | 현재 기록 입력 사진 첨부 | 🚧 부분 구현 | 급식 화면은 사진 1장 첨부 가능. 범용 카테고리 폼은 사진 첨부 없음 |
-| 날짜/시간 입력 | ✅ 구현됨 | `widgets/record_inputs/record_date_time_pickers.dart`, `core/calendar_ranges.dart` |
+| 날짜/시간 입력 | ✅ 구현됨 | 전체 화면 기록 입력은 route date를 읽기 전용으로 표시하고 시간만 picker로 수정. 지출 입력은 별도 날짜 picker 유지 |
 | 숫자 입력 preview | ✅ 구현됨 | `widgets/record_inputs/record_number_input.dart`, `record_picker_sheet.dart` |
-| 저장 후 이동 | ✅ 구현됨 | 급식/카테고리 기록 저장 성공 후 `/records`로 이동 |
+| 저장 후 이동 | ✅ 구현됨 | 급식/카테고리 기록 저장 성공 후 `/records?date=<저장 날짜>`로 이동 |
 | 급식/배변 메모 | 🔌 연동됨 | `meal`, `poop` payload의 `note`에 저장 |
 
 ### API 요구사항
@@ -174,7 +178,7 @@
 | `weight` | 🔌 연동됨 | 몸무게 전체 화면 입력 |
 | `vet` | 🔌 연동됨 | 병원 전체 화면 입력 |
 | `diary` | 🔌 연동됨 | 일기 전체 화면 입력, `activity_records.note`만 사용 |
-| `etc` | 🚧 부분 구현 | 카드가 보이지만 `준비중` 토스트만 표시 |
+| `etc` | 🔌 연동됨 | 기타 전체 화면 입력, `activity_records.note`만 사용 |
 
 ### 현재 메인 그리드에서 접근할 수 없는 타입
 
@@ -201,9 +205,9 @@
 ### Backend sync needed
 
 - `ActivityRecord.detail` 키는 프론트 입력 필드 기준이며, 백엔드 개발 시 재정렬 필요.
-- 전체 화면 폼 기준 현재 detail: `meal(foodType, servedAmount, consumedPercent, product?, brand?, feedingMethod?)`, `water(amount)`, `walk(distance)`, `poop(poopShape, poopColor)`, `weight(weight)`, `vet(vetClinicName, vetVisitReason, vetTreatment)`, `medicine(medicineName, dosage)`, `diary`는 detail 없이 `note`만 사용.
+- 전체 화면 폼 기준 현재 detail: `meal(foodType, servedAmount, consumedPercent, product?, brand?, feedingMethod?)`, `water(amount)`, `walk(distance)`, `poop(poopShape, poopColor)`, `weight(weight)`, `vet(vetClinicName, vetVisitReason, vetTreatment)`, `medicine(medicineName, dosage)`, `diary`/`etc`는 detail 없이 `note`만 사용.
 - `water` 단위는 UI에서 `ml` 고정값으로 표시하고, 백엔드에는 `amount`만 저장한다.
-- `play`, `sleep`, `checkup`, `bath`, `groom`, `expense`, `etc`의 현재 사용자 진입점을 다시 열지, 별도 도메인으로 둘지 결정 필요.
+- `play`, `sleep`, `checkup`, `bath`, `groom`, `expense`의 현재 사용자 진입점을 다시 열지, 별도 도메인으로 둘지 결정 필요.
 - 목록 API에서 날짜/타입/limit 필터를 서버 쿼리로 제공할지, 현재처럼 클라이언트 필터를 유지할지 확인 필요.
 - 기록 생성 후 미디어 업로드 실패 시 프론트는 생성된 기록 삭제로 rollback을 시도한다. 백엔드 트랜잭션/정리 정책 확인 필요.
 
@@ -333,6 +337,8 @@ interface Pet {
   name: string;
   species: string;
   birthDate: string;       // YYYY-MM-DD
+  breed?: string;
+  adoptionDate?: string;   // YYYY-MM-DD
   accentColor: string;
   bgLight: string;
   gender?: 'male' | 'female';
@@ -341,6 +347,10 @@ interface Pet {
   neutered?: boolean;
   specialNotes?: string;
   diseases?: string;
+  guardianNickname?: string;
+  specialStatus?: string;
+  personality?: string;
+  primaryHospitalName?: string;
   profileImageUrl?: string;
 }
 
