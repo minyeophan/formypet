@@ -118,6 +118,52 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createEtcRecordSucceedsWithNoteOnlyDetail() throws Exception {
+        String token = registerAndGetToken("etc-record@example.com", "etc-record");
+        Long petId = createPet(token, "Maro");
+
+        MvcResult created = mockMvc.perform(post(recordsUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "typeId", "etc",
+                                "date", "2026-05-09",
+                                "time", "21:30",
+                                "note", "free memo"
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.petId").value(petId))
+                .andExpect(jsonPath("$.data.typeId").value("etc"))
+                .andExpect(jsonPath("$.data.date").value("2026-05-09"))
+                .andExpect(jsonPath("$.data.time").value("21:30:00"))
+                .andExpect(jsonPath("$.data.note").value("free memo"))
+                .andExpect(jsonPath("$.data.detail").isMap())
+                .andExpect(jsonPath("$.data.detail").isEmpty())
+                .andReturn();
+        long recordId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data")
+                .path("id")
+                .asLong();
+
+        mockMvc.perform(get(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(recordId))
+                .andExpect(jsonPath("$.data.typeId").value("etc"))
+                .andExpect(jsonPath("$.data.note").value("free memo"))
+                .andExpect(jsonPath("$.data.detail").isMap())
+                .andExpect(jsonPath("$.data.detail").isEmpty());
+
+        mockMvc.perform(delete(recordsUrl(petId) + "/" + recordId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
     void getRecordReturnsSingleRecord() throws Exception {
         String token = registerAndGetToken("get-record@example.com", "get-record");
         Long petId = createPet(token, "Maro");
@@ -242,10 +288,11 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
                 "vetCost", 20000
         ));
         createRecord(token, petId, "diary", Map.of());
+        createRecord(token, petId, "etc", Map.of());
 
         mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(10)));
+                .andExpect(jsonPath("$.data", hasSize(11)));
     }
 
     @Test

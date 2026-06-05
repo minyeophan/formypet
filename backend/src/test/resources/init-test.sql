@@ -53,13 +53,19 @@ CREATE TABLE IF NOT EXISTS pets (
     user_id                     BIGINT          NOT NULL,
     name                        VARCHAR(50)     NOT NULL,
     species                     VARCHAR(30)     NOT NULL,
-    birth_date                  DATE            NOT NULL,
+    birth_date                  DATE,
+    breed                       VARCHAR(80),
+    adoption_date               DATE,
     gender                      ENUM('male','female'),
     weight                      DECIMAL(5,2),
     animal_registration_number  VARCHAR(20),
     neutered                    BOOLEAN,
     diseases                    TEXT,
     special_notes               TEXT,
+    guardian_nickname           VARCHAR(30),
+    special_status              VARCHAR(30),
+    personality                 TEXT,
+    primary_hospital_name       VARCHAR(100),
     accent_color                VARCHAR(7)      NOT NULL,
     bg_light                    VARCHAR(7)      NOT NULL,
     is_deleted                  BOOLEAN         NOT NULL DEFAULT false,
@@ -87,7 +93,8 @@ INSERT INTO activity_types (id, name, display_order) VALUES
     ('sleep',    'sleep',    8),
     ('play',     'play',     9),
     ('checkup',  'checkup', 10),
-    ('diary',    'diary',   11);
+    ('diary',    'diary',   11),
+    ('etc',      'etc',     12);
 
 CREATE TABLE IF NOT EXISTS activity_records (
     id         BIGINT      AUTO_INCREMENT PRIMARY KEY,
