@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -36,11 +37,16 @@ public class PetService {
     public PetResponse create(String email, PetCreateRequest request) {
         User user = findUserByEmail(email);
         int colorIdx = (int) (petRepository.findByUserId(user.getId()).size() % ACCENT_COLORS.length);
+        String accentColor = fallbackIfBlank(request.accentColor(), ACCENT_COLORS[colorIdx]);
+        String bgLight = fallbackIfBlank(request.bgLight(), BG_LIGHTS[colorIdx]);
         Pet pet = Pet.create(user, request.name(), request.species(), request.birthDate(),
-                ACCENT_COLORS[colorIdx], BG_LIGHTS[colorIdx]);
+                accentColor, bgLight);
         pet.update(request.name(), request.species(), request.birthDate(),
                 request.gender(), request.weight(), request.animalRegistrationNumber(),
-                request.neutered(), request.diseases(), request.specialNotes());
+                request.neutered(), request.diseases(), request.specialNotes(),
+                request.breed(), request.adoptionDate(), request.guardianNickname(),
+                request.specialStatus(), request.personality(), request.primaryHospitalName(),
+                accentColor, bgLight);
         return PetResponse.of(petRepository.save(pet));
     }
 
@@ -56,9 +62,13 @@ public class PetService {
     public PetResponse update(String email, Long petId, PetUpdateRequest request) {
         Pet pet = findOwnedPet(email, petId);
         pet.update(request.name(), request.species() != null ? request.species() : pet.getSpecies(),
-                request.birthDate() != null ? request.birthDate() : pet.getBirthDate(),
+                resolveBirthDate(pet, request),
                 request.gender(), request.weight(), request.animalRegistrationNumber(),
-                request.neutered(), request.diseases(), request.specialNotes());
+                request.neutered(), request.diseases(), request.specialNotes(),
+                request.breed(), request.adoptionDate(), request.guardianNickname(),
+                request.specialStatus(), request.personality(), request.primaryHospitalName(),
+                fallbackIfBlank(request.accentColor(), pet.getAccentColor()),
+                fallbackIfBlank(request.bgLight(), pet.getBgLight()));
         return PetResponse.of(pet, latestPetMediaUrl(pet.getId()));
     }
 
@@ -91,5 +101,19 @@ public class PetService {
             return null;
         }
         return "/api/v1/media/" + ids.getFirst();
+    }
+
+    private String fallbackIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private LocalDate resolveBirthDate(Pet pet, PetUpdateRequest request) {
+        if (Boolean.TRUE.equals(request.birthDateUnknown())) {
+            return null;
+        }
+        if (request.birthDate() != null) {
+            return request.birthDate();
+        }
+        return pet.getBirthDate();
     }
 }

@@ -32,8 +32,14 @@ public class Pet {
     @Column(nullable = false, length = 30)
     private String species;
 
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
+
+    @Column(length = 80)
+    private String breed;
+
+    @Column(name = "adoption_date")
+    private LocalDate adoptionDate;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
@@ -51,6 +57,18 @@ public class Pet {
 
     @Column(name = "special_notes", columnDefinition = "TEXT")
     private String specialNotes;
+
+    @Column(name = "guardian_nickname", length = 30)
+    private String guardianNickname;
+
+    @Column(name = "special_status", length = 30)
+    private String specialStatus;
+
+    @Column(columnDefinition = "TEXT")
+    private String personality;
+
+    @Column(name = "primary_hospital_name", length = 100)
+    private String primaryHospitalName;
 
     @Column(name = "accent_color", nullable = false, length = 7)
     private String accentColor;
@@ -88,7 +106,10 @@ public class Pet {
 
     public void update(String name, String species, LocalDate birthDate,
                        Gender gender, BigDecimal weight, String animalRegistrationNumber,
-                       Boolean neutered, String diseases, String specialNotes) {
+                       Boolean neutered, String diseases, String specialNotes,
+                       String breed, LocalDate adoptionDate, String guardianNickname,
+                       String specialStatus, String personality, String primaryHospitalName,
+                       String accentColor, String bgLight) {
         this.name                       = name;
         this.species                    = species;
         this.birthDate                  = birthDate;
@@ -98,6 +119,14 @@ public class Pet {
         this.neutered                   = neutered;
         this.diseases                   = diseases;
         this.specialNotes               = specialNotes;
+        this.breed                      = breed;
+        this.adoptionDate               = adoptionDate;
+        this.guardianNickname           = guardianNickname;
+        this.specialStatus              = specialStatus;
+        this.personality                = personality;
+        this.primaryHospitalName        = primaryHospitalName;
+        this.accentColor                = accentColor;
+        this.bgLight                    = bgLight;
         this.updatedAt                  = LocalDateTime.now();
     }
 
