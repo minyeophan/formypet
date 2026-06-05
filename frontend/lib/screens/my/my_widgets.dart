@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
@@ -165,7 +166,7 @@ class MyPetCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     AppText(
-                      pet.species,
+                      speciesLabel(pet.species),
                       fontSize: 12,
                       color: AppColors.textSecondary,
                     ),

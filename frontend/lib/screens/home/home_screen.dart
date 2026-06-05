@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
+import '../../core/pet_taxonomy.dart';
 import '../../models/activity_record.dart';
 import '../../models/pet.dart';
 import '../../models/routine.dart';
@@ -260,7 +261,7 @@ class _PetProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 AppText(
-                  pet.species,
+                  speciesLabel(pet.species),
                   fontSize: 13,
                   color: AppColors.textSecondary,
                   maxLines: 1,
@@ -316,7 +317,7 @@ class _PetEmojiFallback extends StatelessWidget {
       color: color.bgLight,
       alignment: Alignment.center,
       child: AppText(
-        _speciesEmoji(pet.species),
+        speciesEmoji(pet.species),
         fontSize: 44,
         textAlign: TextAlign.center,
       ),
@@ -957,6 +958,7 @@ String _typeLabel(String typeId) {
     'vet': '병원',
     'checkup': '검진',
     'diary': '일기',
+    'etc': '기타',
     'bath': '목욕',
     'groom': '미용',
   };
@@ -1006,21 +1008,4 @@ String? _compactText(String? value) {
     return null;
   }
   return trimmed;
-}
-
-String _speciesEmoji(String species) {
-  final normalized = species.toLowerCase();
-  if (normalized.contains('cat') || species.contains('고양')) {
-    return '🐱';
-  }
-  if (normalized.contains('rabbit') || species.contains('토끼')) {
-    return '🐰';
-  }
-  if (normalized.contains('hamster')) {
-    return '🐹';
-  }
-  if (normalized.contains('bird') || species.contains('새')) {
-    return '🐦';
-  }
-  return '🐶';
 }

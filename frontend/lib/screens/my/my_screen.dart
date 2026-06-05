@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
@@ -174,7 +175,8 @@ class _PetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta = '${pet.species} · ${_petAgeLabel(pet.birthDate)}';
+    final meta =
+        '${speciesLabel(pet.species)} · ${_petAgeLabel(pet.birthDate)}';
     final weight = pet.weight == null
         ? '체중 미등록'
         : '${_numberLabel(pet.weight!)} kg';
@@ -538,8 +540,8 @@ const _menuGroups = [
   ),
 ];
 
-String _petAgeLabel(String birthDateIso) {
-  final birth = DateTime.tryParse(birthDateIso);
+String _petAgeLabel(String? birthDateIso) {
+  final birth = DateTime.tryParse(birthDateIso ?? '');
   if (birth == null) {
     return '나이 미등록';
   }

@@ -6,6 +6,7 @@ import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/pet_form_fields.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -22,6 +23,45 @@ void main() {
     expect(find.byType(AppHeader), findsOneWidget);
     expect(find.text('반려동물 등록'), findsOneWidget);
     expect(find.byType(AppBackButton), findsNothing);
+    expect(find.text('색상'), findsNothing);
+    expect(find.text('소동물'), findsOneWidget);
+    expect(find.text('이색(기타)'), findsOneWidget);
+    expect(find.text('품종/하위종'), findsOneWidget);
+    expect(find.byType(PetTextField), findsOneWidget);
+    expect(find.byType(PetDateField), findsOneWidget);
+    expect(find.byType(PetPickerField), findsOneWidget);
+    expect(find.byType(PetChoiceButton), findsWidgets);
+  });
+
+  testWidgets('onboarding requires name but allows unknown birthDate', (
+    tester,
+  ) async {
+    final notifier = _AddPetNotifier(_state());
+    await _pumpWithNotifier(tester, PetEntryMode.firstPet, notifier);
+
+    final submitButton = find.widgetWithText(ElevatedButton, '등록하기');
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('이름을 입력해 주세요'), findsOneWidget);
+    expect(notifier.createdBody, isNull);
+
+    final nameField = find.byType(TextField).first;
+    await tester.ensureVisible(nameField);
+    await tester.enterText(nameField, '몽이');
+    final unknownButton = find.widgetWithText(TextButton, '생년월일을 몰라요');
+    await tester.ensureVisible(unknownButton);
+    await tester.tap(unknownButton);
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    expect(notifier.createdBody?['name'], '몽이');
+    expect(notifier.createdBody?['species'], 'dog');
+    expect(notifier.createdBody, isNot(contains('birthDate')));
+    expect(notifier.createdBody, isNot(contains('accentColor')));
+    expect(notifier.createdBody, isNot(contains('bgLight')));
   });
 
   testWidgets('additional pet onboarding back dismisses and falls back to my', (
@@ -66,11 +106,17 @@ void main() {
 }
 
 Future<void> _pump(WidgetTester tester, PetEntryMode mode) async {
+  await _pumpWithNotifier(tester, mode, PetNotifier.test(_state()));
+}
+
+Future<void> _pumpWithNotifier(
+  WidgetTester tester,
+  PetEntryMode mode,
+  PetNotifier notifier,
+) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        petProvider.overrideWith((ref) => PetNotifier.test(_state())),
-      ],
+      overrides: [petProvider.overrideWith((ref) => notifier)],
       child: MaterialApp(home: OnboardingScreen(mode: mode)),
     ),
   );
@@ -97,3 +143,17 @@ PetState _state() => const PetState(
   routineCompletions: {},
   quickTypeIds: [],
 );
+
+class _AddPetNotifier extends PetNotifier {
+  _AddPetNotifier(super.initialState) : super.test();
+
+  Map<String, dynamic>? createdBody;
+
+  @override
+  Future<void> addPet(
+    Map<String, dynamic> body, {
+    PetPhotoUpload? photo,
+  }) async {
+    createdBody = body;
+  }
+}

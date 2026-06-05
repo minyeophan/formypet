@@ -445,6 +445,20 @@ final routineServiceProvider = Provider<RoutineService>(
   (_) => RoutineService(),
 );
 
+final latestPetWeightProvider = FutureProvider.family<ActivityRecord?, String>((
+  ref,
+  petId,
+) async {
+  final records = await ref
+      .read(recordServiceProvider)
+      .getRecords(petId, typeId: 'weight');
+  final weightRecords = records
+      .where((record) => _weightRecordValue(record) != null)
+      .toList();
+  weightRecords.sort(_compareRecordsNewestFirst);
+  return weightRecords.firstOrNull;
+});
+
 final petProvider = StateNotifierProvider<PetNotifier, PetState>((ref) {
   return PetNotifier(
     ref.read(petServiceProvider),
@@ -452,3 +466,21 @@ final petProvider = StateNotifierProvider<PetNotifier, PetState>((ref) {
     ref.read(routineServiceProvider),
   );
 });
+
+Object? _weightRecordValue(ActivityRecord record) =>
+    record.detail['weight'] ?? record.detail['value'];
+
+int _compareRecordsNewestFirst(ActivityRecord a, ActivityRecord b) {
+  final dateCompare = b.date.compareTo(a.date);
+  if (dateCompare != 0) return dateCompare;
+
+  final timeCompare = (b.time ?? '').compareTo(a.time ?? '');
+  if (timeCompare != 0) return timeCompare;
+
+  final aId = int.tryParse(a.id);
+  final bId = int.tryParse(b.id);
+  if (aId != null && bId != null) {
+    return bId.compareTo(aId);
+  }
+  return b.id.compareTo(a.id);
+}
