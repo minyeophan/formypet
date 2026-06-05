@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+export 'pet_taxonomy.dart' show kSpeciesList, speciesLabel;
+
 class RecordType {
   final String id;
   final String label;
@@ -24,10 +26,14 @@ const List<RecordType> kQuickTypes = [
   RecordType(id: 'groom', label: '미용', icon: Icons.content_cut),
 ];
 
-const Map<String, String> kRecordTypeFallbackLabels = {'diary': '일기'};
+const Map<String, String> kRecordTypeFallbackLabels = {
+  'diary': '일기',
+  'etc': '기타',
+};
 
 const Map<String, IconData> kRecordTypeFallbackIcons = {
   'diary': Icons.edit_note,
+  'etc': Icons.more_horiz,
 };
 
 String recordTypeLabel(String typeId) {
@@ -78,27 +84,6 @@ const Map<String, List<String>> kDetailKeysByType = {
   'bath': ['shampoo'],
   'groom': ['groomType'],
 };
-
-const List<String> kSpeciesList = [
-  'dog',
-  'cat',
-  'rabbit',
-  'hamster',
-  'bird',
-  'other',
-];
-
-String speciesLabel(String species) {
-  const map = {
-    'dog': '강아지',
-    'cat': '고양이',
-    'rabbit': '토끼',
-    'hamster': '햄스터',
-    'bird': '새',
-    'other': '기타',
-  };
-  return map[species] ?? species;
-}
 
 // Strip null/empty detail fields before API send
 Map<String, dynamic> sanitizeDetail(

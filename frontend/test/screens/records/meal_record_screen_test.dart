@@ -28,7 +28,8 @@ void main() {
     expect(find.text('급식 기록'), findsOneWidget);
     expect(find.text('등록'), findsOneWidget);
     expect(find.text('날짜/시간'), findsOneWidget);
-    expect(find.byKey(const Key('meal-date-button')), findsOneWidget);
+    expect(find.byKey(const Key('meal-date-label')), findsOneWidget);
+    expect(find.byKey(const Key('meal-date-button')), findsNothing);
     expect(find.byKey(const Key('meal-time-button')), findsOneWidget);
     expect(find.text('현재 시간으로 설정'), findsOneWidget);
     expect(find.text('사료 종류'), findsOneWidget);
@@ -74,9 +75,11 @@ void main() {
   testWidgets('save stays disabled until required meal fields are filled', (
     tester,
   ) async {
-    await _pumpMealRoute(tester);
+    final notifier = _MealTestPetNotifier();
+    await _pumpMealRoute(tester, notifier: notifier);
 
-    expect(_saveButton(tester).onPressed, isNull);
+    await _tapSave(tester);
+    expect(notifier.savedBodies, isEmpty);
 
     await tester.tap(find.byKey(const Key('meal-food-type-wet')));
     await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
@@ -86,7 +89,8 @@ void main() {
     await tester.tap(find.byKey(const Key('meal-consumed-75')));
     await tester.pump();
 
-    expect(_saveButton(tester).onPressed, isNotNull);
+    await _tapSave(tester);
+    expect(notifier.savedBodies, hasLength(1));
   });
 
   testWidgets('additional info expands optional fields', (tester) async {
@@ -138,8 +142,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('meal-brand-field')), '브랜드명');
     await tester.tap(find.byKey(const Key('meal-feeding-method-served')));
-    await tester.tap(find.byKey(const Key('meal-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies, hasLength(1));
     expect(notifier.savedBodies.single, {
@@ -166,20 +169,76 @@ void main() {
     );
   });
 
-  testWidgets('date and time buttons open common picker sheets', (
+  testWidgets('meal date is read-only and time button opens picker sheet', (
     tester,
   ) async {
     await _pumpMealRoute(tester);
 
-    await tester.tap(find.byKey(const Key('meal-date-button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('record-date-year-wheel')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('record-picker-cancel')));
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('meal-date-label')), findsOneWidget);
+    expect(find.byKey(const Key('meal-date-button')), findsNothing);
 
     await tester.tap(find.byKey(const Key('meal-time-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('record-time-period-wheel')), findsOneWidget);
+  });
+
+  testWidgets('meal route date is saved after setting current time', (
+    tester,
+  ) async {
+    final notifier = _MealTestPetNotifier();
+    await _pumpMealRoute(
+      tester,
+      notifier: notifier,
+      initialLocation: '/records/meal/new?date=2026-05-09',
+    );
+
+    expect(find.text('2026-05-09'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('meal-set-now-button')));
+    await tester.pump();
+    expect(find.text('2026-05-09'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+      '5',
+    ]);
+    await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await tester.pump();
+    await _tapSave(tester);
+
+    expect(notifier.savedBodies.single['date'], '2026-05-09');
+  });
+
+  testWidgets('meal save button is a single bottom content CTA', (
+    tester,
+  ) async {
+    await _pumpMealRoute(tester);
+
+    final saveButton = find.byKey(const Key('meal-save-button'));
+    expect(saveButton, findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppFormHeader), matching: saveButton),
+      findsNothing,
+    );
+  });
+
+  testWidgets('meal save button is reached by scrolling long form content', (
+    tester,
+  ) async {
+    await _pumpMealRoute(tester, physicalSize: const Size(800, 900));
+
+    final scrollable = find.byType(Scrollable).first;
+    final before = tester.state<ScrollableState>(scrollable).position.pixels;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('meal-save-button')),
+      220,
+      scrollable: scrollable,
+    );
+    await tester.ensureVisible(find.byKey(const Key('meal-save-button')));
+    await tester.pumpAndSettle();
+    final after = tester.state<ScrollableState>(scrollable).position.pixels;
+
+    expect(after, greaterThan(before));
   });
 
   testWidgets('meal amount integer input ignores decimal key', (tester) async {
@@ -198,8 +257,12 @@ void main() {
   });
 }
 
-TextButton _saveButton(WidgetTester tester) =>
-    tester.widget<TextButton>(find.byKey(const Key('meal-save-button')));
+Future<void> _tapSave(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const Key('meal-save-button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('meal-save-button')));
+  await tester.pump();
+}
 
 Future<void> _enterRecordNumber(
   WidgetTester tester,
@@ -219,8 +282,10 @@ Future<void> _enterRecordNumber(
 Future<void> _pumpMealRoute(
   WidgetTester tester, {
   _MealTestPetNotifier? notifier,
+  Size physicalSize = const Size(800, 2200),
+  String initialLocation = '/records/meal/new',
 }) async {
-  tester.view.physicalSize = const Size(800, 2200);
+  tester.view.physicalSize = physicalSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -239,8 +304,8 @@ Future<void> _pumpMealRoute(
         builder: (context, ref, child) {
           final router = ref.watch(routerProvider);
           if (router.routeInformationProvider.value.uri.toString() !=
-              '/records/meal/new') {
-            router.go('/records/meal/new');
+              initialLocation) {
+            router.go(initialLocation);
           }
           return MaterialApp.router(routerConfig: router);
         },

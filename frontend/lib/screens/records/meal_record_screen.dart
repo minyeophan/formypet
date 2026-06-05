@@ -14,9 +14,10 @@ import '../../widgets/record_inputs/record_inputs.dart';
 typedef MealImagePicker = Future<XFile?> Function();
 
 class MealRecordScreen extends ConsumerStatefulWidget {
+  final DateTime? initialDate;
   final MealImagePicker? pickImageForTest;
 
-  const MealRecordScreen({super.key, this.pickImageForTest});
+  const MealRecordScreen({super.key, this.initialDate, this.pickImageForTest});
 
   @override
   ConsumerState<MealRecordScreen> createState() => _MealRecordScreenState();
@@ -42,7 +43,8 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _date = DateTime(now.year, now.month, now.day);
+    final initialDate = widget.initialDate ?? now;
+    _date = DateTime(initialDate.year, initialDate.month, initialDate.day);
     _time = TimeOfDay(hour: now.hour, minute: now.minute);
   }
 
@@ -70,25 +72,15 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            AppFormHeader(
-              title: '급식 기록',
-              onBack: _goBack,
-              trailing: TextButton(
-                key: const Key('meal-save-button'),
-                onPressed: _canSave ? _save : null,
-                child: AppText(
-                  _isSaving ? '저장 중' : '등록',
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: _canSave ? AppColors.primaryPressed : AppColors.muted,
-                ),
-              ),
-            ),
+            AppFormHeader(title: '급식 기록', onBack: _goBack),
             Expanded(
-              child: ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              child: RecordFormScrollBody(
+                submitButton: RecordFormSubmitButton(
+                  key: const Key('meal-save-button'),
+                  enabled: _canSave,
+                  isSaving: _isSaving,
+                  onPressed: _save,
+                ),
                 children: [
                   _SectionBlock(
                     title: '날짜/시간',
@@ -99,9 +91,8 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                           children: [
                             Expanded(
                               child: _InputBox(
-                                key: const Key('meal-date-button'),
+                                key: const Key('meal-date-label'),
                                 text: DateFormat('yyyy-MM-dd').format(_date),
-                                onTap: _pickDate,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -115,7 +106,11 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
+                        _SubtleButton(
+                          key: const Key('meal-set-now-button'),
+                          label: '현재 시간으로 설정',
+                          onTap: _setNow,
+                        ),
                       ],
                     ),
                   ),
@@ -222,13 +217,6 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
     );
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showRecordDatePickerSheet(context, initialDate: _date);
-    if (picked != null) {
-      setState(() => _date = DateTime(picked.year, picked.month, picked.day));
-    }
-  }
-
   Future<void> _pickTime() async {
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
     if (picked != null) {
@@ -239,7 +227,6 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   void _setNow() {
     final now = DateTime.now();
     setState(() {
-      _date = DateTime(now.year, now.month, now.day);
       _time = TimeOfDay(hour: now.hour, minute: now.minute);
       _error = null;
     });
@@ -280,7 +267,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                   ),
           );
       if (!mounted) return;
-      context.go('/records');
+      context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (e) {
       if (mounted) {
         setState(() => _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
@@ -363,33 +350,45 @@ class _SectionBlock extends StatelessWidget {
 
 class _InputBox extends StatelessWidget {
   final String text;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _InputBox({super.key, required this.text, required this.onTap});
+  const _InputBox({super.key, required this.text, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final content = Container(
+      height: 48,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: AppText(
+        text,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        color: AppColors.text,
+      ),
+    );
+
+    if (onTap == null) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: content,
+      );
+    }
+
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: Container(
-          height: 48,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: AppText(
-            text,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
+        child: content,
       ),
     );
   }
@@ -399,7 +398,7 @@ class _SubtleButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _SubtleButton({required this.label, required this.onTap});
+  const _SubtleButton({super.key, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -575,6 +574,7 @@ class _LabeledRow extends StatelessWidget {
 }
 
 class _TextInput extends StatelessWidget {
+  final Key? fieldKey;
   final TextEditingController controller;
   final String hintText;
   final int? maxLength;
@@ -582,18 +582,19 @@ class _TextInput extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   const _TextInput({
-    super.key,
+    Key? key,
     required this.controller,
     required this.hintText,
     this.maxLength,
     this.maxLines = 1,
     this.onChanged,
-  });
+  }) : fieldKey = key,
+       super(key: null);
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      key: key,
+      key: fieldKey,
       controller: controller,
       maxLength: maxLength,
       maxLines: maxLines,

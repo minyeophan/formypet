@@ -83,6 +83,20 @@ void main() {
     expect(find.text('등록'), findsOneWidget);
   });
 
+  testWidgets('selected calendar date is passed to record forms', (
+    tester,
+  ) async {
+    await _pumpRouter(tester, initialLocation: '/records');
+
+    await tester.tap(find.byKey(Key('records-calendar-day-$yesterdayIso')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('records-type-card-meal')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('meal-date-label')), findsOneWidget);
+    expect(find.text(yesterdayIso), findsOneWidget);
+  });
+
   testWidgets('water and diary record types open their category forms', (
     tester,
   ) async {
@@ -102,13 +116,15 @@ void main() {
     expect(find.byKey(const Key('category-diary-note-field')), findsWidgets);
   });
 
-  testWidgets('unsupported record type shows preparing toast', (tester) async {
+  testWidgets('etc record type opens its category form', (tester) async {
     await _pumpRouter(tester, initialLocation: '/records');
 
     await tester.tap(find.byKey(const Key('records-type-card-etc')));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('준비중'), findsOneWidget);
+    expect(find.text('기타 기록'), findsOneWidget);
+    expect(find.byKey(const Key('category-etc-note-field')), findsOneWidget);
+    expect(find.text('준비중'), findsNothing);
   });
 
   testWidgets('implemented record types open their category forms', (
@@ -122,6 +138,7 @@ void main() {
       'medicine': '영양/약 기록',
       'water': '음수 기록',
       'diary': '일기 기록',
+      'etc': '기타 기록',
     }.entries) {
       await _pumpRouter(tester, initialLocation: '/records');
 

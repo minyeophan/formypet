@@ -4,13 +4,15 @@ String todayString() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
 String formatDate(DateTime date) => DateFormat('yyyy년 M월 d일').format(date);
 
-String formatDateShort(String isoDate) {
-  final d = DateTime.parse(isoDate);
+String formatDateShort(String? isoDate) {
+  final d = DateTime.tryParse(isoDate ?? '');
+  if (d == null) return '-';
   return DateFormat('M월 d일').format(d);
 }
 
-String formatDateSection(String isoDate) {
-  final d = DateTime.parse(isoDate);
+String formatDateSection(String? isoDate) {
+  final d = DateTime.tryParse(isoDate ?? '');
+  if (d == null) return '-';
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final target = DateTime(d.year, d.month, d.day);
@@ -20,11 +22,18 @@ String formatDateSection(String isoDate) {
   return DateFormat('M월 d일').format(d);
 }
 
-String getDDay(String birthDateIso) {
-  final birth = DateTime.parse(birthDateIso);
+String getDDay(String? birthDateIso) {
+  final birth = DateTime.tryParse(birthDateIso ?? '');
+  if (birth == null) return '-';
   final now = DateTime.now();
   final diff = now.difference(birth).inDays;
   return 'D+$diff';
+}
+
+String formatBirthDateLabel(String? birthDateIso) {
+  final birth = DateTime.tryParse(birthDateIso ?? '');
+  if (birth == null) return '몰라요';
+  return '${birth.year}-${birth.month.toString().padLeft(2, '0')}-${birth.day.toString().padLeft(2, '0')}';
 }
 
 String formatTime12h(String? timeHHMM) {

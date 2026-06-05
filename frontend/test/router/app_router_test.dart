@@ -22,6 +22,7 @@ import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -120,6 +121,93 @@ void main() {
     expect(find.byType(RecordsScreen), findsNothing);
     expect(find.byType(GrowthRecordsScreen), findsOneWidget);
   });
+
+  testWidgets('/records valid date query selects that date', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records?date=2026-05-09',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('records-calendar-day-2026-05-09')),
+      findsOneWidget,
+    );
+    final label = tester.widget<AppText>(
+      find
+          .descendant(
+            of: find.byKey(const Key('records-selected-date')),
+            matching: find.byType(AppText),
+          )
+          .first,
+    );
+    expect(label.text, contains('5'));
+    expect(label.text, contains('9'));
+  });
+
+  testWidgets('record form routes use valid date query', (tester) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+    );
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/meal/new?date=2026-05-09',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byKey(const Key('meal-date-label')), findsOneWidget);
+    expect(find.text('2026-05-09'), findsOneWidget);
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/water/new?date=2026-05-09',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byKey(const Key('category-date-label')), findsOneWidget);
+    expect(find.text('2026-05-09'), findsOneWidget);
+  });
+
+  testWidgets(
+    'record form routes fallback to today for missing or invalid date query',
+    (tester) async {
+      final pet = _pet('1');
+      final petState = _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      );
+
+      await _pumpRouter(
+        tester,
+        initialLocation: '/records/meal/new',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+      expect(find.text(_todayIso()), findsOneWidget);
+
+      await _pumpRouter(
+        tester,
+        initialLocation: '/records/meal/new?date=2026-02-30',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+      expect(find.text(_todayIso()), findsOneWidget);
+    },
+  );
 
   testWidgets('/records/meal/new opens meal record screen', (tester) async {
     final pet = _pet('1');
@@ -355,6 +443,7 @@ void main() {
       '/records/medicine/new': '영양/약 기록',
       '/records/water/new': '음수 기록',
       '/records/diary/new': '일기 기록',
+      '/records/etc/new': '기타 기록',
     }.entries) {
       await _pumpRouter(
         tester,
@@ -655,6 +744,13 @@ Pet _pet(String id) => Pet(
   accentColor: '#F4A460',
   bgLight: '#FFF8F0',
 );
+
+String _todayIso() {
+  final now = DateTime.now();
+  return '${now.year.toString().padLeft(4, '0')}-'
+      '${now.month.toString().padLeft(2, '0')}-'
+      '${now.day.toString().padLeft(2, '0')}';
+}
 
 class _FakeCommunityService extends CommunityService {
   @override

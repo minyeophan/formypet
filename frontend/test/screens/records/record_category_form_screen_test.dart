@@ -37,7 +37,7 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
 
-    expect(_saveButton(tester).onPressed, isNull);
+    expect(find.byKey(const Key('category-save-button')), findsOneWidget);
   });
 
   testWidgets('urine hides stool status and shows urine colors', (
@@ -82,9 +82,7 @@ void main() {
     await tester.tap(find.byKey(const Key('category-poop-color-brown')));
     await tester.pump();
 
-    expect(_saveButton(tester).onPressed, isNotNull);
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies.single, {
       'typeId': 'poop',
@@ -105,8 +103,7 @@ void main() {
       '산책 후',
     );
     await tester.pump();
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies.single, {
       'typeId': 'poop',
@@ -127,8 +124,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('category-poop-color-yellow')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies.single, {
       'typeId': 'poop',
@@ -161,8 +157,7 @@ void main() {
       find.byKey(const Key('category-note-field')),
       '공원 한 바퀴',
     );
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
     expect(notifier.savedBodies.single, {
       'typeId': 'walk',
       'date': notifier.savedBodies.single['date'],
@@ -180,15 +175,15 @@ void main() {
 
     expect(find.text('음수 기록'), findsOneWidget);
     expect(find.text('음수량'), findsOneWidget);
-    expect(_saveButton(tester).onPressed, isNull);
+    await _tapSave(tester);
+    expect(notifier.savedBodies, isEmpty);
 
     await _enterRecordNumber(tester, const Key('category-water-amount-field'), [
       '2',
       '5',
       '0',
     ]);
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies.single, {
       'typeId': 'water',
@@ -204,21 +199,46 @@ void main() {
 
     expect(find.text('일기 기록'), findsOneWidget);
     expect(find.text('메모'), findsOneWidget);
-    expect(_saveButton(tester).onPressed, isNull);
+    await _tapSave(tester);
+    expect(notifier.savedBodies, isEmpty);
 
     await tester.enterText(
       find.byKey(const Key('category-diary-note-field')),
       '오늘은 컨디션이 좋았다.',
     );
     await tester.pump();
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
 
     expect(notifier.savedBodies.single, {
       'typeId': 'diary',
       'date': notifier.savedBodies.single['date'],
       'time': notifier.savedBodies.single['time'],
       'note': '오늘은 컨디션이 좋았다.',
+    });
+  });
+
+  testWidgets('etc form saves note-only payload', (tester) async {
+    final notifier = _CategoryTestPetNotifier();
+    await _pumpCategoryRoute(tester, '/records/etc/new', notifier: notifier);
+
+    expect(find.text('기타 기록'), findsOneWidget);
+    expect(find.byKey(const Key('category-etc-note-field')), findsOneWidget);
+
+    await _tapSave(tester);
+    expect(notifier.savedBodies, isEmpty);
+
+    await tester.enterText(
+      find.byKey(const Key('category-etc-note-field')),
+      'free memo',
+    );
+    await tester.pump();
+    await _tapSave(tester);
+
+    expect(notifier.savedBodies.single, {
+      'typeId': 'etc',
+      'date': notifier.savedBodies.single['date'],
+      'time': notifier.savedBodies.single['time'],
+      'note': 'free memo',
     });
   });
 
@@ -234,8 +254,7 @@ void main() {
       'dot',
       '6',
     ]);
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
     expect(notifier.savedBodies.single, {
       'typeId': 'weight',
       'date': notifier.savedBodies.single['date'],
@@ -260,9 +279,7 @@ void main() {
       '이상 없음',
     );
     await tester.pump();
-    expect(_saveButton(tester).onPressed, isNotNull);
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
     expect(notifier.savedBodies.single, {
       'typeId': 'vet',
       'date': notifier.savedBodies.single['date'],
@@ -291,9 +308,7 @@ void main() {
       '1정',
     );
     await tester.pump();
-    expect(_saveButton(tester).onPressed, isNotNull);
-    await tester.tap(find.byKey(const Key('category-save-button')));
-    await tester.pump();
+    await _tapSave(tester);
     expect(notifier.savedBodies.single, {
       'typeId': 'medicine',
       'date': notifier.savedBodies.single['date'],
@@ -302,25 +317,64 @@ void main() {
     });
   });
 
-  testWidgets('date and time buttons open common picker sheets', (
+  testWidgets('category date is read-only and time button opens picker sheet', (
     tester,
   ) async {
     await _pumpCategoryRoute(tester, '/records/walk/new');
 
-    await tester.tap(find.byKey(const Key('category-date-button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('record-date-year-wheel')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('record-picker-cancel')));
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('category-date-label')), findsOneWidget);
+    expect(find.byKey(const Key('category-date-button')), findsNothing);
 
     await tester.tap(find.byKey(const Key('category-time-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('record-time-period-wheel')), findsOneWidget);
   });
+
+  testWidgets('category route date is saved after setting current time', (
+    tester,
+  ) async {
+    final notifier = _CategoryTestPetNotifier();
+    await _pumpCategoryRoute(
+      tester,
+      '/records/etc/new?date=2026-05-09',
+      notifier: notifier,
+    );
+
+    expect(find.text('2026-05-09'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('category-set-now-button')));
+    await tester.pump();
+    expect(find.text('2026-05-09'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('category-etc-note-field')),
+      'free memo',
+    );
+    await tester.pump();
+    await _tapSave(tester);
+
+    expect(notifier.savedBodies.single['date'], '2026-05-09');
+  });
+
+  testWidgets('category save button is a single bottom content CTA', (
+    tester,
+  ) async {
+    await _pumpCategoryRoute(tester, '/records/water/new');
+
+    final saveButton = find.byKey(const Key('category-save-button'));
+    expect(saveButton, findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppFormHeader), matching: saveButton),
+      findsNothing,
+    );
+  });
 }
 
-TextButton _saveButton(WidgetTester tester) =>
-    tester.widget<TextButton>(find.byKey(const Key('category-save-button')));
+Future<void> _tapSave(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const Key('category-save-button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('category-save-button')));
+  await tester.pump();
+}
 
 Future<void> _enterRecordNumber(
   WidgetTester tester,

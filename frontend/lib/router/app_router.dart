@@ -109,7 +109,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/records',
         redirect: (c, s) =>
             s.uri.queryParameters['tab'] == 'growth' ? '/records/growth' : null,
-        builder: (c, s) => const RecordsScreen(),
+        builder: (c, s) => RecordsScreen(
+          initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+        ),
       ),
       GoRoute(
         path: '/records/all',
@@ -121,7 +123,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/records/meal/new',
-        builder: (c, s) => const MealRecordScreen(),
+        builder: (c, s) => MealRecordScreen(
+          initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+        ),
       ),
       GoRoute(
         path: '/records/expense/new',
@@ -134,8 +138,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/records/:typeId/new',
-        builder: (c, s) =>
-            RecordCategoryFormScreen(typeId: s.pathParameters['typeId']!),
+        builder: (c, s) => RecordCategoryFormScreen(
+          typeId: s.pathParameters['typeId']!,
+          initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+        ),
       ),
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
       GoRoute(
@@ -158,3 +164,26 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+final _routeDatePattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+DateTime _parseRouteDateOrToday(String? raw) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  if (raw == null || !_routeDatePattern.hasMatch(raw)) {
+    return today;
+  }
+
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) {
+    return today;
+  }
+
+  final date = DateTime(parsed.year, parsed.month, parsed.day);
+  return _routeDate(date) == raw ? date : today;
+}
+
+String _routeDate(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';

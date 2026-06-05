@@ -14,7 +14,9 @@ import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
-  const RecordsScreen({super.key});
+  final DateTime? initialDate;
+
+  const RecordsScreen({super.key, this.initialDate});
 
   @override
   ConsumerState<RecordsScreen> createState() => _RecordsScreenState();
@@ -27,9 +29,9 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _visibleMonth = DateTime(now.year, now.month);
-    _selectedDate = _dateOnly(now);
+    final initialDate = _dateOnly(widget.initialDate ?? DateTime.now());
+    _visibleMonth = DateTime(initialDate.year, initialDate.month);
+    _selectedDate = initialDate;
   }
 
   @override
@@ -113,12 +115,15 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                       const SizedBox(height: 14),
                       _RecordTypeGrid(
                         onTypeTap: (typeId) {
+                          final dateQuery = _isoDate(_selectedDate);
                           if (typeId == 'meal') {
-                            context.push('/records/meal/new');
+                            context.push('/records/meal/new?date=$dateQuery');
                             return;
                           }
                           if (_categoryFormTypeIds.contains(typeId)) {
-                            context.push('/records/$typeId/new');
+                            context.push(
+                              '/records/$typeId/new?date=$dateQuery',
+                            );
                             return;
                           }
                           showPreparingToast(context);
@@ -1048,6 +1053,7 @@ const _categoryFormTypeIds = {
   'vet',
   'medicine',
   'diary',
+  'etc',
 };
 
 List<ActivityRecord> _recordsForDate(
