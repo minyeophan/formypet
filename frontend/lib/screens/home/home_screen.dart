@@ -217,15 +217,6 @@ class _PetProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final details = [
-      getDDay(pet.birthDate),
-      if (pet.weight != null) _weightLabel(pet.weight),
-      if (_compactText(pet.diseases) != null)
-        '질병 ${_compactText(pet.diseases)}',
-      if (_compactText(pet.specialNotes) != null)
-        '특이 ${_compactText(pet.specialNotes)}',
-    ];
-
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       padding: const EdgeInsets.all(14),
@@ -244,8 +235,8 @@ class _PetProfileCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PetProfilePhoto(pet: pet),
-          const SizedBox(width: 14),
+          Expanded(child: _PetProfilePhoto(pet: pet)),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,20 +252,27 @@ class _PetProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 AppText(
-                  speciesLabel(pet.species),
+                  _breedLabel(pet.breed),
                   fontSize: 13,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.textSecondary,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: [
-                    for (final detail in details.take(4))
-                      _ProfilePill(label: detail),
-                  ],
+                const SizedBox(height: 4),
+                AppText(
+                  speciesLabel(pet.species),
+                  fontSize: 13,
+                  color: AppColors.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                _ProfileFactLine(label: '나이', value: _ageLabel(pet.birthDate)),
+                const SizedBox(height: 4),
+                _ProfileFactLine(
+                  label: '함께한 날',
+                  value: _daysTogetherLabel(pet.adoptionDate),
                 ),
               ],
             ),
@@ -294,12 +292,16 @@ class _PetProfilePhoto extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: AuthenticatedNetworkImage(
-        url: pet.profileImageUrl,
-        width: 118,
-        height: 138,
-        fit: BoxFit.cover,
-        fallback: _PetEmojiFallback(pet: pet),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return AuthenticatedNetworkImage(
+            url: pet.profileImageUrl,
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            fit: BoxFit.cover,
+            fallback: _PetEmojiFallback(pet: pet),
+          );
+        },
       ),
     );
   }
@@ -325,31 +327,71 @@ class _PetEmojiFallback extends StatelessWidget {
   }
 }
 
-class _ProfilePill extends StatelessWidget {
+class _ProfileFactLine extends StatelessWidget {
   final String label;
+  final String value;
 
-  const _ProfilePill({required this.label});
+  const _ProfileFactLine({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 34),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: AppText(
-        label,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textSecondary,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+    return Row(
+      children: [
+        AppText(
+          label,
+          fontSize: 12,
+          color: AppColors.textSecondary,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: AppText(
+            value,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
+}
+
+String _breedLabel(String? breed) {
+  final value = _compactText(breed);
+  return value ?? '품종 미상';
+}
+
+String _ageLabel(String? birthDateIso) {
+  final birth = DateTime.tryParse(birthDateIso ?? '');
+  if (birth == null) return '-';
+  final now = DateTime.now();
+  var years = now.year - birth.year;
+  final hasBirthdayPassed =
+      now.month > birth.month ||
+      (now.month == birth.month && now.day >= birth.day);
+  if (!hasBirthdayPassed) {
+    years -= 1;
+  }
+  return '${years < 0 ? 0 : years}살';
+}
+
+String _daysTogetherLabel(String? adoptionDateIso) {
+  final adoptionDate = DateTime.tryParse(adoptionDateIso ?? '');
+  if (adoptionDate == null) return '-';
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(
+    adoptionDate.year,
+    adoptionDate.month,
+    adoptionDate.day,
+  );
+  final days = today.difference(target).inDays + 1;
+  if (days < 1) return '-';
+  return '$days일';
 }
 
 class _HomeMenuGrid extends StatelessWidget {
@@ -984,11 +1026,6 @@ String? _poopRecordValue(ActivityRecord? record) {
   }
   final consistency = record.detail['consistency'];
   return consistency?.toString();
-}
-
-String _weightLabel(double? weight) {
-  if (weight == null) return '체중 미등록';
-  return '${_numberLabel(weight)}kg';
 }
 
 String _numberLabel(Object value) {

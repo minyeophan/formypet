@@ -35,7 +35,32 @@ void main() {
     expect(scaffold.backgroundColor, const Color(0xFFF8F9FA));
     expect(find.text('몽실이'), findsWidgets);
     expect(find.text('푸들'), findsOneWidget);
-    expect(find.text('4.2kg'), findsOneWidget);
+    expect(find.text('강아지'), findsOneWidget);
+    expect(find.text(_ageLabelForTest('2022-03-15')), findsOneWidget);
+    expect(find.text(_daysTogetherLabelForTest('2023-04-01')), findsOneWidget);
+    expect(
+      find.descendant(of: _homeProfileCards(), matching: find.text('4.2kg')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: _homeProfileCards(), matching: find.text('여아')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: _homeProfileCards(), matching: find.text('질병 기관지염')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: _homeProfileCards(),
+        matching: find.text('특이 닭고기 알러지'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: _homeProfileCards(), matching: find.text('건강 양호')),
+      findsNothing,
+    );
     expect(find.text('🐶'), findsOneWidget);
     expect(find.byType(PageView), findsOneWidget);
     expect(
@@ -78,6 +103,7 @@ void main() {
 
     expect(notifier.activePetChanges, ['2']);
     expect(find.text('나비'), findsWidgets);
+    expect(find.text('품종 미상'), findsOneWidget);
     expect(find.text('🐱'), findsOneWidget);
 
     await tester.ensureVisible(find.text('반려로그'));
@@ -142,6 +168,99 @@ void main() {
     expect(find.text('아직 기록이 부족해요'), findsOneWidget);
     expect(find.text('체중, 배변, 급식 기록을 남기면 최근 상태를 보여드릴게요.'), findsOneWidget);
   });
+
+  testWidgets('home profile card falls back missing profile facts to dashes', (
+    tester,
+  ) async {
+    final notifier = _HomeTestPetNotifier(
+      pets: const [
+        Pet(
+          id: '1',
+          name: '이름이 아주 긴 반려동물 친구',
+          species: 'dog',
+          birthDate: null,
+          accentColor: '#F4A460',
+          bgLight: '#FFF8F0',
+          weight: 4.2,
+          diseases: '기관지염',
+          specialNotes: '닭고기 알러지',
+        ),
+      ],
+      records: const [],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [petProvider.overrideWith((ref) => notifier)],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    final profileCard = _homeProfileCards();
+    expect(
+      find.descendant(of: profileCard, matching: find.text('이름이 아주 긴 반려동물 친구')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('품종 미상')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('강아지')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('-')),
+      findsNWidgets(2),
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('4.2kg')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('질병 기관지염')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: profileCard, matching: find.text('특이 닭고기 알러지')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('home profile card does not overflow on narrow long content', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final notifier = _HomeTestPetNotifier(
+      pets: const [
+        Pet(
+          id: '1',
+          name: '세상에서 이름이 가장 긴 반려동물 친구 몽실몽실',
+          species: 'dog',
+          birthDate: '2022-03-15',
+          breed: '아주 긴 품종 이름을 가진 믹스견 친구',
+          adoptionDate: '2023-04-01',
+          accentColor: '#F4A460',
+          bgLight: '#FFF8F0',
+          weight: 12.34,
+          diseases: '기관지염, 슬개골, 피부',
+          specialNotes: '닭고기 알러지가 있고 긴 메모가 있습니다',
+        ),
+      ],
+      records: const [],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [petProvider.overrideWith((ref) => notifier)],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _expectDisabledHeaderActionSurface(WidgetTester tester, String key) {
@@ -191,32 +310,73 @@ Color? _descendantContainerColor(String widgetType, Color expectedColor) {
   return null;
 }
 
+Finder _homeProfileCards() {
+  return find.byWidgetPredicate(
+    (widget) => widget.runtimeType.toString() == '_PetProfileCard',
+  );
+}
+
+String _ageLabelForTest(String? birthDateIso) {
+  final birth = DateTime.tryParse(birthDateIso ?? '');
+  if (birth == null) return '-';
+  final now = DateTime.now();
+  var years = now.year - birth.year;
+  final hasBirthdayPassed =
+      now.month > birth.month ||
+      (now.month == birth.month && now.day >= birth.day);
+  if (!hasBirthdayPassed) {
+    years -= 1;
+  }
+  return '${years < 0 ? 0 : years}살';
+}
+
+String _daysTogetherLabelForTest(String? adoptionDateIso) {
+  final adoptionDate = DateTime.tryParse(adoptionDateIso ?? '');
+  if (adoptionDate == null) return '-';
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(
+    adoptionDate.year,
+    adoptionDate.month,
+    adoptionDate.day,
+  );
+  final days = today.difference(target).inDays + 1;
+  if (days < 1) return '-';
+  return '$days일';
+}
+
 class _HomeTestPetNotifier extends PetNotifier {
-  _HomeTestPetNotifier({List<ActivityRecord>? records})
+  _HomeTestPetNotifier({List<Pet>? pets, List<ActivityRecord>? records})
     : super.test(
         PetState(
           isLoading: false,
           hasOnboarded: true,
-          pets: const [
-            Pet(
-              id: '1',
-              name: '몽실이',
-              species: '푸들',
-              birthDate: '2022-03-15',
-              accentColor: '#F4A460',
-              bgLight: '#FFF8F0',
-              gender: 'female',
-              weight: 4.2,
-            ),
-            Pet(
-              id: '2',
-              name: '나비',
-              species: 'cat',
-              birthDate: '2021-01-02',
-              accentColor: '#4ECDC4',
-              bgLight: '#E0F7F5',
-            ),
-          ],
+          pets:
+              pets ??
+              const [
+                Pet(
+                  id: '1',
+                  name: '몽실이',
+                  species: 'dog',
+                  birthDate: '2022-03-15',
+                  breed: '푸들',
+                  adoptionDate: '2023-04-01',
+                  accentColor: '#F4A460',
+                  bgLight: '#FFF8F0',
+                  gender: 'female',
+                  weight: 4.2,
+                  diseases: '기관지염',
+                  specialNotes: '닭고기 알러지',
+                ),
+                Pet(
+                  id: '2',
+                  name: '나비',
+                  species: 'cat',
+                  birthDate: '2021-01-02',
+                  accentColor: '#4ECDC4',
+                  bgLight: '#E0F7F5',
+                ),
+              ],
           activePetId: '1',
           records: records ?? _records(),
           routines: const [],
