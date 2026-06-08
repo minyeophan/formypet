@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -255,12 +256,69 @@ void main() {
     );
     expect(field.controller!.text, '12');
   });
+
+  testWidgets('meal edit initializes existing values and updates record', (
+    tester,
+  ) async {
+    final notifier = _MealTestPetNotifier(
+      records: const [
+        ActivityRecord(
+          id: 'meal-edit',
+          petId: 'pet-1',
+          typeId: 'meal',
+          date: '2026-05-09',
+          time: '09:10:32',
+          note: '기존 메모',
+          detail: {
+            'foodType': 'snack',
+            'product': '츄르',
+            'servedAmount': 35,
+            'consumedPercent': 75,
+            'brand': '브랜드',
+            'feedingMethod': 'served',
+          },
+        ),
+      ],
+    );
+    await _pumpMealRoute(
+      tester,
+      notifier: notifier,
+      initialLocation: '/records/meal-edit/edit',
+    );
+
+    expect(find.text('급식 수정'), findsOneWidget);
+    expect(find.text('2026-05-09'), findsOneWidget);
+    expect(find.text('09:10'), findsOneWidget);
+    expect(find.byKey(const Key('meal-photo-button')), findsNothing);
+    expect(find.text('등록된 사진이 없어요'), findsOneWidget);
+
+    await _tapEditSave(tester);
+
+    expect(notifier.updatedRecords.single.$1, 'meal-edit');
+    expect(notifier.updatedRecords.single.$2['date'], '2026-05-09');
+    expect(notifier.updatedRecords.single.$2['time'], '09:10');
+    expect(notifier.updatedRecords.single.$2['detail'], {
+      'foodType': 'snack',
+      'product': '츄르',
+      'servedAmount': 35,
+      'consumedPercent': 75,
+      'brand': '브랜드',
+      'feedingMethod': 'served',
+    });
+  });
 }
 
 Future<void> _tapSave(WidgetTester tester) async {
   await tester.ensureVisible(find.byKey(const Key('meal-save-button')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('meal-save-button')));
+  await tester.pump();
+}
+
+Future<void> _tapEditSave(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const Key('record-edit-save-button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('record-edit-save-button')));
   await tester.pump();
 }
 
@@ -342,7 +400,7 @@ Future<void> _pumpMealScreen(
 }
 
 class _MealTestPetNotifier extends PetNotifier {
-  _MealTestPetNotifier()
+  _MealTestPetNotifier({List<ActivityRecord> records = const []})
     : super.test(
         PetState(
           isLoading: false,
@@ -358,7 +416,7 @@ class _MealTestPetNotifier extends PetNotifier {
             ),
           ],
           activePetId: 'pet-1',
-          records: const [],
+          records: records,
           routines: const [],
           todayRoutineItems: const [],
           routineCompletions: const {},
@@ -367,6 +425,7 @@ class _MealTestPetNotifier extends PetNotifier {
       );
 
   final savedBodies = <Map<String, dynamic>>[];
+  final updatedRecords = <(String, Map<String, dynamic>)>[];
 
   @override
   Future<void> addRecord(
@@ -374,5 +433,10 @@ class _MealTestPetNotifier extends PetNotifier {
     RecordPhotoUpload? photo,
   }) async {
     savedBodies.add(body);
+  }
+
+  @override
+  Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
+    updatedRecords.add((recordId, body));
   }
 }

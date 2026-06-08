@@ -12,6 +12,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
+import 'record_support.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
@@ -40,7 +41,10 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
     final pet = state.activePet;
     final accent = colorPairForHex(pet?.accentColor ?? '#F4A460');
     final records = state.records;
-    final selectedRecords = _recordsForDate(records, _selectedDate);
+    final visibleRecords = records
+        .where((record) => isRecordDetailSupported(record.typeId))
+        .toList(growable: false);
+    final selectedRecords = _recordsForDate(visibleRecords, _selectedDate);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -87,7 +91,7 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                       _CalendarCard(
                         visibleMonth: _visibleMonth,
                         selectedDate: _selectedDate,
-                        recordDates: records.map((r) => r.date).toSet(),
+                        recordDates: visibleRecords.map((r) => r.date).toSet(),
                         accentColor: accent.accent,
                         onPreviousMonth: () {
                           setState(() {
@@ -205,7 +209,7 @@ class GrowthRecordsScreen extends ConsumerWidget {
             .watch(petProvider)
             .records
             .where((record) => record.typeId == 'weight')
-            .where((record) => _weightValue(record) != null)
+            .where((record) => weightValue(record) != null)
             .toList()
           ..sort(_oldestRecordFirst);
 
@@ -649,60 +653,73 @@ class _SelectedDateRecordRow extends StatelessWidget {
     final icon = record.typeId == 'water'
         ? Icons.water_drop_rounded
         : type.icon;
+    final summary = recordListSummary(record);
 
-    return Container(
+    return Material(
       key: Key('selected-date-record-${record.id}'),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: type.color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: type.color, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppText(
-                  type.label,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/records/${record.id}'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: type.color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 2),
-                AppText(
-                  _recordSummary(record),
+                child: Icon(icon, color: type.color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      type.label,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (summary.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppText(
+                        summary,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 44,
+                child: AppText(
+                  recordTimeLabel(record.time),
                   fontSize: 12,
-                  color: AppColors.textSecondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.muted,
+                  textAlign: TextAlign.right,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.muted,
+                size: 22,
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          AppText(
-            _timeLabel(record.time),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.muted,
-          ),
-          const SizedBox(width: 4),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.muted,
-            size: 22,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -759,8 +776,12 @@ class _RecordSummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = _typeConfig(record.typeId);
+    final supported = isRecordDetailSupported(record.typeId);
+    final summary = supported
+        ? recordListSummary(record)
+        : _recordSummary(record);
 
-    return Container(
+    final row = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
@@ -773,7 +794,7 @@ class _RecordSummaryRow extends StatelessWidget {
           SizedBox(
             width: 48,
             child: AppText(
-              _timeLabel(record.time),
+              recordTimeLabel(record.time),
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: AppColors.muted,
@@ -795,16 +816,42 @@ class _RecordSummaryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            child: AppText(
-              _recordSummary(record),
-              fontSize: 13,
-              color: AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          if (summary.isNotEmpty)
+            Expanded(
+              child: AppText(
+                summary,
+                fontSize: 13,
+                color: AppColors.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+          else
+            const Spacer(),
+          if (supported) ...[
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.muted,
+              size: 21,
             ),
-          ),
+          ],
         ],
+      ),
+    );
+
+    if (!supported) {
+      return row;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        key: Key('all-record-row-${record.id}'),
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => context.push('/records/${record.id}'),
+        child: row,
       ),
     );
   }
@@ -861,7 +908,7 @@ class _GrowthChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spots = records.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), _weightValue(entry.value)!);
+      return FlSpot(entry.key.toDouble(), weightValue(entry.value)!);
     }).toList();
 
     return Container(
@@ -1099,7 +1146,7 @@ String _recordSummary(ActivityRecord record) {
     return note;
   }
   if (record.typeId == 'weight') {
-    final value = _weightValue(record);
+    final value = weightValue(record);
     if (value != null) {
       return '${_numberLabel(value)}${record.detail['unit'] ?? 'kg'}';
     }
@@ -1107,30 +1154,8 @@ String _recordSummary(ActivityRecord record) {
   return '${_typeConfig(record.typeId).label} 기록';
 }
 
-String _timeLabel(String? time) {
-  final value = time?.trim();
-  if (value == null || value.isEmpty) {
-    return '--:--';
-  }
-
-  final parsedDateTime = DateTime.tryParse(value);
-  if (parsedDateTime != null) {
-    return DateFormat('HH:mm').format(parsedDateTime);
-  }
-
-  final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(value);
-  if (match == null) {
-    return value;
-  }
-  return '${match.group(1)!.padLeft(2, '0')}:${match.group(2)!}';
-}
-
 double? _weightValue(ActivityRecord record) {
-  final value = record.detail['value'] ?? record.detail['weight'];
-  if (value == null) {
-    return null;
-  }
-  return double.tryParse(value.toString());
+  return weightValue(record);
 }
 
 String _numberLabel(double value) {

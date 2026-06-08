@@ -171,7 +171,7 @@ void main() {
       findsNothing,
     );
     expect(
-      find.descendant(of: mealRow, matching: find.text('오전 간식')),
+      find.descendant(of: mealRow, matching: find.text('간식')),
       findsOneWidget,
     );
     expect(
@@ -181,9 +181,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('오전 간식'), findsOneWidget);
-    expect(find.text('저녁 산책'), findsOneWidget);
-    expect(find.text('지출 기록'), findsOneWidget);
+    expect(find.text('간식'), findsOneWidget);
+    expect(find.text('1.2km'), findsOneWidget);
+    expect(find.text('오전 간식'), findsNothing);
+    expect(find.text('저녁 산책'), findsNothing);
+    expect(find.text('지출 기록'), findsNothing);
     expect(find.text('전날 체중'), findsNothing);
 
     await tester.tap(find.byKey(Key('records-calendar-day-$yesterdayIso')));
@@ -206,6 +208,50 @@ void main() {
     expect(find.text('전날 체중'), findsOneWidget);
   });
 
+  testWidgets('records main opens detail when selected date row is tapped', (
+    tester,
+  ) async {
+    await _pumpRouter(tester, initialLocation: '/records');
+
+    await tester.tap(find.byKey(const Key('selected-date-record-meal-today')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('급식 상세'), findsOneWidget);
+    expect(find.byKey(const Key('record-detail-edit-button')), findsOneWidget);
+    expect(find.text('09:10'), findsOneWidget);
+  });
+
+  testWidgets('records main hides expense-only dates from list and dots', (
+    tester,
+  ) async {
+    final expenseOnlyDate = DateTime(todayDate.year, todayDate.month, 15);
+    final expenseOnlyIso = _isoDate(expenseOnlyDate);
+    await _pumpRecordsScreen(
+      tester,
+      state: _state(
+        records: [
+          ActivityRecord(
+            id: 'expense-only',
+            petId: 'pet-1',
+            typeId: 'expense',
+            date: expenseOnlyIso,
+            time: '10:00',
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.byKey(Key('records-calendar-day-$expenseOnlyIso')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(Key('records-date-dot-$expenseOnlyIso')), findsNothing);
+    expect(
+      find.byKey(const Key('selected-date-record-expense-only')),
+      findsNothing,
+    );
+    expect(find.text('지출 기록'), findsNothing);
+  });
+
   testWidgets('records main links all record actions to /records/all', (
     tester,
   ) async {
@@ -216,7 +262,7 @@ void main() {
 
     expect(find.text('전체 기록'), findsOneWidget);
     expect(find.text(todayLabel), findsOneWidget);
-    expect(find.text('오전 간식'), findsOneWidget);
+    expect(find.text('간식'), findsOneWidget);
 
     await tester.tap(find.byTooltip('뒤로가기'));
     await tester.pumpAndSettle();
@@ -244,7 +290,19 @@ void main() {
     );
     expect(find.text('09:10'), findsOneWidget);
     expect(find.text('급식'), findsOneWidget);
-    expect(find.text('오전 간식'), findsOneWidget);
+    expect(find.text('간식'), findsOneWidget);
+  });
+
+  testWidgets('all records only supported rows open detail', (tester) async {
+    await _pumpRouter(tester, initialLocation: '/records/all');
+
+    expect(find.byKey(const Key('all-record-row-meal-today')), findsOneWidget);
+    expect(find.byKey(const Key('all-record-row-expense-today')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('all-record-row-meal-today')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('급식 상세'), findsOneWidget);
   });
 
   testWidgets(
@@ -377,7 +435,10 @@ void _setScreen(WidgetTester tester, Size physicalSize) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-PetState _state({String? activePetId = 'pet-1'}) => PetState(
+PetState _state({
+  String? activePetId = 'pet-1',
+  List<ActivityRecord>? records,
+}) => PetState(
   isLoading: false,
   hasOnboarded: activePetId != null,
   pets: const [
@@ -391,7 +452,7 @@ PetState _state({String? activePetId = 'pet-1'}) => PetState(
     ),
   ],
   activePetId: activePetId,
-  records: _records(),
+  records: records ?? _records(),
   routines: const [],
   todayRoutineItems: const [],
   routineCompletions: const {},
@@ -406,6 +467,7 @@ List<ActivityRecord> _records() => [
     date: todayIso,
     time: '09:10:32',
     note: '오전 간식',
+    detail: {'foodType': 'snack'},
   ),
   ActivityRecord(
     id: 'walk-today',
@@ -414,6 +476,7 @@ List<ActivityRecord> _records() => [
     date: todayIso,
     time: '18:40',
     note: '저녁 산책',
+    detail: {'distance': 1.2},
   ),
   ActivityRecord(
     id: 'expense-today',

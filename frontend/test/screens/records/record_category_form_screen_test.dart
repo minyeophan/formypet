@@ -367,12 +367,52 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('weight edit uses legacy value and saves weight key', (
+    tester,
+  ) async {
+    final notifier = _CategoryTestPetNotifier(
+      records: const [
+        ActivityRecord(
+          id: 'weight-legacy',
+          petId: 'pet-1',
+          typeId: 'weight',
+          date: '2026-05-09',
+          time: '09:10:32',
+          detail: {'value': 4.7},
+        ),
+      ],
+    );
+    await _pumpCategoryRoute(
+      tester,
+      '/records/weight-legacy/edit',
+      notifier: notifier,
+    );
+
+    expect(find.text('몸무게 수정'), findsOneWidget);
+    expect(find.text('2026-05-09'), findsOneWidget);
+    expect(find.text('09:10'), findsOneWidget);
+
+    await _tapEditSave(tester);
+
+    expect(notifier.updatedRecords.single.$1, 'weight-legacy');
+    expect(notifier.updatedRecords.single.$2['date'], '2026-05-09');
+    expect(notifier.updatedRecords.single.$2['time'], '09:10');
+    expect(notifier.updatedRecords.single.$2['detail'], {'weight': 4.7});
+  });
 }
 
 Future<void> _tapSave(WidgetTester tester) async {
   await tester.ensureVisible(find.byKey(const Key('category-save-button')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('category-save-button')));
+  await tester.pump();
+}
+
+Future<void> _tapEditSave(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const Key('record-edit-save-button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('record-edit-save-button')));
   await tester.pump();
 }
 
@@ -429,40 +469,42 @@ Future<void> _pumpCategoryRoute(
 }
 
 class _CategoryTestPetNotifier extends PetNotifier {
-  _CategoryTestPetNotifier()
-    : super.test(
-        PetState(
-          isLoading: false,
-          hasOnboarded: true,
-          pets: const [
-            Pet(
-              id: 'pet-1',
-              name: '몽실이',
-              species: 'dog',
-              birthDate: '2022-03-15',
-              accentColor: '#F4A460',
-              bgLight: '#FFF8F0',
-            ),
-          ],
-          activePetId: 'pet-1',
-          records: const [
-            ActivityRecord(
-              id: 'weight-1',
-              petId: 'pet-1',
-              typeId: 'weight',
-              date: '2026-05-21',
-              time: '09:00',
-              detail: {'weight': 4.5},
-            ),
-          ],
-          routines: const [],
-          todayRoutineItems: const [],
-          routineCompletions: const {},
-          quickTypeIds: const [],
-        ),
-      );
+  _CategoryTestPetNotifier({
+    List<ActivityRecord> records = const [
+      ActivityRecord(
+        id: 'weight-1',
+        petId: 'pet-1',
+        typeId: 'weight',
+        date: '2026-05-21',
+        time: '09:00',
+        detail: {'weight': 4.5},
+      ),
+    ],
+  }) : super.test(
+         PetState(
+           isLoading: false,
+           hasOnboarded: true,
+           pets: const [
+             Pet(
+               id: 'pet-1',
+               name: '몽실이',
+               species: 'dog',
+               birthDate: '2022-03-15',
+               accentColor: '#F4A460',
+               bgLight: '#FFF8F0',
+             ),
+           ],
+           activePetId: 'pet-1',
+           records: records,
+           routines: const [],
+           todayRoutineItems: const [],
+           routineCompletions: const {},
+           quickTypeIds: const [],
+         ),
+       );
 
   final savedBodies = <Map<String, dynamic>>[];
+  final updatedRecords = <(String, Map<String, dynamic>)>[];
 
   @override
   Future<void> addRecord(
@@ -470,5 +512,10 @@ class _CategoryTestPetNotifier extends PetNotifier {
     RecordPhotoUpload? photo,
   }) async {
     savedBodies.add(body);
+  }
+
+  @override
+  Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
+    updatedRecords.add((recordId, body));
   }
 }

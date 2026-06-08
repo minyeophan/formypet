@@ -6,18 +6,27 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
+import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
+import 'record_support.dart';
 
 typedef MealImagePicker = Future<XFile?> Function();
 
 class MealRecordScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
   final MealImagePicker? pickImageForTest;
+  final ActivityRecord? editingRecord;
 
-  const MealRecordScreen({super.key, this.initialDate, this.pickImageForTest});
+  const MealRecordScreen({
+    super.key,
+    this.initialDate,
+    this.pickImageForTest,
+    this.editingRecord,
+  });
 
   @override
   ConsumerState<MealRecordScreen> createState() => _MealRecordScreenState();
@@ -36,6 +45,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   String? _feedingMethod;
   bool _showMore = false;
   bool _isSaving = false;
+  bool _isDeleting = false;
   String? _error;
   XFile? _photo;
 
@@ -43,9 +53,18 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    final initialDate = widget.initialDate ?? now;
+    final editingRecord = widget.editingRecord;
+    final initialDate = editingRecord == null
+        ? (widget.initialDate ?? now)
+        : (DateTime.tryParse(editingRecord.date) ?? now);
     _date = DateTime(initialDate.year, initialDate.month, initialDate.day);
-    _time = TimeOfDay(hour: now.hour, minute: now.minute);
+    _time = editingRecord == null
+        ? TimeOfDay(hour: now.hour, minute: now.minute)
+        : _timeOfDayFrom(editingRecord.time) ??
+              TimeOfDay(hour: now.hour, minute: now.minute);
+    if (editingRecord != null) {
+      _initializeFromRecord(editingRecord);
+    }
   }
 
   @override
@@ -59,6 +78,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
 
   bool get _canSave =>
       !_isSaving &&
+      !_isDeleting &&
       _foodType != null &&
       _consumedPercent != null &&
       (_servedAmount ?? 0) > 0;
@@ -72,15 +92,26 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            AppFormHeader(title: '급식 기록', onBack: _goBack),
+            AppFormHeader(
+              title: widget.editingRecord == null ? '급식 기록' : '급식 수정',
+              onBack: _goBack,
+            ),
             Expanded(
               child: RecordFormScrollBody(
-                submitButton: RecordFormSubmitButton(
-                  key: const Key('meal-save-button'),
-                  enabled: _canSave,
-                  isSaving: _isSaving,
-                  onPressed: _save,
-                ),
+                submitButton: widget.editingRecord == null
+                    ? RecordFormSubmitButton(
+                        key: const Key('meal-save-button'),
+                        enabled: _canSave,
+                        isSaving: _isSaving,
+                        onPressed: _save,
+                      )
+                    : RecordEditActionBar(
+                        enabled: _canSave,
+                        isSaving: _isSaving,
+                        isDeleting: _isDeleting,
+                        onSave: _save,
+                        onDelete: _delete,
+                      ),
                 children: [
                   _SectionBlock(
                     title: '날짜/시간',
@@ -191,13 +222,16 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                     }),
                   ),
                   const SizedBox(height: 18),
-                  _PhotoButton(
-                    label: _photo == null
-                        ? '사진 추가 (0/1)'
-                        : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
-                    hasPhoto: _photo != null,
-                    onTap: _pickPhoto,
-                  ),
+                  if (widget.editingRecord == null)
+                    _PhotoButton(
+                      label: _photo == null
+                          ? '사진 추가 (0/1)'
+                          : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
+                      hasPhoto: _photo != null,
+                      onTap: _pickPhoto,
+                    )
+                  else
+                    _ExistingMealPhotos(record: widget.editingRecord!),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     AppText(
@@ -245,6 +279,20 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
     }
   }
 
+  void _initializeFromRecord(ActivityRecord record) {
+    final detail = record.detail;
+    _foodType = detail['foodType']?.toString();
+    _consumedPercent = int.tryParse('${detail['consumedPercent']}');
+    _feedingMethod = detail['feedingMethod']?.toString();
+    _productCtrl.text = detail['product']?.toString() ?? '';
+    _amountCtrl.text = detail['servedAmount'] == null
+        ? ''
+        : numberLabel(detail['servedAmount']);
+    _brandCtrl.text = detail['brand']?.toString() ?? '';
+    _noteCtrl.text = record.note ?? '';
+    _showMore = _brandCtrl.text.trim().isNotEmpty || _feedingMethod != null;
+  }
+
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     setState(() {
@@ -254,18 +302,25 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
 
     try {
       final body = _buildPayload();
-      final photo = _photo;
-      await ref
-          .read(petProvider.notifier)
-          .addRecord(
-            body,
-            photo: photo == null
-                ? null
-                : RecordPhotoUpload(
-                    bytes: await photo.readAsBytes(),
-                    filename: _filenameFor(photo),
-                  ),
-          );
+      final editingRecord = widget.editingRecord;
+      if (editingRecord == null) {
+        final photo = _photo;
+        await ref
+            .read(petProvider.notifier)
+            .addRecord(
+              body,
+              photo: photo == null
+                  ? null
+                  : RecordPhotoUpload(
+                      bytes: await photo.readAsBytes(),
+                      filename: _filenameFor(photo),
+                    ),
+            );
+      } else {
+        await ref
+            .read(petProvider.notifier)
+            .updateRecord(editingRecord.id, body);
+      }
       if (!mounted) return;
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (e) {
@@ -275,6 +330,30 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    final record = widget.editingRecord;
+    if (record == null || _isSaving || _isDeleting) return;
+    final confirmed = await showRecordDeleteConfirmationSheet(context);
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _isDeleting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(petProvider.notifier).deleteRecord(record.id);
+      if (!mounted) return;
+      context.go('/records?date=${record.date}');
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = '삭제에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
       }
     }
   }
@@ -844,6 +923,72 @@ class _PhotoButton extends StatelessWidget {
   }
 }
 
+class _ExistingMealPhotos extends StatelessWidget {
+  final ActivityRecord record;
+
+  const _ExistingMealPhotos({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionBlock(
+      title: '사진',
+      child: record.mediaUrls.isEmpty
+          ? const _ReadOnlyPhotoPanel(text: '등록된 사진이 없어요')
+          : SizedBox(
+              key: const Key('meal-existing-photos'),
+              height: 108,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemBuilder: (context, index) {
+                  final url = record.mediaUrls[index];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: AuthenticatedNetworkImage(
+                      url: url,
+                      width: 108,
+                      height: 108,
+                      fit: BoxFit.cover,
+                      fallback: const _ReadOnlyPhotoPanel(width: 108),
+                    ),
+                  );
+                },
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemCount: record.mediaUrls.length,
+              ),
+            ),
+    );
+  }
+}
+
+class _ReadOnlyPhotoPanel extends StatelessWidget {
+  final String text;
+  final double? width;
+
+  const _ReadOnlyPhotoPanel({this.text = '사진을 불러오는 중이에요', this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 108,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: AppText(
+        text,
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: AppColors.muted,
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
   final double radius;
@@ -913,3 +1058,14 @@ const _feedingMethodOptions = [
   _StringOption('freeFeed', '자율급식', ''),
   _StringOption('autoFeeder', '자동급식기', ''),
 ];
+
+TimeOfDay? _timeOfDayFrom(String? raw) {
+  final normalized = recordTimeLabel(raw);
+  final match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(normalized);
+  if (match == null) return null;
+  final hour = int.tryParse(match.group(1)!);
+  final minute = int.tryParse(match.group(2)!);
+  if (hour == null || minute == null) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}

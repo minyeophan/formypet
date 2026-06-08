@@ -12,6 +12,8 @@ import '../screens/records/expense_report_screen.dart';
 import '../screens/records/expense_wallet_screen.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
+import '../screens/records/record_detail_screen.dart';
+import '../screens/records/record_edit_screen.dart';
 import '../screens/records/records_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
@@ -142,6 +144,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           typeId: s.pathParameters['typeId']!,
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
         ),
+      ),
+      GoRoute(
+        path: '/records/:recordId/edit',
+        builder: (c, s) =>
+            RecordEditScreen(recordId: s.pathParameters['recordId']!),
+      ),
+      GoRoute(
+        path: '/records/:recordId',
+        builder: (c, s) =>
+            RecordDetailScreen(recordId: s.pathParameters['recordId']!),
       ),
       GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
       GoRoute(

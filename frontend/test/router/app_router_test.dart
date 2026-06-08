@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/providers/auth_provider.dart';
@@ -462,6 +463,48 @@ void main() {
     }
   });
 
+  testWidgets('/records/:recordId and edit routes open record screens', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+      records: const [
+        ActivityRecord(
+          id: 'meal-1',
+          petId: '1',
+          typeId: 'meal',
+          date: '2026-05-09',
+          time: '09:10:32',
+          detail: {
+            'foodType': 'wet',
+            'servedAmount': 30,
+            'consumedPercent': 75,
+          },
+        ),
+      ],
+    );
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/meal-1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.text('급식 상세'), findsOneWidget);
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/meal-1/edit',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.text('급식 수정'), findsOneWidget);
+  });
+
   testWidgets('/routine/new opens routine creation screen', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -724,12 +767,13 @@ PetState _petState({
   required bool hasOnboarded,
   List<Pet> pets = const [],
   String? activePetId,
+  List<ActivityRecord> records = const [],
 }) => PetState(
   isLoading: isLoading,
   hasOnboarded: hasOnboarded,
   pets: pets,
   activePetId: activePetId,
-  records: const [],
+  records: records,
   routines: const [],
   todayRoutineItems: const [],
   routineCompletions: const {},

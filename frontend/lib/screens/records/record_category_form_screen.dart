@@ -10,15 +10,18 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
+import 'record_support.dart';
 
 class RecordCategoryFormScreen extends ConsumerStatefulWidget {
   final String typeId;
   final DateTime? initialDate;
+  final ActivityRecord? editingRecord;
 
   const RecordCategoryFormScreen({
     super.key,
     required this.typeId,
     this.initialDate,
+    this.editingRecord,
   });
 
   @override
@@ -44,15 +47,25 @@ class _RecordCategoryFormScreenState
   String? _poopShape;
   String? _poopColor;
   bool _isSaving = false;
+  bool _isDeleting = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    final initialDate = widget.initialDate ?? now;
+    final editingRecord = widget.editingRecord;
+    final initialDate = editingRecord == null
+        ? (widget.initialDate ?? now)
+        : (DateTime.tryParse(editingRecord.date) ?? now);
     _date = DateTime(initialDate.year, initialDate.month, initialDate.day);
-    _time = TimeOfDay(hour: now.hour, minute: now.minute);
+    _time = editingRecord == null
+        ? TimeOfDay(hour: now.hour, minute: now.minute)
+        : _timeOfDayFrom(editingRecord.time) ??
+              TimeOfDay(hour: now.hour, minute: now.minute);
+    if (editingRecord != null) {
+      _initializeFromRecord(editingRecord);
+    }
   }
 
   @override
@@ -70,7 +83,7 @@ class _RecordCategoryFormScreenState
   }
 
   bool get _canSave {
-    if (_isSaving) return false;
+    if (_isSaving || _isDeleting) return false;
     switch (widget.typeId) {
       case 'poop':
         return _poopKind == 'urine'
@@ -106,15 +119,28 @@ class _RecordCategoryFormScreenState
       body: SafeArea(
         child: Column(
           children: [
-            AppFormHeader(title: '${config.label} 기록', onBack: _goBack),
+            AppFormHeader(
+              title: widget.editingRecord == null
+                  ? '${config.label} 기록'
+                  : '${config.label} 수정',
+              onBack: _goBack,
+            ),
             Expanded(
               child: RecordFormScrollBody(
-                submitButton: RecordFormSubmitButton(
-                  key: const Key('category-save-button'),
-                  enabled: _canSave,
-                  isSaving: _isSaving,
-                  onPressed: _save,
-                ),
+                submitButton: widget.editingRecord == null
+                    ? RecordFormSubmitButton(
+                        key: const Key('category-save-button'),
+                        enabled: _canSave,
+                        isSaving: _isSaving,
+                        onPressed: _save,
+                      )
+                    : RecordEditActionBar(
+                        enabled: _canSave,
+                        isSaving: _isSaving,
+                        isDeleting: _isDeleting,
+                        onSave: _save,
+                        onDelete: _delete,
+                      ),
                 children: [
                   _SectionBlock(
                     title: '날짜/시간',
@@ -468,6 +494,43 @@ class _RecordCategoryFormScreenState
     return {'darkYellow', 'red', 'brown'}.contains(_poopColor);
   }
 
+  void _initializeFromRecord(ActivityRecord record) {
+    final detail = record.detail;
+    switch (widget.typeId) {
+      case 'poop':
+        _poopKind = detail['poopShape'] == 'urine' ? 'urine' : 'stool';
+        _poopShape = _poopKind == 'urine'
+            ? null
+            : detail['poopShape']?.toString();
+        _poopColor = detail['poopColor']?.toString();
+        _noteCtrl.text = record.note ?? '';
+        break;
+      case 'water':
+        _waterAmountCtrl.text = _numberText(detail['amount']);
+        break;
+      case 'walk':
+        _distanceCtrl.text = _numberText(detail['distance']);
+        _noteCtrl.text = record.note ?? '';
+        break;
+      case 'weight':
+        _weightCtrl.text = _numberText(weightValue(record));
+        break;
+      case 'vet':
+        _vetClinicCtrl.text = detail['vetClinicName']?.toString() ?? '';
+        _vetReasonCtrl.text = detail['vetVisitReason']?.toString() ?? '';
+        _vetTreatmentCtrl.text = detail['vetTreatment']?.toString() ?? '';
+        break;
+      case 'medicine':
+        _medicineNameCtrl.text = detail['medicineName']?.toString() ?? '';
+        _dosageCtrl.text = detail['dosage']?.toString() ?? '';
+        break;
+      case 'diary':
+      case 'etc':
+        _noteCtrl.text = record.note ?? '';
+        break;
+    }
+  }
+
   Future<void> _pickTime() async {
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
     if (picked != null) {
@@ -491,7 +554,15 @@ class _RecordCategoryFormScreenState
     });
 
     try {
-      await ref.read(petProvider.notifier).addRecord(_buildPayload());
+      final body = _buildPayload();
+      final editingRecord = widget.editingRecord;
+      if (editingRecord == null) {
+        await ref.read(petProvider.notifier).addRecord(body);
+      } else {
+        await ref
+            .read(petProvider.notifier)
+            .updateRecord(editingRecord.id, body);
+      }
       if (!mounted) return;
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (_) {
@@ -501,6 +572,30 @@ class _RecordCategoryFormScreenState
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    final record = widget.editingRecord;
+    if (record == null || _isSaving || _isDeleting) return;
+    final confirmed = await showRecordDeleteConfirmationSheet(context);
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _isDeleting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(petProvider.notifier).deleteRecord(record.id);
+      if (!mounted) return;
+      context.go('/records?date=${record.date}');
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = '삭제에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
       }
     }
   }
@@ -998,4 +1093,20 @@ String _numberLabel(double value) {
   return rounded.endsWith('.0')
       ? rounded.substring(0, rounded.length - 2)
       : rounded;
+}
+
+String _numberText(Object? value) {
+  if (value == null) return '';
+  return numberLabel(value);
+}
+
+TimeOfDay? _timeOfDayFrom(String? raw) {
+  final normalized = recordTimeLabel(raw);
+  final match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(normalized);
+  if (match == null) return null;
+  final hour = int.tryParse(match.group(1)!);
+  final minute = int.tryParse(match.group(2)!);
+  if (hour == null || minute == null) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return TimeOfDay(hour: hour, minute: minute);
 }
