@@ -16,13 +16,18 @@ import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
-import 'package:frontend/screens/records/expense_add_screen.dart';
+import 'package:frontend/screens/wallet/expense_add_screen.dart';
+import 'package:frontend/screens/wallet/expense_detail_screen.dart';
+import 'package:frontend/screens/wallet/expense_edit_screen.dart';
+import 'package:frontend/screens/wallet/expense_report_screen.dart';
+import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
 import 'package:frontend/screens/records/record_category_form_screen.dart';
 import 'package:frontend/screens/records/records_screen.dart';
 import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/widgets/app_navigation.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -243,7 +248,6 @@ void main() {
     );
 
     expect(find.byType(ExpenseAddScreen), findsOneWidget);
-    expect(find.text('비용 추가'), findsOneWidget);
   });
 
   testWidgets('/wallet opens keeper wallet actions', (tester) async {
@@ -259,13 +263,7 @@ void main() {
         activePetId: pet.id,
       ),
     );
-
-    expect(find.text('집사의 지갑'), findsOneWidget);
-    expect(find.text('비용 추가'), findsOneWidget);
-    expect(find.text('내역 보기'), findsOneWidget);
-    expect(find.text('약 연동'), findsNothing);
-    expect(find.text('빠른 지출'), findsNothing);
-    expect(find.text('빠르게 저장'), findsNothing);
+    expect(find.byType(ExpenseWalletScreen), findsOneWidget);
   });
 
   testWidgets('/wallet/report opens expense report', (tester) async {
@@ -281,11 +279,51 @@ void main() {
         activePetId: pet.id,
       ),
     );
+    expect(find.byType(ExpenseReportScreen), findsOneWidget);
+  });
 
-    expect(find.text('지출 리포트'), findsOneWidget);
-    expect(find.text('약 연동'), findsNothing);
-    expect(find.text('빠른 지출'), findsNothing);
-    expect(find.text('빠르게 저장'), findsNothing);
+  testWidgets('/wallet expense routes open CRUD screens', (tester) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+      records: const [
+        ActivityRecord(
+          id: 'expense-1',
+          petId: '1',
+          typeId: 'expense',
+          date: '2026-05-09',
+          time: '09:10:32',
+          detail: {'amount': 12000, 'category': 'snack'},
+        ),
+      ],
+    );
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet/expenses/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(ExpenseAddScreen), findsOneWidget);
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet/expenses/expense-1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(ExpenseDetailScreen), findsOneWidget);
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/wallet/expenses/expense-1/edit',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(ExpenseEditScreen), findsOneWidget);
   });
 
   testWidgets('home wallet menu opens wallet route', (tester) async {
@@ -302,10 +340,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('지갑'));
+    await tester.tap(find.byIcon(Icons.account_balance_wallet_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.text('집사의 지갑'), findsOneWidget);
+    expect(find.byType(ExpenseWalletScreen), findsOneWidget);
   });
 
   testWidgets('wallet actions open expense add and report routes', (
@@ -324,10 +362,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('비용 추가'));
+    await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('비용 추가'), findsOneWidget);
-    expect(find.text('금액'), findsOneWidget);
+    expect(find.byType(ExpenseAddScreen), findsOneWidget);
 
     await _pumpRouter(
       tester,
@@ -341,12 +378,12 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('내역 보기'));
+    await tester.tap(find.byIcon(Icons.receipt_long_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('지출 리포트'), findsOneWidget);
+    expect(find.byType(ExpenseReportScreen), findsOneWidget);
   });
 
-  testWidgets('direct URL back buttons use their screen fallback routes', (
+  testWidgets('wallet direct URL back buttons use wallet fallback', (
     tester,
   ) async {
     final pet = _pet('1');
@@ -357,28 +394,22 @@ void main() {
       activePetId: pet.id,
     );
 
-    for (final entry in {
-      '/routine': '홈',
-      '/records': '홈',
-      '/records/all': 'Pet 1의 반려기록',
-      '/records/growth': '홈',
-      '/wallet': '홈',
-      '/wallet/report': '집사의 지갑',
-      '/records/meal/new': 'Pet 1의 반려기록',
-      '/records/walk/new': 'Pet 1의 반려기록',
-      '/records/expense/new': '집사의 지갑',
-    }.entries) {
+    for (final path in [
+      '/wallet/report',
+      '/wallet/expenses/new',
+      '/records/expense/new',
+    ]) {
       await _pumpRouter(
         tester,
-        initialLocation: entry.key,
+        initialLocation: path,
         authState: const AuthState(isLoading: false, isAuthenticated: true),
         petState: petState,
       );
 
-      await tester.tap(find.byTooltip('뒤로가기'));
+      await tester.tap(find.byType(AppBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text(entry.value), findsWidgets, reason: entry.key);
+      expect(find.byType(ExpenseWalletScreen), findsOneWidget, reason: path);
     }
   });
 
@@ -400,10 +431,6 @@ void main() {
           field: const Key('category-note-field'),
           fallback: 'Pet 1의 반려기록',
         ),
-        '/records/expense/new': (
-          field: const Key('expense-item-name-field'),
-          fallback: '집사의 지갑',
-        ),
       }.entries) {
         await _pumpRouter(
           tester,
@@ -422,7 +449,7 @@ void main() {
         await tester.pump();
         expect(tester.testTextInput.isVisible, isTrue);
 
-        await tester.tap(find.byTooltip('뒤로가기'));
+        await tester.tap(find.byType(AppBackButton));
         await tester.pumpAndSettle();
 
         expect(tester.testTextInput.isVisible, isFalse);

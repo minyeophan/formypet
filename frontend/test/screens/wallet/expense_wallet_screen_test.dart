@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
-import 'package:frontend/screens/records/expense_report_screen.dart';
-import 'package:frontend/screens/records/expense_wallet_screen.dart';
-import 'package:frontend/widgets/app_header.dart';
+import 'package:frontend/screens/wallet/expense_report_screen.dart';
+import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -14,9 +14,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('wallet screen shows actions, totals, and recent expenses', (
-    tester,
-  ) async {
+  testWidgets('wallet screen shows totals and recent expenses', (tester) async {
     await _pumpScreen(tester, const ExpenseWalletScreen());
 
     expect(find.text('집사의 지갑'), findsOneWidget);
@@ -26,16 +24,55 @@ void main() {
     expect(find.text('간식'), findsOneWidget);
     expect(find.text('병원 메모'), findsOneWidget);
     expect(find.textContaining('기타'), findsOneWidget);
-    expect(find.text('약 연동'), findsNothing);
+    expect(
+      find.byKey(const Key('wallet-expense-row-expense-food')),
+      findsOneWidget,
+    );
+    expect(find.text('준비중'), findsNothing);
     expect(find.text('빠른 지출'), findsNothing);
-    expect(find.text('빠르게 저장'), findsNothing);
-    expect(find.byType(AppInlineHeader), findsOneWidget);
   });
 
-  testWidgets('report screen shows period, category summary, and expenses', (
+  testWidgets('wallet recent expense row opens wallet expense detail route', (
     tester,
   ) async {
-    await _pumpScreen(tester, const ExpenseReportScreen());
+    final router = GoRouter(
+      initialLocation: '/wallet',
+      routes: [
+        GoRoute(
+          path: '/wallet',
+          builder: (_, _) => const ExpenseWalletScreen(),
+        ),
+        GoRoute(
+          path: '/wallet/expenses/:recordId',
+          builder: (_, state) => Text(state.pathParameters['recordId']!),
+        ),
+      ],
+    );
+    await _pumpRouter(tester, router);
+
+    await tester.tap(find.byKey(const Key('wallet-expense-row-expense-food')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('expense-food'), findsOneWidget);
+  });
+
+  testWidgets('report screen shows category summary and opens detail route', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/wallet/report',
+      routes: [
+        GoRoute(
+          path: '/wallet/report',
+          builder: (_, _) => const ExpenseReportScreen(),
+        ),
+        GoRoute(
+          path: '/wallet/expenses/:recordId',
+          builder: (_, state) => Text(state.pathParameters['recordId']!),
+        ),
+      ],
+    );
+    await _pumpRouter(tester, router);
 
     expect(find.text('지출 리포트'), findsOneWidget);
     expect(find.text('2026-05-20 - 2026-05-21'), findsOneWidget);
@@ -44,10 +81,13 @@ void main() {
     expect(find.text('15,000원'), findsWidgets);
     expect(find.text('기타'), findsWidgets);
     expect(find.text('20,000원'), findsWidgets);
-    expect(find.text('약 연동'), findsNothing);
-    expect(find.text('빠른 지출'), findsNothing);
-    expect(find.text('빠르게 저장'), findsNothing);
-    expect(find.byType(AppInlineHeader), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('wallet-report-expense-row-expense-food')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('expense-food'), findsOneWidget);
   });
 }
 
@@ -58,6 +98,18 @@ Future<void> _pumpScreen(WidgetTester tester, Widget screen) async {
         petProvider.overrideWith((ref) => PetNotifier.test(_state())),
       ],
       child: MaterialApp(home: screen),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpRouter(WidgetTester tester, GoRouter router) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        petProvider.overrideWith((ref) => PetNotifier.test(_state())),
+      ],
+      child: MaterialApp.router(routerConfig: router),
     ),
   );
   await tester.pumpAndSettle();

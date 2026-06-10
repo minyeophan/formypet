@@ -22,10 +22,10 @@ void main() {
     await _pumpRecordsScreen(tester);
 
     expect(find.text('몽실이의 반려기록'), findsOneWidget);
-    expect(find.text('전체 기록'), findsOneWidget);
+    expect(find.byKey(const Key('all-record-row-meal-today')), findsNothing);
     expect(find.byKey(const Key('records-calendar')), findsOneWidget);
     expect(find.byKey(const Key('records-selected-date')), findsOneWidget);
-    expect(find.text('기록 자세히보기'), findsOneWidget);
+    expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
     expect(find.byKey(Key('records-date-dot-$todayIso')), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);
     expect(find.byType(AppInlineHeader), findsOneWidget);
@@ -252,57 +252,13 @@ void main() {
     expect(find.text('지출 기록'), findsNothing);
   });
 
-  testWidgets('records main links all record actions to /records/all', (
-    tester,
-  ) async {
-    await _pumpRouter(tester, initialLocation: '/records');
-
-    await tester.tap(find.text('전체 기록'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('전체 기록'), findsOneWidget);
-    expect(find.text(todayLabel), findsOneWidget);
-    expect(find.text('간식'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('뒤로가기'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('기록 자세히보기'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('전체 기록'), findsOneWidget);
-    expect(find.text('전날 체중'), findsOneWidget);
-  });
-
-  testWidgets('all records groups every record by latest date first', (
-    tester,
-  ) async {
+  testWidgets('/records/all redirects to records main screen', (tester) async {
     await _pumpRouter(tester, initialLocation: '/records/all');
 
-    expect(find.byType(AppBackButton), findsOneWidget);
-    final todayHeader = find.text(todayLabel);
-    final yesterdayHeader = find.text(yesterdayLabel);
-
-    expect(todayHeader, findsOneWidget);
-    expect(yesterdayHeader, findsOneWidget);
-    expect(
-      tester.getTopLeft(todayHeader).dy,
-      lessThan(tester.getTopLeft(yesterdayHeader).dy),
-    );
-    expect(find.text('09:10'), findsOneWidget);
-    expect(find.text('급식'), findsOneWidget);
-    expect(find.text('간식'), findsOneWidget);
-  });
-
-  testWidgets('all records only supported rows open detail', (tester) async {
-    await _pumpRouter(tester, initialLocation: '/records/all');
-
-    expect(find.byKey(const Key('all-record-row-meal-today')), findsOneWidget);
-    expect(find.byKey(const Key('all-record-row-expense-today')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('all-record-row-meal-today')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('급식 상세'), findsOneWidget);
+    expect(find.byType(RecordsScreen), findsOneWidget);
+    expect(find.byKey(const Key('records-calendar')), findsOneWidget);
+    expect(find.byKey(const Key('all-record-row-meal-today')), findsNothing);
+    expect(find.byKey(const Key('all-record-row-meal-today')), findsNothing);
   });
 
   testWidgets(
