@@ -57,17 +57,6 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                 child: AppInlineHeader(
                   title: pet == null ? '반려기록' : '${pet.name}의 반려기록',
                   onBack: () => _goBack(context),
-                  trailing: pet == null
-                      ? null
-                      : TextButton(
-                          onPressed: () => context.push('/records/all'),
-                          child: const AppText(
-                            '전체 기록',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
                 ),
               ),
             ),
@@ -137,59 +126,9 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                       _SelectedDateSummary(
                         selectedDate: _selectedDate,
                         records: selectedRecords,
-                        onViewAll: () => context.push('/records/all'),
                       ),
                     ],
                   ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class AllRecordsScreen extends ConsumerWidget {
-  const AllRecordsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final records = [...ref.watch(petProvider).records]
-      ..sort(_newestRecordFirst);
-    final grouped = <String, List<ActivityRecord>>{};
-    for (final record in records) {
-      grouped.putIfAbsent(record.date, () => []).add(record);
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: AppInlineHeader(
-                  title: '전체 기록',
-                  onBack: () => _goBack(context, fallback: '/records'),
-                ),
-              ),
-            ),
-            if (records.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: _EmptyRecordsPanel(message: '아직 기록이 없어요')),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final date = grouped.keys.elementAt(index);
-                    final dateRecords = grouped[date]!;
-                    return _DateRecordGroup(date: date, records: dateRecords);
-                  }, childCount: grouped.length),
                 ),
               ),
           ],
@@ -561,12 +500,10 @@ class _RecordTypeCard extends StatelessWidget {
 class _SelectedDateSummary extends StatelessWidget {
   final DateTime selectedDate;
   final List<ActivityRecord> records;
-  final VoidCallback onViewAll;
 
   const _SelectedDateSummary({
     required this.selectedDate,
     required this.records,
-    required this.onViewAll,
   });
 
   @override
@@ -585,15 +522,6 @@ class _SelectedDateSummary extends StatelessWidget {
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.text,
-                ),
-              ),
-              TextButton(
-                onPressed: onViewAll,
-                child: const AppText(
-                  '기록 자세히보기',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
                 ),
               ),
             ],
@@ -720,138 +648,6 @@ class _SelectedDateRecordRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DateRecordGroup extends StatelessWidget {
-  final String date;
-  final List<ActivityRecord> records;
-
-  const _DateRecordGroup({required this.date, required this.records});
-
-  @override
-  Widget build(BuildContext context) {
-    final sortedRecords = [...records]..sort(_oldestRecordFirst);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 8),
-            child: AppText(
-              formatDateShort(date),
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                for (final record in sortedRecords)
-                  _RecordSummaryRow(record: record),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecordSummaryRow extends StatelessWidget {
-  final ActivityRecord record;
-
-  const _RecordSummaryRow({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    final type = _typeConfig(record.typeId);
-    final supported = isRecordDetailSupported(record.typeId);
-    final summary = supported
-        ? recordListSummary(record)
-        : _recordSummary(record);
-
-    final row = Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 48,
-            child: AppText(
-              recordTimeLabel(record.time),
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.muted,
-            ),
-          ),
-          Container(
-            constraints: const BoxConstraints(minWidth: 50),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: type.color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: AppText(
-              type.label,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 10),
-          if (summary.isNotEmpty)
-            Expanded(
-              child: AppText(
-                summary,
-                fontSize: 13,
-                color: AppColors.text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            )
-          else
-            const Spacer(),
-          if (supported) ...[
-            const SizedBox(width: 6),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.muted,
-              size: 21,
-            ),
-          ],
-        ],
-      ),
-    );
-
-    if (!supported) {
-      return row;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        key: Key('all-record-row-${record.id}'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/records/${record.id}'),
-        child: row,
       ),
     );
   }
@@ -1138,20 +934,6 @@ _RecordTypeConfig _typeConfig(String typeId) {
       color: AppColors.muted,
     ),
   );
-}
-
-String _recordSummary(ActivityRecord record) {
-  final note = record.note?.trim();
-  if (note != null && note.isNotEmpty) {
-    return note;
-  }
-  if (record.typeId == 'weight') {
-    final value = weightValue(record);
-    if (value != null) {
-      return '${_numberLabel(value)}${record.detail['unit'] ?? 'kg'}';
-    }
-  }
-  return '${_typeConfig(record.typeId).label} 기록';
 }
 
 double? _weightValue(ActivityRecord record) {

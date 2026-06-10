@@ -27,7 +27,6 @@ String recordTypeLabel(String typeId) {
     'medicine' => '영양/약',
     'vet' => '병원',
     'weight' => '몸무게',
-    'expense' => '지출',
     'diary' => '일기',
     'etc' => '기타',
     _ => typeId,
