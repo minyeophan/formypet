@@ -4,10 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
@@ -101,6 +103,59 @@ void main() {
     );
     expect(find.text('프로필 정보를 불러올 수 없어요'), findsOneWidget);
   });
+
+  testWidgets('policies list shows only the five policy names', (tester) async {
+    await _pumpPoliciesRouter(tester, '/my/policies');
+
+    for (final title in [
+      '서비스 이용약관',
+      '개인정보 처리방침',
+      '운영정책',
+      '위치기반 서비스 이용약관',
+      '마케팅 정보 수신 동의',
+    ]) {
+      expect(find.text(title), findsOneWidget);
+    }
+
+    for (final hiddenText in [
+      '현재 동의 상태',
+      '필수 약관',
+      '선택 및 안내',
+      '중요',
+      '시행일',
+      '미동의 상태',
+    ]) {
+      expect(find.text(hiddenText), findsNothing);
+    }
+  });
+
+  testWidgets('policy rows open matching detail screens', (tester) async {
+    const expectedTitles = {
+      '서비스 이용약관': '서비스 이용약관',
+      '개인정보 처리방침': '개인정보 처리방침',
+      '운영정책': '운영정책',
+      '위치기반 서비스 이용약관': '위치기반 서비스 이용약관',
+      '마케팅 정보 수신 동의': '마케팅 정보 수신 동의',
+    };
+
+    for (final entry in expectedTitles.entries) {
+      await _pumpPoliciesRouter(tester, '/my/policies');
+
+      await tester.tap(find.text(entry.key));
+      await tester.pumpAndSettle();
+
+      expect(find.text('약관 상세'), findsOneWidget);
+      expect(find.text(entry.value), findsOneWidget);
+      expect(find.text('약관을 찾을 수 없어요'), findsNothing);
+    }
+  });
+
+  testWidgets('unknown policy detail shows not found message', (tester) async {
+    await _pumpPoliciesRouter(tester, '/my/policies/unknown');
+
+    expect(find.text('약관 상세'), findsOneWidget);
+    expect(find.text('약관을 찾을 수 없어요'), findsOneWidget);
+  });
 }
 
 Future<void> _pump(
@@ -144,6 +199,34 @@ Future<void> _pump(
         ),
       ],
       child: MaterialApp(home: child),
+    ),
+  );
+}
+
+Future<void> _pumpPoliciesRouter(WidgetTester tester, String initialLocation) {
+  final router = GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      GoRoute(
+        path: '/my',
+        builder: (context, state) => const Scaffold(body: Text('my')),
+      ),
+      GoRoute(
+        path: '/my/policies',
+        builder: (context, state) => const MyPoliciesScreen(),
+      ),
+      GoRoute(
+        path: '/my/policies/:policyId',
+        builder: (context, state) =>
+            MyPolicyDetailScreen(policyId: state.pathParameters['policyId']!),
+      ),
+    ],
+  );
+
+  return tester.pumpWidget(
+    ProviderScope(
+      key: UniqueKey(),
+      child: MaterialApp.router(routerConfig: router),
     ),
   );
 }

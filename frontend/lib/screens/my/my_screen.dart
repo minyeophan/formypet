@@ -49,9 +49,7 @@ class MyScreen extends ConsumerWidget {
                   for (final group in _menuGroups)
                     _MenuGroup(
                       group: group,
-                      onRowTap: (item) => item.label == '내 프로필 편집'
-                          ? context.push('/my/profile')
-                          : showPreparingToast(context),
+                      onRowTap: (item) => _handleMenuTap(context, item),
                     ),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 4, 20, 112),
@@ -539,6 +537,18 @@ const _menuGroups = [
     ],
   ),
 ];
+
+void _handleMenuTap(BuildContext context, _MyMenuItem item) {
+  if (item.label == '내 프로필 편집') {
+    context.push('/my/profile');
+    return;
+  }
+  if (item.label == '약관 및 정책') {
+    context.push('/my/policies');
+    return;
+  }
+  showPreparingToast(context);
+}
 
 String _petAgeLabel(String? birthDateIso) {
   final birth = DateTime.tryParse(birthDateIso ?? '');

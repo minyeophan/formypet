@@ -42,7 +42,8 @@
 | Community | 카테고리 화면 `전체⌄`, 이용 가이드 | 🚧 부분 구현 | 표시 전용 UI. 필터 선택과 가이드 화면 없음 |
 | My | 펫 카드, `펫 추가하기` | ✅ 구현됨 | `/pet/{id}`, `/pets/new`로 이동 |
 | My | 설정, `모두보기`, 프로필 편집 | ✅ 구현됨 | `/my/settings`, `/my/pets`, `/my/profile`로 이동 |
-| My | 나머지 메뉴 row | 🚧 부분 구현 | `준비중` 토스트만 표시 |
+| My | 약관 및 정책 | ✅ 구현됨 | `/my/policies`, `/my/policies/{policyId}`로 이동 |
+| My | 약관 및 정책 외 나머지 메뉴 row | 🚧 부분 구현 | `준비중` 토스트만 표시 |
 | My | 로그아웃 | 🔌 연동됨 | 설정의 확인 시트 승인 후 `AuthNotifier.logout()` 호출 |
 | Records | `반려기록` 메인, 전체 기록, 성장 | ✅ 구현됨 | `/records`, `/records/all`, `/records/growth`로 이동 |
 | Records | 급식, 음수, 배변, 산책, 몸무게, 병원, 영양, 일기, 기타 | 🔌 연동됨 | 전체 화면 입력 후 기록 생성 API 호출 |

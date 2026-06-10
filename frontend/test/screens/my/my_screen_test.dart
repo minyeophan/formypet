@@ -7,6 +7,7 @@ import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
+import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
@@ -85,6 +86,16 @@ void main() {
 
     await _tapMenuRow(tester, '공동집사 관리');
     expect(find.text('준비중'), findsOneWidget);
+  });
+
+  testWidgets('policy menu opens policy list route', (tester) async {
+    await _pumpMyScreen(tester);
+
+    await _tapMenuRow(tester, '약관 및 정책');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MyPoliciesScreen), findsOneWidget);
+    expect(find.text('서비스 이용약관'), findsOneWidget);
   });
 
   testWidgets('settings button uses the shared 38px icon surface', (

@@ -25,6 +25,7 @@ import '../screens/community/write_screen.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
 import '../screens/my/my_screen.dart';
+import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
@@ -106,6 +107,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/my/profile',
             builder: (c, s) => const MyProfileScreen(),
+          ),
+          GoRoute(
+            path: '/my/policies',
+            builder: (c, s) => const MyPoliciesScreen(),
+          ),
+          GoRoute(
+            path: '/my/policies/:policyId',
+            builder: (c, s) =>
+                MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
           ),
         ],
       ),
