@@ -41,7 +41,7 @@ class ExpenseWalletScreen extends ConsumerWidget {
                           child: _WalletActionButton(
                             label: '비용 추가',
                             icon: Icons.add_rounded,
-                            onTap: () => context.push('/records/expense/new'),
+                            onTap: () => context.push('/wallet/expenses/new'),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -172,61 +172,70 @@ class _ExpenseListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      key: Key('wallet-expense-row-${record.id}'),
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4F8FCF).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
-              size: 20,
-              color: Color(0xFF4F8FCF),
-            ),
+        onTap: () => context.push('/wallet/expenses/${record.id}'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppText(
-                  expenseTitle(record),
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F8FCF).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 3),
-                AppText(
-                  '${record.date} · ${expenseCategory(record)}',
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  size: 20,
+                  color: Color(0xFF4F8FCF),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      expenseTitle(record),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    AppText(
+                      '${record.date} · ${expenseCategoryLabel(record)}',
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppText(
+                expenseAmountLabel(record),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ],
           ),
-          AppText(
-            expenseAmountLabel(record),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ],
+        ),
       ),
     );
   }

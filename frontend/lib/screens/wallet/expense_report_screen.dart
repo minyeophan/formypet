@@ -129,7 +129,7 @@ class _ReportSummaryCard extends StatelessWidget {
 
 class _CategorySummaryRow extends StatelessWidget {
   final String category;
-  final num amount;
+  final int amount;
 
   const _CategorySummaryRow({required this.category, required this.amount});
 
@@ -174,42 +174,51 @@ class _ReportRecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+    return Material(
+      key: Key('wallet-report-expense-row-${record.id}'),
+      color: AppColors.surfaceSoft,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 78,
-            child: AppText(
-              record.date,
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+        onTap: () => context.push('/wallet/expenses/${record.id}'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
           ),
-          Expanded(
-            child: AppText(
-              '${expenseTitle(record)} · ${expenseCategory(record)}',
-              fontSize: 13,
-              color: AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 78,
+                child: AppText(
+                  record.date,
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                child: AppText(
+                  '${expenseTitle(record)} · ${expenseCategoryLabel(record)}',
+                  fontSize: 13,
+                  color: AppColors.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppText(
+                expenseAmountLabel(record),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ],
           ),
-          AppText(
-            expenseAmountLabel(record),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -241,10 +250,10 @@ class _ReportEmptyPanel extends StatelessWidget {
   }
 }
 
-Map<String, num> _categoryTotals(List<ActivityRecord> records) {
-  final totals = <String, num>{};
+Map<String, int> _categoryTotals(List<ActivityRecord> records) {
+  final totals = <String, int>{};
   for (final record in records) {
-    final category = expenseCategory(record);
+    final category = expenseCategoryLabel(record);
     totals[category] = (totals[category] ?? 0) + (expenseAmount(record) ?? 0);
   }
   return totals;

@@ -7,14 +7,16 @@ import '../screens/auth/auth_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/records/expense_add_screen.dart';
-import '../screens/records/expense_report_screen.dart';
-import '../screens/records/expense_wallet_screen.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/record_detail_screen.dart';
 import '../screens/records/record_edit_screen.dart';
 import '../screens/records/records_screen.dart';
+import '../screens/wallet/expense_add_screen.dart';
+import '../screens/wallet/expense_detail_screen.dart';
+import '../screens/wallet/expense_edit_screen.dart';
+import '../screens/wallet/expense_report_screen.dart';
+import '../screens/wallet/expense_wallet_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_screen.dart';
@@ -115,10 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
         ),
       ),
-      GoRoute(
-        path: '/records/all',
-        builder: (c, s) => const AllRecordsScreen(),
-      ),
+      GoRoute(path: '/records/all', redirect: (c, s) => '/records'),
       GoRoute(
         path: '/records/growth',
         builder: (c, s) => const GrowthRecordsScreen(),
@@ -131,12 +130,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/records/expense/new',
-        builder: (c, s) => const ExpenseAddScreen(),
+        redirect: (c, s) => '/wallet/expenses/new',
       ),
       GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
       GoRoute(
         path: '/wallet/report',
         builder: (c, s) => const ExpenseReportScreen(),
+      ),
+      GoRoute(
+        path: '/wallet/expenses/new',
+        builder: (c, s) => const ExpenseAddScreen(),
+      ),
+      GoRoute(
+        path: '/wallet/expenses/:recordId/edit',
+        builder: (c, s) =>
+            ExpenseEditScreen(recordId: s.pathParameters['recordId']!),
+      ),
+      GoRoute(
+        path: '/wallet/expenses/:recordId',
+        builder: (c, s) =>
+            ExpenseDetailScreen(recordId: s.pathParameters['recordId']!),
       ),
       GoRoute(
         path: '/records/:typeId/new',

@@ -1,192 +1,275 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/keyboard_utils.dart';
-import '../../providers/pet_provider.dart';
-import '../../widgets/app_header.dart';
+import '../../models/activity_record.dart';
 import '../../widgets/app_text.dart';
-import '../../widgets/preparing_toast.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
+import 'expense_record_utils.dart';
 
-class ExpenseAddScreen extends ConsumerStatefulWidget {
-  const ExpenseAddScreen({super.key});
+enum ExpenseFormMode { add, edit }
 
-  @override
-  ConsumerState<ExpenseAddScreen> createState() => _ExpenseAddScreenState();
+class ExpenseFormData {
+  final DateTime date;
+  final TimeOfDay time;
+  final int amount;
+  final String category;
+  final String itemName;
+  final String note;
+
+  const ExpenseFormData({
+    required this.date,
+    required this.time,
+    required this.amount,
+    required this.category,
+    required this.itemName,
+    required this.note,
+  });
+
+  factory ExpenseFormData.now() {
+    final now = DateTime.now();
+    return ExpenseFormData(
+      date: DateTime(now.year, now.month, now.day),
+      time: TimeOfDay(hour: now.hour, minute: now.minute),
+      amount: 0,
+      category: '',
+      itemName: '',
+      note: '',
+    );
+  }
+
+  factory ExpenseFormData.fromRecord(ActivityRecord record) {
+    final parsedDate = DateTime.tryParse(record.date);
+    final date = parsedDate == null
+        ? DateTime.now()
+        : DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+    final normalizedTime = normalizeExpenseTime(record.time);
+    final timeParts = normalizedTime.split(':');
+    final hour = timeParts.length == 2 ? int.tryParse(timeParts[0]) : null;
+    final minute = timeParts.length == 2 ? int.tryParse(timeParts[1]) : null;
+    final now = TimeOfDay.now();
+
+    return ExpenseFormData(
+      date: date,
+      time: hour == null || minute == null
+          ? TimeOfDay(hour: now.hour, minute: now.minute)
+          : TimeOfDay(hour: hour, minute: minute),
+      amount: expenseAmount(record) ?? 0,
+      category: record.detail['category']?.toString().trim() ?? '',
+      itemName: record.detail['itemName']?.toString().trim() ?? '',
+      note: record.note?.trim() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toRecordBody() {
+    final body = <String, dynamic>{
+      'typeId': 'expense',
+      'date': DateFormat('yyyy-MM-dd').format(date),
+      'time':
+          '${time.hour.toString().padLeft(2, '0')}:'
+          '${time.minute.toString().padLeft(2, '0')}',
+      'detail': <String, dynamic>{
+        'amount': amount,
+        'currency': 'KRW',
+        'category': category,
+      },
+    };
+
+    final trimmedItemName = itemName.trim();
+    if (trimmedItemName.isNotEmpty) {
+      (body['detail'] as Map<String, dynamic>)['itemName'] = trimmedItemName;
+    }
+
+    final trimmedNote = note.trim();
+    if (trimmedNote.isNotEmpty) {
+      body['note'] = trimmedNote;
+    }
+
+    return body;
+  }
 }
 
-class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
-  final _amountCtrl = TextEditingController();
-  final _itemNameCtrl = TextEditingController();
-  final _purchaseUrlCtrl = TextEditingController();
-  final _memoCtrl = TextEditingController();
+class ExpenseFormBody extends StatefulWidget {
+  final ExpenseFormMode mode;
+  final ExpenseFormData initialData;
+  final String? petName;
+  final bool submitting;
+  final String? errorText;
+  final ValueChanged<ExpenseFormData> onSubmit;
 
+  const ExpenseFormBody({
+    super.key,
+    required this.mode,
+    required this.initialData,
+    required this.petName,
+    required this.submitting,
+    required this.errorText,
+    required this.onSubmit,
+  });
+
+  @override
+  State<ExpenseFormBody> createState() => _ExpenseFormBodyState();
+}
+
+class _ExpenseFormBodyState extends State<ExpenseFormBody> {
+  late final TextEditingController _amountCtrl;
+  late final TextEditingController _itemNameCtrl;
+  late final TextEditingController _memoCtrl;
   late DateTime _date;
   late TimeOfDay _time;
-  String _currency = 'KRW';
-  String? _category;
+  late String? _category;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = DateTime(now.year, now.month, now.day);
-    _time = TimeOfDay(hour: now.hour, minute: now.minute);
+    final initial = widget.initialData;
+    _date = initial.date;
+    _time = initial.time;
+    _category = initial.category.isEmpty ? null : initial.category;
+    _amountCtrl = TextEditingController(
+      text: initial.amount > 0 ? initial.amount.toString() : '',
+    );
+    _itemNameCtrl = TextEditingController(text: initial.itemName);
+    _memoCtrl = TextEditingController(text: initial.note);
+  }
+
+  @override
+  void didUpdateWidget(covariant ExpenseFormBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialData != widget.initialData) {
+      final initial = widget.initialData;
+      _date = initial.date;
+      _time = initial.time;
+      _category = initial.category.isEmpty ? null : initial.category;
+      _amountCtrl.text = initial.amount > 0 ? initial.amount.toString() : '';
+      _itemNameCtrl.text = initial.itemName;
+      _memoCtrl.text = initial.note;
+    }
   }
 
   @override
   void dispose() {
     _amountCtrl.dispose();
     _itemNameCtrl.dispose();
-    _purchaseUrlCtrl.dispose();
     _memoCtrl.dispose();
     super.dispose();
   }
 
-  bool get _canSave => (_amount ?? 0) > 0 && _category != null;
+  int? get _amount => int.tryParse(_amountCtrl.text.trim());
 
-  double? get _amount => double.tryParse(_amountCtrl.text.trim());
+  bool get _canSubmit =>
+      !widget.submitting &&
+      widget.petName != null &&
+      (_amount ?? 0) > 0 &&
+      _category != null;
 
   @override
   Widget build(BuildContext context) {
-    final activePet = ref.watch(petProvider).activePet;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppFormHeader(title: '비용 추가', onBack: _goBack),
-            Expanded(
-              child: ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+    return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: [
+        _SectionBlock(
+          title: '날짜/시간',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  _SectionBlock(
-                    title: '날짜/시간',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('expense-date-button'),
-                                text: DateFormat('yyyy-MM-dd').format(_date),
-                                onTap: _pickDate,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('expense-time-button'),
-                                text: _apiTime,
-                                onTap: _pickTime,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
-                      ],
+                  Expanded(
+                    child: _InputBox(
+                      key: const Key('expense-date-button'),
+                      text: DateFormat('yyyy-MM-dd').format(_date),
+                      onTap: _pickDate,
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '금액',
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: RecordNumberInput(
-                            key: const Key('expense-amount-input'),
-                            controller: _amountCtrl,
-                            mode: RecordNumberInputMode.integer,
-                            hintText: '0',
-                            suffixText: '원',
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        _CurrencyChip(
-                          value: _currency,
-                          onTap: () => setState(() => _currency = 'KRW'),
-                        ),
-                      ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _InputBox(
+                      key: const Key('expense-time-button'),
+                      text: _timeLabel,
+                      onTap: _pickTime,
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '카테고리',
-                    child: _CategoryGrid(
-                      selectedValue: _category,
-                      onSelected: (value) => setState(() => _category = value),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '반려동물',
-                    child: activePet == null
-                        ? const _InfoPanel(text: '반려동물을 등록해 주세요.')
-                        : Align(
-                            alignment: Alignment.centerLeft,
-                            child: _PetChip(label: activePet.name),
-                          ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '기본 정보',
-                    child: Column(
-                      children: [
-                        _LabeledRow(
-                          label: '제품이름',
-                          child: _TextInput(
-                            key: const Key('expense-item-name-field'),
-                            controller: _itemNameCtrl,
-                            hintText: '선택',
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _LabeledRow(
-                          label: '구매처 URL',
-                          child: _TextInput(
-                            key: const Key('expense-purchase-url-field'),
-                            controller: _purchaseUrlCtrl,
-                            hintText: '선택',
-                            keyboardType: TextInputType.url,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        const _StaticAction(label: '+ 항목 추가'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const _SectionBlock(
-                    title: '사진',
-                    child: _StaticAction(label: '+ 사진'),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '메모',
-                    child: _TextInput(
-                      key: const Key('expense-memo-field'),
-                      controller: _memoCtrl,
-                      hintText: '선택',
-                      maxLines: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _SaveButton(canSave: _canSave, onTap: _showPreparing),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '금액',
+          child: Row(
+            children: [
+              Expanded(
+                child: RecordNumberInput(
+                  key: const Key('expense-amount-input'),
+                  controller: _amountCtrl,
+                  mode: RecordNumberInputMode.integer,
+                  hintText: '0',
+                  suffixText: '원',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const _CurrencyChip(value: 'KRW'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '카테고리',
+          child: _CategoryGrid(
+            selectedValue: _category,
+            onSelected: (value) => setState(() => _category = value),
+          ),
+        ),
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '반려동물',
+          child: widget.petName == null
+              ? const _InfoPanel(text: '반려동물을 등록해 주세요')
+              : Align(
+                  alignment: Alignment.centerLeft,
+                  child: _PetChip(label: widget.petName!),
+                ),
+        ),
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '기본 정보',
+          child: _LabeledRow(
+            label: '항목명',
+            child: _TextInput(
+              key: const Key('expense-item-name-field'),
+              controller: _itemNameCtrl,
+              hintText: '선택',
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        _SectionBlock(
+          title: '메모',
+          child: _TextInput(
+            key: const Key('expense-memo-field'),
+            controller: _memoCtrl,
+            hintText: '선택',
+            maxLines: 4,
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (widget.errorText != null) ...[
+          _InlineError(text: widget.errorText!),
+          const SizedBox(height: 12),
+        ],
+        _SaveButton(
+          label: widget.mode == ExpenseFormMode.add ? '비용 저장' : '수정 완료',
+          canSave: _canSubmit,
+          submitting: widget.submitting,
+          onTap: _canSubmit ? _submit : null,
+        ),
+      ],
     );
   }
 
@@ -212,24 +295,28 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
     });
   }
 
-  void _showPreparing() {
-    FocusScope.of(context).unfocus();
-    showPreparingToast(context);
-  }
-
-  String get _apiTime =>
-      '${_time.hour.toString().padLeft(2, '0')}:'
-      '${_time.minute.toString().padLeft(2, '0')}';
-
-  Future<void> _goBack() async {
-    await dismissKeyboardBeforeTransition(context);
-    if (!mounted) return;
-    if (context.canPop()) {
-      context.pop();
+  void _submit() {
+    final amount = _amount;
+    final category = _category;
+    if (amount == null || amount <= 0 || category == null) {
       return;
     }
-    context.go('/wallet');
+    FocusScope.of(context).unfocus();
+    widget.onSubmit(
+      ExpenseFormData(
+        date: _date,
+        time: _time,
+        amount: amount,
+        category: category,
+        itemName: _itemNameCtrl.text.trim(),
+        note: _memoCtrl.text.trim(),
+      ),
+    );
   }
+
+  String get _timeLabel =>
+      '${_time.hour.toString().padLeft(2, '0')}:'
+      '${_time.minute.toString().padLeft(2, '0')}';
 }
 
 class _SectionBlock extends StatelessWidget {
@@ -325,33 +412,25 @@ class _SubtleButton extends StatelessWidget {
 
 class _CurrencyChip extends StatelessWidget {
   final String value;
-  final VoidCallback onTap;
 
-  const _CurrencyChip({required this.value, required this.onTap});
+  const _CurrencyChip({required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+    return Container(
+      height: 48,
+      width: 76,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: 48,
-          width: 76,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: AppText(
-            value,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: AppText(
+        value,
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: AppColors.text,
       ),
     );
   }
@@ -368,7 +447,7 @@ class _CategoryGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _expenseCategories.length,
+      itemCount: expenseCategoryOptions.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         mainAxisExtent: 78,
@@ -376,12 +455,12 @@ class _CategoryGrid extends StatelessWidget {
         mainAxisSpacing: 10,
       ),
       itemBuilder: (context, index) {
-        final option = _expenseCategories[index];
+        final option = expenseCategoryOptions[index];
         return _CategoryCard(
-          key: Key('expense-category-${option.value}'),
+          key: Key('expense-category-${option.key}'),
           option: option,
-          selected: selectedValue == option.value,
-          onTap: () => onSelected(option.value),
+          selected: selectedValue == option.key,
+          onTap: () => onSelected(option.key),
         );
       },
     );
@@ -389,7 +468,7 @@ class _CategoryGrid extends StatelessWidget {
 }
 
 class _CategoryCard extends StatelessWidget {
-  final _ExpenseCategory option;
+  final ExpenseCategoryOption option;
   final bool selected;
   final VoidCallback onTap;
 
@@ -512,14 +591,12 @@ class _TextInput extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final int maxLines;
-  final TextInputType? keyboardType;
 
   const _TextInput({
     super.key,
     required this.controller,
     required this.hintText,
     this.maxLines = 1,
-    this.keyboardType,
   });
 
   @override
@@ -527,7 +604,6 @@ class _TextInput extends StatelessWidget {
     return TextField(
       key: key,
       controller: controller,
-      keyboardType: keyboardType,
       maxLines: maxLines,
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: const TextStyle(
@@ -557,36 +633,43 @@ class _TextInput extends StatelessWidget {
   }
 }
 
-class _StaticAction extends StatelessWidget {
-  final String label;
+class _InlineError extends StatelessWidget {
+  final String text;
 
-  const _StaticAction({required this.label});
+  const _InlineError({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
-      alignment: Alignment.center,
+      key: const Key('expense-form-error'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+        color: const Color(0xFFFFF1F2),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: AppText(
-        label,
-        fontSize: 13,
+        text,
+        fontSize: 12,
         fontWeight: FontWeight.bold,
-        color: AppColors.textSecondary,
+        color: const Color(0xFFB91C1C),
       ),
     );
   }
 }
 
 class _SaveButton extends StatelessWidget {
+  final String label;
   final bool canSave;
-  final VoidCallback onTap;
+  final bool submitting;
+  final VoidCallback? onTap;
 
-  const _SaveButton({required this.canSave, required this.onTap});
+  const _SaveButton({
+    required this.label,
+    required this.canSave,
+    required this.submitting,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -608,30 +691,23 @@ class _SaveButton extends StatelessWidget {
               color: canSave ? AppColors.text : AppColors.border,
             ),
           ),
-          child: AppText(
-            '비용 저장',
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: canSave ? AppColors.white : AppColors.muted,
-          ),
+          child: submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.white,
+                  ),
+                )
+              : AppText(
+                  label,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: canSave ? AppColors.white : AppColors.muted,
+                ),
         ),
       ),
     );
   }
 }
-
-class _ExpenseCategory {
-  final String value;
-  final String label;
-
-  const _ExpenseCategory(this.value, this.label);
-}
-
-const _expenseCategories = [
-  _ExpenseCategory('food', '사료'),
-  _ExpenseCategory('snack', '간식'),
-  _ExpenseCategory('hospital', '병원'),
-  _ExpenseCategory('medicine', '약'),
-  _ExpenseCategory('grooming', '미용'),
-  _ExpenseCategory('supplies', '용품'),
-];
