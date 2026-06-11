@@ -110,8 +110,8 @@
 
 ## 최신 Handover
 
-- Goal: Pet 상세/수정 화면을 확장 프로필 중심으로 개편하고, 새 pet 필드와 색상 저장을 백엔드/프론트 계약에 반영한다.
-- Done: `V14__extend_pet_profile_fields.sql`로 pet 확장 필드 6개를 추가하고, create/update/list 응답과 색상 저장을 지원했다. Flutter `Pet` 모델에 확장 필드를 추가했고, 공통 `pet_taxonomy`, `AppSelectField`/`AppPickerSheet`, `PetDateField`, petId 기준 `latestPetWeightProvider`를 추가했다. Pet 상세는 기본정보 4행과 전체 추가정보를 표시하며 삭제 기능을 danger 카드로 유지한다. Pet 수정은 우상단 저장을 제거하고 하단 `수정 완료` CTA를 사용하며 체중/동물등록번호/중성화 hidden 값을 저장 payload에 보존한다. PetEdit 입력 UI는 종 3열 grid, 날짜 선택 박스, 성별/중성화 2분할, 특수상태 4분할로 보정했다.
-- Remaining: 프로필 저장 API 연결, `PetNotifier.clearForSignedOutUser()` 환경설정 Future 실패/무한 대기 방어, 백엔드 사용자 응답과 `UserProfile.id` 매핑 정리가 남았다. 일정 저장, 기록 상세, Community 상세, 지출 저장도 미완성이다.
-- Next step: 실제 기기 또는 브라우저에서 `/pet/:id`, `/pet/:id/edit`, 온보딩 펫 등록, 날짜 선택/미상 처리, My/Home 펫 카드 표시를 수동 확인한다.
-- Warnings: 기존 Flyway 마이그레이션은 수정하지 않고 `V14__extend_pet_profile_fields.sql`만 추가했다. 작업 시작 전부터 record 관련 dirty 변경과 `V13__add_etc_activity_type.sql`가 있었으므로 되돌리지 않았다.
+- Goal: My 고객지원 흐름 중 공지사항 목록/상세, 고객센터 FAQ 카테고리/상세, 1대1 문의 작성 화면을 실제 Flutter 화면으로 연결한다.
+- Done: `my_support_data.dart`에 공지 3개와 FAQ 카테고리 4개, FAQ 12개 static 데이터를 추가했다. `my_support_widgets.dart`로 지원 화면 공통 card/row/article/fallback back helper를 분리했고, `my_notices_screen.dart`, `my_support_center_screen.dart`, `my_inquiry_screen.dart`를 추가했다. `/my/notices`, `/my/notices/:noticeId`, `/my/support`, `/my/support/:categoryId`, `/my/support/faq/:faqId`, `/my/inquiry` 라우트를 My shell 아래에 등록했고, My 메뉴의 공지사항/고객센터/1대1 문의하기 row를 실제 route로 연결했다. 문의 접수는 저장 없이 기존 `준비중` 토스트를 유지한다.
+- Remaining: 백엔드 저장/조회 API, 문의 접수 완료 화면, 문의 내역 화면은 이번 범위에 포함하지 않았다. 공동집사 관리, 나의 활동, 일반 설정, 알림 설정은 계속 `준비중` 상태다.
+- Next step: 실제 기기 또는 브라우저에서 My 탭의 고객지원 3개 row, 공지/FAQ 상세 back fallback, 문의 화면 키보드 입력과 토스트 표시를 수동 확인한다.
+- Warnings: 백엔드, DB, Flyway 마이그레이션, mockup HTML은 수정하지 않았다. 작업 시작 전부터 `frontend/android/build/`와 `docs/BACKEND_INVENTORY.md`가 untracked 상태였으며 되돌리거나 정리하지 않았다.

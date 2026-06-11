@@ -543,6 +543,18 @@ void _handleMenuTap(BuildContext context, _MyMenuItem item) {
     context.push('/my/profile');
     return;
   }
+  if (item.label == '공지사항') {
+    context.push('/my/notices');
+    return;
+  }
+  if (item.label == '고객센터') {
+    context.push('/my/support');
+    return;
+  }
+  if (item.label == '1대1 문의하기') {
+    context.push('/my/inquiry');
+    return;
+  }
   if (item.label == '약관 및 정책') {
     context.push('/my/policies');
     return;

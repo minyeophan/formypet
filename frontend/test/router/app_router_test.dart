@@ -12,9 +12,12 @@ import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
+import 'package:frontend/screens/my/my_inquiry_screen.dart';
+import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
+import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/wallet/expense_add_screen.dart';
 import 'package:frontend/screens/wallet/expense_detail_screen.dart';
@@ -686,6 +689,12 @@ void main() {
       '/my/settings': MySettingsScreen,
       '/my/pets': MyPetsScreen,
       '/my/profile': MyProfileScreen,
+      '/my/notices': MyNoticesScreen,
+      '/my/notices/routine': MyNoticeDetailScreen,
+      '/my/support': MySupportCenterScreen,
+      '/my/support/records': MyFaqCategoryScreen,
+      '/my/support/faq/account-email': MyFaqDetailScreen,
+      '/my/inquiry': MyInquiryScreen,
     }.entries) {
       await _pumpRouter(
         tester,
@@ -701,10 +710,14 @@ void main() {
 
       await tester.tap(find.byTooltip('뒤로가기'));
       await tester.pumpAndSettle();
-      expect(
-        find.text(entry.key == '/my/profile' ? '설정' : '마이페이지'),
-        findsWidgets,
-      );
+      final expectedFallback = switch (entry.key) {
+        '/my/profile' => '설정',
+        '/my/notices/routine' => '최근 공지',
+        '/my/support/records' => '고객센터',
+        '/my/support/faq/account-email' => '고객센터',
+        _ => '마이페이지',
+      };
+      expect(find.text(expectedFallback), findsWidgets);
     }
   });
 

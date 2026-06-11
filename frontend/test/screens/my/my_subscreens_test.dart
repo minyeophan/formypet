@@ -9,10 +9,13 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/screens/my/my_inquiry_screen.dart';
+import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
+import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -156,6 +159,76 @@ void main() {
     expect(find.text('약관 상세'), findsOneWidget);
     expect(find.text('약관을 찾을 수 없어요'), findsOneWidget);
   });
+
+  testWidgets('notices list shows the three static notices', (tester) async {
+    await _pumpSupportRouter(tester, '/my/notices');
+
+    expect(find.text('최근 공지'), findsOneWidget);
+    expect(find.text('루틴 알림 안정화 안내'), findsOneWidget);
+    expect(find.text('기록 입력 화면 개선 안내'), findsOneWidget);
+    expect(find.text('정기 점검 예정 안내'), findsOneWidget);
+  });
+
+  testWidgets('notice detail shows title and body by route id', (tester) async {
+    await _pumpSupportRouter(tester, '/my/notices/routine');
+
+    expect(find.text('공지사항'), findsWidgets);
+    expect(find.text('루틴 알림 안정화 안내'), findsOneWidget);
+    expect(find.textContaining('루틴 알림 수신 상태'), findsOneWidget);
+  });
+
+  testWidgets('unknown notice detail shows not found message', (tester) async {
+    await _pumpSupportRouter(tester, '/my/notices/unknown');
+
+    expect(find.text('공지사항을 찾을 수 없어요'), findsOneWidget);
+  });
+
+  testWidgets('support center shows four faq categories', (tester) async {
+    await _pumpSupportRouter(tester, '/my/support');
+
+    for (final category in ['계정 관련', '기록 관련', '루틴 관련', '커뮤니티 관련']) {
+      expect(find.text(category), findsOneWidget);
+    }
+    for (final icon in ['계', '기', '루', '커']) {
+      expect(find.text(icon), findsOneWidget);
+    }
+  });
+
+  testWidgets('faq category route shows its three questions', (tester) async {
+    await _pumpSupportRouter(tester, '/my/support/records');
+
+    expect(find.text('기록 관련'), findsWidgets);
+    expect(find.text('Q. 반려동물 기록은 어디에서 수정하나요?'), findsOneWidget);
+    expect(find.text('Q. 오늘이 아닌 날짜로 기록할 수 있나요?'), findsOneWidget);
+    expect(find.text('Q. 사진은 모든 기록에 첨부할 수 있나요?'), findsOneWidget);
+  });
+
+  testWidgets('faq detail shows answer by route id', (tester) async {
+    await _pumpSupportRouter(tester, '/my/support/faq/account-email');
+
+    expect(find.text('로그인한 이메일을 변경할 수 있나요?'), findsOneWidget);
+    expect(find.text('계정 관련'), findsOneWidget);
+    expect(find.textContaining('로그인 이메일은 계정 식별'), findsOneWidget);
+  });
+
+  testWidgets('unknown faq detail shows not found message', (tester) async {
+    await _pumpSupportRouter(tester, '/my/support/faq/unknown');
+
+    expect(find.text('질문을 찾을 수 없어요'), findsOneWidget);
+  });
+
+  testWidgets('inquiry screen submit keeps preparing toast', (tester) async {
+    await _pumpSupportRouter(tester, '/my/inquiry');
+
+    expect(find.text('문의 유형'), findsOneWidget);
+    expect(find.text('제목'), findsOneWidget);
+    expect(find.text('문의 내용'), findsOneWidget);
+
+    await tester.tap(find.text('문의 접수'));
+    await tester.pump();
+
+    expect(find.text('준비중'), findsOneWidget);
+  });
 }
 
 Future<void> _pump(
@@ -219,6 +292,53 @@ Future<void> _pumpPoliciesRouter(WidgetTester tester, String initialLocation) {
         path: '/my/policies/:policyId',
         builder: (context, state) =>
             MyPolicyDetailScreen(policyId: state.pathParameters['policyId']!),
+      ),
+    ],
+  );
+
+  return tester.pumpWidget(
+    ProviderScope(
+      key: UniqueKey(),
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+}
+
+Future<void> _pumpSupportRouter(WidgetTester tester, String initialLocation) {
+  final router = GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      GoRoute(
+        path: '/my',
+        builder: (context, state) => const Scaffold(body: Text('my')),
+      ),
+      GoRoute(
+        path: '/my/notices',
+        builder: (context, state) => const MyNoticesScreen(),
+      ),
+      GoRoute(
+        path: '/my/notices/:noticeId',
+        builder: (context, state) =>
+            MyNoticeDetailScreen(noticeId: state.pathParameters['noticeId']!),
+      ),
+      GoRoute(
+        path: '/my/support',
+        builder: (context, state) => const MySupportCenterScreen(),
+      ),
+      GoRoute(
+        path: '/my/support/:categoryId',
+        builder: (context, state) => MyFaqCategoryScreen(
+          categoryId: state.pathParameters['categoryId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/my/support/faq/:faqId',
+        builder: (context, state) =>
+            MyFaqDetailScreen(faqId: state.pathParameters['faqId']!),
+      ),
+      GoRoute(
+        path: '/my/inquiry',
+        builder: (context, state) => const MyInquiryScreen(),
       ),
     ],
   );

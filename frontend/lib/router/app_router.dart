@@ -24,11 +24,14 @@ import '../screens/community/community_screen.dart';
 import '../screens/community/write_screen.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
+import '../screens/my/my_inquiry_screen.dart';
+import '../screens/my/my_notices_screen.dart';
 import '../screens/my/my_screen.dart';
 import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
+import '../screens/my/my_support_center_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 // RouterNotifier listens to auth/pet providers and triggers router refresh.
@@ -116,6 +119,34 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/my/policies/:policyId',
             builder: (c, s) =>
                 MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
+          ),
+          GoRoute(
+            path: '/my/notices',
+            builder: (c, s) => const MyNoticesScreen(),
+          ),
+          GoRoute(
+            path: '/my/notices/:noticeId',
+            builder: (c, s) =>
+                MyNoticeDetailScreen(noticeId: s.pathParameters['noticeId']!),
+          ),
+          GoRoute(
+            path: '/my/support',
+            builder: (c, s) => const MySupportCenterScreen(),
+          ),
+          GoRoute(
+            path: '/my/support/:categoryId',
+            builder: (c, s) => MyFaqCategoryScreen(
+              categoryId: s.pathParameters['categoryId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/my/support/faq/:faqId',
+            builder: (c, s) =>
+                MyFaqDetailScreen(faqId: s.pathParameters['faqId']!),
+          ),
+          GoRoute(
+            path: '/my/inquiry',
+            builder: (c, s) => const MyInquiryScreen(),
           ),
         ],
       ),

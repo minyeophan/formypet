@@ -7,7 +7,10 @@ import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
+import 'package:frontend/screens/my/my_inquiry_screen.dart';
+import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_policies_screen.dart';
+import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
@@ -96,6 +99,23 @@ void main() {
 
     expect(find.byType(MyPoliciesScreen), findsOneWidget);
     expect(find.text('서비스 이용약관'), findsOneWidget);
+  });
+
+  testWidgets('support menu rows open real routes', (tester) async {
+    await _pumpMyScreen(tester);
+    await _tapMenuRow(tester, '공지사항');
+    await tester.pumpAndSettle();
+    expect(find.byType(MyNoticesScreen), findsOneWidget);
+
+    await _pumpMyScreen(tester);
+    await _tapMenuRow(tester, '고객센터');
+    await tester.pumpAndSettle();
+    expect(find.byType(MySupportCenterScreen), findsOneWidget);
+
+    await _pumpMyScreen(tester);
+    await _tapMenuRow(tester, '1대1 문의하기');
+    await tester.pumpAndSettle();
+    expect(find.byType(MyInquiryScreen), findsOneWidget);
   });
 
   testWidgets('settings button uses the shared 38px icon surface', (
