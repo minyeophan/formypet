@@ -210,9 +210,15 @@ class _RecordCategoryFormScreenState
       case 'medicine':
         return _buildMedicineBody();
       case 'diary':
-        return _buildNoteOnlyBody('diary');
+        return _buildNoteOnlyBody(
+          typeId: 'diary',
+          hintText: '오늘의 반려일기를 남겨 주세요',
+        );
       case 'etc':
-        return _buildNoteOnlyBody('etc');
+        return _buildNoteOnlyBody(
+          typeId: 'etc',
+          hintText: '오늘의 기록을 남겨 주세요',
+        );
       default:
         return const _SectionBlock(
           title: '준비중',
@@ -472,13 +478,16 @@ class _RecordCategoryFormScreenState
     );
   }
 
-  Widget _buildNoteOnlyBody(String typeId) {
+  Widget _buildNoteOnlyBody({
+    required String typeId,
+    required String hintText,
+  }) {
     return _SectionBlock(
       title: '메모',
       child: _TextInput(
         key: Key('category-$typeId-note-field'),
         controller: _noteCtrl,
-        hintText: '오늘의 반려일기를 남겨 주세요',
+        hintText: hintText,
         maxLines: 8,
         onChanged: (_) => setState(() => _error = null),
       ),
