@@ -5,9 +5,11 @@ import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
@@ -30,6 +32,7 @@ import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -236,23 +239,6 @@ void main() {
     expect(find.text('사료 종류'), findsOneWidget);
   });
 
-  testWidgets('/records/expense/new opens expense add screen', (tester) async {
-    final pet = _pet('1');
-    await _pumpRouter(
-      tester,
-      initialLocation: '/records/expense/new',
-      authState: const AuthState(isLoading: false, isAuthenticated: true),
-      petState: _petState(
-        isLoading: false,
-        hasOnboarded: true,
-        pets: [pet],
-        activePetId: pet.id,
-      ),
-    );
-
-    expect(find.byType(ExpenseAddScreen), findsOneWidget);
-  });
-
   testWidgets('/wallet opens keeper wallet actions', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -292,16 +278,6 @@ void main() {
       hasOnboarded: true,
       pets: [pet],
       activePetId: pet.id,
-      records: const [
-        ActivityRecord(
-          id: 'expense-1',
-          petId: '1',
-          typeId: 'expense',
-          date: '2026-05-09',
-          time: '09:10:32',
-          detail: {'amount': 12000, 'category': 'snack'},
-        ),
-      ],
     );
 
     await _pumpRouter(
@@ -397,11 +373,7 @@ void main() {
       activePetId: pet.id,
     );
 
-    for (final path in [
-      '/wallet/report',
-      '/wallet/expenses/new',
-      '/records/expense/new',
-    ]) {
+    for (final path in ['/wallet/report', '/wallet/expenses/new']) {
       await _pumpRouter(
         tester,
         initialLocation: path,
@@ -782,6 +754,7 @@ Future<void> _pumpRouter(
         ),
         if (communityService != null)
           communityServiceProvider.overrideWithValue(communityService),
+        walletExpenseProvider.overrideWith((ref) => _RouterWalletNotifier()),
       ],
       child: Consumer(
         builder: (context, ref, child) {
@@ -845,6 +818,39 @@ class _FakeCommunityService extends CommunityService {
     int limit = 20,
   }) async => const PostFeed(items: [], nextCursor: null);
 }
+
+class _RouterWalletNotifier extends WalletExpenseNotifier {
+  _RouterWalletNotifier() : super(_FakeWalletExpenseService()) {
+    state = WalletExpenseState(
+      isLoading: false,
+      isMutating: false,
+      items: [_walletExpense()],
+      summary: const WalletExpenseSummary(
+        totalAmount: 12000,
+        count: 1,
+        currency: 'KRW',
+        categories: [],
+      ),
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<void> loadFirstPage(String petId) async {}
+}
+
+class _FakeWalletExpenseService extends WalletExpenseService {}
+
+WalletExpense _walletExpense() => const WalletExpense(
+  id: 'expense-1',
+  petId: '1',
+  expenseDate: '2026-05-09',
+  expenseTime: '09:10:32',
+  amount: 12000,
+  currency: 'KRW',
+  category: 'snack',
+  categoryLabel: '\uAC04\uC2DD',
+);
 
 class _MutableAuthNotifier extends AuthNotifier {
   _MutableAuthNotifier(super.initialState) : super.test();
