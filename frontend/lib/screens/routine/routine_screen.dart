@@ -5,15 +5,15 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
-import '../../core/record_utils.dart';
-import '../../models/routine.dart';
+import '../../models/care_schedule.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import 'routine_calendar_values.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
-  const RoutineScreen({super.key});
+  final DateTime? initialDate;
+
+  const RoutineScreen({super.key, this.initialDate});
 
   @override
   ConsumerState<RoutineScreen> createState() => _RoutineScreenState();
@@ -27,19 +27,20 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   @override
   void initState() {
     super.initState();
-    final now = _dateOnly(DateTime.now());
-    _selectedDate = now;
-    _visibleMonth = DateTime(now.year, now.month);
+    final initial = _dateOnly(widget.initialDate ?? DateTime.now());
+    _selectedDate = initial;
+    _visibleMonth = DateTime(initial.year, initial.month);
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(petProvider);
-    final routines =
-        state.routines
-            .where((routine) => routineAppliesOn(routine, _selectedDate))
+    final selectedSchedules =
+        state.schedules
+            .where((schedule) => _scheduleAppliesOn(schedule, _selectedDate))
             .toList()
-          ..sort(_routineTimeCompare);
+          ..sort(_scheduleCompare);
+    final allSchedules = [...state.schedules]..sort(_scheduleCompare);
     final accentColor = _accentColorFromHex(
       state.activePet?.accentColor,
       AppColors.primary,
@@ -62,7 +63,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: AppText(
-                  '반복 루틴과 중요한 일정을 함께 확인해요',
+                  '중요한 케어 일정을 한눈에 확인해요',
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
@@ -80,8 +81,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                 _RoutineMonthCalendar(
                   visibleMonth: _visibleMonth,
                   selectedDate: _selectedDate,
-                  careDates: routineDatesForMonth(
-                    state.routines,
+                  careDates: _scheduleDatesForMonth(
+                    state.schedules,
                     _visibleMonth,
                   ),
                   accentColor: accentColor,
@@ -106,7 +107,6 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _AddButtons(
-                    onAddRoutine: () => context.push('/routine/new'),
                     onAddSchedule: () => context.push('/routine/schedule/new'),
                   ),
                 ),
@@ -115,23 +115,17 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _SelectedDateCareList(
                     selectedDate: _selectedDate,
-                    routines: routines,
-                    completions: state.routineCompletions,
+                    schedules: selectedSchedules,
                     accentColor: accentColor,
-                    onToggle: (routineId) => ref
-                        .read(petProvider.notifier)
-                        .toggleRoutineCompletion(
-                          routineId,
-                          _isoDate(_selectedDate),
-                        ),
-                    onDelete: (routineId) =>
-                        ref.read(petProvider.notifier).deleteRoutine(routineId),
                   ),
                 ),
               ] else
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _ScheduleList(accentColor: accentColor),
+                  child: _ScheduleList(
+                    schedules: allSchedules,
+                    accentColor: accentColor,
+                  ),
                 ),
             ],
           ),
@@ -421,52 +415,29 @@ class _RoutineCalendarDayCell extends StatelessWidget {
 }
 
 class _AddButtons extends StatelessWidget {
-  final VoidCallback onAddRoutine;
   final VoidCallback onAddSchedule;
 
-  const _AddButtons({required this.onAddRoutine, required this.onAddSchedule});
+  const _AddButtons({required this.onAddSchedule});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _AddButton(
-            key: const Key('routine-add-button'),
-            icon: Icons.add_rounded,
-            label: '루틴 추가',
-            onTap: onAddRoutine,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _AddButton(
-            key: const Key('schedule-add-button'),
-            icon: Icons.event_available_rounded,
-            label: '일정 추가',
-            onTap: onAddSchedule,
-          ),
-        ),
-      ],
+    return _AddButton(
+      key: const Key('schedule-add-button'),
+      label: '일정 등록',
+      onTap: onAddSchedule,
     );
   }
 }
 
 class _AddButton extends StatelessWidget {
-  final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _AddButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _AddButton({super.key, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
+    return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
@@ -475,156 +446,57 @@ class _AddButton extends StatelessWidget {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      icon: Icon(icon, size: 18),
-      label: AppText(label, fontSize: 13, fontWeight: FontWeight.bold),
+      child: AppText(label, fontSize: 13, fontWeight: FontWeight.bold),
     );
   }
 }
 
 class _SelectedDateCareList extends StatelessWidget {
   final DateTime selectedDate;
-  final List<Routine> routines;
-  final Map<String, CompletionStatus> completions;
+  final List<CareSchedule> schedules;
   final Color accentColor;
-  final ValueChanged<String> onToggle;
-  final ValueChanged<String> onDelete;
 
   const _SelectedDateCareList({
     required this.selectedDate,
-    required this.routines,
-    required this.completions,
+    required this.schedules,
     required this.accentColor,
-    required this.onToggle,
-    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (routines.isEmpty) return const _EmptyCareState();
-    final selectedIso = _isoDate(selectedDate);
+    if (schedules.isEmpty) return const _EmptyCareState();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppText(
-          '${DateFormat('M월 d일').format(selectedDate)} 케어',
+          '${DateFormat('M월 d일').format(selectedDate)} 일정',
           fontSize: 15,
           fontWeight: FontWeight.bold,
           color: AppColors.text,
         ),
         const SizedBox(height: 10),
-        ...routines.map((routine) {
-          final key = '${routine.id}:$selectedIso';
-          return Padding(
+        ...schedules.map(
+          (schedule) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _RoutineItemTile(
-              routine: routine,
-              status: completions[key] ?? CompletionStatus.pending,
-              accentColor: accentColor,
-              onToggle: () => onToggle(routine.id),
-              onDelete: () => onDelete(routine.id),
-            ),
-          );
-        }),
+            child: _ScheduleTile(schedule: schedule, accentColor: accentColor),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _RoutineItemTile extends StatelessWidget {
-  final Routine routine;
-  final CompletionStatus status;
-  final Color accentColor;
-  final VoidCallback onToggle;
-  final VoidCallback onDelete;
-
-  const _RoutineItemTile({
-    required this.routine,
-    required this.status,
-    required this.accentColor,
-    required this.onToggle,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = status == CompletionStatus.completed;
-    final note = routine.note?.trim();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: completed ? AppColors.surfaceSoft : AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(recordTypeIcon(routine.typeId), color: accentColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppText(
-                  _routineTitle(routine),
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: completed ? AppColors.textSecondary : AppColors.text,
-                ),
-                if (note != null && note.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  AppText(note, fontSize: 12, color: AppColors.textSecondary),
-                ],
-                const SizedBox(height: 3),
-                AppText(
-                  '${routine.times.join(', ')}  ${_repeatLabel(routine.repeatType)}',
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            key: Key('routine-complete-${routine.id}'),
-            onPressed: onToggle,
-            icon: Icon(
-              completed
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: completed ? accentColor : AppColors.muted,
-            ),
-            tooltip: '완료',
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'delete') onDelete();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'delete', child: AppText('삭제')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ScheduleList extends StatelessWidget {
+  final List<CareSchedule> schedules;
   final Color accentColor;
 
-  const _ScheduleList({required this.accentColor});
+  const _ScheduleList({required this.schedules, required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
+    if (schedules.isEmpty) return const _EmptyCareState();
     return Column(
-      children: _sampleSchedules
+      children: schedules
           .map(
             (schedule) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -640,7 +512,7 @@ class _ScheduleList extends StatelessWidget {
 }
 
 class _ScheduleTile extends StatelessWidget {
-  final _SampleSchedule schedule;
+  final CareSchedule schedule;
   final Color accentColor;
 
   const _ScheduleTile({required this.schedule, required this.accentColor});
@@ -659,7 +531,7 @@ class _ScheduleTile extends StatelessWidget {
               color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(schedule.icon, color: accentColor),
+            child: Icon(_scheduleIcon(schedule.categoryId), color: accentColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -676,12 +548,11 @@ class _ScheduleTile extends StatelessWidget {
                         color: AppColors.text,
                       ),
                     ),
-                    const _SampleBadge(),
                   ],
                 ),
                 const SizedBox(height: 3),
                 AppText(
-                  '${schedule.dateText}  ${schedule.place}',
+                  _scheduleSubtitle(schedule),
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
@@ -689,28 +560,6 @@ class _ScheduleTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SampleBadge extends StatelessWidget {
-  const _SampleBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const AppText(
-        '샘플',
-        fontSize: 10,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textSecondary,
       ),
     );
   }
@@ -729,7 +578,7 @@ class _EmptyCareState extends StatelessWidget {
           Icon(Icons.event_note_rounded, color: AppColors.muted, size: 36),
           SizedBox(height: 10),
           AppText(
-            '아직 등록된 케어가 없어요',
+            '아직 등록된 일정이 없어요',
             fontSize: 15,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
@@ -737,7 +586,7 @@ class _EmptyCareState extends StatelessWidget {
           ),
           SizedBox(height: 4),
           AppText(
-            '반복 루틴이나 병원 일정을 추가해 보세요',
+            '병원, 미용, 외출 일정을 추가해 보세요',
             fontSize: 12,
             color: AppColors.textSecondary,
             textAlign: TextAlign.center,
@@ -748,59 +597,66 @@ class _EmptyCareState extends StatelessWidget {
   }
 }
 
-class _SampleSchedule {
-  final String title;
-  final String dateText;
-  final String place;
-  final IconData icon;
-
-  const _SampleSchedule({
-    required this.title,
-    required this.dateText,
-    required this.place,
-    required this.icon,
-  });
-}
-
 enum _RoutineMainTab { calendar, scheduleList }
 
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
-const _sampleSchedules = [
-  _SampleSchedule(
-    title: '예방접종 예약',
-    dateText: '6월 3일 오전 10:00',
-    place: '동네동물병원',
-    icon: Icons.vaccines_rounded,
-  ),
-  _SampleSchedule(
-    title: '미용 예약',
-    dateText: '6월 8일 오후 2:00',
-    place: '포근한 미용실',
-    icon: Icons.content_cut_rounded,
-  ),
-];
+Set<String> _scheduleDatesForMonth(
+  List<CareSchedule> schedules,
+  DateTime visibleMonth,
+) {
+  final monthStart = DateTime(visibleMonth.year, visibleMonth.month);
+  final monthEnd = DateTime(visibleMonth.year, visibleMonth.month + 1, 0);
+  final dates = <String>{};
+  for (final schedule in schedules) {
+    var current = _dateOnly(DateTime.parse(schedule.startDate));
+    final end = _dateOnly(DateTime.parse(schedule.endDate));
+    while (!current.isAfter(end)) {
+      if (!current.isBefore(monthStart) && !current.isAfter(monthEnd)) {
+        dates.add(_isoDate(current));
+      }
+      current = current.add(const Duration(days: 1));
+    }
+  }
+  return dates;
+}
 
-const _repeatOptions = {
-  'daily': '매일',
-  'weekly': '매주',
-  'biweekly': '2주마다',
-  'monthly': '매월',
+bool _scheduleAppliesOn(CareSchedule schedule, DateTime date) {
+  final selected = _dateOnly(date);
+  final start = _dateOnly(DateTime.parse(schedule.startDate));
+  final end = _dateOnly(DateTime.parse(schedule.endDate));
+  return !selected.isBefore(start) && !selected.isAfter(end);
+}
+
+int _scheduleCompare(CareSchedule a, CareSchedule b) {
+  final dateCompare = a.startDate.compareTo(b.startDate);
+  if (dateCompare != 0) return dateCompare;
+  return (a.startTime ?? '').compareTo(b.startTime ?? '');
+}
+
+IconData _scheduleIcon(String categoryId) => switch (categoryId) {
+  'grooming' => Icons.content_cut_rounded,
+  'hospital' => Icons.local_hospital_rounded,
+  'travel' => Icons.luggage_rounded,
+  'hotel' => Icons.home_work_rounded,
+  'outing' => Icons.local_cafe_rounded,
+  'event' => Icons.celebration_rounded,
+  _ => Icons.event_note_rounded,
 };
 
-String _routineTitle(Routine routine) {
-  final label = routine.label.trim();
-  return label.isEmpty ? recordTypeLabel(routine.typeId) : label;
+String _scheduleSubtitle(CareSchedule schedule) {
+  final date = DateTime.parse(schedule.startDate);
+  final dateText = DateFormat('M월 d일').format(date);
+  final timeText = schedule.allDay ? '종일' : schedule.startTime;
+  final place = schedule.place?.trim();
+  return [
+    if (timeText != null && timeText.isNotEmpty)
+      '$dateText $timeText'
+    else
+      dateText,
+    if (place != null && place.isNotEmpty) place,
+  ].join('  ');
 }
-
-int _routineTimeCompare(Routine a, Routine b) {
-  final aTime = a.times.isEmpty ? '' : a.times.first;
-  final bTime = b.times.isEmpty ? '' : b.times.first;
-  return aTime.compareTo(bTime);
-}
-
-String _repeatLabel(String repeatType) =>
-    _repeatOptions[repeatType] ?? repeatType;
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 

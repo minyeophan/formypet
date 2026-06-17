@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/models/pet.dart';
+import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,11 +28,23 @@ void main() {
     expect(find.text('사진'), findsNothing);
   });
 
-  testWidgets('schedule save enables after category and title then returns', (
+  testWidgets('header has no save button and bottom save starts disabled', (
     tester,
   ) async {
     await _pumpScreen(tester);
-    TextButton saveButton() =>
+
+    expect(find.byType(TextButton), findsNothing);
+    ElevatedButton saveButton() =>
+        tester.widget(find.byKey(const Key('schedule-save-button')));
+    expect(saveButton().onPressed, isNull);
+  });
+
+  testWidgets('schedule save persists without preparing toast then returns', (
+    tester,
+  ) async {
+    final notifier = _petNotifier();
+    await _pumpScreen(tester, notifier: notifier);
+    ElevatedButton saveButton() =>
         tester.widget(find.byKey(const Key('schedule-save-button')));
 
     expect(saveButton().onPressed, isNull);
@@ -44,7 +59,12 @@ void main() {
     await tester.tap(find.byKey(const Key('schedule-save-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('routine target'), findsOneWidget);
+    expect(find.text('준비중'), findsNothing);
+    expect(notifier.state.schedules, hasLength(1));
+    expect(notifier.state.schedules.single.title, '목욕 예약');
+    expect(notifier.state.schedules.single.categoryId, 'grooming');
+    expect(notifier.state.schedules.single.startTime, '00:00');
+    expect(find.textContaining('routine target date='), findsOneWidget);
   });
 
   testWidgets('all day hides time controls and map search shows toast', (
@@ -87,7 +107,8 @@ void main() {
   });
 }
 
-Future<void> _pumpScreen(WidgetTester tester) async {
+Future<void> _pumpScreen(WidgetTester tester, {PetNotifier? notifier}) async {
+  final petNotifier = notifier ?? _petNotifier();
   final router = GoRouter(
     initialLocation: '/routine/schedule/new',
     routes: [
@@ -97,10 +118,42 @@ Future<void> _pumpScreen(WidgetTester tester) async {
       ),
       GoRoute(
         path: '/routine',
-        builder: (_, _) => const Scaffold(body: Text('routine target')),
+        builder: (_, state) => Scaffold(
+          body: Text(
+            'routine target date=${state.uri.queryParameters['date']}',
+          ),
+        ),
       ),
     ],
   );
-  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [petProvider.overrideWith((ref) => petNotifier)],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
   await tester.pumpAndSettle();
 }
+
+PetNotifier _petNotifier() => PetNotifier.test(
+  PetState(
+    isLoading: false,
+    hasOnboarded: true,
+    pets: [_pet('1')],
+    activePetId: '1',
+    records: const [],
+    routines: const [],
+    todayRoutineItems: const [],
+    routineCompletions: const {},
+    quickTypeIds: const ['meal', 'water'],
+  ),
+);
+
+Pet _pet(String id) => Pet(
+  id: id,
+  name: 'Pet $id',
+  species: 'dog',
+  birthDate: '2022-03-15',
+  accentColor: '#F4A460',
+  bgLight: '#FFF8F0',
+);

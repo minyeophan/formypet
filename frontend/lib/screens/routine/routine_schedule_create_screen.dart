@@ -1,10 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
+import '../../models/care_schedule.dart';
+import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
@@ -13,16 +16,16 @@ import '../../widgets/record_inputs/record_input_style.dart';
 import '../../widgets/record_inputs/record_picker_sheet.dart';
 import 'routine_schedule_values.dart';
 
-class RoutineScheduleCreateScreen extends StatefulWidget {
+class RoutineScheduleCreateScreen extends ConsumerStatefulWidget {
   const RoutineScheduleCreateScreen({super.key});
 
   @override
-  State<RoutineScheduleCreateScreen> createState() =>
+  ConsumerState<RoutineScheduleCreateScreen> createState() =>
       _RoutineScheduleCreateScreenState();
 }
 
 class _RoutineScheduleCreateScreenState
-    extends State<RoutineScheduleCreateScreen> {
+    extends ConsumerState<RoutineScheduleCreateScreen> {
   final _titleController = TextEditingController();
   final _placeController = TextEditingController();
   final _memoController = TextEditingController();
@@ -34,6 +37,8 @@ class _RoutineScheduleCreateScreenState
   String _reminder = _reminders.first;
   bool _allDay = false;
   bool _rangeAdjusted = false;
+  bool _saving = false;
+  String? _error;
 
   @override
   void initState() {
@@ -63,20 +68,6 @@ class _RoutineScheduleCreateScreenState
         showBackButton: true,
         centerTitle: true,
         onBack: _goBack,
-        actions: [
-          SizedBox(
-            width: kToolbarHeight,
-            child: TextButton(
-              key: const Key('schedule-save-button'),
-              onPressed: _canSave ? _save : null,
-              child: const AppText(
-                '저장',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -104,8 +95,10 @@ class _RoutineScheduleCreateScreenState
                         return _CategoryButton(
                           category: category,
                           selected: category == _selectedCategory,
-                          onTap: () =>
-                              setState(() => _selectedCategory = category),
+                          onTap: () => setState(() {
+                            _selectedCategory = category;
+                            _error = null;
+                          }),
                         );
                       },
                     ),
@@ -226,6 +219,45 @@ class _RoutineScheduleCreateScreenState
                   child: _ValueField(value: _reminder),
                 ),
               ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                AppText(
+                  _error!,
+                  fontSize: 12,
+                  color: Colors.redAccent,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  key: const Key('schedule-save-button'),
+                  onPressed: _canSave && !_saving ? _save : null,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: AppColors.text,
+                    foregroundColor: AppColors.white,
+                    disabledBackgroundColor: AppColors.surfaceSoft,
+                    disabledForegroundColor: AppColors.muted,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : AppText(
+                          '저장',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _canSave ? AppColors.white : AppColors.muted,
+                        ),
+                ),
+              ),
             ],
           ),
         ),
@@ -293,6 +325,7 @@ class _RoutineScheduleCreateScreenState
       allDay: allDay ?? _allDay,
     );
     setState(() {
+      _error = null;
       _startDate = _dateOnly(nextStartDate);
       _startTime = nextStartTime;
       _endDate = range.endDate;
@@ -303,11 +336,43 @@ class _RoutineScheduleCreateScreenState
   }
 
   Future<void> _save() async {
-    if (!_canSave) return;
+    if (!_canSave || _saving) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
-    showPreparingToast(context);
-    context.go('/routine');
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final state = ref.read(petProvider);
+      final petId = state.activePetId;
+      if (petId == null) throw StateError('Active pet is required');
+      final now = DateTime.now();
+      final schedule = CareSchedule(
+        id: 'local-${now.microsecondsSinceEpoch}',
+        petId: petId,
+        categoryId: _selectedCategory!.id,
+        title: _titleController.text.trim(),
+        startDate: _isoDate(_startDate),
+        startTime: _allDay ? null : _formatTime(_startTime),
+        endDate: _isoDate(_endDate),
+        endTime: _allDay ? null : _formatTime(_endTime),
+        allDay: _allDay,
+        place: _emptyToNull(_placeController.text),
+        memo: _emptyToNull(_memoController.text),
+        reminder: _reminder,
+        createdAt: now.toIso8601String(),
+      );
+      await ref.read(petProvider.notifier).addCareSchedule(schedule);
+      if (!mounted) return;
+      context.go('/routine?date=${schedule.startDate}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.';
+      });
+    }
   }
 
   Future<void> _goBack() async {
@@ -542,12 +607,14 @@ class _ReminderPickerSheetState extends State<_ReminderPickerSheet> {
 }
 
 class _ScheduleCategory {
+  final String id;
   final String label;
   final String description;
   final IconData icon;
   final Color color;
 
   const _ScheduleCategory({
+    required this.id,
     required this.label,
     required this.description,
     required this.icon,
@@ -557,42 +624,49 @@ class _ScheduleCategory {
 
 const _categories = [
   _ScheduleCategory(
+    id: 'grooming',
     label: '미용',
     description: '목욕, 미용, 발톱 관리 일정을 기록해요.',
     icon: Icons.content_cut_rounded,
     color: Color(0xFFD4779B),
   ),
   _ScheduleCategory(
+    id: 'hospital',
     label: '병원 예약',
     description: '진료와 예방접종 예약을 잊지 않게 챙겨요.',
     icon: Icons.local_hospital_rounded,
     color: Color(0xFF5B8DEF),
   ),
   _ScheduleCategory(
+    id: 'travel',
     label: '여행숙박',
     description: '함께 떠나는 여행과 숙박 일정을 기록해요.',
     icon: Icons.luggage_rounded,
     color: Color(0xFF8D7A64),
   ),
   _ScheduleCategory(
+    id: 'hotel',
     label: '호텔링',
     description: '돌봄과 호텔링 일정을 미리 확인해요.',
     icon: Icons.home_work_rounded,
     color: Color(0xFF5E9F7B),
   ),
   _ScheduleCategory(
+    id: 'outing',
     label: '카페외출',
     description: '카페와 외출 약속을 기록해요.',
     icon: Icons.local_cafe_rounded,
     color: Color(0xFFE29B45),
   ),
   _ScheduleCategory(
+    id: 'event',
     label: '행사이벤트',
     description: '행사와 이벤트 일정을 모아봐요.',
     icon: Icons.celebration_rounded,
     color: Color(0xFF8D6CCF),
   ),
   _ScheduleCategory(
+    id: 'etc',
     label: '기타',
     description: '그 밖의 중요한 일정을 기록해요.',
     icon: Icons.event_note_rounded,
@@ -604,9 +678,16 @@ const _reminders = ['하루 전', '2시간 전', '1시간 전', '30분 전', '�
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
+String _isoDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
+
 String _formatTime(TimeOfDay time) =>
     '${time.hour.toString().padLeft(2, '0')}:'
     '${time.minute.toString().padLeft(2, '0')}';
+
+String? _emptyToNull(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
 
 InputDecoration _inputDecoration(String hint) {
   return InputDecoration(

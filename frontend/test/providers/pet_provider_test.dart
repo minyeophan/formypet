@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/activity_record.dart';
+import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -149,6 +151,43 @@ void main() {
   });
 
   test(
+    'addCareSchedule appends active pet schedule and persists JSON',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      expect(notifier.state.schedules.map((schedule) => schedule.id), ['s1']);
+      final prefs = await SharedPreferences.getInstance();
+      final saved =
+          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
+      expect(saved.single['title'], '목욕 예약');
+    },
+  );
+
+  test('loadForAuthenticatedUser restores persisted care schedules', () async {
+    SharedPreferences.setMockInitialValues({
+      'careSchedules:1': jsonEncode([_schedule('s1', '1').toJson()]),
+    });
+    final pet = _pet('1');
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+    );
+
+    await notifier.loadForAuthenticatedUser();
+
+    expect(notifier.state.schedules.single.id, 's1');
+  });
+
+  test(
     'deleteRoutine removes all completion keys for deleted routine',
     () async {
       final pet = _pet('1');
@@ -188,6 +227,7 @@ void main() {
       _FakeRoutineService(routines: [_routine('rt1', pet.id)]),
     );
     await notifier.loadForAuthenticatedUser();
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
     await notifier.setQuickTypeIds(const ['meal', 'water']);
 
     await notifier.clearForSignedOutUser();
@@ -200,7 +240,13 @@ void main() {
     expect(notifier.state.routineCompletions, isEmpty);
     expect(notifier.state.todayRoutineItems, isEmpty);
     expect(notifier.state.todaySummary, isNull);
+    expect(notifier.state.schedules, isEmpty);
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getKeys().where((key) => key.startsWith('careSchedules:')),
+      isEmpty,
+    );
   });
 
   test(
@@ -257,6 +303,7 @@ void main() {
       _FakeRoutineService(),
     );
     await notifier.loadForAuthenticatedUser();
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
 
     await notifier.deletePet(pet.id);
 
@@ -264,6 +311,8 @@ void main() {
     expect(notifier.state.hasOnboarded, isFalse);
     expect(notifier.state.pets, isEmpty);
     expect(notifier.state.activePetId, isNull);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('careSchedules:1'), isNull);
   });
 
   test('deletePet activates and reloads the next pet', () async {
@@ -349,6 +398,22 @@ Pet _pet(String id) => Pet(
 
 ActivityRecord _record(String id, String petId) =>
     ActivityRecord(id: id, petId: petId, typeId: 'water', date: '2026-05-18');
+
+CareSchedule _schedule(String id, String petId) => CareSchedule(
+  id: id,
+  petId: petId,
+  categoryId: 'grooming',
+  title: '목욕 예약',
+  startDate: '2026-06-17',
+  startTime: '10:30',
+  endDate: '2026-06-17',
+  endTime: '11:00',
+  allDay: false,
+  place: '동네 미용실',
+  memo: null,
+  reminder: '하루 전',
+  createdAt: '2026-06-01T00:00:00.000',
+);
 
 Routine _routine(String id, String petId) => Routine(
   id: id,

@@ -169,10 +169,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
         ),
       ),
-      GoRoute(
-        path: '/records/expense/new',
-        redirect: (c, s) => '/wallet/expenses/new',
-      ),
       GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
       GoRoute(
         path: '/wallet/report',
@@ -183,14 +179,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => const ExpenseAddScreen(),
       ),
       GoRoute(
-        path: '/wallet/expenses/:recordId/edit',
+        path: '/wallet/expenses/:expenseId/edit',
         builder: (c, s) =>
-            ExpenseEditScreen(recordId: s.pathParameters['recordId']!),
+            ExpenseEditScreen(expenseId: s.pathParameters['expenseId']!),
       ),
       GoRoute(
-        path: '/wallet/expenses/:recordId',
+        path: '/wallet/expenses/:expenseId',
         builder: (c, s) =>
-            ExpenseDetailScreen(recordId: s.pathParameters['recordId']!),
+            ExpenseDetailScreen(expenseId: s.pathParameters['expenseId']!),
       ),
       GoRoute(
         path: '/records/:typeId/new',
@@ -209,7 +205,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) =>
             RecordDetailScreen(recordId: s.pathParameters['recordId']!),
       ),
-      GoRoute(path: '/routine', builder: (c, s) => const RoutineScreen()),
+      GoRoute(
+        path: '/routine',
+        builder: (c, s) => RoutineScreen(
+          initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+        ),
+      ),
       GoRoute(
         path: '/routine/new',
         builder: (c, s) => const RoutineCreateScreen(),

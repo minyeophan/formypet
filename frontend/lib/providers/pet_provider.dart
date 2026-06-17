@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pet.dart';
 import '../models/activity_record.dart';
+import '../models/care_schedule.dart';
 import '../models/routine.dart';
 import '../services/pet_service.dart';
 import '../services/media_service.dart';
@@ -17,6 +20,7 @@ class PetState {
   final String? activePetId;
   final List<ActivityRecord> records;
   final List<Routine> routines;
+  final List<CareSchedule> schedules;
   final List<TodayRoutineItem> todayRoutineItems;
   // completionKey = "routineId:date" → CompletionStatus
   final Map<String, CompletionStatus> routineCompletions;
@@ -32,6 +36,7 @@ class PetState {
     this.activePetId,
     required this.records,
     required this.routines,
+    this.schedules = const [],
     required this.todayRoutineItems,
     required this.routineCompletions,
     this.todaySummary,
@@ -49,6 +54,7 @@ class PetState {
     bool clearActivePetId = false,
     List<ActivityRecord>? records,
     List<Routine>? routines,
+    List<CareSchedule>? schedules,
     List<TodayRoutineItem>? todayRoutineItems,
     Map<String, CompletionStatus>? routineCompletions,
     TodayRoutineSummary? todaySummary,
@@ -61,6 +67,7 @@ class PetState {
     activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
     records: records ?? this.records,
     routines: routines ?? this.routines,
+    schedules: schedules ?? this.schedules,
     todayRoutineItems: todayRoutineItems ?? this.todayRoutineItems,
     routineCompletions: routineCompletions ?? this.routineCompletions,
     todaySummary: clearTodaySummary
@@ -104,6 +111,7 @@ class PetNotifier extends StateNotifier<PetState> {
            pets: const [],
            records: const [],
            routines: const [],
+           schedules: const [],
            todayRoutineItems: const [],
            routineCompletions: const {},
            quickTypeIds: kDefaultQuickIds,
@@ -140,6 +148,7 @@ class PetNotifier extends StateNotifier<PetState> {
           pets: const [],
           records: const [],
           routines: const [],
+          schedules: const [],
           todayRoutineItems: const [],
           routineCompletions: const {},
           quickTypeIds: state.quickTypeIds,
@@ -154,6 +163,7 @@ class PetNotifier extends StateNotifier<PetState> {
         activePetId: activePetId,
         records: const [],
         routines: const [],
+        schedules: const [],
         todayRoutineItems: const [],
         routineCompletions: const {},
         quickTypeIds: state.quickTypeIds,
@@ -167,12 +177,14 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<void> clearForSignedOutUser() async {
     await _preferencesReady;
+    await _removeAllCareSchedules();
     state = PetState(
       isLoading: false,
       hasOnboarded: false,
       pets: const [],
       records: const [],
       routines: const [],
+      schedules: const [],
       todayRoutineItems: const [],
       routineCompletions: const {},
       quickTypeIds: state.quickTypeIds,
@@ -184,11 +196,13 @@ class PetNotifier extends StateNotifier<PetState> {
       _recSvc.getRecords(petId),
       _routSvc.getRoutines(petId),
       _routSvc.getTodayRoutines(petId),
+      _loadCareSchedules(petId),
     ]);
 
     final records = results[0] as List<ActivityRecord>;
     final routines = results[1] as List<Routine>;
     final todayData = results[2] as TodayRoutineData;
+    final schedules = results[3] as List<CareSchedule>;
 
     // Build completion map from actual completion status returned by backend
     // completionKey: "routineId:scheduledDate"
@@ -201,6 +215,7 @@ class PetNotifier extends StateNotifier<PetState> {
     state = state.copyWith(
       records: records,
       routines: routines,
+      schedules: schedules,
       todayRoutineItems: todayData.items,
       todaySummary: todayData.summary,
       routineCompletions: completions,
@@ -226,6 +241,7 @@ class PetNotifier extends StateNotifier<PetState> {
       activePetId: pet.id,
       records: const [],
       routines: const [],
+      schedules: const [],
       todayRoutineItems: const [],
       routineCompletions: const {},
       quickTypeIds: state.quickTypeIds,
@@ -267,6 +283,7 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<void> deletePet(String petId) async {
     await _petSvc.deletePet(petId);
+    await _removeCareSchedules(petId);
     final oldActivePetId = state.activePetId;
     final remaining = state.pets.where((p) => p.id != petId).toList();
     if (remaining.isEmpty) {
@@ -276,6 +293,7 @@ class PetNotifier extends StateNotifier<PetState> {
         pets: const [],
         records: const [],
         routines: const [],
+        schedules: const [],
         todayRoutineItems: const [],
         routineCompletions: const {},
         quickTypeIds: state.quickTypeIds,
@@ -328,6 +346,13 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   // Routine CRUD
+  Future<void> addCareSchedule(CareSchedule schedule) async {
+    final petId = state.activePetId!;
+    final next = [...state.schedules, schedule];
+    await _saveCareSchedules(petId, next);
+    state = state.copyWith(schedules: next);
+  }
+
   Future<void> addRoutine(Map<String, dynamic> body) async {
     final petId = state.activePetId!;
     final routine = await _routSvc.createRoutine(petId, body);
@@ -437,7 +462,42 @@ class PetNotifier extends StateNotifier<PetState> {
     await prefs.setStringList('quickTypeIds', ids);
     state = state.copyWith(quickTypeIds: ids);
   }
+
+  Future<List<CareSchedule>> _loadCareSchedules(String petId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_careSchedulesKey(petId));
+    if (raw == null || raw.isEmpty) return const [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((item) => CareSchedule.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _saveCareSchedules(
+    String petId,
+    List<CareSchedule> schedules,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = schedules.map((schedule) => schedule.toJson()).toList();
+    await prefs.setString(_careSchedulesKey(petId), jsonEncode(payload));
+  }
+
+  Future<void> _removeCareSchedules(String petId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_careSchedulesKey(petId));
+  }
+
+  Future<void> _removeAllCareSchedules() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('careSchedules:'))
+        .toList();
+    await Future.wait(keys.map(prefs.remove));
+  }
 }
+
+String _careSchedulesKey(String petId) => 'careSchedules:$petId';
 
 final petServiceProvider = Provider<PetService>((_) => PetService());
 final recordServiceProvider = Provider<RecordService>((_) => RecordService());
