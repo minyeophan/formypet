@@ -3,6 +3,7 @@ package com.petyilgi.config;
 import com.petyilgi.auth.JwtAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -63,8 +64,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+                            res.getWriter().write("""
+                                    {"type":"https://petyilgi.com/errors/unauthorized","title":"Unauthorized","status":401,"detail":"Unauthorized","errorCode":"UNAUTHORIZED"}
+                                    """);
+                        })
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
