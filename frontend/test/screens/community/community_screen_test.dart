@@ -68,6 +68,8 @@ void main() {
   testWidgets('main category carousel renders two fixed panels', (
     tester,
   ) async {
+    _setMobileViewport(tester);
+
     await _pump(
       tester,
       const CommunityScreen(),
@@ -132,6 +134,44 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('category carousel snaps back when dragged less than halfway', (
+    tester,
+  ) async {
+    _setMobileViewport(tester);
+
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [_post('popular-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    final scroller = _categoryCarouselScrollable();
+    await tester.drag(scroller, const Offset(-120, 0));
+    await tester.pumpAndSettle();
+
+    expect(_categoryScrollPosition(tester).pixels, closeTo(0, 0.5));
+  });
+
+  testWidgets('category carousel snaps forward when dragged past halfway', (
+    tester,
+  ) async {
+    _setMobileViewport(tester);
+
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [_post('popular-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    final scroller = _categoryCarouselScrollable();
+    await tester.drag(scroller, const Offset(-240, 0));
+    await tester.pumpAndSettle();
+
+    expect(_categoryScrollPosition(tester).pixels, closeTo(370, 0.5));
   });
 
   testWidgets('news and event category tiles keep their category routes', (
@@ -511,6 +551,21 @@ void main() {
     );
   });
 }
+
+void _setMobileViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+Finder _categoryCarouselScrollable() => find.descendant(
+  of: find.byKey(const Key('community-category-carousel')),
+  matching: find.byType(Scrollable),
+);
+
+ScrollPosition _categoryScrollPosition(WidgetTester tester) =>
+    tester.state<ScrollableState>(_categoryCarouselScrollable()).position;
 
 void _expectCommunityHeaderStyle(WidgetTester tester) {
   final header = tester.widget<Container>(

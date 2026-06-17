@@ -235,24 +235,83 @@ class _CommunitySectionHeader extends StatelessWidget {
   }
 }
 
-class _CategoryCarousel extends StatelessWidget {
+class _CategoryCarousel extends StatefulWidget {
   const _CategoryCarousel();
+
+  @override
+  State<_CategoryCarousel> createState() => _CategoryCarouselState();
+}
+
+class _CategoryCarouselState extends State<_CategoryCarousel> {
+  final ScrollController _controller = ScrollController();
+  bool _isSnapping = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _snapToNearestPanel() async {
+    if (!_controller.hasClients) return;
+    if (_isSnapping) return;
+
+    final position = _controller.position;
+    final panelWidth = _communityCategoryPanelWidth(context);
+    final nextPanelOffset = (panelWidth + 12).clamp(
+      0.0,
+      position.maxScrollExtent,
+    );
+    final target = position.pixels < nextPanelOffset / 2
+        ? 0.0
+        : nextPanelOffset;
+
+    if ((position.pixels - target).abs() <= 0.5) return;
+
+    _isSnapping = true;
+    try {
+      await position.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      _isSnapping = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       key: const Key('community-category-carousel'),
       height: 184,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-        children: const [
-          _CategoryPanel(index: 0, entries: _communityPrimaryCategories),
-          _CategoryPanel(index: 1, entries: _communitySecondaryCategories),
-        ],
+      child: Listener(
+        onPointerUp: (_) => _snapToNearestPanel(),
+        onPointerCancel: (_) => _snapToNearestPanel(),
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: (notification) {
+            if (notification.depth != 0) return false;
+            _snapToNearestPanel();
+            return true;
+          },
+          child: ListView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            children: const [
+              _CategoryPanel(index: 0, entries: _communityPrimaryCategories),
+              _CategoryPanel(index: 1, entries: _communitySecondaryCategories),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+double _communityCategoryPanelWidth(BuildContext context) {
+  final viewport = MediaQuery.sizeOf(context).width;
+  return viewport > 390 ? 350.0 : viewport - 32;
 }
 
 class _CategoryPanel extends StatelessWidget {
@@ -263,8 +322,7 @@ class _CategoryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewport = MediaQuery.sizeOf(context).width;
-    final panelWidth = viewport > 390 ? 350.0 : viewport - 32;
+    final panelWidth = _communityCategoryPanelWidth(context);
     return Container(
       key: Key('community-category-panel-$index'),
       width: panelWidth,
