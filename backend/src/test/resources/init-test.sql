@@ -214,6 +214,27 @@ CREATE TABLE IF NOT EXISTS routine_completions (
     INDEX idx_pet_scheduled (pet_id, scheduled_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+CREATE TABLE IF NOT EXISTS wallet_expenses (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id      BIGINT NOT NULL,
+    pet_id       BIGINT NOT NULL,
+    expense_date DATE NOT NULL,
+    expense_time TIME NULL,
+    amount       BIGINT NOT NULL,
+    currency     VARCHAR(3) NOT NULL DEFAULT 'KRW',
+    category     VARCHAR(40) NOT NULL,
+    item_name    VARCHAR(100) NULL,
+    note         VARCHAR(500) NULL,
+    created_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_wallet_expense_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_wallet_expense_pet FOREIGN KEY (pet_id) REFERENCES pets (id) ON DELETE CASCADE,
+    INDEX idx_wallet_expenses_pet_date (pet_id, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_user_date (user_id, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_pet_category_date (pet_id, category, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_user_category_date (user_id, category, expense_date, expense_time, id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 CREATE TABLE IF NOT EXISTS posts (
     id           BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id      BIGINT       NOT NULL,
