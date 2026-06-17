@@ -110,8 +110,8 @@
 
 ## 최신 Handover
 
-- Goal: My 고객지원 흐름 중 공지사항 목록/상세, 고객센터 FAQ 카테고리/상세, 1대1 문의 작성 화면을 실제 Flutter 화면으로 연결한다.
-- Done: `my_support_data.dart`에 공지 3개와 FAQ 카테고리 4개, FAQ 12개 static 데이터를 추가했다. `my_support_widgets.dart`로 지원 화면 공통 card/row/article/fallback back helper를 분리했고, `my_notices_screen.dart`, `my_support_center_screen.dart`, `my_inquiry_screen.dart`를 추가했다. `/my/notices`, `/my/notices/:noticeId`, `/my/support`, `/my/support/:categoryId`, `/my/support/faq/:faqId`, `/my/inquiry` 라우트를 My shell 아래에 등록했고, My 메뉴의 공지사항/고객센터/1대1 문의하기 row를 실제 route로 연결했다. 문의 접수는 저장 없이 기존 `준비중` 토스트를 유지한다.
-- Remaining: 백엔드 저장/조회 API, 문의 접수 완료 화면, 문의 내역 화면은 이번 범위에 포함하지 않았다. 공동집사 관리, 나의 활동, 일반 설정, 알림 설정은 계속 `준비중` 상태다.
-- Next step: 실제 기기 또는 브라우저에서 My 탭의 고객지원 3개 row, 공지/FAQ 상세 back fallback, 문의 화면 키보드 입력과 토스트 표시를 수동 확인한다.
-- Warnings: 백엔드, DB, Flyway 마이그레이션, mockup HTML은 수정하지 않았다. 작업 시작 전부터 `frontend/android/build/`와 `docs/BACKEND_INVENTORY.md`가 untracked 상태였으며 되돌리거나 정리하지 않았다.
+- Goal: backend-roadmap의 지갑 지출 1차 백엔드, 프론트 전환, cleanup, 최종 검증 문서 흐름을 구현자가 바로 따라갈 수 있게 03~11번 문서 계약과 작업 순서로 정리한다.
+- Done: `docs/backend-roadmap/03_TARGET_ERD.md`~`08_BACKEND_IMPLEMENTATION_TASKS.md`에 `itemName` nullable, DELETE `204 No Content`, `ProblemDetail.errorCode`, 공통 `ApiException`, pet 검증 순서, `INVALID_INPUT`/`VALIDATION_FAILED` 구분, base64url opaque cursor, soft delete pet 정책, V16 migration 계획, 통합 테스트 기대값, 백엔드 Red-Green 구현 순서를 반영했다. 이어서 `docs/backend-roadmap/09_FRONTEND_INTEGRATION_PLAN.md`를 템플릿에서 실제 프론트 연결 계획으로 교체했고, `WalletExpense` 모델/service/provider, route `recordId -> expenseId`, `ActivityRecord.typeId == "expense"` 분리, wallet 화면/테스트/FRONTEND_STATUS 갱신 순서를 구체화했다. `docs/backend-roadmap/10_DEAD_CODE_CLEANUP_PLAN.md`는 `/records/expense/new`, `ExpenseFormData.toRecordBody()`, `ActivityRecord.typeId == "expense"` 필터, `expense_record_utils.dart`, wallet 테스트 fixture 제거 기준과 검증 명령을 포함한 확정 초안으로 구체화했다. 이번 작업에서는 `bath`/`groom`을 10번 지갑 cleanup이 아닌 별도 기록 cleanup 후보로 분리했고, `docs/backend-roadmap/11_VERIFICATION_PLAN.md`를 백엔드 선택/전체 테스트, 프론트 선택/전체 테스트, cleanup 역참조 검색, 문서/변경 범위 검증, 최종 보고 형식을 포함한 확정 초안으로 교체했다.
+- Remaining: 실제 `V16__create_wallet_expenses.sql`, `init-test.sql`, 백엔드 구현 코드, 통합 테스트 코드, Flutter 모델/service/provider/screen/test 코드는 아직 작성하지 않았다.
+- Next step: 문서를 계속 점검한다면 01~11번 전체를 다시 읽고 누락/충돌을 확인한다. 구현으로 넘어가면 08번의 `WalletExpenseIntegrationTest` 첫 Red 테스트부터 시작한다.
+- Warnings: `docs/backend-roadmap/`는 `.gitignore`에 의해 ignored 상태라 일반 `git status --short`에는 문서 변경이 보이지 않는다. 현재 tracked 변경으로는 기존 `.gitignore`와 `docs/CONTEXT.md`가 보인다. 문서 정리 중에는 애플리케이션 코드, migration, test 파일을 수정하지 않았다.
