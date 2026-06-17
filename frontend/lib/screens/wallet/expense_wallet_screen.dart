@@ -3,19 +3,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
-import '../../models/activity_record.dart';
+import '../../models/wallet_expense.dart';
 import '../../providers/pet_provider.dart';
+import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import 'expense_record_utils.dart';
+import 'wallet_expense_utils.dart';
 
-class ExpenseWalletScreen extends ConsumerWidget {
+class ExpenseWalletScreen extends ConsumerStatefulWidget {
   const ExpenseWalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = expenseRecords(ref.watch(petProvider).records);
-    final recent = expenses.take(3).toList();
+  ConsumerState<ExpenseWalletScreen> createState() =>
+      _ExpenseWalletScreenState();
+}
+
+class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
+  String? _loadedPetId;
+
+  @override
+  Widget build(BuildContext context) {
+    final activePetId = ref.watch(petProvider).activePetId;
+    if (activePetId != null && activePetId != _loadedPetId) {
+      _loadedPetId = activePetId;
+      Future.microtask(
+        () =>
+            ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId),
+      );
+    }
+
+    final walletState = ref.watch(walletExpenseProvider);
+    final recent = walletState.items.take(3).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,17 +47,20 @@ class ExpenseWalletScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AppInlineHeader(
-                      title: '집사의 지갑',
+                      title: '\uC9D1\uC0AC\uC758 \uC9C0\uAC11',
                       onBack: () => _goBack(context),
                     ),
                     const SizedBox(height: 8),
-                    _WalletSummaryCard(expenses: expenses),
+                    _WalletSummaryCard(
+                      totalAmount: walletState.summary.totalAmount,
+                      count: walletState.summary.count,
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: _WalletActionButton(
-                            label: '비용 추가',
+                            label: '\uBE44\uC6A9 \uCD94\uAC00',
                             icon: Icons.add_rounded,
                             onTap: () => context.push('/wallet/expenses/new'),
                           ),
@@ -47,7 +68,7 @@ class ExpenseWalletScreen extends ConsumerWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: _WalletActionButton(
-                            label: '내역 보기',
+                            label: '\uB0B4\uC5ED \uBCF4\uAE30',
                             icon: Icons.receipt_long_rounded,
                             onTap: () => context.push('/wallet/report'),
                           ),
@@ -56,17 +77,20 @@ class ExpenseWalletScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     const AppText(
-                      '최근 지출',
+                      '\uCD5C\uADFC \uC9C0\uCD9C',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: AppColors.text,
                     ),
                     const SizedBox(height: 10),
                     if (recent.isEmpty)
-                      const _ExpenseEmptyPanel(message: '아직 지출 기록이 없어요')
+                      const _ExpenseEmptyPanel(
+                        message:
+                            '\uC544\uC9C1 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
+                      )
                     else
-                      for (final record in recent)
-                        _ExpenseListRow(record: record),
+                      for (final expense in recent)
+                        _ExpenseListRow(expense: expense),
                   ],
                 ),
               ),
@@ -79,9 +103,10 @@ class ExpenseWalletScreen extends ConsumerWidget {
 }
 
 class _WalletSummaryCard extends StatelessWidget {
-  final List<ActivityRecord> expenses;
+  final int totalAmount;
+  final int count;
 
-  const _WalletSummaryCard({required this.expenses});
+  const _WalletSummaryCard({required this.totalAmount, required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -96,21 +121,21 @@ class _WalletSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AppText(
-            '누적 지출',
+            '\uB204\uC801 \uC9C0\uCD9C',
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: AppColors.textSecondary,
           ),
           const SizedBox(height: 6),
           AppText(
-            totalExpenseLabel(expenses),
+            formatWon(totalAmount),
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
           const SizedBox(height: 6),
           AppText(
-            '${expenses.length}건의 지출 기록',
+            '$count\uAC74\uC758 \uC9C0\uCD9C \uAE30\uB85D',
             fontSize: 12,
             color: AppColors.textSecondary,
           ),
@@ -166,19 +191,19 @@ class _WalletActionButton extends StatelessWidget {
 }
 
 class _ExpenseListRow extends StatelessWidget {
-  final ActivityRecord record;
+  final WalletExpense expense;
 
-  const _ExpenseListRow({required this.record});
+  const _ExpenseListRow({required this.expense});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      key: Key('wallet-expense-row-${record.id}'),
+      key: Key('wallet-expense-row-${expense.id}'),
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/wallet/expenses/${record.id}'),
+        onTap: () => context.push('/wallet/expenses/${expense.id}'),
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -208,7 +233,7 @@ class _ExpenseListRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppText(
-                      expenseTitle(record),
+                      walletExpenseTitle(expense),
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: AppColors.text,
@@ -217,7 +242,7 @@ class _ExpenseListRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     AppText(
-                      '${record.date} · ${expenseCategoryLabel(record)}',
+                      '${expense.expenseDate} · ${walletExpenseCategoryLabel(expense)}',
                       fontSize: 11,
                       color: AppColors.textSecondary,
                       maxLines: 1,
@@ -228,7 +253,7 @@ class _ExpenseListRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               AppText(
-                expenseAmountLabel(record),
+                walletExpenseAmountLabel(expense),
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: AppColors.text,

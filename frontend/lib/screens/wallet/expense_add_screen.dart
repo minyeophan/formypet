@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/pet_provider.dart';
+import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import 'expense_form.dart';
 
@@ -61,7 +62,9 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
     });
 
     try {
-      await ref.read(petProvider.notifier).addRecord(data.toRecordBody());
+      await ref
+          .read(walletExpenseProvider.notifier)
+          .createExpense(activePet.id, data.toWalletExpenseBody());
       if (!mounted) return;
       context.go('/wallet');
     } catch (_) {

@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
-import '../../models/activity_record.dart';
+import '../../models/wallet_expense.dart';
 import '../../providers/pet_provider.dart';
+import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import 'expense_record_utils.dart';
+import 'wallet_expense_utils.dart';
 
 class ExpenseDetailScreen extends ConsumerStatefulWidget {
-  final String recordId;
+  final String expenseId;
 
-  const ExpenseDetailScreen({super.key, required this.recordId});
+  const ExpenseDetailScreen({super.key, required this.expenseId});
 
   @override
   ConsumerState<ExpenseDetailScreen> createState() =>
@@ -22,114 +23,41 @@ class ExpenseDetailScreen extends ConsumerStatefulWidget {
 class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   var _deleting = false;
   String? _errorText;
+  Future<WalletExpense>? _expenseFuture;
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(petProvider);
-    final record = state.records
-        .where(
-          (candidate) =>
-              candidate.id == widget.recordId &&
-              candidate.petId == state.activePetId &&
-              candidate.typeId == 'expense',
-        )
-        .firstOrNull;
-
-    if (record == null) {
+    final petId = ref.watch(petProvider).activePetId;
+    if (petId == null) {
       return const _ExpenseNotFoundScreen();
     }
+    _expenseFuture ??= ref
+        .read(walletExpenseProvider.notifier)
+        .getExpense(petId, widget.expenseId);
 
-    final itemName = record.detail['itemName']?.toString().trim();
-    final note = record.note?.trim();
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: AppInlineHeader(
-                  title: '지출 상세',
-                  onBack: () => _goBack(context),
-                  trailing: TextButton(
-                    key: const Key('expense-detail-edit-button'),
-                    onPressed: () =>
-                        context.push('/wallet/expenses/${record.id}/edit'),
-                    child: const AppText(
-                      '수정',
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              sliver: SliverList.list(
-                children: [
-                  _SectionBlock(
-                    title: '날짜/시간',
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('expense-detail-date-label'),
-                            text: record.date,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('expense-detail-time-label'),
-                            text: normalizeExpenseTime(record.time),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '지출 정보',
-                    child: Column(
-                      children: [
-                        _ValueRow(
-                          label: '금액',
-                          value: expenseAmountLabel(record),
-                        ),
-                        _ValueRow(
-                          label: '카테고리',
-                          value: expenseCategoryLabel(record),
-                        ),
-                        if (itemName != null && itemName.isNotEmpty)
-                          _ValueRow(label: '항목명', value: itemName),
-                        if (note != null && note.isNotEmpty)
-                          _ValueRow(label: '메모', value: note),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_errorText != null) ...[
-                    _InlineError(text: _errorText!),
-                    const SizedBox(height: 12),
-                  ],
-                  _DetailActionButton(
-                    deleting: _deleting,
-                    onTap: _deleting ? null : () => _confirmDelete(record),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return FutureBuilder<WalletExpense>(
+      future: _expenseFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const _ExpenseNotFoundScreen();
+        }
+        return _ExpenseDetailBody(
+          expense: snapshot.data!,
+          deleting: _deleting,
+          errorText: _errorText,
+          onDelete: _deleting ? null : _confirmDelete,
+        );
+      },
     );
   }
 
-  Future<void> _confirmDelete(ActivityRecord record) async {
+  Future<void> _confirmDelete(WalletExpense expense) async {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -148,27 +76,27 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const AppText(
-                  '지출 기록을 삭제할까요?',
+                  '\uC9C0\uCD9C \uAE30\uB85D\uC744 \uC0AD\uC81C\uD560\uAE4C\uC694?',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppColors.text,
                 ),
                 const SizedBox(height: 8),
                 const AppText(
-                  '삭제한 기록은 되돌릴 수 없어요.',
+                  '\uC0AD\uC81C\uD55C \uAE30\uB85D\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC5B4\uC694.',
                   fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
                 const SizedBox(height: 16),
                 _SheetButton(
                   key: const Key('expense-delete-confirm-button'),
-                  label: '삭제',
+                  label: '\uC0AD\uC81C',
                   danger: true,
                   onTap: () => context.pop(true),
                 ),
                 const SizedBox(height: 8),
                 _SheetButton(
-                  label: '취소',
+                  label: '\uCDE8\uC18C',
                   danger: false,
                   onTap: () => context.pop(false),
                 ),
@@ -180,27 +108,143 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     );
 
     if (confirmed == true) {
-      await _delete(record.id);
+      await _delete(expense);
     }
   }
 
-  Future<void> _delete(String recordId) async {
+  Future<void> _delete(WalletExpense expense) async {
+    final petId = ref.read(petProvider).activePetId;
+    if (petId == null) {
+      return;
+    }
     setState(() {
       _deleting = true;
       _errorText = null;
     });
 
     try {
-      await ref.read(petProvider.notifier).deleteRecord(recordId);
+      await ref
+          .read(walletExpenseProvider.notifier)
+          .deleteExpense(petId, expense.id);
       if (!mounted) return;
       context.go('/wallet');
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _deleting = false;
-        _errorText = '지출 기록을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.';
+        _errorText =
+            '\uC9C0\uCD9C \uAE30\uB85D\uC744 \uC0AD\uC81C\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.';
       });
     }
+  }
+}
+
+class _ExpenseDetailBody extends StatelessWidget {
+  final WalletExpense expense;
+  final bool deleting;
+  final String? errorText;
+  final ValueChanged<WalletExpense>? onDelete;
+
+  const _ExpenseDetailBody({
+    required this.expense,
+    required this.deleting,
+    required this.errorText,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final itemName = expense.itemName?.trim();
+    final note = expense.note?.trim();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: AppInlineHeader(
+                  title: '\uC9C0\uCD9C \uC0C1\uC138',
+                  onBack: () => _goBack(context),
+                  trailing: TextButton(
+                    key: const Key('expense-detail-edit-button'),
+                    onPressed: () =>
+                        context.push('/wallet/expenses/${expense.id}/edit'),
+                    child: const AppText(
+                      '\uC218\uC815',
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              sliver: SliverList.list(
+                children: [
+                  _SectionBlock(
+                    title: '\uB0A0\uC9DC/\uC2DC\uAC04',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ValueBox(
+                            key: const Key('expense-detail-date-label'),
+                            text: expense.expenseDate,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _ValueBox(
+                            key: const Key('expense-detail-time-label'),
+                            text: normalizeExpenseTime(expense.expenseTime),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  _SectionBlock(
+                    title: '\uC9C0\uCD9C \uC815\uBCF4',
+                    child: Column(
+                      children: [
+                        _ValueRow(
+                          label: '\uAE08\uC561',
+                          value: walletExpenseAmountLabel(expense),
+                        ),
+                        _ValueRow(
+                          label: '\uCE74\uD14C\uACE0\uB9AC',
+                          value: walletExpenseCategoryLabel(expense),
+                        ),
+                        if (itemName != null && itemName.isNotEmpty)
+                          _ValueRow(
+                            label: '\uD488\uBAA9\uBA85',
+                            value: itemName,
+                          ),
+                        if (note != null && note.isNotEmpty)
+                          _ValueRow(label: '\uBA54\uBAA8', value: note),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (errorText != null) ...[
+                    _InlineError(text: errorText!),
+                    const SizedBox(height: 12),
+                  ],
+                  _DetailActionButton(
+                    deleting: deleting,
+                    onTap: onDelete == null ? null : () => onDelete!(expense),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -217,7 +261,7 @@ class _ExpenseNotFoundScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: AppInlineHeader(
-                title: '지출 상세',
+                title: '\uC9C0\uCD9C \uC0C1\uC138',
                 onBack: () => _goBack(context),
               ),
             ),
@@ -237,7 +281,7 @@ class _ExpenseNotFoundScreen extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const AppText(
-                          '지출 기록을 찾을 수 없어요',
+                          '\uC9C0\uCD9C \uAE30\uB85D\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC5B4\uC694',
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: AppColors.text,
@@ -248,7 +292,7 @@ class _ExpenseNotFoundScreen extends StatelessWidget {
                           key: const Key('expense-not-found-wallet-button'),
                           onPressed: () => context.go('/wallet'),
                           child: const AppText(
-                            '지갑으로 돌아가기',
+                            '\uC9C0\uAC11\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30',
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textSecondary,
@@ -405,7 +449,7 @@ class _DetailActionButton extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const AppText(
-                  '지출 삭제',
+                  '\uC9C0\uCD9C \uC0AD\uC81C',
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFFB91C1C),

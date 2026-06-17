@@ -3,19 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
-import '../../models/activity_record.dart';
+import '../../models/wallet_expense.dart';
+import '../../models/wallet_expense.dart' as wallet_model;
 import '../../providers/pet_provider.dart';
+import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import 'expense_record_utils.dart';
+import 'wallet_expense_utils.dart';
 
-class ExpenseReportScreen extends ConsumerWidget {
+class ExpenseReportScreen extends ConsumerStatefulWidget {
   const ExpenseReportScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = expenseRecords(ref.watch(petProvider).records);
-    final categories = _categoryTotals(expenses);
+  ConsumerState<ExpenseReportScreen> createState() =>
+      _ExpenseReportScreenState();
+}
+
+class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
+  String? _loadedPetId;
+
+  @override
+  Widget build(BuildContext context) {
+    final activePetId = ref.watch(petProvider).activePetId;
+    if (activePetId != null && activePetId != _loadedPetId) {
+      _loadedPetId = activePetId;
+      Future.microtask(
+        () =>
+            ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId),
+      );
+    }
+
+    final state = ref.watch(walletExpenseProvider);
+    final expenses = state.items;
+    final categories = state.summary.categories;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,40 +49,46 @@ class ExpenseReportScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AppInlineHeader(
-                      title: '지출 리포트',
+                      title: '\uC9C0\uCD9C \uB9AC\uD3EC\uD2B8',
                       onBack: () => _goBack(context),
                     ),
                     const SizedBox(height: 8),
-                    _ReportSummaryCard(expenses: expenses),
+                    _ReportSummaryCard(
+                      expenses: expenses,
+                      totalAmount: state.summary.totalAmount,
+                    ),
                     const SizedBox(height: 14),
                     const AppText(
-                      '카테고리 요약',
+                      '\uCE74\uD14C\uACE0\uB9AC \uC694\uC57D',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: AppColors.text,
                     ),
                     const SizedBox(height: 10),
                     if (categories.isEmpty)
-                      const _ReportEmptyPanel(message: '요약할 지출 기록이 없어요')
+                      const _ReportEmptyPanel(
+                        message:
+                            '\uC694\uC57D\uD560 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
+                      )
                     else
-                      for (final entry in categories.entries)
-                        _CategorySummaryRow(
-                          category: entry.key,
-                          amount: entry.value,
-                        ),
+                      for (final category in categories)
+                        _CategorySummaryRow(category: category),
                     const SizedBox(height: 14),
                     const AppText(
-                      '지출 내역',
+                      '\uC9C0\uCD9C \uB0B4\uC5ED',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: AppColors.text,
                     ),
                     const SizedBox(height: 10),
                     if (expenses.isEmpty)
-                      const _ReportEmptyPanel(message: '아직 지출 기록이 없어요')
+                      const _ReportEmptyPanel(
+                        message:
+                            '\uC544\uC9C1 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
+                      )
                     else
-                      for (final record in expenses)
-                        _ReportRecordRow(record: record),
+                      for (final expense in expenses)
+                        _ReportExpenseRow(expense: expense),
                   ],
                 ),
               ),
@@ -75,15 +101,16 @@ class ExpenseReportScreen extends ConsumerWidget {
 }
 
 class _ReportSummaryCard extends StatelessWidget {
-  final List<ActivityRecord> expenses;
+  final List<WalletExpense> expenses;
+  final int totalAmount;
 
-  const _ReportSummaryCard({required this.expenses});
+  const _ReportSummaryCard({required this.expenses, required this.totalAmount});
 
   @override
   Widget build(BuildContext context) {
     final period = expenses.isEmpty
-        ? '기간 없음'
-        : '${expenses.last.date} - ${expenses.first.date}';
+        ? '\uAE30\uAC04 \uC5C6\uC74C'
+        : '${expenses.last.expenseDate} - ${expenses.first.expenseDate}';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -99,7 +126,7 @@ class _ReportSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const AppText(
-                  '전체 기간',
+                  '\uC804\uCCB4 \uAE30\uAC04',
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textSecondary,
@@ -116,7 +143,7 @@ class _ReportSummaryCard extends StatelessWidget {
             ),
           ),
           AppText(
-            totalExpenseLabel(expenses),
+            formatWon(totalAmount),
             fontSize: 21,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
@@ -128,10 +155,9 @@ class _ReportSummaryCard extends StatelessWidget {
 }
 
 class _CategorySummaryRow extends StatelessWidget {
-  final String category;
-  final int amount;
+  final wallet_model.WalletExpenseCategorySummary category;
 
-  const _CategorySummaryRow({required this.category, required this.amount});
+  const _CategorySummaryRow({required this.category});
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +173,7 @@ class _CategorySummaryRow extends StatelessWidget {
         children: [
           Expanded(
             child: AppText(
-              category,
+              category.categoryLabel,
               fontSize: 13,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
@@ -156,7 +182,7 @@ class _CategorySummaryRow extends StatelessWidget {
             ),
           ),
           AppText(
-            formatWon(amount),
+            formatWon(category.amount),
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
@@ -167,20 +193,20 @@ class _CategorySummaryRow extends StatelessWidget {
   }
 }
 
-class _ReportRecordRow extends StatelessWidget {
-  final ActivityRecord record;
+class _ReportExpenseRow extends StatelessWidget {
+  final WalletExpense expense;
 
-  const _ReportRecordRow({required this.record});
+  const _ReportExpenseRow({required this.expense});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      key: Key('wallet-report-expense-row-${record.id}'),
+      key: Key('wallet-report-expense-row-${expense.id}'),
       color: AppColors.surfaceSoft,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/wallet/expenses/${record.id}'),
+        onTap: () => context.push('/wallet/expenses/${expense.id}'),
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -193,7 +219,7 @@ class _ReportRecordRow extends StatelessWidget {
               SizedBox(
                 width: 78,
                 child: AppText(
-                  record.date,
+                  expense.expenseDate,
                   fontSize: 11,
                   color: AppColors.textSecondary,
                   maxLines: 1,
@@ -202,7 +228,7 @@ class _ReportRecordRow extends StatelessWidget {
               ),
               Expanded(
                 child: AppText(
-                  '${expenseTitle(record)} · ${expenseCategoryLabel(record)}',
+                  '${walletExpenseTitle(expense)} · ${walletExpenseCategoryLabel(expense)}',
                   fontSize: 13,
                   color: AppColors.text,
                   maxLines: 1,
@@ -211,7 +237,7 @@ class _ReportRecordRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               AppText(
-                expenseAmountLabel(record),
+                walletExpenseAmountLabel(expense),
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: AppColors.text,
@@ -248,15 +274,6 @@ class _ReportEmptyPanel extends StatelessWidget {
       ),
     );
   }
-}
-
-Map<String, int> _categoryTotals(List<ActivityRecord> records) {
-  final totals = <String, int>{};
-  for (final record in records) {
-    final category = expenseCategoryLabel(record);
-    totals[category] = (totals[category] ?? 0) + (expenseAmount(record) ?? 0);
-  }
-  return totals;
 }
 
 void _goBack(BuildContext context) {

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
-import '../../models/activity_record.dart';
+import '../../models/wallet_expense.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
-import 'expense_record_utils.dart';
+import 'wallet_expense_utils.dart';
 
 enum ExpenseFormMode { add, edit }
 
@@ -38,12 +38,12 @@ class ExpenseFormData {
     );
   }
 
-  factory ExpenseFormData.fromRecord(ActivityRecord record) {
-    final parsedDate = DateTime.tryParse(record.date);
+  factory ExpenseFormData.fromExpense(WalletExpense expense) {
+    final parsedDate = DateTime.tryParse(expense.expenseDate);
     final date = parsedDate == null
         ? DateTime.now()
         : DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
-    final normalizedTime = normalizeExpenseTime(record.time);
+    final normalizedTime = normalizeExpenseTime(expense.expenseTime);
     final timeParts = normalizedTime.split(':');
     final hour = timeParts.length == 2 ? int.tryParse(timeParts[0]) : null;
     final minute = timeParts.length == 2 ? int.tryParse(timeParts[1]) : null;
@@ -54,35 +54,32 @@ class ExpenseFormData {
       time: hour == null || minute == null
           ? TimeOfDay(hour: now.hour, minute: now.minute)
           : TimeOfDay(hour: hour, minute: minute),
-      amount: expenseAmount(record) ?? 0,
-      category: record.detail['category']?.toString().trim() ?? '',
-      itemName: record.detail['itemName']?.toString().trim() ?? '',
-      note: record.note?.trim() ?? '',
+      amount: expense.amount,
+      category: expense.category.trim(),
+      itemName: expense.itemName?.trim() ?? '',
+      note: expense.note?.trim() ?? '',
     );
   }
 
-  Map<String, dynamic> toRecordBody() {
+  Map<String, dynamic> toWalletExpenseBody({bool includeNulls = false}) {
+    final trimmedItemName = itemName.trim();
+    final trimmedNote = note.trim();
     final body = <String, dynamic>{
-      'typeId': 'expense',
-      'date': DateFormat('yyyy-MM-dd').format(date),
-      'time':
+      'expenseDate': DateFormat('yyyy-MM-dd').format(date),
+      'expenseTime':
           '${time.hour.toString().padLeft(2, '0')}:'
           '${time.minute.toString().padLeft(2, '0')}',
-      'detail': <String, dynamic>{
-        'amount': amount,
-        'currency': 'KRW',
-        'category': category,
-      },
+      'amount': amount,
+      'currency': 'KRW',
+      'category': category,
     };
 
-    final trimmedItemName = itemName.trim();
-    if (trimmedItemName.isNotEmpty) {
-      (body['detail'] as Map<String, dynamic>)['itemName'] = trimmedItemName;
+    if (includeNulls || trimmedItemName.isNotEmpty) {
+      body['itemName'] = trimmedItemName.isEmpty ? null : trimmedItemName;
     }
 
-    final trimmedNote = note.trim();
-    if (trimmedNote.isNotEmpty) {
-      body['note'] = trimmedNote;
+    if (includeNulls || trimmedNote.isNotEmpty) {
+      body['note'] = trimmedNote.isEmpty ? null : trimmedNote;
     }
 
     return body;
