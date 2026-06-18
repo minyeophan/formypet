@@ -559,7 +559,45 @@ class _ScheduleTile extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 10),
+          _ScheduleDetailButton(scheduleId: schedule.id),
         ],
+      ),
+    );
+  }
+}
+
+class _ScheduleDetailButton extends StatelessWidget {
+  final String scheduleId;
+
+  const _ScheduleDetailButton({required this.scheduleId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '일정 상세',
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          key: Key('schedule-detail-button-$scheduleId'),
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.push('/routine/schedule/$scheduleId'),
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }

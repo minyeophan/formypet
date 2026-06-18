@@ -67,7 +67,8 @@ void main() {
     );
 
     expect(find.text('목욕 예약'), findsOneWidget);
-    expect(find.text('6월 17일 10:30'), findsOneWidget);
+    expect(find.textContaining('6월 17일 10:30'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-detail-button-s1')), findsOneWidget);
     expect(
       find.byKey(const Key('routine-date-dot-2026-06-17')),
       findsOneWidget,
