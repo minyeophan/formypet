@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/activity_record.dart';
+import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/models/wallet_expense.dart';
@@ -545,6 +546,80 @@ void main() {
     expect(find.text('일정 추가'), findsOneWidget);
   });
 
+  testWidgets('/routine/schedule/:id opens schedule detail screen', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/schedule/s1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        schedules: [_schedule('s1', pet.id)],
+      ),
+    );
+
+    expect(find.text('일정 상세'), findsOneWidget);
+    expect(find.text('목욕 예약'), findsOneWidget);
+    expect(find.text('미용'), findsOneWidget);
+    expect(find.text('2026-06-17 10:30 - 11:00'), findsOneWidget);
+    expect(find.text('동네 미용실'), findsOneWidget);
+    expect(find.text('하루 전'), findsOneWidget);
+    expect(find.text('빗 챙기기'), findsOneWidget);
+    expect(
+      find.byKey(const Key('schedule-detail-edit-button')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('/routine/schedule/:id/edit opens prefilled edit screen', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/schedule/s1/edit',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        schedules: [_schedule('s1', pet.id)],
+      ),
+    );
+
+    expect(find.byType(RoutineScheduleCreateScreen), findsOneWidget);
+    expect(find.text('일정 수정'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
+  });
+
+  testWidgets('schedule detail hides missing or inactive pet schedule', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    for (final path in ['/routine/schedule/missing', '/routine/schedule/s2']) {
+      await _pumpRouter(
+        tester,
+        initialLocation: path,
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [pet],
+          activePetId: pet.id,
+          schedules: [_schedule('s2', 'other-pet')],
+        ),
+      );
+
+      expect(find.text('일정을 찾을 수 없어요'), findsOneWidget, reason: path);
+    }
+  });
+
   testWidgets('home growth menu opens /records/growth', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -781,6 +856,7 @@ PetState _petState({
   List<Pet> pets = const [],
   String? activePetId,
   List<ActivityRecord> records = const [],
+  List<CareSchedule> schedules = const [],
 }) => PetState(
   isLoading: isLoading,
   hasOnboarded: hasOnboarded,
@@ -788,6 +864,7 @@ PetState _petState({
   activePetId: activePetId,
   records: records,
   routines: const [],
+  schedules: schedules,
   todayRoutineItems: const [],
   routineCompletions: const {},
   quickTypeIds: const ['meal', 'water'],
@@ -800,6 +877,22 @@ Pet _pet(String id) => Pet(
   birthDate: '2022-03-15',
   accentColor: '#F4A460',
   bgLight: '#FFF8F0',
+);
+
+CareSchedule _schedule(String id, String petId) => CareSchedule(
+  id: id,
+  petId: petId,
+  categoryId: 'grooming',
+  title: '목욕 예약',
+  startDate: '2026-06-17',
+  startTime: '10:30',
+  endDate: '2026-06-17',
+  endTime: '11:00',
+  allDay: false,
+  place: '동네 미용실',
+  memo: '빗 챙기기',
+  reminder: '하루 전',
+  createdAt: '2026-06-01T00:00:00.000',
 );
 
 String _todayIso() {

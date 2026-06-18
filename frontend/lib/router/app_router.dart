@@ -19,6 +19,7 @@ import '../screens/wallet/expense_report_screen.dart';
 import '../screens/wallet/expense_wallet_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
+import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/write_screen.dart';
@@ -218,6 +219,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/routine/schedule/new',
         builder: (c, s) => const RoutineScheduleCreateScreen(),
+      ),
+      GoRoute(
+        path: '/routine/schedule/:scheduleId/edit',
+        builder: (c, s) => RoutineScheduleEditScreen(
+          scheduleId: s.pathParameters['scheduleId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/routine/schedule/:scheduleId',
+        builder: (c, s) => RoutineScheduleDetailScreen(
+          scheduleId: s.pathParameters['scheduleId']!,
+        ),
       ),
       GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
       GoRoute(
