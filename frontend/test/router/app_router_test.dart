@@ -498,6 +498,22 @@ void main() {
       petState: petState,
     );
     expect(find.text('급식 상세'), findsOneWidget);
+    expect(find.byKey(const Key('record-detail-edit-button')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('app-inline-header-trailing-slot')),
+        matching: find.byKey(const Key('record-detail-edit-button')),
+      ),
+      findsNothing,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('record-detail-edit-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('record-detail-edit-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('급식 수정'), findsOneWidget);
 
     await _pumpRouter(
       tester,
@@ -564,16 +580,126 @@ void main() {
     );
 
     expect(find.text('일정 상세'), findsOneWidget);
-    expect(find.text('목욕 예약'), findsOneWidget);
-    expect(find.text('미용'), findsOneWidget);
-    expect(find.text('2026-06-17 10:30 - 11:00'), findsOneWidget);
-    expect(find.text('동네 미용실'), findsOneWidget);
-    expect(find.text('하루 전'), findsOneWidget);
-    expect(find.text('빗 챙기기'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-detail-hero')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-hero')),
+        matching: find.text('✂️'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-hero')),
+        matching: find.text('목욕 예약'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-hero')),
+        matching: find.text('미용'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('6월 17일 10:30 - 11:00'), findsOneWidget);
+    expect(find.text('제목'), findsNothing);
+    expect(find.text('카테고리'), findsNothing);
+    expect(find.text('일시'), findsNothing);
+    for (final entry in {
+      'place': '동네 미용실',
+      'reminder': '하루 전',
+      'memo': '빗 챙기기',
+    }.entries) {
+      expect(
+        find.descendant(
+          of: find.byKey(Key('schedule-detail-info-row-${entry.key}')),
+          matching: find.text(entry.value),
+        ),
+        findsOneWidget,
+      );
+    }
     expect(
       find.byKey(const Key('schedule-detail-edit-button')),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('app-inline-header-trailing-slot')),
+        matching: find.byKey(const Key('schedule-detail-edit-button')),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('schedule detail handles all-day range and empty fields', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/schedule/s1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        schedules: [
+          _schedule(
+            's1',
+            pet.id,
+            title: '강아지와 함께하는 아주 긴 주말 케어 일정 확인',
+            endDate: '2026-06-19',
+            allDay: true,
+            place: null,
+            memo: null,
+          ),
+        ],
+      ),
+    );
+
+    expect(find.byKey(const Key('schedule-detail-hero')), findsOneWidget);
+    expect(find.text('강아지와 함께하는 아주 긴 주말 케어 일정 확인'), findsOneWidget);
+    expect(find.text('6월 17일 - 6월 19일 종일'), findsOneWidget);
+    for (final rowKey in const [
+      'schedule-detail-info-row-place',
+      'schedule-detail-info-row-memo',
+    ]) {
+      expect(
+        find.descendant(of: find.byKey(Key(rowKey)), matching: find.text('-')),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('routine schedule card detail button opens detail route', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        schedules: [_schedule('s1', pet.id, startDate: _todayIso())],
+      ),
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('schedule-detail-button-s1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-detail-button-s1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('일정 상세'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-detail-hero')), findsOneWidget);
+    expect(find.text('목욕 예약'), findsOneWidget);
   });
 
   testWidgets('/routine/schedule/:id/edit opens prefilled edit screen', (
@@ -592,6 +718,33 @@ void main() {
         schedules: [_schedule('s1', pet.id)],
       ),
     );
+
+    expect(find.byType(RoutineScheduleCreateScreen), findsOneWidget);
+    expect(find.text('일정 수정'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
+  });
+
+  testWidgets('schedule detail edit button opens edit route', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/schedule/s1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        schedules: [_schedule('s1', pet.id)],
+      ),
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('schedule-detail-edit-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-detail-edit-button')));
+    await tester.pumpAndSettle();
 
     expect(find.byType(RoutineScheduleCreateScreen), findsOneWidget);
     expect(find.text('일정 수정'), findsOneWidget);
@@ -617,6 +770,9 @@ void main() {
       );
 
       expect(find.text('일정을 찾을 수 없어요'), findsOneWidget, reason: path);
+      await tester.tap(find.text('루틴으로 돌아가기'));
+      await tester.pumpAndSettle();
+      expect(find.text('케어 캘린더'), findsOneWidget, reason: path);
     }
   });
 
@@ -879,19 +1035,31 @@ Pet _pet(String id) => Pet(
   bgLight: '#FFF8F0',
 );
 
-CareSchedule _schedule(String id, String petId) => CareSchedule(
+CareSchedule _schedule(
+  String id,
+  String petId, {
+  String title = '목욕 예약',
+  String startDate = '2026-06-17',
+  String? startTime = '10:30',
+  String? endDate,
+  String? endTime = '11:00',
+  bool allDay = false,
+  String? place = '동네 미용실',
+  String? memo = '빗 챙기기',
+  String reminder = '하루 전',
+}) => CareSchedule(
   id: id,
   petId: petId,
   categoryId: 'grooming',
-  title: '목욕 예약',
-  startDate: '2026-06-17',
-  startTime: '10:30',
-  endDate: '2026-06-17',
-  endTime: '11:00',
-  allDay: false,
-  place: '동네 미용실',
-  memo: '빗 챙기기',
-  reminder: '하루 전',
+  title: title,
+  startDate: startDate,
+  startTime: startTime,
+  endDate: endDate ?? startDate,
+  endTime: endTime,
+  allDay: allDay,
+  place: place,
+  memo: memo,
+  reminder: reminder,
   createdAt: '2026-06-01T00:00:00.000',
 );
 
