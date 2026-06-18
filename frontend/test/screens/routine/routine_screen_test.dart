@@ -68,11 +68,20 @@ void main() {
 
     expect(find.text('목욕 예약'), findsOneWidget);
     expect(find.text('10:30~11:00  동네 미용실'), findsOneWidget);
-    expect(find.textContaining('6월 17일'), findsNothing);
     expect(find.byKey(const Key('schedule-detail-button-s1')), findsOneWidget);
     expect(
-      tester.widget(find.byKey(const Key('schedule-detail-button-s1'))),
-      isA<AppHeaderIconButton>(),
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-button-s1')),
+        matching: find.textContaining('6월 17일'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-button-s1')),
+        matching: find.byIcon(Icons.chevron_right_rounded),
+      ),
+      findsOneWidget,
     );
     expect(
       find.byKey(const Key('routine-date-dot-2026-06-17')),
@@ -126,7 +135,13 @@ void main() {
     expect(find.text('종일  동네 미용실'), findsOneWidget);
     expect(find.text('동네 병원'), findsOneWidget);
     expect(find.textContaining('2026-06-17'), findsNothing);
-    expect(find.textContaining('6월 17일'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-button-timed')),
+        matching: find.textContaining('6월 17일'),
+      ),
+      findsNothing,
+    );
   });
 }
 

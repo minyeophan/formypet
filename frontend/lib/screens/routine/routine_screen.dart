@@ -519,66 +519,75 @@ class _ScheduleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(_scheduleIcon(schedule.categoryId), color: accentColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        key: Key('schedule-detail-button-${schedule.id}'),
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => context.push('/routine/schedule/${schedule.id}'),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: _cardDecoration(),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  _scheduleIcon(schedule.categoryId),
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: AppText(
-                        schedule.title,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppText(
+                            schedule.title,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    AppText(
+                      _scheduleSubtitle(schedule),
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                AppText(
-                  _scheduleSubtitle(schedule),
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              const _ScheduleDetailButton(),
+            ],
           ),
-          const SizedBox(width: 10),
-          _ScheduleDetailButton(scheduleId: schedule.id),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _ScheduleDetailButton extends StatelessWidget {
-  final String scheduleId;
-
-  const _ScheduleDetailButton({required this.scheduleId});
+  const _ScheduleDetailButton();
 
   @override
   Widget build(BuildContext context) {
-    return AppHeaderIconButton(
-      key: Key('schedule-detail-button-$scheduleId'),
-      icon: Icons.chevron_right_rounded,
-      tooltip: '일정 상세',
-      onTap: () => context.push('/routine/schedule/$scheduleId'),
+    return const Icon(
+      Icons.chevron_right_rounded,
+      color: AppColors.muted,
+      size: 22,
     );
   }
 }
