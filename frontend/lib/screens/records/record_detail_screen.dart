@@ -42,53 +42,85 @@ class RecordDetailScreen extends ConsumerWidget {
                 child: AppInlineHeader(
                   title: '${recordTypeLabel(record.typeId)} 상세',
                   onBack: () => _goBack(context, fallback: '/records'),
-                  trailing: TextButton(
-                    key: const Key('record-detail-edit-button'),
-                    onPressed: () => context.push('/records/${record.id}/edit'),
-                    child: const AppText(
-                      '수정',
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              sliver: SliverList.list(
-                children: [
-                  _SectionBlock(
-                    title: '날짜/시간',
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('record-detail-date-label'),
-                            text: record.date,
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionBlock(
+                      title: '날짜/시간',
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _ValueBox(
+                              key: const Key('record-detail-date-label'),
+                              text: record.date,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('record-detail-time-label'),
-                            text: recordTimeLabel(record.time),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ValueBox(
+                              key: const Key('record-detail-time-label'),
+                              text: recordTimeLabel(record.time),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  ..._detailSections(record),
-                  if (record.typeId == 'meal') ...[
                     const SizedBox(height: 22),
-                    _MealPhotoSection(record: record),
+                    ..._detailSections(record),
+                    if (record.typeId == 'meal') ...[
+                      const SizedBox(height: 22),
+                      _MealPhotoSection(record: record),
+                    ],
+                    const Spacer(),
+                    const SizedBox(height: 24),
+                    _RecordDetailEditButton(
+                      onTap: () => context.push('/records/${record.id}/edit'),
+                    ),
                   ],
-                ],
+                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecordDetailEditButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _RecordDetailEditButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        key: const Key('record-detail-edit-button'),
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary),
+          ),
+          child: const AppText(
+            '수정',
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppColors.white,
+          ),
         ),
       ),
     );
