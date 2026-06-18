@@ -46,6 +46,12 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
                     _DetailHero(schedule: schedule),
                     const SizedBox(height: 12),
                     _InfoRow(
+                      key: const Key('schedule-detail-info-row-date-time'),
+                      label: '일시',
+                      value: _dateTimeLabel(schedule),
+                    ),
+                    const SizedBox(height: 10),
+                    _InfoRow(
                       key: const Key('schedule-detail-info-row-place'),
                       label: '장소',
                       value: schedule.place,
@@ -126,10 +132,10 @@ class _DetailHero extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: AppText(
-                  _categoryEmoji(schedule.categoryId),
-                  fontSize: 28,
-                  textAlign: TextAlign.center,
+                child: Icon(
+                  _scheduleIcon(schedule.categoryId),
+                  color: AppColors.primary,
+                  size: 28,
                 ),
               ),
               const SizedBox(width: 12),
@@ -165,20 +171,6 @@ class _DetailHero extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: AppText(
-              _dateTimeLabel(schedule),
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
           ),
         ],
       ),
@@ -231,8 +223,9 @@ class _InfoRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,14 +328,14 @@ String _categoryLabel(String categoryId) => switch (categoryId) {
   _ => '기타',
 };
 
-String _categoryEmoji(String categoryId) => switch (categoryId) {
-  'grooming' => '✂️',
-  'hospital' => '🏥',
-  'travel' => '🧳',
-  'hotel' => '🏨',
-  'outing' => '☕',
-  'event' => '🎉',
-  _ => '📌',
+IconData _scheduleIcon(String categoryId) => switch (categoryId) {
+  'grooming' => Icons.content_cut_rounded,
+  'hospital' => Icons.local_hospital_rounded,
+  'travel' => Icons.luggage_rounded,
+  'hotel' => Icons.home_work_rounded,
+  'outing' => Icons.local_cafe_rounded,
+  'event' => Icons.celebration_rounded,
+  _ => Icons.event_note_rounded,
 };
 
 String _dateTimeLabel(CareSchedule schedule) {

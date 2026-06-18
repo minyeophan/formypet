@@ -584,7 +584,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-hero')),
-        matching: find.text('✂️'),
+        matching: find.byIcon(Icons.content_cut_rounded),
       ),
       findsOneWidget,
     );
@@ -602,10 +602,44 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('6월 17일 10:30 - 11:00'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-info-row-date-time')),
+        matching: find.text('6월 17일 10:30 - 11:00'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-hero')),
+        matching: find.byKey(const Key('schedule-detail-info-row-date-time')),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(const Key('schedule-detail-info-row-date-time')),
+          )
+          .dy,
+      greaterThan(
+        tester.getBottomLeft(find.byKey(const Key('schedule-detail-hero'))).dy,
+      ),
+    );
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(const Key('schedule-detail-info-row-date-time')),
+          )
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(find.byKey(const Key('schedule-detail-info-row-place')))
+            .dy,
+      ),
+    );
     expect(find.text('제목'), findsNothing);
     expect(find.text('카테고리'), findsNothing);
-    expect(find.text('일시'), findsNothing);
     for (final entry in {
       'place': '동네 미용실',
       'reminder': '하루 전',
@@ -661,7 +695,13 @@ void main() {
 
     expect(find.byKey(const Key('schedule-detail-hero')), findsOneWidget);
     expect(find.text('강아지와 함께하는 아주 긴 주말 케어 일정 확인'), findsOneWidget);
-    expect(find.text('6월 17일 - 6월 19일 종일'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('schedule-detail-info-row-date-time')),
+        matching: find.text('6월 17일 - 6월 19일 종일'),
+      ),
+      findsOneWidget,
+    );
     for (final rowKey in const [
       'schedule-detail-info-row-place',
       'schedule-detail-info-row-memo',
