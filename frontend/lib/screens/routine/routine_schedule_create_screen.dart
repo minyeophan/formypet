@@ -17,7 +17,9 @@ import '../../widgets/record_inputs/record_picker_sheet.dart';
 import 'routine_schedule_values.dart';
 
 class RoutineScheduleCreateScreen extends ConsumerStatefulWidget {
-  const RoutineScheduleCreateScreen({super.key});
+  final CareSchedule? editingSchedule;
+
+  const RoutineScheduleCreateScreen({super.key, this.editingSchedule});
 
   @override
   ConsumerState<RoutineScheduleCreateScreen> createState() =>
@@ -43,9 +45,29 @@ class _RoutineScheduleCreateScreenState
   @override
   void initState() {
     super.initState();
-    final today = _dateOnly(DateTime.now());
-    _startDate = today;
-    _endDate = today;
+    final editing = widget.editingSchedule;
+    if (editing == null) {
+      final today = _dateOnly(DateTime.now());
+      _startDate = today;
+      _endDate = today;
+    } else {
+      _selectedCategory = _categoryFor(editing.categoryId);
+      _titleController.text = editing.title;
+      _allDay = editing.allDay;
+      _startDate = _parseIsoDate(editing.startDate);
+      _endDate = _parseIsoDate(editing.endDate);
+      _startTime =
+          _parseScheduleTime(editing.startTime) ??
+          const TimeOfDay(hour: 0, minute: 0);
+      _endTime =
+          _parseScheduleTime(editing.endTime) ??
+          const TimeOfDay(hour: 23, minute: 59);
+      _placeController.text = editing.place ?? '';
+      _memoController.text = editing.memo ?? '';
+      _reminder = _reminders.contains(editing.reminder)
+          ? editing.reminder
+          : _reminders.first;
+    }
     _titleController.addListener(_refresh);
   }
 
@@ -64,7 +86,7 @@ class _RoutineScheduleCreateScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeader(
-        title: '일정 추가',
+        title: widget.editingSchedule == null ? '일정 추가' : '일정 수정',
         showBackButton: true,
         centerTitle: true,
         onBack: _goBack,
@@ -278,8 +300,8 @@ class _RoutineScheduleCreateScreenState
     final picked = await showRecordDatePickerSheet(
       context,
       initialDate: initialDate,
-      firstDate: scheduleFirstDate(now),
-      lastDate: scheduleLastDate(now),
+      firstDate: _schedulePickerFirstDate(now, widget.editingSchedule),
+      lastDate: _schedulePickerLastDate(now, widget.editingSchedule),
     );
     if (picked == null || !mounted) return;
     _applyRangeChange(
@@ -348,9 +370,10 @@ class _RoutineScheduleCreateScreenState
       final petId = state.activePetId;
       if (petId == null) throw StateError('Active pet is required');
       final now = DateTime.now();
+      final editing = widget.editingSchedule;
       final schedule = CareSchedule(
-        id: 'local-${now.microsecondsSinceEpoch}',
-        petId: petId,
+        id: editing?.id ?? 'local-${now.microsecondsSinceEpoch}',
+        petId: editing?.petId ?? petId,
         categoryId: _selectedCategory!.id,
         title: _titleController.text.trim(),
         startDate: _isoDate(_startDate),
@@ -361,11 +384,19 @@ class _RoutineScheduleCreateScreenState
         place: _emptyToNull(_placeController.text),
         memo: _emptyToNull(_memoController.text),
         reminder: _reminder,
-        createdAt: now.toIso8601String(),
+        createdAt: editing?.createdAt ?? now.toIso8601String(),
       );
-      await ref.read(petProvider.notifier).addCareSchedule(schedule);
+      if (editing == null) {
+        await ref.read(petProvider.notifier).addCareSchedule(schedule);
+      } else {
+        await ref.read(petProvider.notifier).updateCareSchedule(schedule);
+      }
       if (!mounted) return;
-      context.go('/routine?date=${schedule.startDate}');
+      if (editing == null) {
+        context.go('/routine?date=${schedule.startDate}');
+      } else {
+        context.go('/routine/schedule/${schedule.id}');
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -381,7 +412,10 @@ class _RoutineScheduleCreateScreenState
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/routine');
+      final editing = widget.editingSchedule;
+      context.go(
+        editing == null ? '/routine' : '/routine/schedule/${editing.id}',
+      );
     }
   }
 }
@@ -676,7 +710,47 @@ const _categories = [
 
 const _reminders = ['하루 전', '2시간 전', '1시간 전', '30분 전', '알림 없음'];
 
+_ScheduleCategory _categoryFor(String categoryId) => _categories.firstWhere(
+  (category) => category.id == categoryId,
+  orElse: () => _categories.last,
+);
+
+DateTime _schedulePickerFirstDate(DateTime now, CareSchedule? editingSchedule) {
+  final base = scheduleFirstDate(now);
+  if (editingSchedule == null) return base;
+  return [
+    base,
+    _parseIsoDate(editingSchedule.startDate),
+    _parseIsoDate(editingSchedule.endDate),
+  ].reduce((a, b) => a.isBefore(b) ? a : b);
+}
+
+DateTime _schedulePickerLastDate(DateTime now, CareSchedule? editingSchedule) {
+  final base = scheduleLastDate(now);
+  if (editingSchedule == null) return base;
+  return [
+    base,
+    _parseIsoDate(editingSchedule.startDate),
+    _parseIsoDate(editingSchedule.endDate),
+  ].reduce((a, b) => a.isAfter(b) ? a : b);
+}
+
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+DateTime _parseIsoDate(String value) {
+  final parsed = DateTime.parse(value);
+  return _dateOnly(parsed);
+}
+
+TimeOfDay? _parseScheduleTime(String? value) {
+  if (value == null) return null;
+  final parts = value.split(':');
+  if (parts.length < 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
 
 String _isoDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 

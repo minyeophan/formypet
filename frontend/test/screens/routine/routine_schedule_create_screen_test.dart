@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('schedule form excludes photo and companion inputs', (
@@ -56,6 +62,8 @@ void main() {
     await tester.pump();
     expect(saveButton().onPressed, isNotNull);
 
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('schedule-save-button')));
     await tester.pumpAndSettle();
 
@@ -105,16 +113,109 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('하루 전'), findsOneWidget);
   });
+
+  testWidgets('edit mode pre-fills saved schedule values', (tester) async {
+    await _pumpScreen(
+      tester,
+      editingSchedule: _schedule(
+        categoryId: 'unknown-category',
+        reminder: '알 수 없는 알림',
+      ),
+    );
+
+    expect(find.text('일정 수정'), findsOneWidget);
+    expect(find.text('기타'), findsOneWidget);
+    expect(find.text('2시간 전'), findsNothing);
+    expect(find.text('하루 전'), findsOneWidget);
+    expect(find.text('2026.06.17'), findsOneWidget);
+    expect(find.text('2026.06.18'), findsOneWidget);
+    expect(find.text('10:30'), findsOneWidget);
+    expect(find.text('11:00'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '동네 미용실'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '빗 챙기기'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-save-button')), findsOneWidget);
+  });
+
+  testWidgets('edit save replaces same schedule and opens detail route', (
+    tester,
+  ) async {
+    final notifier = _petNotifier(schedules: [_schedule()]);
+    await _pumpScreen(tester, notifier: notifier, editingSchedule: _schedule());
+
+    await tester.enterText(
+      find.byKey(const Key('schedule-title-field')),
+      '수정한 목욕 예약',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+
+    expect(notifier.state.schedules, hasLength(1));
+    expect(notifier.state.schedules.single.id, 's1');
+    expect(notifier.state.schedules.single.title, '수정한 목욕 예약');
+    expect(find.text('schedule detail id=s1'), findsOneWidget);
+  });
+
+  testWidgets('edit save clears optional fields and all day times', (
+    tester,
+  ) async {
+    final notifier = _petNotifier(schedules: [_schedule()]);
+    await _pumpScreen(tester, notifier: notifier, editingSchedule: _schedule());
+
+    await tester.ensureVisible(find.widgetWithText(TextField, '동네 미용실'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '동네 미용실'), '');
+    await tester.enterText(find.widgetWithText(TextField, '빗 챙기기'), '');
+    await tester.ensureVisible(
+      find.byKey(const Key('schedule-all-day-switch')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-all-day-switch')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+
+    final schedule = notifier.state.schedules.single;
+    expect(schedule.place, isNull);
+    expect(schedule.memo, isNull);
+    expect(schedule.allDay, isTrue);
+    expect(schedule.startTime, isNull);
+    expect(schedule.endTime, isNull);
+  });
 }
 
-Future<void> _pumpScreen(WidgetTester tester, {PetNotifier? notifier}) async {
+Future<void> _pumpScreen(
+  WidgetTester tester, {
+  PetNotifier? notifier,
+  CareSchedule? editingSchedule,
+}) async {
   final petNotifier = notifier ?? _petNotifier();
   final router = GoRouter(
-    initialLocation: '/routine/schedule/new',
+    initialLocation: editingSchedule == null
+        ? '/routine/schedule/new'
+        : '/routine/schedule/${editingSchedule.id}/edit',
     routes: [
       GoRoute(
         path: '/routine/schedule/new',
         builder: (_, _) => const RoutineScheduleCreateScreen(),
+      ),
+      GoRoute(
+        path: '/routine/schedule/:scheduleId/edit',
+        builder: (_, _) =>
+            RoutineScheduleCreateScreen(editingSchedule: editingSchedule),
+      ),
+      GoRoute(
+        path: '/routine/schedule/:scheduleId',
+        builder: (_, state) => Scaffold(
+          body: Text(
+            'schedule detail id=${state.pathParameters['scheduleId']}',
+          ),
+        ),
       ),
       GoRoute(
         path: '/routine',
@@ -135,19 +236,21 @@ Future<void> _pumpScreen(WidgetTester tester, {PetNotifier? notifier}) async {
   await tester.pumpAndSettle();
 }
 
-PetNotifier _petNotifier() => PetNotifier.test(
-  PetState(
-    isLoading: false,
-    hasOnboarded: true,
-    pets: [_pet('1')],
-    activePetId: '1',
-    records: const [],
-    routines: const [],
-    todayRoutineItems: const [],
-    routineCompletions: const {},
-    quickTypeIds: const ['meal', 'water'],
-  ),
-);
+PetNotifier _petNotifier({List<CareSchedule> schedules = const []}) =>
+    PetNotifier.test(
+      PetState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [_pet('1')],
+        activePetId: '1',
+        records: const [],
+        routines: const [],
+        schedules: schedules,
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        quickTypeIds: const ['meal', 'water'],
+      ),
+    );
 
 Pet _pet(String id) => Pet(
   id: id,
@@ -156,4 +259,23 @@ Pet _pet(String id) => Pet(
   birthDate: '2022-03-15',
   accentColor: '#F4A460',
   bgLight: '#FFF8F0',
+);
+
+CareSchedule _schedule({
+  String categoryId = 'grooming',
+  String reminder = '2시간 전',
+}) => CareSchedule(
+  id: 's1',
+  petId: '1',
+  categoryId: categoryId,
+  title: '목욕 예약',
+  startDate: '2026-06-17',
+  startTime: '10:30',
+  endDate: '2026-06-18',
+  endTime: '11:00',
+  allDay: false,
+  place: '동네 미용실',
+  memo: '빗 챙기기',
+  reminder: reminder,
+  createdAt: '2026-06-01T00:00:00.000',
 );
