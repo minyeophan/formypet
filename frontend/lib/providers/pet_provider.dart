@@ -370,6 +370,26 @@ class PetNotifier extends StateNotifier<PetState> {
     state = state.copyWith(schedules: next);
   }
 
+  Future<void> deleteCareSchedule(String scheduleId) async {
+    final petId = state.activePetId;
+    if (petId == null) {
+      throw StateError('Care schedule not found');
+    }
+    final exists = state.schedules.any(
+      (schedule) => schedule.id == scheduleId && schedule.petId == petId,
+    );
+    if (!exists) {
+      throw StateError('Care schedule not found');
+    }
+    final next = state.schedules
+        .where(
+          (schedule) => schedule.petId == petId && schedule.id != scheduleId,
+        )
+        .toList();
+    await _saveCareSchedules(petId, next);
+    state = state.copyWith(schedules: next);
+  }
+
   Future<void> addRoutine(Map<String, dynamic> body) async {
     final petId = state.activePetId!;
     final routine = await _routSvc.createRoutine(petId, body);

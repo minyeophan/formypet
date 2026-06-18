@@ -274,6 +274,106 @@ void main() {
     },
   );
 
+  test(
+    'deleteCareSchedule removes active pet schedule and persists JSON',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+      await notifier.addCareSchedule(_schedule('s2', pet.id));
+
+      await notifier.deleteCareSchedule('s1');
+
+      expect(notifier.state.schedules.map((schedule) => schedule.id), ['s2']);
+      final prefs = await SharedPreferences.getInstance();
+      final saved =
+          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
+      expect(saved.map((item) => item['id']), ['s2']);
+    },
+  );
+
+  test(
+    'deleteCareSchedule keeps empty persisted array after last schedule',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      await notifier.deleteCareSchedule('s1');
+
+      expect(notifier.state.schedules, isEmpty);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('careSchedules:1'), isNotNull);
+      expect(jsonDecode(prefs.getString('careSchedules:1')!), isEmpty);
+    },
+  );
+
+  test(
+    'deleteCareSchedule rejects no active pet missing id and inactive pet',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      expect(
+        () => notifier.deleteCareSchedule('missing'),
+        throwsA(isA<StateError>()),
+      );
+      final inactiveNotifier = PetNotifier.test(
+        PetState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1'), _pet('2')],
+          activePetId: '1',
+          records: const [],
+          routines: const [],
+          schedules: [_schedule('inactive-schedule', '2')],
+          todayRoutineItems: const [],
+          routineCompletions: const {},
+          quickTypeIds: const ['meal', 'water'],
+        ),
+      );
+      expect(
+        () => inactiveNotifier.deleteCareSchedule('inactive-schedule'),
+        throwsA(isA<StateError>()),
+      );
+
+      final noActiveNotifier = PetNotifier.test(
+        const PetState(
+          isLoading: false,
+          hasOnboarded: false,
+          pets: [],
+          activePetId: null,
+          records: [],
+          routines: [],
+          schedules: [],
+          todayRoutineItems: [],
+          routineCompletions: {},
+          quickTypeIds: ['meal', 'water'],
+        ),
+      );
+      expect(
+        () => noActiveNotifier.deleteCareSchedule('s1'),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
   test('loadForAuthenticatedUser restores persisted care schedules', () async {
     SharedPreferences.setMockInitialValues({
       'careSchedules:1': jsonEncode([_schedule('s1', '1').toJson()]),
