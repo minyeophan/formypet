@@ -297,6 +297,66 @@ void main() {
   });
 
   testWidgets(
+    'main popular feed stays isolated after category back navigation',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/community',
+        routes: [
+          GoRoute(
+            path: '/community',
+            builder: (context, state) => const CommunityScreen(),
+          ),
+          GoRoute(
+            path: '/community/category/:category',
+            builder: (context, state) => CommunityCategoryScreen(
+              initialCategory: state.pathParameters['category']!,
+            ),
+          ),
+        ],
+      );
+
+      await _pumpRouter(
+        tester,
+        router,
+        service: _FakeCommunityService(
+          postsByFeedKey: {
+            'popular': [_post('popular-1', 'CARE')],
+            'CARE': [_post('care-1', 'CARE')],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mainFeed = find.byKey(const Key('community-main-popular-feed'));
+      expect(
+        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('community-category-tile-CARE')));
+      await tester.pumpAndSettle();
+
+      final categoryFeed = find.byKey(const Key('community-category-feed'));
+      expect(
+        find.descendant(of: categoryFeed, matching: find.text('care-1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byType(AppBackButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: mainFeed, matching: find.text('care-1')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'category screen shows horizontal tabs and latest category feed',
     (tester) async {
       await _pump(
@@ -828,9 +888,13 @@ Post _post(
 );
 
 class _FakeCommunityService extends CommunityService {
-  _FakeCommunityService({this.posts = const []});
+  _FakeCommunityService({
+    this.posts = const [],
+    this.postsByFeedKey = const {},
+  });
 
   final List<Post> posts;
+  final Map<String, List<Post>> postsByFeedKey;
   String? lastCreatedCategory;
   String? lastCreatedTitle;
   String? lastCreatedContent;
@@ -842,7 +906,12 @@ class _FakeCommunityService extends CommunityService {
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
-  }) async => PostFeed(items: posts, nextCursor: null);
+  }) async {
+    final key = sort == CommunityFeedSort.popular
+        ? 'popular'
+        : category ?? 'all';
+    return PostFeed(items: postsByFeedKey[key] ?? posts, nextCursor: null);
+  }
 
   @override
   Future<Post> createPost({
