@@ -9,6 +9,12 @@ class RecordEditActionBar extends StatelessWidget {
   final bool isDeleting;
   final VoidCallback onSave;
   final VoidCallback onDelete;
+  final Key saveKey;
+  final Key deleteKey;
+  final String saveLabel;
+  final String savingLabel;
+  final String deleteLabel;
+  final String deletingLabel;
 
   const RecordEditActionBar({
     super.key,
@@ -17,6 +23,12 @@ class RecordEditActionBar extends StatelessWidget {
     required this.isDeleting,
     required this.onSave,
     required this.onDelete,
+    this.saveKey = const Key('record-edit-save-button'),
+    this.deleteKey = const Key('record-edit-delete-button'),
+    this.saveLabel = '수정 완료',
+    this.savingLabel = '수정 중...',
+    this.deleteLabel = '삭제',
+    this.deletingLabel = '삭제 중...',
   });
 
   @override
@@ -32,7 +44,7 @@ class RecordEditActionBar extends StatelessWidget {
           color: canSave ? AppColors.primary : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
-            key: const Key('record-edit-save-button'),
+            key: saveKey,
             borderRadius: BorderRadius.circular(16),
             onTap: canSave ? onSave : null,
             child: Container(
@@ -45,7 +57,7 @@ class RecordEditActionBar extends StatelessWidget {
                 ),
               ),
               child: AppText(
-                isSaving ? '수정 중...' : '수정 완료',
+                isSaving ? savingLabel : saveLabel,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: canSave ? AppColors.white : AppColors.muted,
@@ -58,7 +70,7 @@ class RecordEditActionBar extends StatelessWidget {
           color: AppColors.dangerSoft,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
-            key: const Key('record-edit-delete-button'),
+            key: deleteKey,
             borderRadius: BorderRadius.circular(16),
             onTap: canDelete ? onDelete : null,
             child: Container(
@@ -69,7 +81,7 @@ class RecordEditActionBar extends StatelessWidget {
                 border: Border.all(color: AppColors.dangerBorder),
               ),
               child: AppText(
-                isDeleting ? '삭제 중...' : '삭제',
+                isDeleting ? deletingLabel : deleteLabel,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: AppColors.danger,
@@ -83,6 +95,22 @@ class RecordEditActionBar extends StatelessWidget {
 }
 
 Future<bool?> showRecordDeleteConfirmationSheet(BuildContext context) {
+  return showDeleteConfirmationSheet(
+    context,
+    title: '기록을 삭제할까요?',
+    message: '삭제한 기록은 다시 되돌릴 수 없어요.',
+    confirmLabel: '삭제',
+    confirmKey: const Key('record-delete-confirm-button'),
+  );
+}
+
+Future<bool?> showDeleteConfirmationSheet(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  required Key confirmKey,
+}) {
   return showModalBottomSheet<bool>(
     context: context,
     backgroundColor: AppColors.surface,
@@ -94,24 +122,20 @@ Future<bool?> showRecordDeleteConfirmationSheet(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppText(
-              '기록을 삭제할까요?',
+            AppText(
+              title,
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
             ),
             const SizedBox(height: 8),
-            const AppText(
-              '삭제한 기록은 다시 되돌릴 수 없어요.',
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
+            AppText(message, fontSize: 13, color: AppColors.textSecondary),
             const SizedBox(height: 18),
             FilledButton(
-              key: const Key('record-delete-confirm-button'),
+              key: confirmKey,
               onPressed: () => Navigator.pop(context, true),
               style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-              child: const AppText('삭제', color: AppColors.white),
+              child: AppText(confirmLabel, color: AppColors.white),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, false),

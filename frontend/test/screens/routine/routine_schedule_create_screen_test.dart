@@ -135,6 +135,9 @@ void main() {
     expect(find.widgetWithText(TextField, '동네 미용실'), findsOneWidget);
     expect(find.widgetWithText(TextField, '빗 챙기기'), findsOneWidget);
     expect(find.byKey(const Key('schedule-save-button')), findsOneWidget);
+    expect(find.text('저장'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-delete-button')), findsOneWidget);
+    expect(find.text('일정 삭제'), findsOneWidget);
   });
 
   testWidgets('edit save replaces same schedule and opens detail route', (
@@ -187,6 +190,34 @@ void main() {
     expect(schedule.startTime, isNull);
     expect(schedule.endTime, isNull);
   });
+
+  testWidgets(
+    'edit delete confirmation removes schedule and opens routine date',
+    (tester) async {
+      final notifier = _petNotifier(schedules: [_schedule()]);
+      await _pumpScreen(
+        tester,
+        notifier: notifier,
+        editingSchedule: _schedule(),
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('schedule-delete-button')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('schedule-delete-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('일정을 삭제할까요?'), findsOneWidget);
+      expect(find.text('삭제한 일정은 다시 되돌릴 수 없어요.'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('schedule-delete-confirm-button')));
+      await tester.pumpAndSettle();
+
+      expect(notifier.state.schedules, isEmpty);
+      expect(find.text('routine target date=2026-06-17'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _pumpScreen(

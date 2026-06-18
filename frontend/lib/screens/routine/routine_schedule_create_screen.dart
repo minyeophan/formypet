@@ -11,7 +11,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/preparing_toast.dart';
-import '../../widgets/record_inputs/record_date_time_pickers.dart';
+import '../../widgets/record_inputs/record_inputs.dart';
 import '../../widgets/record_inputs/record_input_style.dart';
 import '../../widgets/record_inputs/record_picker_sheet.dart';
 import 'routine_schedule_values.dart';
@@ -40,6 +40,7 @@ class _RoutineScheduleCreateScreenState
   bool _allDay = false;
   bool _rangeAdjusted = false;
   bool _saving = false;
+  bool _deleting = false;
   String? _error;
 
   @override
@@ -251,35 +252,52 @@ class _RoutineScheduleCreateScreenState
                 ),
               ],
               const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  key: const Key('schedule-save-button'),
-                  onPressed: _canSave && !_saving ? _save : null,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    backgroundColor: AppColors.text,
-                    foregroundColor: AppColors.white,
-                    disabledBackgroundColor: AppColors.surfaceSoft,
-                    disabledForegroundColor: AppColors.muted,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              if (widget.editingSchedule == null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    key: const Key('schedule-save-button'),
+                    onPressed: _canSave && !_saving && !_deleting
+                        ? _save
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: AppColors.text,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: AppColors.surfaceSoft,
+                      disabledForegroundColor: AppColors.muted,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : AppText(
+                            '저장',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: _canSave ? AppColors.white : AppColors.muted,
+                          ),
                   ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : AppText(
-                          '저장',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: _canSave ? AppColors.white : AppColors.muted,
-                        ),
+                )
+              else
+                RecordEditActionBar(
+                  enabled: _canSave,
+                  isSaving: _saving,
+                  isDeleting: _deleting,
+                  onSave: _save,
+                  onDelete: _delete,
+                  saveKey: const Key('schedule-save-button'),
+                  deleteKey: const Key('schedule-delete-button'),
+                  saveLabel: '저장',
+                  savingLabel: '저장 중...',
+                  deleteLabel: '일정 삭제',
+                  deletingLabel: '삭제 중...',
                 ),
-              ),
             ],
           ),
         ),
@@ -358,7 +376,7 @@ class _RoutineScheduleCreateScreenState
   }
 
   Future<void> _save() async {
-    if (!_canSave || _saving) return;
+    if (!_canSave || _saving || _deleting) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     setState(() {
@@ -402,6 +420,36 @@ class _RoutineScheduleCreateScreenState
       setState(() {
         _saving = false;
         _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.';
+      });
+    }
+  }
+
+  Future<void> _delete() async {
+    final editing = widget.editingSchedule;
+    if (editing == null || _saving || _deleting) return;
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+    final confirmed = await showDeleteConfirmationSheet(
+      context,
+      title: '일정을 삭제할까요?',
+      message: '삭제한 일정은 다시 되돌릴 수 없어요.',
+      confirmLabel: '삭제',
+      confirmKey: const Key('schedule-delete-confirm-button'),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _deleting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(petProvider.notifier).deleteCareSchedule(editing.id);
+      if (!mounted) return;
+      context.go('/routine?date=${editing.startDate}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _deleting = false;
+        _error = '삭제에 실패했어요. 잠시 뒤 다시 시도해 주세요.';
       });
     }
   }
