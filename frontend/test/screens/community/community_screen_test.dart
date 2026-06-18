@@ -65,6 +65,77 @@ void main() {
     expect(find.text('popular-1'), findsOneWidget);
   });
 
+  testWidgets('main popular feed renders the compact post card layout', (
+    tester,
+  ) async {
+    final createdAt = DateTime.now()
+        .subtract(const Duration(hours: 2))
+        .toIso8601String();
+    final post = _post(
+      '본문 미리보기입니다',
+      'CARE',
+      id: 'popular-card-1',
+      title: '우리집 케어 공유',
+      authorNickname: ' Momo ',
+      likesCount: 12,
+      commentsCount: 54,
+      imageUrls: const ['https://example.com/thumb.jpg'],
+      createdAt: createdAt,
+    );
+
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [post]),
+    );
+
+    await tester.pumpAndSettle();
+
+    final feed = find.byKey(const Key('community-main-popular-feed'));
+    final card = find.descendant(
+      of: feed,
+      matching: find.byKey(
+        const ValueKey('community-post-card-popular-card-1'),
+      ),
+    );
+
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('케어')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('우리집 케어 공유')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('본문 미리보기입니다')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('Momo · 2시간 전')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('12')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('54')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.byType(CircleAvatar)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: card, matching: find.byType(Image)),
+      findsNothing,
+    );
+    expect(find.text('(54)'), findsNothing);
+    expect(find.text('👁'), findsNothing);
+  });
+
   testWidgets('main category carousel renders two fixed panels', (
     tester,
   ) async {
@@ -243,6 +314,56 @@ void main() {
       expect(find.text('care-1'), findsOneWidget);
     },
   );
+
+  testWidgets('category feed uses the same compact post card layout', (
+    tester,
+  ) async {
+    final post = _post(
+      '제목 없는 글 본문',
+      'CARE',
+      id: 'category-card-1',
+      authorNickname: '   ',
+      likesCount: 7,
+      commentsCount: 3,
+      createdAt: '',
+    );
+
+    await _pump(
+      tester,
+      const CommunityCategoryScreen(initialCategory: 'CARE'),
+      service: _FakeCommunityService(posts: [post]),
+    );
+
+    await tester.pumpAndSettle();
+
+    final feed = find.byKey(const Key('community-category-feed'));
+    final card = find.descendant(
+      of: feed,
+      matching: find.byKey(
+        const ValueKey('community-post-card-category-card-1'),
+      ),
+    );
+
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('케어')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('제목 없는 글 본문')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('익명집사')),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: card, matching: find.text('7')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('3')), findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.byType(CircleAvatar)),
+      findsNothing,
+    );
+  });
 
   testWidgets('category screen header title stays community and left aligned', (
     tester,
@@ -681,17 +802,29 @@ Future<void> _pumpDirectCommunityRouter(
   await tester.pumpAndSettle();
 }
 
-Post _post(String content, String category) => Post(
-  id: content,
+Post _post(
+  String content,
+  String category, {
+  String? id,
+  String authorNickname = 'Momo',
+  String? title,
+  int likesCount = 0,
+  bool liked = false,
+  int commentsCount = 0,
+  List<String> imageUrls = const [],
+  String createdAt = '2026-05-21T12:00:00',
+}) => Post(
+  id: id ?? content,
   userId: 'user-1',
-  authorNickname: 'Momo',
+  authorNickname: authorNickname,
+  title: title,
   content: content,
   category: category,
-  likesCount: 0,
-  liked: false,
-  commentsCount: 0,
-  imageUrls: const [],
-  createdAt: '2026-05-21T12:00:00',
+  likesCount: likesCount,
+  liked: liked,
+  commentsCount: commentsCount,
+  imageUrls: imageUrls,
+  createdAt: createdAt,
 );
 
 class _FakeCommunityService extends CommunityService {
