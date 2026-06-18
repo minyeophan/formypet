@@ -171,6 +171,109 @@ void main() {
     },
   );
 
+  test(
+    'updateCareSchedule replaces matching active pet schedule and persists JSON',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      await notifier.updateCareSchedule(
+        CareSchedule(
+          id: 's1',
+          petId: pet.id,
+          categoryId: 'hospital',
+          title: '예방접종 예약',
+          startDate: '2026-06-20',
+          startTime: '14:00',
+          endDate: '2026-06-20',
+          endTime: '14:30',
+          allDay: false,
+          place: '동네 병원',
+          memo: '수첩 챙기기',
+          reminder: '2시간 전',
+          createdAt: '2026-06-01T00:00:00.000',
+        ),
+      );
+
+      expect(notifier.state.schedules, hasLength(1));
+      expect(notifier.state.schedules.single.title, '예방접종 예약');
+      final prefs = await SharedPreferences.getInstance();
+      final saved =
+          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
+      expect(saved.single['categoryId'], 'hospital');
+      expect(saved.single['startDate'], '2026-06-20');
+      expect(saved.single['startTime'], '14:00');
+      expect(saved.single['place'], '동네 병원');
+      expect(saved.single['memo'], '수첩 챙기기');
+      expect(saved.single['reminder'], '2시간 전');
+    },
+  );
+
+  test(
+    'updateCareSchedule rejects missing id or inactive pet schedules',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      expect(
+        () => notifier.updateCareSchedule(_schedule('missing', pet.id)),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => notifier.updateCareSchedule(_schedule('s1', 'other-pet')),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
+  test(
+    'updateCareSchedule omits cleared optional and all day time fields',
+    () async {
+      final pet = _pet('1');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+      await notifier.updateCareSchedule(
+        CareSchedule(
+          id: 's1',
+          petId: pet.id,
+          categoryId: 'grooming',
+          title: '종일 목욕',
+          startDate: '2026-06-17',
+          endDate: '2026-06-17',
+          allDay: true,
+          reminder: '알림 없음',
+          createdAt: '2026-06-01T00:00:00.000',
+        ),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      final saved =
+          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
+      expect(saved.single.containsKey('place'), isFalse);
+      expect(saved.single.containsKey('memo'), isFalse);
+      expect(saved.single.containsKey('startTime'), isFalse);
+      expect(saved.single.containsKey('endTime'), isFalse);
+    },
+  );
+
   test('loadForAuthenticatedUser restores persisted care schedules', () async {
     SharedPreferences.setMockInitialValues({
       'careSchedules:1': jsonEncode([_schedule('s1', '1').toJson()]),
