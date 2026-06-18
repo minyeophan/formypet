@@ -17,9 +17,16 @@ class CommunityState {
     required this.activeFeedKey,
   });
 
-  List<Post> get activePosts => postsByFeedKey[activeFeedKey] ?? [];
-  bool get isLoading => loadingByFeedKey[activeFeedKey] ?? false;
-  String? get nextCursor => cursorByFeedKey[activeFeedKey];
+  List<Post> postsForFeed(String feedKey) =>
+      postsByFeedKey[normalizeCommunityFeedKey(feedKey)] ?? [];
+  bool isLoadingFeed(String feedKey) =>
+      loadingByFeedKey[normalizeCommunityFeedKey(feedKey)] ?? false;
+  String? nextCursorForFeed(String feedKey) =>
+      cursorByFeedKey[normalizeCommunityFeedKey(feedKey)];
+
+  List<Post> get activePosts => postsForFeed(activeFeedKey);
+  bool get isLoading => isLoadingFeed(activeFeedKey);
+  String? get nextCursor => nextCursorForFeed(activeFeedKey);
 
   CommunityState copyWith({
     Map<String, List<Post>>? postsByFeedKey,
@@ -50,15 +57,15 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   }
 
   Future<void> setFeedKey(String feedKey) async {
-    final key = _normalizeFeedKey(feedKey);
+    final key = normalizeCommunityFeedKey(feedKey);
     state = state.copyWith(activeFeedKey: key);
     if ((state.postsByFeedKey[key] ?? []).isEmpty) {
-      await loadFeed();
+      await loadFeed(feedKey: key);
     }
   }
 
-  Future<void> loadFeed({bool refresh = false}) async {
-    final key = state.activeFeedKey;
+  Future<void> loadFeed({String? feedKey, bool refresh = false}) async {
+    final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
     if (state.loadingByFeedKey[key] == true) return;
 
     final cursor = refresh ? null : state.cursorByFeedKey[key];
@@ -96,14 +103,14 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     }
   }
 
-  Future<void> loadMore() async {
-    final key = state.activeFeedKey;
+  Future<void> loadMore({String? feedKey}) async {
+    final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
     if (state.cursorByFeedKey[key] == null) return;
-    await loadFeed();
+    await loadFeed(feedKey: key);
   }
 
-  Future<void> toggleLike(String postId) async {
-    final key = state.activeFeedKey;
+  Future<void> toggleLike(String postId, {String? feedKey}) async {
+    final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
     final result = await _svc.toggleLike(postId);
     final liked = result['liked'] as bool;
     final likesCount = result['likesCount'] as int;
@@ -143,13 +150,6 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     return post;
   }
 
-  String _normalizeFeedKey(String feedKey) {
-    final normalized = feedKey.toUpperCase();
-    if (normalized == 'POPULAR') return 'popular';
-    if (normalized == 'ALL') return 'all';
-    return normalized;
-  }
-
   String? _categoryForKey(String key) {
     if (key == 'popular' || key == 'all') return null;
     return key;
@@ -157,6 +157,13 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   CommunityFeedSort _sortForKey(String key) =>
       key == 'popular' ? CommunityFeedSort.popular : CommunityFeedSort.latest;
+}
+
+String normalizeCommunityFeedKey(String feedKey) {
+  final normalized = feedKey.toUpperCase();
+  if (normalized == 'POPULAR') return 'popular';
+  if (normalized == 'ALL') return 'all';
+  return normalized;
 }
 
 final communityServiceProvider = Provider<CommunityService>(
