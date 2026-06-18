@@ -574,31 +574,11 @@ class _ScheduleDetailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: '일정 상세',
-      child: Material(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          key: Key('schedule-detail-button-$scheduleId'),
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => context.push('/routine/schedule/$scheduleId'),
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ),
+    return AppHeaderIconButton(
+      key: Key('schedule-detail-button-$scheduleId'),
+      icon: Icons.chevron_right_rounded,
+      tooltip: '일정 상세',
+      onTap: () => context.push('/routine/schedule/$scheduleId'),
     );
   }
 }
@@ -683,15 +663,19 @@ IconData _scheduleIcon(String categoryId) => switch (categoryId) {
 };
 
 String _scheduleSubtitle(CareSchedule schedule) {
-  final date = DateTime.parse(schedule.startDate);
-  final dateText = DateFormat('M월 d일').format(date);
-  final timeText = schedule.allDay ? '종일' : schedule.startTime;
+  final startTime = schedule.startTime?.trim();
+  final endTime = schedule.endTime?.trim();
+  final timeText = schedule.allDay
+      ? '종일'
+      : switch ((startTime?.isNotEmpty == true, endTime?.isNotEmpty == true)) {
+          (true, true) => '$startTime~$endTime',
+          (true, false) => startTime!,
+          (false, true) => endTime!,
+          _ => '',
+        };
   final place = schedule.place?.trim();
   return [
-    if (timeText != null && timeText.isNotEmpty)
-      '$dateText $timeText'
-    else
-      dateText,
+    if (timeText.isNotEmpty) timeText,
     if (place != null && place.isNotEmpty) place,
   ].join('  ');
 }

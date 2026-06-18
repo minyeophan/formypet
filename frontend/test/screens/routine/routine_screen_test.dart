@@ -67,8 +67,13 @@ void main() {
     );
 
     expect(find.text('목욕 예약'), findsOneWidget);
-    expect(find.textContaining('6월 17일 10:30'), findsOneWidget);
+    expect(find.text('10:30~11:00  동네 미용실'), findsOneWidget);
+    expect(find.textContaining('6월 17일'), findsNothing);
     expect(find.byKey(const Key('schedule-detail-button-s1')), findsOneWidget);
+    expect(
+      tester.widget(find.byKey(const Key('schedule-detail-button-s1'))),
+      isA<AppHeaderIconButton>(),
+    );
     expect(
       find.byKey(const Key('routine-date-dot-2026-06-17')),
       findsOneWidget,
@@ -94,6 +99,34 @@ void main() {
     expect(find.text('샘플'), findsNothing);
     expect(find.byKey(const Key('routine-add-button')), findsNothing);
     expect(find.byKey(const Key('schedule-add-button')), findsNothing);
+  });
+
+  testWidgets('schedule subtitles show only time or all-day label', (
+    tester,
+  ) async {
+    await _pumpRoutineScreen(
+      tester,
+      _petState(
+        schedules: [
+          _schedule('timed', '2026-06-17'),
+          _schedule('all-day', '2026-06-17', allDay: true),
+          _schedule(
+            'place-only',
+            '2026-06-17',
+            startTime: null,
+            endTime: null,
+            place: '동네 병원',
+          ),
+        ],
+      ),
+      initialDate: DateTime(2026, 6, 17),
+    );
+
+    expect(find.text('10:30~11:00  동네 미용실'), findsOneWidget);
+    expect(find.text('종일  동네 미용실'), findsOneWidget);
+    expect(find.text('동네 병원'), findsOneWidget);
+    expect(find.textContaining('2026-06-17'), findsNothing);
+    expect(find.textContaining('6월 17일'), findsNothing);
   });
 }
 
@@ -136,17 +169,24 @@ Pet _pet(String id) => Pet(
   bgLight: '#FFF8F0',
 );
 
-CareSchedule _schedule(String id, String date) => CareSchedule(
+CareSchedule _schedule(
+  String id,
+  String date, {
+  String? startTime = '10:30',
+  String? endTime = '11:00',
+  bool allDay = false,
+  String? place = '동네 미용실',
+}) => CareSchedule(
   id: id,
   petId: '1',
   categoryId: 'grooming',
   title: '목욕 예약',
   startDate: date,
-  startTime: '10:30',
+  startTime: startTime,
   endDate: date,
-  endTime: '11:00',
-  allDay: false,
-  place: '동네 미용실',
+  endTime: endTime,
+  allDay: allDay,
+  place: place,
   memo: null,
   reminder: '하루 전',
   createdAt: '2026-06-01T00:00:00.000',
