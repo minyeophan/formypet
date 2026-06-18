@@ -106,32 +106,41 @@ class _CommunityMainBody extends StatelessWidget {
           _CommunityHeader(),
           _CategoryCarousel(),
           _CommunitySectionHeader(),
-          Expanded(child: _FeedList(key: Key('community-main-popular-feed'))),
+          Expanded(
+            child: _FeedList(
+              key: Key('community-main-popular-feed'),
+              feedKey: 'popular',
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _CommunityCategoryBody extends StatelessWidget {
+class _CommunityCategoryBody extends ConsumerWidget {
   const _CommunityCategoryBody();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeKey = ref.watch(communityProvider).activeFeedKey;
     return SafeArea(
       child: Column(
-        children: const [
-          _CommunityHeader(showBack: true),
+        children: [
+          const _CommunityHeader(showBack: true),
           Expanded(
             child: ColoredBox(
               color: AppColors.surface,
               child: Column(
                 children: [
-                  _CategoryTabs(),
-                  _CategoryFilterRow(),
-                  _GuidePanel(),
+                  const _CategoryTabs(),
+                  const _CategoryFilterRow(),
+                  const _GuidePanel(),
                   Expanded(
-                    child: _FeedList(key: Key('community-category-feed')),
+                    child: _FeedList(
+                      key: const Key('community-category-feed'),
+                      feedKey: activeKey,
+                    ),
                   ),
                 ],
               ),
@@ -509,14 +518,18 @@ class _GuidePanel extends StatelessWidget {
 }
 
 class _FeedList extends ConsumerWidget {
-  const _FeedList({super.key});
+  final String feedKey;
+
+  const _FeedList({super.key, required this.feedKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(communityProvider);
-    final posts = state.activePosts;
+    final posts = state.postsForFeed(feedKey);
+    final isLoading = state.isLoadingFeed(feedKey);
+    final nextCursor = state.nextCursorForFeed(feedKey);
 
-    if (posts.isEmpty && state.isLoading) {
+    if (posts.isEmpty && isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (posts.isEmpty) {
@@ -524,19 +537,20 @@ class _FeedList extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(communityProvider.notifier).loadFeed(refresh: true),
+      onRefresh: () => ref
+          .read(communityProvider.notifier)
+          .loadFeed(feedKey: feedKey, refresh: true),
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           if (notification is ScrollEndNotification &&
               notification.metrics.extentAfter < 200) {
-            ref.read(communityProvider.notifier).loadMore();
+            ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
           }
           return false;
         },
         child: ListView.builder(
           padding: const EdgeInsets.only(bottom: 92),
-          itemCount: posts.length + (state.nextCursor != null ? 1 : 0),
+          itemCount: posts.length + (nextCursor != null ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == posts.length) {
               return const Padding(
@@ -547,8 +561,9 @@ class _FeedList extends ConsumerWidget {
             final post = posts[index];
             return PostCard(
               post: post,
-              onLike: () =>
-                  ref.read(communityProvider.notifier).toggleLike(post.id),
+              onLike: () => ref
+                  .read(communityProvider.notifier)
+                  .toggleLike(post.id, feedKey: feedKey),
             );
           },
         ),
