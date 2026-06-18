@@ -63,6 +63,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           pets: state.pets,
                           pageController: _pageController!,
                           activeIndex: pageIndex,
+                          onGrowthTap: () => context.push('/records/growth'),
                           onPageChanged: (index) {
                             if (index < 0 || index >= state.pets.length) {
                               return;
@@ -77,7 +78,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                         ),
                         _HomeMenuGrid(
-                          onScheduleTap: () => showPreparingToast(context),
                           onCategoryTap: () => showPreparingToast(context),
                         ),
                         const SizedBox(height: 14),
@@ -161,12 +161,14 @@ class _PetProfilePager extends StatelessWidget {
   final List<Pet> pets;
   final PageController pageController;
   final int activeIndex;
+  final VoidCallback onGrowthTap;
   final ValueChanged<int> onPageChanged;
 
   const _PetProfilePager({
     required this.pets,
     required this.pageController,
     required this.activeIndex,
+    required this.onGrowthTap,
     required this.onPageChanged,
   });
 
@@ -180,7 +182,8 @@ class _PetProfilePager extends StatelessWidget {
             controller: pageController,
             itemCount: pets.length,
             onPageChanged: onPageChanged,
-            itemBuilder: (context, index) => _PetProfileCard(pet: pets[index]),
+            itemBuilder: (context, index) =>
+                _PetProfileCard(pet: pets[index], onGrowthTap: onGrowthTap),
           ),
         ),
         if (pets.length > 1) ...[
@@ -212,73 +215,119 @@ class _PetProfilePager extends StatelessWidget {
 
 class _PetProfileCard extends StatelessWidget {
   final Pet pet;
+  final VoidCallback onGrowthTap;
 
-  const _PetProfileCard({required this.pet});
+  const _PetProfileCard({required this.pet, required this.onGrowthTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3A2A18).withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3A2A18).withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _PetProfilePhoto(pet: pet)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppText(
-                  pet.name,
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _PetProfilePhoto(pet: pet)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 42),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppText(
+                            pet.name,
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 5),
+                          AppText(
+                            _breedLabel(pet.breed),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          AppText(
+                            speciesLabel(pet.species),
+                            fontSize: 13,
+                            color: AppColors.text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _ProfileFactLine(
+                      label: '나이',
+                      value: _ageLabel(pet.birthDate),
+                    ),
+                    const SizedBox(height: 4),
+                    _ProfileFactLine(
+                      label: '함께한 날',
+                      value: _daysTogetherLabel(pet.adoptionDate),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                AppText(
-                  _breedLabel(pet.breed),
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 24,
+          right: 32,
+          child: Tooltip(
+            message: '성장',
+            child: Semantics(
+              label: '성장',
+              button: true,
+              child: Material(
+                color: AppColors.surfaceSoft,
+                shape: const CircleBorder(
+                  side: BorderSide(color: AppColors.border),
                 ),
-                const SizedBox(height: 4),
-                AppText(
-                  speciesLabel(pet.species),
-                  fontSize: 13,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: InkWell(
+                  key: const Key('home-growth-button'),
+                  customBorder: const CircleBorder(),
+                  onTap: onGrowthTap,
+                  child: const SizedBox.square(
+                    dimension: 40,
+                    child: Icon(
+                      Icons.show_chart_rounded,
+                      color: Color(0xFFBA68C8),
+                      size: 22,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                _ProfileFactLine(label: '나이', value: _ageLabel(pet.birthDate)),
-                const SizedBox(height: 4),
-                _ProfileFactLine(
-                  label: '함께한 날',
-                  value: _daysTogetherLabel(pet.adoptionDate),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -395,13 +444,9 @@ String _daysTogetherLabel(String? adoptionDateIso) {
 }
 
 class _HomeMenuGrid extends StatelessWidget {
-  final VoidCallback onScheduleTap;
   final VoidCallback onCategoryTap;
 
-  const _HomeMenuGrid({
-    required this.onScheduleTap,
-    required this.onCategoryTap,
-  });
+  const _HomeMenuGrid({required this.onCategoryTap});
 
   @override
   Widget build(BuildContext context) {
@@ -425,31 +470,17 @@ class _HomeMenuGrid extends StatelessWidget {
         onTap: () => context.push('/routine'),
       ),
       _HomeMenuItem(
-        label: '일정',
-        icon: Icons.event_note_rounded,
-        color: const Color(0xFF64B5F6),
-        onTap: onScheduleTap,
-      ),
-      _HomeMenuItem(
-        label: '성장',
-        icon: Icons.show_chart_rounded,
-        color: const Color(0xFFBA68C8),
-        onTap: () => context.push('/records/growth'),
-      ),
-      _HomeMenuItem(
         label: '반려로그',
         icon: Icons.category_outlined,
         color: const Color(0xFFE879B9),
         onTap: onCategoryTap,
       ),
-      const _HomeMenuItem.empty(),
-      const _HomeMenuItem.empty(),
     ];
 
     return Container(
       key: const Key('home-menu-panel'),
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(22),
@@ -458,12 +489,12 @@ class _HomeMenuGrid extends StatelessWidget {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
+        itemCount: 4,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
-          mainAxisSpacing: 10,
+          mainAxisSpacing: 0,
           crossAxisSpacing: 10,
-          childAspectRatio: 0.78,
+          childAspectRatio: 0.72,
         ),
         itemBuilder: (context, index) => items[index],
       ),
@@ -473,70 +504,45 @@ class _HomeMenuGrid extends StatelessWidget {
 
 class _HomeMenuItem extends StatelessWidget {
   final String label;
-  final IconData? icon;
-  final Color? color;
+  final IconData icon;
+  final Color color;
   final VoidCallback? onTap;
-  final bool isEmpty;
 
   const _HomeMenuItem({
     required this.label,
     required this.icon,
     required this.color,
     required this.onTap,
-  }) : isEmpty = false;
-
-  const _HomeMenuItem.empty()
-    : label = '+',
-      icon = null,
-      color = null,
-      onTap = null,
-      isEmpty = true;
+  });
 
   @override
   Widget build(BuildContext context) {
     final content = Container(
       decoration: BoxDecoration(
-        color: isEmpty ? AppColors.surfaceSoft : AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isEmpty
-              ? AppColors.border.withValues(alpha: 0.72)
-              : AppColors.border,
-        ),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (isEmpty)
-            const AppText(
-              '+',
-              fontSize: 24,
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: AppText(
+              label,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: AppColors.muted,
-            )
-          else ...[
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: AppText(
-                label,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              color: AppColors.text,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ],
       ),
     );
-
-    if (isEmpty) {
-      return Opacity(opacity: 0.62, child: content);
-    }
 
     return Material(
       color: Colors.transparent,
