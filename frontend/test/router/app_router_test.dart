@@ -830,9 +830,9 @@ void main() {
       ),
     );
 
-    await tester.ensureVisible(find.text('성장'));
+    await tester.ensureVisible(find.byKey(const Key('home-growth-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('성장'));
+    await tester.tap(find.byKey(const Key('home-growth-button')));
     await tester.pumpAndSettle();
 
     expect(find.byType(GrowthRecordsScreen), findsOneWidget);

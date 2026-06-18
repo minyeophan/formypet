@@ -74,12 +74,20 @@ void main() {
     expect(find.text('반려기록'), findsOneWidget);
     expect(find.text('지갑'), findsOneWidget);
     expect(find.text('루틴'), findsOneWidget);
-    expect(find.text('일정'), findsOneWidget);
-    expect(find.text('성장'), findsOneWidget);
+    expect(find.text('일정'), findsNothing);
+    expect(find.text('성장'), findsNothing);
     expect(find.text('반려로그'), findsOneWidget);
     expect(find.byIcon(Icons.account_balance_wallet_rounded), findsOneWidget);
     expect(find.byIcon(Icons.category_outlined), findsOneWidget);
-    expect(find.text('+'), findsNWidgets(2));
+    expect(find.text('+'), findsNothing);
+    expect(find.byKey(const Key('home-growth-button')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('home-growth-button')),
+        matching: find.byIcon(Icons.show_chart_rounded),
+      ),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('home-menu-panel')), findsOneWidget);
     expect(AppColors.background, const Color(0xFFF8F9FA));
     expect(AppColors.surface, const Color(0xFFFFFFFF));
@@ -93,11 +101,6 @@ void main() {
       _descendantContainerColor('_PetProfileCard', AppColors.surface),
       AppColors.surface,
     );
-    final tappableInkWells = tester
-        .widgetList<InkWell>(find.byType(InkWell))
-        .where((widget) => widget.onTap != null);
-    expect(tappableInkWells, hasLength(greaterThanOrEqualTo(5)));
-
     await tester.drag(find.byType(PageView), const Offset(-500, 0));
     await tester.pumpAndSettle();
 
