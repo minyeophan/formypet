@@ -81,9 +81,16 @@
 | 토큰 갱신 | `POST /api/v1/auth/refresh`, `refreshToken` |
 | 로그아웃 | `POST /api/v1/auth/logout`, `refreshToken` |
 
+### 프로필 API 계약
+
+- `GET /api/v1/users/me`, `PATCH /api/v1/users/me`, `POST /api/v1/users/me/profile-image`는 모두 `id`, `email`, `nickname`, `profileImageUrl`, `registrationSource`를 반환한다.
+- `id`는 백엔드 `Long`이며 Flutter `UserProfile`에서는 문자열로 변환한다.
+- 닉네임 변경은 `PATCH /api/v1/users/me`에 `{ "nickname": "..." }`를 보내며, 서버에서 trim한 1~50자를 허용한다.
+- 사진 등록은 `POST /api/v1/users/me/profile-image`의 multipart `file` 한 개다. `jpg`, `jpeg`, `png`, `webp`와 최대 5MB를 허용한다.
+- 프로필 사진은 사용자당 최신 한 장만 유지한다. 새 파일을 저장한 뒤 이전 DB 행과 저장 파일을 커밋 후 정리하며, 사진 삭제 API는 제공하지 않는다.
+
 ### Backend sync needed
 
-- 백엔드 사용자 응답의 식별자와 `UserProfile.id` 매핑 불일치를 정리해야 한다.
 - `PetNotifier.clearForSignedOutUser()`의 환경설정 Future 실패 및 무한 대기 방어는 프론트 후속 작업으로 남긴다.
 
 ---
@@ -126,7 +133,7 @@
 
 - `accentColor`, `bgLight`는 클라이언트 선택값을 create/update 요청에 포함하면 백엔드가 저장하고, 누락 시 서버 기본값 또는 기존값을 유지한다.
 - `gender`, `weight`, `animalRegistrationNumber`, `neutered`, `specialNotes`, `diseases`, `profileImageUrl`, 확장 프로필 필드는 nullable이다.
-- `/my/profile` 저장은 현재 `준비중` 토스트만 표시한다. 프로필 저장 API 계약 확정 후 연결해야 한다.
+- `/my/profile`는 닉네임 PATCH와 프로필 사진 multipart POST를 순서대로 호출한다. 닉네임 저장 뒤 사진 등록이 실패하면 닉네임과 기존 서버 사진을 유지하고 부분 성공 안내를 표시한다.
 
 ---
 
@@ -135,6 +142,8 @@
 ### 요약
 
 현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. `/records?date=YYYY-MM-DD`와 입력 화면의 `date` query를 지원하며, 메인에서 선택한 날짜를 입력 화면의 고정 날짜로 사용한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다. 기록 목록은 표시되지만 상세, 수정, 삭제 진입 UI는 아직 없다.
+
+활동 기록 타입은 `meal`, `water`, `poop`, `walk`, `medicine`, `weight`, `vet`, `diary`, `etc` 9개만 유지한다. `/records/:typeId/new`으로 `play`, `sleep`, `checkup`, `bath`, `groom`에 직접 접근하면 `/records`로 redirect한다. 일정·지갑의 `grooming`과 병원 방문 사유 `checkup`은 이 정책의 대상이 아니다.
 
 ### 현재 프론트 구현
 
@@ -181,15 +190,10 @@
 | `diary` | 🔌 연동됨 | 일기 전체 화면 입력, `activity_records.note`만 사용 |
 | `etc` | 🔌 연동됨 | 기타 전체 화면 입력, `activity_records.note`만 사용 |
 
-### 현재 메인 그리드에서 접근할 수 없는 타입
+### 기록 메인에서 숨기는 별개 도메인
 
-| typeId | 상태 | 비고 |
-|--------|------|------|
-| `play` | 🧭 진입점 없음 | 이전 빠른 기록 코드에는 있으나 현재 `/records` 카드 없음 |
-| `sleep` | 🧭 진입점 없음 | 이전 빠른 기록 코드에는 있으나 현재 `/records` 카드 없음 |
-| `checkup` | 🧭 진입점 없음 | 백엔드 타입과 표시 config는 남기되 현재 카드 숨김 |
-| `bath` | 🧭 진입점 없음 | 이전 빠른 기록 코드에만 있고 `kSupportedTypeIds`에서도 제외됨 |
-| `groom` | 🧭 진입점 없음 | 이전 빠른 기록 코드에만 있고 `kSupportedTypeIds`에서도 제외됨 |
+| 항목 | 상태 | 비고 |
+|------|------|------|
 | `expense` | 🚧 부분 구현 | 메인 기록 카드에서는 숨김. 별도 지갑 UI가 있으나 저장 계약 미확정 |
 
 ### 지갑/지출 UI
@@ -208,7 +212,7 @@
 - `ActivityRecord.detail` 키는 프론트 입력 필드 기준이며, 백엔드 개발 시 재정렬 필요.
 - 전체 화면 폼 기준 현재 detail: `meal(foodType, servedAmount, consumedPercent, product?, brand?, feedingMethod?)`, `water(amount)`, `walk(distance)`, `poop(poopShape, poopColor)`, `weight(weight)`, `vet(vetClinicName, vetVisitReason, vetTreatment)`, `medicine(medicineName, dosage)`, `diary`/`etc`는 detail 없이 `note`만 사용.
 - `water` 단위는 UI에서 `ml` 고정값으로 표시하고, 백엔드에는 `amount`만 저장한다.
-- `play`, `sleep`, `checkup`, `bath`, `groom`, `expense`의 현재 사용자 진입점을 다시 열지, 별도 도메인으로 둘지 결정 필요.
+- 제거된 기록 타입(`play`, `sleep`, `checkup`, `bath`, `groom`)은 다시 열지 않는다. `expense`는 기록 타입이 아닌 지갑 전용 도메인으로 유지한다.
 - 목록 API에서 날짜/타입/limit 필터를 서버 쿼리로 제공할지, 현재처럼 클라이언트 필터를 유지할지 확인 필요.
 - 기록 생성 후 미디어 업로드 실패 시 프론트는 생성된 기록 삭제로 rollback을 시도한다. 백엔드 트랜잭션/정리 정책 확인 필요.
 

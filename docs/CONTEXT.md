@@ -110,6 +110,14 @@
 
 ## 최신 Handover
 
+- Goal: 사용자 프로필의 닉네임 저장과 프로필 사진 업로드를 실제 API에 연결하고, 사진 교체 시 이전 미디어를 정리한다.
+- Done: 백엔드 프로필 응답에 `id`를 추가했고, 새 프로필 사진 참조를 flush한 뒤 이전 `media_resources` 행을 삭제하며 파일은 커밋 후 정리한다. Flutter `AuthService`/`AuthNotifier`에 닉네임 PATCH와 multipart 사진 POST를 추가했고, `/my/profile`은 닉네임 성공 뒤 사진을 저장하며 부분 실패와 기본 아이콘 fallback을 처리한다. 관련 API/provider/화면 테스트와 상태 문서를 갱신했다.
+- Remaining: `UserProfileIntegrationTest` 전체 실행은 Docker daemon 부재(`127.0.0.1:2375` 및 `docker_engine` pipe 미가동)로 시작 전에 실패했다. 마지막 중복 저장 잠금 회귀 테스트 추가 뒤에는 실행 승인 한도 제한으로 Flutter 재실행 및 전체 분석/전체 테스트를 수행하지 못했다.
+- Next step: Docker Desktop 또는 Testcontainers가 요구하는 daemon을 시작한 뒤 `backend\\gradlew.bat test --tests com.petyilgi.user.UserProfileIntegrationTest`를 실행한다. 이어서 `flutter test test/services/auth_service_test.dart test/providers/auth_provider_test.dart test/screens/my/my_subscreens_test.dart`, `flutter analyze --no-fatal-infos`, `flutter test`를 실행한다.
+- Warnings: 기존 `.gitignore`, `docs/ARCHITECTURE.md`와 이 문서 상단의 레거시 기록 변경은 이번 작업 범위가 아니므로 보존했다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
+
+## 이전 Handover
+
 - Goal: backend-roadmap의 지갑 지출 1차 백엔드, 프론트 전환, cleanup, 최종 검증 문서 흐름을 구현자가 바로 따라갈 수 있게 03~11번 문서 계약과 작업 순서로 정리한다.
 - Done: `docs/backend-roadmap/03_TARGET_ERD.md`~`08_BACKEND_IMPLEMENTATION_TASKS.md`에 `itemName` nullable, DELETE `204 No Content`, `ProblemDetail.errorCode`, 공통 `ApiException`, pet 검증 순서, `INVALID_INPUT`/`VALIDATION_FAILED` 구분, base64url opaque cursor, soft delete pet 정책, V16 migration 계획, 통합 테스트 기대값, 백엔드 Red-Green 구현 순서를 반영했다. 이어서 `docs/backend-roadmap/09_FRONTEND_INTEGRATION_PLAN.md`를 템플릿에서 실제 프론트 연결 계획으로 교체했고, `WalletExpense` 모델/service/provider, route `recordId -> expenseId`, `ActivityRecord.typeId == "expense"` 분리, wallet 화면/테스트/FRONTEND_STATUS 갱신 순서를 구체화했다. `docs/backend-roadmap/10_DEAD_CODE_CLEANUP_PLAN.md`는 `/records/expense/new`, `ExpenseFormData.toRecordBody()`, `ActivityRecord.typeId == "expense"` 필터, `expense_record_utils.dart`, wallet 테스트 fixture 제거 기준과 검증 명령을 포함한 확정 초안으로 구체화했다. 이번 작업에서는 `bath`/`groom`을 10번 지갑 cleanup이 아닌 별도 기록 cleanup 후보로 분리했고, `docs/backend-roadmap/11_VERIFICATION_PLAN.md`를 백엔드 선택/전체 테스트, 프론트 선택/전체 테스트, cleanup 역참조 검색, 문서/변경 범위 검증, 최종 보고 형식을 포함한 확정 초안으로 교체했다.
 - Remaining: 실제 `V16__create_wallet_expenses.sql`, `init-test.sql`, 백엔드 구현 코드, 통합 테스트 코드, Flutter 모델/service/provider/screen/test 코드는 아직 작성하지 않았다.

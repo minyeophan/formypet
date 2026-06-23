@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,55 @@ void main() {
       expect(notifier.state.isAuthenticated, isFalse);
     },
   );
+
+  test('updateProfile replaces the authenticated profile with the API response', () async {
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(updateProfileResult: _renamedProfile),
+    );
+
+    await notifier.updateProfile(nickname: 'Renamed');
+
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.profile, _renamedProfile);
+  });
+
+  test('uploadProfileImage replaces the authenticated profile with the API response', () async {
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
+    );
+
+    await notifier.uploadProfileImage(
+      bytes: Uint8List.fromList([1]),
+      filename: 'portrait.webp',
+    );
+
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.profile, _photoProfile);
+  });
+
+  test('uploadProfileImage failure keeps the previously saved nickname and photo', () async {
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(
+        updateProfileResult: _renamedProfile,
+        uploadProfileImageError: Exception('upload failed'),
+      ),
+    );
+
+    await notifier.updateProfile(nickname: 'Renamed');
+    await expectLater(
+      notifier.uploadProfileImage(
+        bytes: Uint8List.fromList([1]),
+        filename: 'portrait.webp',
+      ),
+      throwsException,
+    );
+
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.profile, _renamedProfile);
+  });
 }
 
 Future<void> _waitUntil(bool Function() predicate) async {
@@ -109,12 +159,34 @@ const _signedIn = AuthState(
   profile: _profile,
 );
 
+const _renamedProfile = UserProfile(
+  id: 'user-1',
+  email: 'user@example.com',
+  nickname: 'Renamed',
+);
+
+const _photoProfile = UserProfile(
+  id: 'user-1',
+  email: 'user@example.com',
+  nickname: 'Momo',
+  profileImageUrl: '/api/v1/media/12',
+);
+
 class _FakeAuthService extends AuthService {
   final Object? logoutError;
   final Object? profileError;
+  final UserProfile? updateProfileResult;
+  final UserProfile? uploadProfileImageResult;
+  final Object? uploadProfileImageError;
   Completer<void>? logoutCompleter;
 
-  _FakeAuthService({this.logoutError, this.profileError});
+  _FakeAuthService({
+    this.logoutError,
+    this.profileError,
+    this.updateProfileResult,
+    this.uploadProfileImageResult,
+    this.uploadProfileImageError,
+  });
 
   @override
   Future<void> logout() async {
@@ -126,6 +198,20 @@ class _FakeAuthService extends AuthService {
   Future<UserProfile> getProfile() async {
     if (profileError != null) throw profileError!;
     return _profile;
+  }
+
+  @override
+  Future<UserProfile> updateProfile({required String nickname}) async {
+    return updateProfileResult ?? _profile;
+  }
+
+  @override
+  Future<UserProfile> uploadProfileImage({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    if (uploadProfileImageError != null) throw uploadProfileImageError!;
+    return uploadProfileImageResult ?? _profile;
   }
 }
 

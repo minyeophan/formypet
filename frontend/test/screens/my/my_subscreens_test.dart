@@ -107,6 +107,109 @@ void main() {
     expect(find.text('프로필 정보를 불러올 수 없어요'), findsOneWidget);
   });
 
+  testWidgets('profile save updates nickname before uploading the selected image', (tester) async {
+    final service = _FakeAuthService(
+      updateProfileResult: _renamedProfile,
+      uploadProfileImageResult: _profileWithPhoto,
+    );
+    await _pump(
+      tester,
+      MyProfileScreen(
+        pickImage: () async =>
+            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+      ),
+      authService: service,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'Renamed');
+    await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pumpAndSettle();
+
+    expect(service.operations, ['nickname', 'photo']);
+  });
+
+  testWidgets('profile photo upload failure keeps the newly saved nickname and clears local preview', (tester) async {
+    final service = _FakeAuthService(
+      updateProfileResult: _renamedProfile,
+      uploadProfileImageError: Exception('upload failed'),
+    );
+    await _pump(
+      tester,
+      MyProfileScreen(
+        pickImage: () async =>
+            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+      ),
+      authService: service,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'Renamed');
+    await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pumpAndSettle();
+
+    expect(service.operations, ['nickname', 'photo']);
+    expect(find.byKey(const Key('my-profile-local-preview')), findsNothing);
+    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
+  });
+
+  testWidgets('profile nickname failure does not upload the selected image', (tester) async {
+    final service = _FakeAuthService(updateProfileError: Exception('patch failed'));
+    await _pump(
+      tester,
+      MyProfileScreen(
+        pickImage: () async =>
+            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+      ),
+      authService: service,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'Renamed');
+    await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pumpAndSettle();
+
+    expect(service.operations, ['nickname']);
+    expect(find.byKey(const Key('my-profile-local-preview')), findsOneWidget);
+  });
+
+  testWidgets('profile rejects blank and oversized nicknames without requests', (tester) async {
+    final service = _FakeAuthService();
+    await _pump(tester, const MyProfileScreen(), authService: service);
+
+    await tester.enterText(find.byType(TextField).first, '');
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pump();
+    expect(service.operations, isEmpty);
+
+    await tester.enterText(find.byType(TextField).first, 'a' * 51);
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pump();
+    expect(service.operations, isEmpty);
+  });
+
+  testWidgets('profile save prevents duplicate requests while the nickname update is pending', (tester) async {
+    final service = _FakeAuthService()..updateProfileCompleter = Completer<UserProfile>();
+    await _pump(tester, const MyProfileScreen(), authService: service);
+
+    await tester.enterText(find.byType(TextField).first, 'Renamed');
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.tap(find.byKey(const Key('my-profile-save')));
+    await tester.pump();
+
+    expect(service.operations, ['nickname']);
+    expect(
+      tester.widget<TextButton>(find.byKey(const Key('my-profile-photo-picker'))).onPressed,
+      isNull,
+    );
+
+    service.updateProfileCompleter!.complete(_renamedProfile);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('policies list shows only the five policy names', (tester) async {
     await _pumpPoliciesRouter(tester, '/my/policies');
 
@@ -363,13 +466,60 @@ Pet _pet(String id) => Pet(
 class _FakeAuthService extends AuthService {
   Completer<void>? logoutCompleter;
   int logoutCalls = 0;
+  final UserProfile? updateProfileResult;
+  final UserProfile? uploadProfileImageResult;
+  final Object? updateProfileError;
+  final Object? uploadProfileImageError;
+  final operations = <String>[];
+  String? uploadedFilename;
+  Completer<UserProfile>? updateProfileCompleter;
+
+  _FakeAuthService({
+    this.updateProfileResult,
+    this.uploadProfileImageResult,
+    this.updateProfileError,
+    this.uploadProfileImageError,
+  });
 
   @override
   Future<void> logout() async {
     logoutCalls++;
     await logoutCompleter?.future;
   }
+
+  @override
+  Future<UserProfile> updateProfile({required String nickname}) async {
+    operations.add('nickname');
+    if (updateProfileError != null) throw updateProfileError!;
+    final completer = updateProfileCompleter;
+    if (completer != null) return completer.future;
+    return updateProfileResult ?? _profileWithPhoto;
+  }
+
+  @override
+  Future<UserProfile> uploadProfileImage({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    operations.add('photo');
+    uploadedFilename = filename;
+    if (uploadProfileImageError != null) throw uploadProfileImageError!;
+    return uploadProfileImageResult ?? _profileWithPhoto;
+  }
 }
+
+const _renamedProfile = UserProfile(
+  id: 'user-1',
+  email: 'user@example.com',
+  nickname: 'Renamed',
+);
+
+const _profileWithPhoto = UserProfile(
+  id: 'user-1',
+  email: 'user@example.com',
+  nickname: 'Renamed',
+  profileImageUrl: '/api/v1/media/12',
+);
 
 const _png = <int>[
   137,

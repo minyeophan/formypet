@@ -135,6 +135,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> updateProfile({required String nickname}) async {
+    final profile = await _svc.updateProfile(nickname: nickname);
+    state = state.copyWith(profile: profile);
+  }
+
+  Future<void> uploadProfileImage({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final profile = await _svc.uploadProfileImage(
+      bytes: bytes,
+      filename: filename,
+    );
+    state = state.copyWith(profile: profile);
+  }
+
   Future<void> logout() async {
     final authenticatedState = state;
     state = state.copyWith(isLoading: true);

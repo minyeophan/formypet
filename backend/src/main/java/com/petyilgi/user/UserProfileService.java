@@ -33,8 +33,13 @@ public class UserProfileService {
     @Transactional
     public UserProfileResponse uploadProfileImage(String email, MultipartFile file) {
         User user = findUser(email);
+        Long previousMediaId = user.getProfileMediaId();
         MediaResponse media = mediaService.uploadUserProfileMedia(email, file);
         user.updateProfileMediaId(media.id());
+        userRepository.flush();
+        if (previousMediaId != null && !previousMediaId.equals(media.id())) {
+            mediaService.deleteUserProfileMedia(user.getId(), previousMediaId);
+        }
         return UserProfileResponse.of(user);
     }
 

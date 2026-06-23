@@ -11,7 +11,6 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/authenticated_network_image.dart';
-import '../../widgets/preparing_toast.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   final Future<XFile?> Function()? pickImage;
@@ -26,8 +25,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   final _nickname = TextEditingController();
   final _email = TextEditingController();
   String? _hydratedEmail;
+  XFile? _selectedPhoto;
   Uint8List? _previewBytes;
   String? _error;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -37,6 +38,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 
   Future<void> _pickPhoto() async {
+    if (_isSaving) return;
     try {
       final file =
           await (widget.pickImage ??
@@ -45,6 +47,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       final bytes = await file.readAsBytes();
       if (!mounted) return;
       setState(() {
+        _selectedPhoto = file;
         _previewBytes = bytes;
         _error = null;
       });
@@ -53,14 +56,117 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
   }
 
+  Future<void> _save() async {
+    if (_isSaving) return;
+    final profile = ref.read(authProvider).profile;
+    if (profile == null) return;
+    final nickname = _nickname.text.trim();
+    if (nickname.isEmpty) {
+      setState(() => _error = '닉네임을 입력해 주세요.');
+      return;
+    }
+    if (nickname.length > 50) {
+      setState(() => _error = '닉네임은 50자 이하로 입력해 주세요.');
+      return;
+    }
+
+    final shouldUpdateNickname = nickname != profile.nickname;
+    final selectedPhoto = _selectedPhoto;
+    if (!shouldUpdateNickname && selectedPhoto == null) {
+      await _goBack();
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _error = null;
+    });
+    await dismissKeyboardBeforeTransition(context);
+    if (!mounted) return;
+
+    if (shouldUpdateNickname) {
+      try {
+        await ref.read(authProvider.notifier).updateProfile(nickname: nickname);
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _error = '프로필을 저장하지 못했어요. 다시 시도해 주세요.';
+          });
+        }
+        return;
+      }
+    }
+
+    var photoUploadFailed = false;
+    if (selectedPhoto != null) {
+      Uint8List bytes;
+      try {
+        bytes = await selectedPhoto.readAsBytes();
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _selectedPhoto = null;
+            _previewBytes = null;
+            _error = '사진을 불러오지 못했어요.';
+          });
+        }
+        return;
+      }
+
+      try {
+        await ref.read(authProvider.notifier).uploadProfileImage(
+              bytes: bytes,
+              filename: selectedPhoto.name,
+            );
+      } catch (_) {
+        photoUploadFailed = true;
+        if (mounted) {
+          setState(() {
+            _selectedPhoto = null;
+            _previewBytes = null;
+          });
+        }
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    _showSaveMessage(photoUploadFailed && shouldUpdateNickname
+        ? '닉네임은 저장했지만 사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+        : photoUploadFailed
+        ? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+        : '프로필을 저장했어요.');
+    await _goBack();
+  }
+
+  void _showSaveMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
   Future<void> _goBack() async {
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
-    if (context.canPop()) {
-      context.pop();
+    final router = GoRouter.maybeOf(context);
+    if (router?.canPop() ?? Navigator.of(context).canPop()) {
+      if (router != null) {
+        router.pop();
+      } else {
+        Navigator.of(context).pop();
+      }
       return;
     }
-    context.go('/my/settings');
+    if (router != null) {
+      router.go('/my/settings');
+    }
   }
 
   @override
@@ -111,18 +217,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: TextButton(
-                    onPressed: _pickPhoto,
+                    key: const Key('my-profile-photo-picker'),
+                    onPressed: _isSaving ? null : _pickPhoto,
                     child: const AppText('사진 선택'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _nickname,
+                  enabled: !_isSaving,
                   decoration: const InputDecoration(labelText: '닉네임'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _email,
+                  enabled: !_isSaving,
                   readOnly: true,
                   decoration: const InputDecoration(labelText: '이메일'),
                 ),
@@ -132,7 +241,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 ],
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: () => showPreparingToast(context),
+                  key: const Key('my-profile-save'),
+                  onPressed: _isSaving ? null : _save,
                   child: const AppText('저장', color: AppColors.white),
                 ),
               ],

@@ -62,6 +62,22 @@ public class MediaService {
     }
 
     @Transactional
+    public void deleteUserProfileMedia(Long userId, Long mediaId) {
+        var rows = jdbcTemplate.queryForList("""
+                SELECT storage_key
+                FROM media_resources
+                WHERE id = ? AND user_id = ? AND pet_id IS NULL AND record_id IS NULL
+                """, mediaId, userId);
+        if (rows.isEmpty()) {
+            return;
+        }
+
+        String storageKey = (String) rows.getFirst().get("storage_key");
+        jdbcTemplate.update("DELETE FROM media_resources WHERE id = ? AND user_id = ?", mediaId, userId);
+        registerAfterCommitCleanup(storageKey);
+    }
+
+    @Transactional
     public MediaResponse uploadCommunityMedia(User user, MultipartFile file) {
         return storeAndInsert(user.getId(), null, null, "PUBLIC", "community", file);
     }
@@ -187,6 +203,19 @@ public class MediaService {
                 if (status == STATUS_ROLLED_BACK) {
                     deleteQuietly(storageKey);
                 }
+            }
+        });
+    }
+
+    private void registerAfterCommitCleanup(String storageKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteQuietly(storageKey);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteQuietly(storageKey);
             }
         });
     }
