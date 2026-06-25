@@ -122,6 +122,8 @@ void main() {
     );
     expect(find.text('댓글 22개'), findsOneWidget);
     expect(find.text('댓글을 입력하세요...'), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert_rounded), findsWidgets);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
 
     await tester.tap(find.byKey(const Key('mock-post-more-button')));
     await tester.pumpAndSettle();

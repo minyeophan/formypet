@@ -15,6 +15,7 @@ import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
+import 'package:frontend/screens/community/mock/community_mock_detail_screen.dart';
 import 'package:frontend/screens/community/mock/community_mock_feed_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
@@ -93,6 +94,20 @@ void main() {
       );
       expect(navigation.currentIndex, 1);
     }
+  });
+
+  testWidgets('public community mock detail bypasses auth and hides bottom navigation', (
+    tester,
+  ) async {
+    await _pumpRouter(
+      tester,
+      initialLocation: '/community/mock/posts/story-1',
+      authState: const AuthState(isLoading: false, isAuthenticated: false),
+      petState: _petState(isLoading: false, hasOnboarded: false),
+    );
+
+    expect(find.byType(CommunityMockDetailScreen), findsOneWidget);
+    expect(find.byType(BottomNavigationBar), findsNothing);
   });
 
   testWidgets('actual community detail stays authenticated inside community tab', (
