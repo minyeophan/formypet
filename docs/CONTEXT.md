@@ -1,5 +1,20 @@
 # 현재 컨텍스트
 
+## 2026-06-25 커뮤니티 상세·댓글·투표 참여 연동
+
+- 커뮤니티 피드 카드는 제목 1줄, 본문 2줄 preview로 정리했고, 첫 첨부 이미지를 오른쪽 썸네일로 표시한다. 이미지가 2장 이상이면 썸네일 위에 전체 개수를 표시하며, 투표 글은 제목 왼쪽에 작은 `투표` badge를 표시한다. 카드 열기와 좋아요 tap 영역은 분리했다.
+- 실제 상세 route `/community/posts/:postId`를 인증 ShellRoute 안에 추가했다. 상세 화면은 전체 제목·본문·이미지·좋아요·투표·댓글을 한 화면에서 표시하고, direct URL 진입 시 뒤로갈 수 없으면 `/community`로 돌아간다.
+- 백엔드는 게시글 상세 조회, 댓글 cursor 목록 조회, 댓글 작성 API를 추가했다. `post_comments` 테이블은 새 `V17__create_post_comments.sql`로 추가했고, 댓글 작성과 `posts.comments_count` 증가는 하나의 트랜잭션으로 처리한다. 없는 게시글은 상세·댓글 API 모두 `POST_NOT_FOUND` 404를 반환한다.
+- Flutter `CommunityService`와 `CommunityProvider`에 상세 조회, 투표 참여, 댓글 목록, 댓글 작성을 연결했다. 좋아요·투표·댓글 작성 결과는 피드 목록과 상세 캐시에 함께 반영하며, 댓글 수는 댓글 작성 응답의 서버 `commentsCount`를 사용한다. 투표 option 파서는 백엔드의 `label` 필드도 읽는다.
+- 검증 상태: `.\gradlew.bat test --tests com.petyilgi.community.CommunityIntegrationTest` GREEN. Flutter 선택 검증은 `flutter test test\models\post_test.dart test\services\community_service_test.dart test\screens\community\community_screen_test.dart test\router\app_router_test.dart` GREEN(66 tests), 선택 파일 `dart analyze` Exit 0(info 2건), `git diff --check` whitespace 오류 없음, 한글 깨짐 검사 GREEN. 전체 `flutter test`는 기존/범위 밖 실패 4건(`community_mock_screen_test.dart` 3건, `records_screen_test.dart` 1건)으로 GREEN 아님.
+
+## 2026-06-23 레거시 기록 타입 영구 삭제 계획(현재 코드 미반영)
+
+- 당시 계획은 `V17__remove_deprecated_activity_types.sql`로 `play`, `sleep`, `checkup` 기록의 미디어 storage key를 `media_cleanup_queue`에 복사하고, 관련 루틴 참조를 null 처리한 뒤 대상 루틴·완료 이력·기록·타입(`bath`, `groom` 포함)을 영구 삭제하는 것이었다. 현재 실제 `V17`은 `V17__create_post_comments.sql`이므로 이 cleanup을 적용하려면 실제 migration 목록 기준의 새 번호로 재검토해야 한다.
+- 앱 시작 `MediaCleanupRunner`는 queue의 파일을 먼저 삭제하고 성공한 key만 queue에서 제거한다. 로컬 저장소 삭제는 `deleteIfExists`라 멱등이며, 파일 또는 DB queue 삭제 실패는 다음 시작에서 재시도한다.
+- 백엔드는 create/list filter와 루틴 create/update에서 제거 타입을 400으로 거부한다. Flutter는 타입 정의, quick type preference, 루틴 선택지, 홈/health 표시 및 직접 URL redirect를 9개 타입 기준으로 맞춘다. 일정·지갑 `grooming`과 병원 방문 사유 `checkup`은 유지한다.
+- 검증 상태: `MediaCleanupRunnerTest`와 backend `testClasses`는 통과했다. Docker daemon 부재로 Testcontainers 통합 테스트와 Flyway migration 실행은 보류됐고, Flutter wrapper가 120초 무출력 timeout되어 Flutter test/pub get은 보류됐다. 직접 Dart analyze는 worktree의 Flutter 의존성 해석 파일 부재로 실행할 수 없었다.
+
 ## 2026-06-05 PetEdit 입력 UI 보정
 
 - 공통 `PetDateField`를 추가해 PetEdit 생년월일/함께한 날, Onboarding 생년월일을 read-only `TextField`가 아닌 `Material + InkWell` 날짜 선택 필드로 바꿨다. 캘린더 아이콘과 `생년월일을 몰라요` 동작은 유지했다.
@@ -66,10 +81,10 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공. 2026-06-05 기록 날짜 흐름과 PetEdit 입력 UI 변경은 부분 검증을 통과했다.
-3. 최신 스키마: Flyway `V1`부터 `V13__add_etc_activity_type.sql`까지 기록 관련 migration이 존재한다. 기존 마이그레이션은 수정하지 않는다.
-4. 최근 변경 흐름: PetEdit/Onboarding 날짜 입력 UI 보정, 기록 입력 route date 유지, `etc` note-only 기록, 스크롤 하단 저장 CTA, `water`/`diary` 전체 화면 기록 입력, 급식/배변 메모, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route를 보강했다.
-5. 다음 우선순위: My 실제 메뉴와 로그아웃, 일정 저장과 실제 목록, 기록 상세·수정·삭제, Community 상세·댓글·이미지/투표 표시, 지출 저장 순서로 사용자 동선을 완성한다.
+2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공. 2026-06-25 커뮤니티 상세·댓글·투표 변경은 선택 검증을 통과했지만 전체 Flutter suite는 기존/범위 밖 실패가 남아 있다.
+3. 최신 스키마: Flyway `V1`부터 `V17__create_post_comments.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
+4. 최근 변경 흐름: PetEdit/Onboarding 날짜 입력 UI 보정, 기록 입력 route date 유지, `etc` note-only 기록, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route, 커뮤니티 상세·댓글·투표 참여를 보강했다.
+5. 다음 우선순위: 일정 저장과 실제 목록, 기록 상세·수정·삭제, 지출 저장, 커뮤니티 검색/알림/카테고리 필터 순서로 남은 사용자 동선을 완성한다.
 
 ## 마지막 검증
 
@@ -90,6 +105,7 @@
 - My 메뉴 · 설정 · 로그아웃 구현 후 전체 검증: 2026-06-02 `flutter test` GREEN(191 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `flutter build web` GREEN(`flutter_secure_storage_web` wasm dry-run 경고만 출력), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check`, `git diff --cached --check` whitespace 오류 없음.
 - 기록 입력 날짜 흐름 및 기타 기록 연동 후 부분 검증: 2026-06-05 `.\gradlew.bat test --tests com.petyilgi.record.ActivityRecordIntegrationTest` GREEN, `flutter test test/screens/records/records_screen_test.dart test/screens/records/meal_record_screen_test.dart test/screens/records/record_category_form_screen_test.dart test/router/app_router_test.dart` GREEN(67 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음(CRLF 경고만 출력).
 - PetEdit 입력 UI 보정 후 부분 검증: 2026-06-05 `flutter test test/screens/pet/pet_screen_test.dart test/screens/onboarding/onboarding_screen_test.dart` GREEN(24 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN.
+- 커뮤니티 상세·댓글·투표 연동 후 부분 검증: 2026-06-25 `.\gradlew.bat test --tests com.petyilgi.community.CommunityIntegrationTest` GREEN, `flutter test test\models\post_test.dart test\services\community_service_test.dart test\screens\community\community_screen_test.dart test\router\app_router_test.dart` GREEN(66 tests), 선택 파일 `dart analyze` Exit 0(info 2건), `git diff --check` whitespace 오류 없음, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 전체 `flutter test`는 기존/범위 밖 `community_mock_screen_test.dart` 3건과 `records_screen_test.dart` 1건 실패로 통과하지 않았다.
 
 ## 다음 행동
 
@@ -100,7 +116,7 @@
 
 ## 주의사항
 
-- `backend/src/main/resources/db/migration/V1`부터 `V12`까지 기존 Flyway 파일은 수정하지 않는다.
+- `backend/src/main/resources/db/migration/V1`부터 `V17`까지 기존 Flyway 파일은 수정하지 않는다.
 - 새 DB 변경은 다음 번호의 새 마이그레이션으로만 추가한다.
 - 문서 정리만 하는 작업에서는 `backend/`, `frontend/`, `DESIGN.md`를 수정하지 않는다.
 - 기존 dirty worktree 변경은 사용자 또는 이전 작업자의 작업으로 보고 되돌리지 않는다.
@@ -110,11 +126,11 @@
 
 ## 최신 Handover
 
-- Goal: 사용자 프로필의 닉네임 저장과 프로필 사진 업로드를 실제 API에 연결하고, 사진 교체 시 이전 미디어를 정리한다.
-- Done: 백엔드 프로필 응답에 `id`를 추가했고, 새 프로필 사진 참조를 flush한 뒤 이전 `media_resources` 행을 삭제하며 파일은 커밋 후 정리한다. Flutter `AuthService`/`AuthNotifier`에 닉네임 PATCH와 multipart 사진 POST를 추가했고, `/my/profile`은 닉네임 성공 뒤 사진을 저장하며 부분 실패와 기본 아이콘 fallback을 처리한다. 관련 API/provider/화면 테스트와 상태 문서를 갱신했다.
-- Remaining: `UserProfileIntegrationTest` 전체 실행은 Docker daemon 부재(`127.0.0.1:2375` 및 `docker_engine` pipe 미가동)로 시작 전에 실패했다. 마지막 중복 저장 잠금 회귀 테스트 추가 뒤에는 실행 승인 한도 제한으로 Flutter 재실행 및 전체 분석/전체 테스트를 수행하지 못했다.
-- Next step: Docker Desktop 또는 Testcontainers가 요구하는 daemon을 시작한 뒤 `backend\\gradlew.bat test --tests com.petyilgi.user.UserProfileIntegrationTest`를 실행한다. 이어서 `flutter test test/services/auth_service_test.dart test/providers/auth_provider_test.dart test/screens/my/my_subscreens_test.dart`, `flutter analyze --no-fatal-infos`, `flutter test`를 실행한다.
-- Warnings: 기존 `.gitignore`, `docs/ARCHITECTURE.md`와 이 문서 상단의 레거시 기록 변경은 이번 작업 범위가 아니므로 보존했다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
+- Goal: 커뮤니티 실제 상세 화면, 댓글, 투표 참여를 백엔드 API와 Flutter 화면/provider에 연결하고 관련 문서를 현재 코드 기준으로 맞춘다.
+- Done: `V17__create_post_comments.sql`, 상세·댓글 API, 댓글 작성 트랜잭션, 상세 route `/community/posts/:postId`, 상세 화면, 피드 카드 썸네일/투표 badge, 투표 참여, 댓글 작성 및 캐시 동기화를 반영했다. `docs/FRONTEND_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/ERD.md`도 커뮤니티 상세·댓글 기준으로 갱신했다.
+- Remaining: 전체 Flutter suite는 기존/범위 밖 실패 4건으로 통과하지 않았다. `frontend/test/screens/community/community_mock_screen_test.dart`는 기존 mock 화면 기대값과 충돌하고, `frontend/test/screens/records/records_screen_test.dart`는 커뮤니티 작업 범위 밖 기록 화면 실패다.
+- Next step: 실제 앱 실행 시 백엔드 `.\gradlew.bat bootRun` 후 Flutter `flutter run -d chrome` 또는 `flutter run`으로 로그인 → 커뮤니티 피드 → 상세 → 좋아요/투표/댓글 작성 흐름을 수동 확인한다. 전체 suite를 GREEN으로 만들려면 mock 커뮤니티 테스트와 기록 화면 실패를 별도 범위로 정리한다.
+- Warnings: 기존 `.gitignore`, `docs/ARCHITECTURE.md`, `docs/CONTEXT.md`, mock 커뮤니티 파일/테스트 변경은 이전 dirty 상태가 있었으므로 되돌리지 않았다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
 
 ## 이전 Handover
 

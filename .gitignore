@@ -4,6 +4,7 @@ node_modules
 .codex/
 .claude/
 .superpowers/
+.worktrees/
 docs/superpowers/plans/
 docs/devlog-drafts/
 

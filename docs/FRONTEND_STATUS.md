@@ -1,6 +1,6 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
-> 마지막 갱신: 2026-06-05
+> 마지막 갱신: 2026-06-25
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 
 ## 상태 표기
@@ -38,7 +38,7 @@
 | Home | `일정` 메뉴 | 🚧 부분 구현 | `준비중` 토스트만 표시. 실제 일정은 루틴 화면의 일정 탭에서 샘플로만 표시 |
 | Home | `반려로그` 메뉴 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 별도 화면 없음 |
 | Community | 상단 알림, 검색 아이콘 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 알림 목록과 검색 화면 없음 |
-| Community | 게시글 카드 | 🚧 부분 구현 | 좋아요만 동작. 상세 화면, 댓글 진입, 이미지/투표 렌더링 없음 |
+| Community | 게시글 카드 | 🔌 연동됨 | 피드 조회, 좋아요, 상세 진입, 첫 이미지 썸네일, 이미지 개수, 투표 badge 표시 |
 | Community | 카테고리 화면 `전체⌄`, 이용 가이드 | 🚧 부분 구현 | 표시 전용 UI. 필터 선택과 가이드 화면 없음 |
 | My | 펫 카드, `펫 추가하기` | ✅ 구현됨 | `/pet/{id}`, `/pets/new`로 이동 |
 | My | 설정, `모두보기`, 프로필 편집 | ✅ 구현됨 | `/my/settings`, `/my/pets`, `/my/profile`로 이동 |
@@ -269,7 +269,7 @@
 
 ### 요약
 
-피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload는 연결돼 있다. 하지만 현재 피드 카드는 텍스트와 좋아요만 중심으로 렌더링하며, 상세·댓글·첨부 이미지·투표 표시와 참여는 아직 연결되지 않았다.
+피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시하고, 상세 화면에서 전체 본문·이미지·투표·댓글을 표시한다. 검색, 알림, 카테고리 필터 동작은 아직 연결되지 않았다.
 
 ### 현재 프론트 구현
 
@@ -279,11 +279,12 @@
 | 글쓰기 | 🔌 연동됨 | `screens/community/write_screen.dart`, `CommunityService.createPost()` |
 | 좋아요 | 🔌 연동됨 | `post_card.dart`, `CommunityService.toggleLike()` |
 | 글쓰기 이미지 첨부 | 🔌 연동됨 | `write_screen.dart`, multipart `files` |
-| 피드 이미지 표시 | 🧭 진입점 없음 | 모델은 `imageUrls`를 읽지만 `PostCard`가 렌더링하지 않음 |
+| 피드 이미지 표시 | ✅ 구현됨 | `PostCard`가 첫 이미지 썸네일과 2장 이상 개수를 표시 |
 | 투표 작성 UI | ✅ 구현됨 | `write_screen.dart`, `PollDraft` 생성 |
-| 피드 투표 표시 | 🧭 진입점 없음 | 모델은 `poll`을 읽지만 `PostCard`가 렌더링하지 않음 |
-| 투표 참여 | 🟡 Sync 필요 | 표시 UI와 참여 호출 모두 없음. API 재확인 필요 |
-| 게시글 상세, 댓글 진입 | 🧭 진입점 없음 | 댓글 수만 표시하며 상세 route와 댓글 버튼 동작 없음 |
+| 피드 투표 표시 | ✅ 구현됨 | `PostCard`는 투표 badge, 상세 화면은 투표 문항·항목·비율 표시 |
+| 투표 참여 | 🔌 연동됨 | `CommunityService.vote()`, `CommunityProvider.vote()`가 투표 API 호출 후 캐시 갱신 |
+| 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`, `CommunityDetailScreen`, 댓글 목록/작성 API 연결 |
+| 댓글 수 동기화 | 🔌 연동됨 | 댓글 작성 응답의 서버 `commentsCount`로 피드와 상세 캐시 갱신 |
 | 상단 알림, 검색 | 🧭 진입점 없음 | 아이콘은 있으나 `준비중` 토스트만 표시 |
 | 카테고리 필터, 이용 가이드 | 🚧 부분 구현 | `전체⌄` pill과 가이드 패널은 표시 전용 |
 | 해시태그·팔로우 | ❌ 제외 | MVP 제외 |
@@ -293,12 +294,17 @@
 | 항목 | 엔드포인트/필드 |
 |------|----------------|
 | 피드 조회 | `GET /api/v1/posts?cursor=&limit=20&sort=latest|popular&category=...` |
+| 상세 조회 | `GET /api/v1/posts/{postId}` |
 | 글쓰기 | `POST /api/v1/posts` |
 | 글쓰기 payload | multipart field `payload`에 JSON 문자열 |
 | 이미지 첨부 | multipart field `files` 반복 |
 | 좋아요 | `POST /api/v1/posts/{postId}/like` |
 | 투표 작성 | `payload.poll: { question, options }` |
-| 투표 참여 후보 | `POST /api/v1/posts/{postId}/poll/options/{optionId}/vote` |
+| 투표 참여 | `POST /api/v1/posts/{postId}/poll/options/{optionId}/vote` |
+| 댓글 목록 | `GET /api/v1/posts/{postId}/comments?cursor=&limit=20` |
+| 댓글 작성 | `POST /api/v1/posts/{postId}/comments`, `{ "content": "..." }` |
+
+투표 option 응답의 표시 텍스트는 백엔드 `label` 필드가 기준이다. Flutter `PostPollOption`은 기존 호환을 위해 `text`, `optionText`, `label`을 모두 읽되, 현재 서버 계약은 `label`이다.
 
 ### 글쓰기 현재 동작
 
@@ -327,8 +333,8 @@
 - 게시글 제목/본문/게시판은 프론트에서 필수 입력으로 처리한다. 백엔드 검증 정책과 에러 메시지 확인 필요.
 - 이미지 최대 개수는 백엔드 계약과 맞춰야 한다. 기존 문서 기준은 최대 3장이나, 현재 프론트 입력 제한과 재확인 필요.
 - 투표 `question`을 별도 입력받을지, 현재 임시값 `투표`를 허용할지 결정 필요.
-- 투표 참여 API와 응답 모델을 재확인해야 한다.
 - 카테고리 enum은 현재 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다.
+- 댓글은 현재 단일 단계이며 작성자·내용·시각만 표시한다. 대댓글, 수정, 삭제, 신고는 현재 범위 밖이다.
 
 ---
 
@@ -380,6 +386,15 @@ interface CommunityPostPayload {
     options: string[];
   };
 }
+
+interface CommunityComment {
+  id: string;
+  postId: string;
+  authorNickname: string;
+  content: string;
+  createdAt: string;
+  commentsCount: number; // 댓글 작성 응답에서 서버 기준 게시글 댓글 수 동기화에 사용
+}
 ```
 
 ---
@@ -395,7 +410,7 @@ interface CommunityPostPayload {
 | 기록 | 현재 접근 가능한 타입별 기록, 급식 사진 업로드, 목록/성장 표시. 상세·수정·삭제 UI 추가 후 해당 흐름 확인 |
 | 루틴 | 생성/삭제, 오늘 루틴, 완료 체크. 수정 UI와 일정 저장 계약 추가 후 해당 흐름 확인 |
 | 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가 UI. 저장 계약 결정 후 실제 저장 |
-| 커뮤니티 | 피드, 카테고리 탭, 글쓰기, 이미지 첨부, 좋아요. 상세·댓글·이미지/투표 표시와 참여 UI 추가 후 해당 흐름 확인 |
+| 커뮤니티 | 피드, 카테고리 탭, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글 작성, 투표 참여. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
 
 ---
 
