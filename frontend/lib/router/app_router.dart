@@ -99,6 +99,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) =>
             const OnboardingScreen(mode: PetEntryMode.additionalPet),
       ),
+      GoRoute(
+        path: '/community/mock/posts/:postId',
+        builder: (c, s) =>
+            CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
@@ -116,11 +121,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/community/mock',
             builder: (c, s) => const CommunityMockFeedScreen(),
-          ),
-          GoRoute(
-            path: '/community/mock/posts/:postId',
-            builder: (c, s) =>
-                CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
           ),
           GoRoute(
             path: '/community/category/:category',
