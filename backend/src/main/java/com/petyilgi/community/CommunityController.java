@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petyilgi.common.response.ApiResponse;
 import com.petyilgi.community.dto.PostCreateRequest;
+import com.petyilgi.community.dto.PostCommentCreateRequest;
+import com.petyilgi.community.dto.PostCommentFeedResponse;
+import com.petyilgi.community.dto.PostCommentResponse;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
@@ -39,6 +42,27 @@ public class CommunityController {
                                               @RequestParam(required = false) String cursor,
                                               @RequestParam(defaultValue = "10") int limit) {
         return ApiResponse.of(communityService.feed(email, category, sort, cursor, limit));
+    }
+
+    @GetMapping("/{postId}")
+    public ApiResponse<PostResponse> detail(@AuthenticationPrincipal String email, @PathVariable Long postId) {
+        return ApiResponse.of(communityService.detail(email, postId));
+    }
+
+    @GetMapping("/{postId}/comments")
+    public ApiResponse<PostCommentFeedResponse> comments(@AuthenticationPrincipal String email,
+                                                          @PathVariable Long postId,
+                                                          @RequestParam(required = false) String cursor,
+                                                          @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.of(communityService.comments(email, postId, cursor, limit));
+    }
+
+    @PostMapping("/{postId}/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<PostCommentResponse> createComment(@AuthenticationPrincipal String email,
+                                                          @PathVariable Long postId,
+                                                          @RequestBody PostCommentCreateRequest request) {
+        return ApiResponse.of(communityService.createComment(email, postId, request));
     }
 
     @PostMapping("/{postId}/like")

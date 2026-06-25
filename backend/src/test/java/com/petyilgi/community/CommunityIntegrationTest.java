@@ -238,6 +238,75 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.poll.options[1].votedByMe").value(true));
     }
 
+    @Test
+    void postDetailReturnsPostAndMissingPostReturnsPostNotFound() throws Exception {
+        String token = registerAndGetToken("post-detail@example.com", "detail");
+        Long postId = createPost(token, "상세 글", "FREE", "detail target");
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(postId))
+                .andExpect(jsonPath("$.data.title").value("상세 글"));
+
+        mockMvc.perform(get(POSTS_URL + "/999999/comments")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("POST_NOT_FOUND"));
+
+        mockMvc.perform(get(POSTS_URL + "/999999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    void commentsAreTrimmedPaginatedAndIncreaseOnlyTheirPostCount() throws Exception {
+        String token = registerAndGetToken("post-comment@example.com", "commenter");
+        Long firstPostId = createPost(token, "첫 글", "FREE", "first");
+        Long secondPostId = createPost(token, "둘째 글", "FREE", "second");
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"  첫 댓글  \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.content").value("첫 댓글"))
+                .andExpect(jsonPath("$.data.commentsCount").value(1));
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"둘째 댓글\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.commentsCount").value(2));
+
+        mockMvc.perform(get(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].content").value("둘째 댓글"))
+                .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
+
+        mockMvc.perform(get(POSTS_URL + "/" + secondPostId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.commentsCount").value(0));
+    }
+
+    @Test
+    void blankCommentIsRejected() throws Exception {
+        String token = registerAndGetToken("blank-comment@example.com", "blankcomment");
+        Long postId = createPost(token, "댓글 검증", "FREE", "comment validation");
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
     private Long createPost(String token, String title, String category, String content) throws Exception {
         MvcResult result = mockMvc.perform(multipartPost(token, Map.of(
                         "title", title,

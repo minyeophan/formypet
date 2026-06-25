@@ -3,15 +3,20 @@ package com.petyilgi.community;
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
 import com.petyilgi.community.dto.PostCreateRequest;
+import com.petyilgi.community.dto.PostCommentCreateRequest;
+import com.petyilgi.community.dto.PostCommentFeedResponse;
+import com.petyilgi.community.dto.PostCommentResponse;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
 import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
+import com.petyilgi.common.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -93,6 +98,63 @@ public class CommunityService {
                 .toList();
         String nextCursor = items.size() == pageSize ? cursorFor(items.getLast(), normalizedSort) : null;
         return PostFeedResponse.of(items, nextCursor);
+    }
+
+    @Transactional(readOnly = true)
+    public PostResponse detail(String email, Long postId) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        return findPostResponse(postId, user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public PostCommentFeedResponse comments(String email, Long postId, String cursor, int limit) {
+        findUser(email);
+        ensurePostExists(postId);
+        int pageSize = Math.max(1, Math.min(limit, 50));
+        List<Object> params = new ArrayList<>(List.of(postId));
+        StringBuilder sql = new StringBuilder("""
+                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, pc.content, pc.created_at
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.post_id = ?
+                """);
+        if (cursor != null && !cursor.isBlank()) {
+            sql.append(" AND pc.id < ?");
+            params.add(parseCommentCursor(cursor));
+        }
+        sql.append(" ORDER BY pc.id DESC LIMIT ?");
+        params.add(pageSize);
+        List<PostCommentResponse> items = jdbcTemplate.queryForList(sql.toString(), params.toArray()).stream()
+                .map(row -> toCommentResponse(row, commentsCount(postId)))
+                .toList();
+        String nextCursor = items.size() == pageSize ? items.getLast().id().toString() : null;
+        return PostCommentFeedResponse.of(items, nextCursor);
+    }
+
+    @Transactional
+    public PostCommentResponse createComment(String email, Long postId, PostCommentCreateRequest request) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        String content = request == null || request.content() == null ? "" : request.content().trim();
+        if (content.isEmpty() || content.length() > 1000) {
+            throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
+        }
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement("""
+                    INSERT INTO post_comments (post_id, user_id, content, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, postId);
+            ps.setLong(2, user.getId());
+            ps.setString(3, content);
+            ps.setObject(4, LocalDateTime.now());
+            return ps;
+        }, keyHolder);
+        jdbcTemplate.update("UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?", postId);
+        Long commentId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        return findCommentResponse(commentId, commentsCount(postId));
     }
 
     @Transactional
@@ -243,6 +305,27 @@ public class CommunityService {
         return toPostResponse(row, currentUserId);
     }
 
+    private PostCommentResponse findCommentResponse(Long commentId, int commentsCount) {
+        Map<String, Object> row = jdbcTemplate.queryForMap("""
+                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, pc.content, pc.created_at
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.id = ?
+                """, commentId);
+        return toCommentResponse(row, commentsCount);
+    }
+
+    private PostCommentResponse toCommentResponse(Map<String, Object> row, int commentsCount) {
+        return new PostCommentResponse(
+                ((Number) row.get("id")).longValue(),
+                ((Number) row.get("user_id")).longValue(),
+                (String) row.get("author_nickname"),
+                (String) row.get("content"),
+                normalizeDateTime(row.get("created_at")),
+                commentsCount
+        );
+    }
+
     private PostResponse toPostResponse(Map<String, Object> row, Long currentUserId) {
         Long postId = ((Number) row.get("id")).longValue();
         return PostResponse.of(
@@ -304,7 +387,20 @@ public class CommunityService {
     private void ensurePostExists(Long postId) {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM posts WHERE id = ?", Integer.class, postId);
         if (count == null || count == 0) {
-            throw new IllegalArgumentException("Post not found.");
+            throw new ApiException(HttpStatus.NOT_FOUND, "post-not-found", "Post Not Found", "Post not found.", "POST_NOT_FOUND");
+        }
+    }
+
+    private int commentsCount(Long postId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT comments_count FROM posts WHERE id = ?", Integer.class, postId);
+        return count == null ? 0 : count;
+    }
+
+    private long parseCommentCursor(String cursor) {
+        try {
+            return Long.parseLong(cursor);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Invalid comment cursor.");
         }
     }
 
