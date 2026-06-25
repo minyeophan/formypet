@@ -14,6 +14,8 @@ import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/screens/community/community_screen.dart';
+import 'package:frontend/screens/community/community_detail_screen.dart';
+import 'package:frontend/screens/community/mock/community_mock_feed_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
@@ -58,6 +60,71 @@ void main() {
   ) async {
     await _pumpRouter(
       tester,
+      authState: const AuthState(isLoading: false, isAuthenticated: false),
+      petState: _petState(isLoading: false, hasOnboarded: false),
+    );
+
+    expect(find.byType(AuthScreen), findsOneWidget);
+  });
+
+  testWidgets('public community mock bypasses auth and onboarding redirects', (
+    tester,
+  ) async {
+    for (final entry in [
+      (
+        authState: const AuthState(isLoading: false, isAuthenticated: false),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+      ),
+      (
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+      ),
+    ]) {
+      await _pumpRouter(
+        tester,
+        initialLocation: '/community/mock',
+        authState: entry.authState,
+        petState: entry.petState,
+      );
+
+      expect(find.byType(CommunityMockFeedScreen), findsOneWidget);
+      final navigation = tester.widget<BottomNavigationBar>(
+        find.byType(BottomNavigationBar),
+      );
+      expect(navigation.currentIndex, 1);
+    }
+  });
+
+  testWidgets('actual community detail stays authenticated inside community tab', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/community/posts/post-1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      communityService: _FakeCommunityService(),
+    );
+
+    expect(find.byType(CommunityDetailScreen), findsOneWidget);
+    expect(
+      tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex,
+      1,
+    );
+  });
+
+  testWidgets('actual community detail redirects unauthenticated users to auth', (
+    tester,
+  ) async {
+    await _pumpRouter(
+      tester,
+      initialLocation: '/community/posts/post-1',
       authState: const AuthState(isLoading: false, isAuthenticated: false),
       petState: _petState(isLoading: false, hasOnboarded: false),
     );
@@ -1118,6 +1185,28 @@ class _FakeCommunityService extends CommunityService {
     String? cursor,
     int limit = 20,
   }) async => const PostFeed(items: [], nextCursor: null);
+
+  @override
+  Future<Post> getPost(String postId) async => Post(
+    id: postId,
+    userId: 'user-1',
+    authorNickname: 'Momo',
+    title: '상세 글',
+    content: '내용',
+    category: 'FREE',
+    likesCount: 0,
+    liked: false,
+    commentsCount: 0,
+    imageUrls: const [],
+    createdAt: '2026-06-24T00:00:00',
+  );
+
+  @override
+  Future<PostCommentFeed> getComments(
+    String postId, {
+    String? cursor,
+    int limit = 20,
+  }) async => const PostCommentFeed(items: []);
 }
 
 class _RouterWalletNotifier extends WalletExpenseNotifier {

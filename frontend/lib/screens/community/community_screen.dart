@@ -561,6 +561,7 @@ class _FeedList extends ConsumerWidget {
             final post = posts[index];
             return PostCard(
               post: post,
+              onOpen: () => context.push('/community/posts/${post.id}'),
               onLike: () => ref
                   .read(communityProvider.notifier)
                   .toggleLike(post.id, feedKey: feedKey),

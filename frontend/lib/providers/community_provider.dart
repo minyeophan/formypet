@@ -8,12 +8,14 @@ class CommunityState {
   final Map<String, List<Post>> postsByFeedKey;
   final Map<String, String?> cursorByFeedKey;
   final Map<String, bool> loadingByFeedKey;
+  final Map<String, Post> postsById;
   final String activeFeedKey;
 
   const CommunityState({
     required this.postsByFeedKey,
     required this.cursorByFeedKey,
     required this.loadingByFeedKey,
+    required this.postsById,
     required this.activeFeedKey,
   });
 
@@ -32,11 +34,13 @@ class CommunityState {
     Map<String, List<Post>>? postsByFeedKey,
     Map<String, String?>? cursorByFeedKey,
     Map<String, bool>? loadingByFeedKey,
+    Map<String, Post>? postsById,
     String? activeFeedKey,
   }) => CommunityState(
     postsByFeedKey: postsByFeedKey ?? this.postsByFeedKey,
     cursorByFeedKey: cursorByFeedKey ?? this.cursorByFeedKey,
     loadingByFeedKey: loadingByFeedKey ?? this.loadingByFeedKey,
+    postsById: postsById ?? this.postsById,
     activeFeedKey: activeFeedKey ?? this.activeFeedKey,
   );
 }
@@ -50,6 +54,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
           postsByFeedKey: {},
           cursorByFeedKey: {},
           loadingByFeedKey: {},
+          postsById: {},
           activeFeedKey: 'popular',
         ),
       ) {
@@ -87,6 +92,10 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       } else {
         posts[key] = [...(posts[key] ?? []), ...feed.items];
       }
+      final postCache = Map<String, Post>.from(state.postsById);
+      for (final post in feed.items) {
+        postCache[post.id] = post;
+      }
       cursors[key] = feed.nextCursor;
 
       final done = Map<String, bool>.from(state.loadingByFeedKey);
@@ -95,6 +104,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         postsByFeedKey: posts,
         cursorByFeedKey: cursors,
         loadingByFeedKey: done,
+        postsById: postCache,
       );
     } catch (_) {
       final done = Map<String, bool>.from(state.loadingByFeedKey);
@@ -110,20 +120,34 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   }
 
   Future<void> toggleLike(String postId, {String? feedKey}) async {
-    final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
     final result = await _svc.toggleLike(postId);
     final liked = result['liked'] as bool;
     final likesCount = result['likesCount'] as int;
 
-    final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
-    posts[key] = (posts[key] ?? [])
-        .map(
-          (p) => p.id == postId
-              ? p.copyWith(liked: liked, likesCount: likesCount)
-              : p,
-        )
-        .toList();
-    state = state.copyWith(postsByFeedKey: posts);
+    final post = state.postsById[postId];
+    if (post == null) return;
+    _replacePost(post.copyWith(liked: liked, likesCount: likesCount));
+  }
+
+  Future<Post> loadPost(String postId) async {
+    final post = await _svc.getPost(postId);
+    _replacePost(post);
+    return post;
+  }
+
+  Future<Post> vote(String postId, String optionId) async {
+    final post = await _svc.vote(postId, optionId);
+    _replacePost(post);
+    return post;
+  }
+
+  Future<PostComment> createComment(String postId, String content) async {
+    final comment = await _svc.createComment(postId, content);
+    final post = state.postsById[postId];
+    if (post != null) {
+      _replacePost(post.copyWith(commentsCount: comment.commentsCount));
+    }
+    return comment;
   }
 
   Future<Post> createPost({
@@ -147,7 +171,22 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       }
     }
     state = state.copyWith(postsByFeedKey: posts);
+    final postCache = Map<String, Post>.from(state.postsById);
+    postCache[post.id] = post;
+    state = state.copyWith(postsById: postCache);
     return post;
+  }
+
+  void _replacePost(Post updated) {
+    final posts = <String, List<Post>>{
+      for (final entry in state.postsByFeedKey.entries)
+        entry.key: entry.value
+            .map((post) => post.id == updated.id ? updated : post)
+            .toList(),
+    };
+    final postCache = Map<String, Post>.from(state.postsById);
+    postCache[updated.id] = updated;
+    state = state.copyWith(postsByFeedKey: posts, postsById: postCache);
   }
 
   String? _categoryForKey(String key) {

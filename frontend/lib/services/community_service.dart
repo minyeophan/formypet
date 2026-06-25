@@ -118,6 +118,38 @@ class CommunityService {
     return unwrap(res) as Map<String, dynamic>;
   }
 
+  Future<Post> getPost(String postId) async {
+    final res = await dio.get('/api/v1/posts/$postId');
+    return Post.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<Post> vote(String postId, String optionId) async {
+    final res = await dio.post(
+      '/api/v1/posts/$postId/poll/options/$optionId/vote',
+    );
+    return Post.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<PostCommentFeed> getComments(
+    String postId, {
+    String? cursor,
+    int limit = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/v1/posts/$postId/comments',
+      queryParameters: {if (cursor != null) 'cursor': cursor, 'limit': limit},
+    );
+    return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<PostComment> createComment(String postId, String content) async {
+    final res = await dio.post(
+      '/api/v1/posts/$postId/comments',
+      data: {'content': content.trim()},
+    );
+    return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
   String _filenameFor(XFile file, int index) {
     if (file.name.isNotEmpty) return file.name;
     final path = file.path.replaceAll('\\', '/');

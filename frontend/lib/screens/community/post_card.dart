@@ -4,12 +4,19 @@ import '../../core/date_utils.dart';
 import '../../models/post.dart';
 import '../../services/community_service.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/authenticated_network_image.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback onLike;
+  final VoidCallback? onOpen;
 
-  const PostCard({super.key, required this.post, required this.onLike});
+  const PostCard({
+    super.key,
+    required this.post,
+    required this.onLike,
+    this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +43,12 @@ class PostCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         side: const BorderSide(color: AppColors.border),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-        child: Column(
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -56,24 +66,58 @@ class PostCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 9),
-            AppText(
-              headline,
-              fontWeight: FontWeight.bold,
-              fontSize: 14.5,
-              color: AppColors.text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (post.poll != null) ...[
+                            Container(
+                              key: const Key('community-post-poll-badge'),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F1FE),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const AppText('투표', fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64B5F6)),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: AppText(
+                              headline,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                              color: AppColors.text,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (preview.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        AppText(
+                          preview,
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (post.imageUrls.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  _PostThumbnail(url: post.imageUrls.first, count: post.imageUrls.length),
+                ],
+              ],
             ),
-            if (preview.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              AppText(
-                preview,
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -92,7 +136,7 @@ class PostCard extends StatelessWidget {
                   children: [
                     InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      onTap: onLike,
+                          onTap: onLike,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 5,
@@ -135,8 +179,49 @@ class PostCard extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _PostThumbnail extends StatelessWidget {
+  final String url;
+  final int count;
+
+  const _PostThumbnail({required this.url, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      key: const Key('community-post-thumbnail'),
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: AuthenticatedNetworkImage(
+            url: url,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            fallback: const ColoredBox(color: AppColors.surfaceSoft),
+          ),
+        ),
+        if (count > 1)
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: Container(
+              key: const Key('community-post-image-count'),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: AppText('$count', fontSize: 10, color: AppColors.white),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -51,7 +51,12 @@ class Post {
     createdAt: j['createdAt'] as String? ?? '',
   );
 
-  Post copyWith({bool? liked, int? likesCount}) => Post(
+  Post copyWith({
+    bool? liked,
+    int? likesCount,
+    int? commentsCount,
+    PostPoll? poll,
+  }) => Post(
     id: id,
     userId: userId,
     authorNickname: authorNickname,
@@ -61,9 +66,9 @@ class Post {
     category: category,
     likesCount: likesCount ?? this.likesCount,
     liked: liked ?? this.liked,
-    commentsCount: commentsCount,
+    commentsCount: commentsCount ?? this.commentsCount,
     imageUrls: imageUrls,
-    poll: poll,
+    poll: poll ?? this.poll,
     createdAt: createdAt,
   );
 }
@@ -86,6 +91,9 @@ class PostPoll {
         .map((e) => PostPollOption.fromJson(e as Map<String, dynamic>))
         .toList(),
   );
+
+  PostPoll copyWith({List<PostPollOption>? options}) =>
+      PostPoll(id: id, question: question, options: options ?? this.options);
 }
 
 class PostPollOption {
@@ -103,9 +111,57 @@ class PostPollOption {
 
   factory PostPollOption.fromJson(Map<String, dynamic> j) => PostPollOption(
     id: j['id'].toString(),
-    text: (j['text'] ?? j['optionText'] ?? '').toString(),
+    text: (j['text'] ?? j['optionText'] ?? j['label'] ?? '').toString(),
     votesCount: j['votesCount'] as int? ?? 0,
     votedByMe: j['votedByMe'] as bool? ?? false,
+  );
+
+  PostPollOption copyWith({int? votesCount, bool? votedByMe}) => PostPollOption(
+    id: id,
+    text: text,
+    votesCount: votesCount ?? this.votesCount,
+    votedByMe: votedByMe ?? this.votedByMe,
+  );
+}
+
+class PostComment {
+  final String id;
+  final String userId;
+  final String authorNickname;
+  final String content;
+  final String createdAt;
+  final int commentsCount;
+
+  const PostComment({
+    required this.id,
+    required this.userId,
+    required this.authorNickname,
+    required this.content,
+    required this.createdAt,
+    required this.commentsCount,
+  });
+
+  factory PostComment.fromJson(Map<String, dynamic> j) => PostComment(
+    id: j['id'].toString(),
+    userId: j['userId'].toString(),
+    authorNickname: j['authorNickname'] as String? ?? '',
+    content: j['content'] as String? ?? '',
+    createdAt: j['createdAt'] as String? ?? '',
+    commentsCount: j['commentsCount'] as int? ?? 0,
+  );
+}
+
+class PostCommentFeed {
+  final List<PostComment> items;
+  final String? nextCursor;
+
+  const PostCommentFeed({required this.items, this.nextCursor});
+
+  factory PostCommentFeed.fromJson(Map<String, dynamic> j) => PostCommentFeed(
+    items: (j['items'] as List<dynamic>? ?? [])
+        .map((e) => PostComment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    nextCursor: j['nextCursor'] as String?,
   );
 }
 

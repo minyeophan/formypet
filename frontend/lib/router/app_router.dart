@@ -22,6 +22,9 @@ import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_screen.dart';
+import '../screens/community/community_detail_screen.dart';
+import '../screens/community/mock/community_mock_detail_screen.dart';
+import '../screens/community/mock/community_mock_feed_screen.dart';
 import '../screens/community/write_screen.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
@@ -46,6 +49,12 @@ class _RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
+    final path = state.uri.path;
+    if (path == '/community/mock' ||
+        path.startsWith('/community/mock/posts/')) {
+      return null;
+    }
+
     final authState = _ref.read(authProvider);
     final petState = _ref.read(petProvider);
 
@@ -53,15 +62,17 @@ class _RouterNotifier extends ChangeNotifier {
 
     final isAuthenticated = authState.isAuthenticated;
     final hasOnboarded = petState.hasOnboarded;
-    final path = state.matchedLocation;
+    final matchedPath = state.matchedLocation;
 
     if (!isAuthenticated) {
-      return path == '/auth' ? null : '/auth';
+      return matchedPath == '/auth' ? null : '/auth';
     }
     if (!hasOnboarded) {
-      return path == '/onboarding' ? null : '/onboarding';
+      return matchedPath == '/onboarding' ? null : '/onboarding';
     }
-    if (path == '/auth' || path == '/onboarding' || path == '/') {
+    if (matchedPath == '/auth' ||
+        matchedPath == '/onboarding' ||
+        matchedPath == '/') {
       return '/home';
     }
     return null;
@@ -95,6 +106,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
+          ),
+          GoRoute(
+            path: '/community/posts/:postId',
+            builder: (c, s) => CommunityDetailScreen(
+              postId: s.pathParameters['postId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/community/mock',
+            builder: (c, s) => const CommunityMockFeedScreen(),
+          ),
+          GoRoute(
+            path: '/community/mock/posts/:postId',
+            builder: (c, s) =>
+                CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
           ),
           GoRoute(
             path: '/community/category/:category',
