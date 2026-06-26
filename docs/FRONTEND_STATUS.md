@@ -1,6 +1,6 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
-> 마지막 갱신: 2026-06-25
+> 마지막 갱신: 2026-06-26
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 
 ## 상태 표기
@@ -51,7 +51,7 @@
 | Wallet | 지갑, 지출 리포트, 비용 추가 | 🚧 부분 구현 | 조회·입력 UI는 있으나 비용 저장, 항목 추가, 사진 첨부는 미구현 |
 | Routine | 루틴 생성, 완료 체크, 삭제 | 🔌 연동됨 | API 호출 연결 |
 | Routine | 루틴 수정 | 🧭 진입점 없음 | service/provider는 있으나 수정 화면 진입 없음 |
-| Routine | 일정 목록, 일정 추가 | 🚧 부분 구현 | 목록은 고정 샘플. 추가 폼은 있으나 저장 API와 지도 검색 없음 |
+| Routine | 일정 목록, 일정 추가 | 🔌 연동됨 | 목록/상세/생성/수정/삭제는 care schedule API와 provider 상태에 연결. 지도 검색은 `준비중` 토스트 유지 |
 
 ---
 
@@ -222,7 +222,7 @@
 
 ### 요약
 
-루틴 CRUD service와 완료 체크가 구현되어 있고, `RoutineScreen`은 달력/일정 탭과 월간 보기로 구성된다. 서버 `label`은 루틴 이름, `note`는 메모로 분리해 표시한다. 홈 화면의 오늘 루틴도 provider 상태를 사용한다.
+루틴 CRUD service와 완료 체크가 구현되어 있고, `RoutineScreen`은 달력/일정 탭과 월간 보기로 구성된다. 서버 `label`은 루틴 이름, `note`는 메모로 분리해 표시한다. 홈 화면의 오늘 루틴도 provider 상태를 사용한다. 루틴 일정은 `CareScheduleService`와 `PetNotifier`를 통해 서버 API에 저장한다.
 
 ### 현재 프론트 구현
 
@@ -236,9 +236,10 @@
 | 오늘 루틴 | 🔌 연동됨 | `RoutineService.getTodayRoutines()` |
 | 완료 체크 | 🔌 연동됨 | completion API 호출 |
 | 반복 유형 | ✅ 구현됨 | `daily`, `weekly`, `biweekly`, `monthly`; 백엔드 규칙과 같은 날짜 helper 사용 |
-| 달력/일정 탭 | 🚧 부분 구현 | `/routine`, 월간 루틴 달력은 실제 상태 사용. 일정 목록은 고정 샘플 2개 |
-| 일정 추가 화면 | 🚧 부분 구현 | `/routine/schedule/new`, 입력 UI는 있으나 저장 시 `준비중` 토스트 후 복귀 |
-| 일정 저장 | 🟡 Sync 필요 | 현재 저장 버튼은 `준비중`; 일정 API 계약 미확정 |
+| 달력/일정 탭 | 🔌 연동됨 | `/routine`, 월간 달력과 일정 목록은 서버에서 로드한 `CareSchedule` 상태 사용 |
+| 일정 추가 화면 | 🔌 연동됨 | `/routine/schedule/new`, 저장 성공 시 서버 응답 id와 시작 날짜 기준으로 `/routine?date=YYYY-MM-DD` 이동 |
+| 일정 상세/수정/삭제 | 🔌 연동됨 | `/routine/schedule/{id}`, `/routine/schedule/{id}/edit`; 수정 성공은 상세, 삭제 성공은 루틴 날짜로 이동 |
+| 일정 저장 | 🔌 연동됨 | `CareScheduleService`가 `/api/v1/pets/{petId}/care-schedules` CRUD 호출 |
 | 일정 지도 검색 | 🚧 부분 구현 | `지도에서 찾기` 버튼은 현재 `준비중` 토스트만 표시 |
 | 푸시 알림 | ❌ 제외 | Phase 5+ 이후 |
 
@@ -253,6 +254,11 @@
 | 오늘 루틴 | `GET /api/v1/pets/{petId}/routines/today` |
 | 완료 체크 | `PATCH /api/v1/pets/{petId}/routines/{routineId}/completions/{date}` |
 | 반복 유형 | `repeatType: daily|weekly|biweekly|monthly` |
+| 일정 목록 | `GET /api/v1/pets/{petId}/care-schedules` |
+| 일정 생성 | `POST /api/v1/pets/{petId}/care-schedules` |
+| 일정 상세 | `GET /api/v1/pets/{petId}/care-schedules/{scheduleId}` |
+| 일정 수정 | `PUT /api/v1/pets/{petId}/care-schedules/{scheduleId}` |
+| 일정 삭제 | `DELETE /api/v1/pets/{petId}/care-schedules/{scheduleId}` |
 
 ### Backend sync needed
 
@@ -261,6 +267,7 @@
 - 완료 상태 enum과 날짜 기준 timezone 정책 확인 필요.
 - 서버 요청 검증 강화 필요: `label` 길이, `times` 형식, 주간 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, 날짜 범위.
 - 월간 범위 일정 API가 추가되면 프론트 반복 계산 중복 제거를 검토한다.
+- 일정 응답은 `CareSchedule` 모델 기준이며 `startTime`, `endTime`은 `HH:mm` 문자열 또는 `null`이다. `allDay=true`이면 time 필드는 `null`로 처리한다.
 - 푸시 알림은 현재 범위 밖이다.
 
 ---
@@ -408,7 +415,7 @@ interface CommunityComment {
 | 인증 | 회원가입, 로그인, 카카오 로그인, 토큰 갱신. 로그아웃은 UI 진입점 추가 후 재진입 확인 |
 | 펫 | 온보딩, 펫 추가/수정/삭제, 프로필 사진 |
 | 기록 | 현재 접근 가능한 타입별 기록, 급식 사진 업로드, 목록/성장 표시. 상세·수정·삭제 UI 추가 후 해당 흐름 확인 |
-| 루틴 | 생성/삭제, 오늘 루틴, 완료 체크. 수정 UI와 일정 저장 계약 추가 후 해당 흐름 확인 |
+| 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI 추가 후 해당 흐름 확인 |
 | 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가 UI. 저장 계약 결정 후 실제 저장 |
 | 커뮤니티 | 피드, 카테고리 탭, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글 작성, 투표 참여. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
 

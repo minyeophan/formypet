@@ -82,9 +82,9 @@
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
 2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공. 2026-06-25 커뮤니티 상세·댓글·투표 변경은 선택 검증을 통과했지만 전체 Flutter suite는 기존/범위 밖 실패가 남아 있다.
-3. 최신 스키마: Flyway `V1`부터 `V17__create_post_comments.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
+3. 최신 스키마: Flyway `V1`부터 `V18__create_care_schedules.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
 4. 최근 변경 흐름: PetEdit/Onboarding 날짜 입력 UI 보정, 기록 입력 route date 유지, `etc` note-only 기록, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route, 커뮤니티 상세·댓글·투표 참여를 보강했다.
-5. 다음 우선순위: 일정 저장과 실제 목록, 기록 상세·수정·삭제, 지출 저장, 커뮤니티 검색/알림/카테고리 필터 순서로 남은 사용자 동선을 완성한다.
+5. 다음 우선순위: 기록 상세·수정·삭제, 지출 저장, 커뮤니티 검색/알림/카테고리 필터, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
 
 ## 마지막 검증
 
@@ -106,6 +106,7 @@
 - 기록 입력 날짜 흐름 및 기타 기록 연동 후 부분 검증: 2026-06-05 `.\gradlew.bat test --tests com.petyilgi.record.ActivityRecordIntegrationTest` GREEN, `flutter test test/screens/records/records_screen_test.dart test/screens/records/meal_record_screen_test.dart test/screens/records/record_category_form_screen_test.dart test/router/app_router_test.dart` GREEN(67 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN, `git diff --check` whitespace 오류 없음(CRLF 경고만 출력).
 - PetEdit 입력 UI 보정 후 부분 검증: 2026-06-05 `flutter test test/screens/pet/pet_screen_test.dart test/screens/onboarding/onboarding_screen_test.dart` GREEN(24 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN.
 - 커뮤니티 상세·댓글·투표 연동 후 부분 검증: 2026-06-25 `.\gradlew.bat test --tests com.petyilgi.community.CommunityIntegrationTest` GREEN, `flutter test test\models\post_test.dart test\services\community_service_test.dart test\screens\community\community_screen_test.dart test\router\app_router_test.dart` GREEN(66 tests), 선택 파일 `dart analyze` Exit 0(info 2건), `git diff --check` whitespace 오류 없음, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 전체 `flutter test`는 기존/범위 밖 `community_mock_screen_test.dart` 3건과 `records_screen_test.dart` 1건 실패로 통과하지 않았다.
+- 루틴 일정 서버 연동 후 부분 검증: 2026-06-26 `.\gradlew.bat test --tests com.petyilgi.routine.CareScheduleIntegrationTest` GREEN, `flutter test test\services\care_schedule_service_test.dart` GREEN, `flutter test test\providers\pet_provider_test.dart test\screens\routine\routine_schedule_create_screen_test.dart test\screens\routine\routine_screen_test.dart test\router\app_router_test.dart` GREEN(72 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 4건).
 
 ## 다음 행동
 
@@ -116,7 +117,7 @@
 
 ## 주의사항
 
-- `backend/src/main/resources/db/migration/V1`부터 `V17`까지 기존 Flyway 파일은 수정하지 않는다.
+- `backend/src/main/resources/db/migration/V1`부터 `V18`까지 기존 Flyway 파일은 수정하지 않는다.
 - 새 DB 변경은 다음 번호의 새 마이그레이션으로만 추가한다.
 - 문서 정리만 하는 작업에서는 `backend/`, `frontend/`, `DESIGN.md`를 수정하지 않는다.
 - 기존 dirty worktree 변경은 사용자 또는 이전 작업자의 작업으로 보고 되돌리지 않는다.
@@ -126,11 +127,11 @@
 
 ## 최신 Handover
 
-- Goal: 커뮤니티 실제 상세 화면, 댓글, 투표 참여를 백엔드 API와 Flutter 화면/provider에 연결하고 관련 문서를 현재 코드 기준으로 맞춘다.
-- Done: `V17__create_post_comments.sql`, 상세·댓글 API, 댓글 작성 트랜잭션, 상세 route `/community/posts/:postId`, 상세 화면, 피드 카드 썸네일/투표 badge, 투표 참여, 댓글 작성 및 캐시 동기화를 반영했다. `docs/FRONTEND_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/ERD.md`도 커뮤니티 상세·댓글 기준으로 갱신했다.
-- Remaining: 전체 Flutter suite는 기존/범위 밖 실패 4건으로 통과하지 않았다. `frontend/test/screens/community/community_mock_screen_test.dart`는 기존 mock 화면 기대값과 충돌하고, `frontend/test/screens/records/records_screen_test.dart`는 커뮤니티 작업 범위 밖 기록 화면 실패다.
-- Next step: 실제 앱 실행 시 백엔드 `.\gradlew.bat bootRun` 후 Flutter `flutter run -d chrome` 또는 `flutter run`으로 로그인 → 커뮤니티 피드 → 상세 → 좋아요/투표/댓글 작성 흐름을 수동 확인한다. 전체 suite를 GREEN으로 만들려면 mock 커뮤니티 테스트와 기록 화면 실패를 별도 범위로 정리한다.
-- Warnings: 기존 `.gitignore`, `docs/ARCHITECTURE.md`, `docs/CONTEXT.md`, mock 커뮤니티 파일/테스트 변경은 이전 dirty 상태가 있었으므로 되돌리지 않았다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
+- Goal: 루틴 일정을 SharedPreferences 로컬 저장에서 서버 DB/API 저장으로 전환하고 Flutter 일정 화면/provider를 서버 응답 기반으로 연결한다.
+- Done: `V18__create_care_schedules.sql`, 테스트 스키마, care schedule CRUD API와 통합 테스트를 추가했다. Flutter에는 `CareScheduleService`, provider service 주입, 서버 기반 일정 load/create/update/delete, 생성 후 서버 id 기반 이동을 반영했다. `docs/FRONTEND_STATUS.md`와 `docs/ERD.md`도 일정 API/테이블 기준으로 갱신했다.
+- Remaining: 장소 검색은 계획대로 제외되어 `준비중` 토스트를 유지한다. 기존 로컬 `careSchedules:{petId}` 데이터 이관은 하지 않았다. 전체 Flutter suite는 기존 범위 밖 실패 가능성이 있어 선택 테스트 중심으로 검증했다.
+- Next step: 실제 앱 실행 시 백엔드 `.\gradlew.bat bootRun` 후 Flutter `flutter run -d chrome` 또는 `flutter run`으로 로그인 → 루틴 → 일정 생성/상세/수정/삭제 흐름을 수동 확인한다.
+- Warnings: 커뮤니티/미디어/프로필 이미지 관련 dirty 파일은 병렬/이전 작업 변경으로 보고 건드리지 않았다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
 
 ## 이전 Handover
 
