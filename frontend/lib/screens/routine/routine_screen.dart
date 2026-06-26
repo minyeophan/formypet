@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
+import '../../core/pet_colors.dart';
 import '../../models/care_schedule.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
@@ -41,10 +42,13 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             .toList()
           ..sort(_scheduleCompare);
     final allSchedules = [...state.schedules]..sort(_scheduleCompare);
-    final accentColor = _accentColorFromHex(
+    final routineAccentColor = _accentColorFromHex(
       state.activePet?.accentColor,
       AppColors.primary,
     );
+    final calendarAccentColor = colorPairForHex(
+      state.activePet?.accentColor ?? '#F4A460',
+    ).accent;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -78,30 +82,33 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               ),
               const SizedBox(height: 12),
               if (_tab == _RoutineMainTab.calendar) ...[
-                _RoutineMonthCalendar(
-                  visibleMonth: _visibleMonth,
-                  selectedDate: _selectedDate,
-                  careDates: _scheduleDatesForMonth(
-                    state.schedules,
-                    _visibleMonth,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: _RoutineMonthCalendar(
+                    visibleMonth: _visibleMonth,
+                    selectedDate: _selectedDate,
+                    careDates: _scheduleDatesForMonth(
+                      state.schedules,
+                      _visibleMonth,
+                    ),
+                    accentColor: calendarAccentColor,
+                    onPreviousMonth: () => setState(() {
+                      _visibleMonth = DateTime(
+                        _visibleMonth.year,
+                        _visibleMonth.month - 1,
+                      );
+                    }),
+                    onNextMonth: () => setState(() {
+                      _visibleMonth = DateTime(
+                        _visibleMonth.year,
+                        _visibleMonth.month + 1,
+                      );
+                    }),
+                    onSelectDate: (date) => setState(() {
+                      _selectedDate = _dateOnly(date);
+                      _visibleMonth = DateTime(date.year, date.month);
+                    }),
                   ),
-                  accentColor: accentColor,
-                  onPreviousMonth: () => setState(() {
-                    _visibleMonth = DateTime(
-                      _visibleMonth.year,
-                      _visibleMonth.month - 1,
-                    );
-                  }),
-                  onNextMonth: () => setState(() {
-                    _visibleMonth = DateTime(
-                      _visibleMonth.year,
-                      _visibleMonth.month + 1,
-                    );
-                  }),
-                  onSelectDate: (date) => setState(() {
-                    _selectedDate = _dateOnly(date);
-                    _visibleMonth = DateTime(date.year, date.month);
-                  }),
                 ),
                 const SizedBox(height: 14),
                 Padding(
@@ -116,7 +123,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                   child: _SelectedDateCareList(
                     selectedDate: _selectedDate,
                     schedules: selectedSchedules,
-                    accentColor: accentColor,
+                    accentColor: routineAccentColor,
                   ),
                 ),
               ] else
@@ -124,7 +131,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _ScheduleList(
                     schedules: allSchedules,
-                    accentColor: accentColor,
+                    accentColor: routineAccentColor,
                   ),
                 ),
             ],
