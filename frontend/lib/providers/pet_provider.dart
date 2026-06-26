@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +9,7 @@ import '../services/pet_service.dart';
 import '../services/media_service.dart';
 import '../services/record_service.dart';
 import '../services/routine_service.dart';
+import '../services/care_schedule_service.dart';
 import '../core/record_utils.dart';
 
 class PetState {
@@ -96,6 +95,7 @@ class PetNotifier extends StateNotifier<PetState> {
   final MediaService _mediaSvc;
   final RecordService _recSvc;
   final RoutineService _routSvc;
+  final CareScheduleService? _scheduleSvc;
   late final Future<void> _preferencesReady;
 
   PetNotifier(
@@ -103,7 +103,9 @@ class PetNotifier extends StateNotifier<PetState> {
     this._recSvc,
     this._routSvc, [
     MediaService? mediaSvc,
+    CareScheduleService? scheduleSvc,
   ]) : _mediaSvc = mediaSvc ?? MediaService(),
+       _scheduleSvc = scheduleSvc,
        super(
          PetState(
            isLoading: true,
@@ -124,7 +126,23 @@ class PetNotifier extends StateNotifier<PetState> {
     : _petSvc = PetService(),
       _mediaSvc = MediaService(),
       _recSvc = RecordService(),
-      _routSvc = RoutineService() {
+      _routSvc = RoutineService(),
+      _scheduleSvc = null {
+    _preferencesReady = Future.value();
+  }
+
+  PetNotifier.testWithServices(
+    super.initialState, {
+    PetService? petService,
+    RecordService? recordService,
+    RoutineService? routineService,
+    MediaService? mediaService,
+    CareScheduleService? scheduleService,
+  }) : _petSvc = petService ?? PetService(),
+       _mediaSvc = mediaService ?? MediaService(),
+       _recSvc = recordService ?? RecordService(),
+       _routSvc = routineService ?? RoutineService(),
+       _scheduleSvc = scheduleService {
     _preferencesReady = Future.value();
   }
 
@@ -177,7 +195,6 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<void> clearForSignedOutUser() async {
     await _preferencesReady;
-    await _removeAllCareSchedules();
     state = PetState(
       isLoading: false,
       hasOnboarded: false,
@@ -196,7 +213,7 @@ class PetNotifier extends StateNotifier<PetState> {
       _recSvc.getRecords(petId),
       _routSvc.getRoutines(petId),
       _routSvc.getTodayRoutines(petId),
-      _loadCareSchedules(petId),
+      _scheduleSvc?.getSchedules(petId) ?? Future.value(const <CareSchedule>[]),
     ]);
 
     final records = results[0] as List<ActivityRecord>;
@@ -283,7 +300,6 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<void> deletePet(String petId) async {
     await _petSvc.deletePet(petId);
-    await _removeCareSchedules(petId);
     final oldActivePetId = state.activePetId;
     final remaining = state.pets.where((p) => p.id != petId).toList();
     if (remaining.isEmpty) {
@@ -346,15 +362,18 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   // Routine CRUD
-  Future<void> addCareSchedule(CareSchedule schedule) async {
+  Future<CareSchedule> addCareSchedule(CareSchedule schedule) async {
     final petId = state.activePetId!;
-    final next = [...state.schedules, schedule];
-    await _saveCareSchedules(petId, next);
+    final scheduleSvc = _requireScheduleService();
+    final saved = await scheduleSvc.createSchedule(petId, schedule);
+    final next = [...state.schedules, saved];
     state = state.copyWith(schedules: next);
+    return saved;
   }
 
-  Future<void> updateCareSchedule(CareSchedule schedule) async {
+  Future<CareSchedule> updateCareSchedule(CareSchedule schedule) async {
     final petId = state.activePetId;
+    final scheduleSvc = _requireScheduleService();
     if (petId == null || schedule.petId != petId) {
       throw StateError('Care schedule not found');
     }
@@ -364,10 +383,15 @@ class PetNotifier extends StateNotifier<PetState> {
     if (index < 0) {
       throw StateError('Care schedule not found');
     }
+    final saved = await scheduleSvc.updateSchedule(
+      petId,
+      schedule.id,
+      schedule,
+    );
     final next = [...state.schedules];
-    next[index] = schedule;
-    await _saveCareSchedules(petId, next);
+    next[index] = saved;
     state = state.copyWith(schedules: next);
+    return saved;
   }
 
   Future<void> deleteCareSchedule(String scheduleId) async {
@@ -375,18 +399,17 @@ class PetNotifier extends StateNotifier<PetState> {
     if (petId == null) {
       throw StateError('Care schedule not found');
     }
+    final scheduleSvc = _requireScheduleService();
     final exists = state.schedules.any(
       (schedule) => schedule.id == scheduleId && schedule.petId == petId,
     );
     if (!exists) {
       throw StateError('Care schedule not found');
     }
+    await scheduleSvc.deleteSchedule(petId, scheduleId);
     final next = state.schedules
-        .where(
-          (schedule) => schedule.petId == petId && schedule.id != scheduleId,
-        )
+        .where((schedule) => schedule.id != scheduleId)
         .toList();
-    await _saveCareSchedules(petId, next);
     state = state.copyWith(schedules: next);
   }
 
@@ -493,53 +516,29 @@ class PetNotifier extends StateNotifier<PetState> {
   String _completionKey(TodayRoutineItem item) =>
       '${item.routine.id}:${item.completion.scheduledDate}';
 
+  CareScheduleService _requireScheduleService() {
+    final scheduleSvc = _scheduleSvc;
+    if (scheduleSvc == null) {
+      throw StateError('Care schedule service is required');
+    }
+    return scheduleSvc;
+  }
+
   // QuickTypeIds persistence
   Future<void> setQuickTypeIds(List<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('quickTypeIds', ids);
     state = state.copyWith(quickTypeIds: ids);
   }
-
-  Future<List<CareSchedule>> _loadCareSchedules(String petId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_careSchedulesKey(petId));
-    if (raw == null || raw.isEmpty) return const [];
-    final decoded = jsonDecode(raw) as List<dynamic>;
-    return decoded
-        .map((item) => CareSchedule.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> _saveCareSchedules(
-    String petId,
-    List<CareSchedule> schedules,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = schedules.map((schedule) => schedule.toJson()).toList();
-    await prefs.setString(_careSchedulesKey(petId), jsonEncode(payload));
-  }
-
-  Future<void> _removeCareSchedules(String petId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_careSchedulesKey(petId));
-  }
-
-  Future<void> _removeAllCareSchedules() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keys = prefs
-        .getKeys()
-        .where((key) => key.startsWith('careSchedules:'))
-        .toList();
-    await Future.wait(keys.map(prefs.remove));
-  }
 }
-
-String _careSchedulesKey(String petId) => 'careSchedules:$petId';
 
 final petServiceProvider = Provider<PetService>((_) => PetService());
 final recordServiceProvider = Provider<RecordService>((_) => RecordService());
 final routineServiceProvider = Provider<RoutineService>(
   (_) => RoutineService(),
+);
+final careScheduleServiceProvider = Provider<CareScheduleService>(
+  (_) => CareScheduleService(),
 );
 
 final latestPetWeightProvider = FutureProvider.family<ActivityRecord?, String>((
@@ -561,6 +560,8 @@ final petProvider = StateNotifierProvider<PetNotifier, PetState>((ref) {
     ref.read(petServiceProvider),
     ref.read(recordServiceProvider),
     ref.read(routineServiceProvider),
+    null,
+    ref.read(careScheduleServiceProvider),
   );
 });
 

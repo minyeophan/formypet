@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +6,7 @@ import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/services/care_schedule_service.dart';
 import 'package:frontend/services/media_service.dart';
 import 'package:frontend/services/pet_service.dart';
 import 'package:frontend/services/record_service.dart';
@@ -150,68 +150,73 @@ void main() {
     expect(notifier.state.routines, [created]);
   });
 
+  test('addCareSchedule appends server-created active pet schedule', () async {
+    final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      createdSchedule: _schedule('server-s1', pet.id),
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+    expect(scheduleService.createdRequests.single.id, 's1');
+    expect(notifier.state.schedules.map((schedule) => schedule.id), [
+      'server-s1',
+    ]);
+  });
+
   test(
-    'addCareSchedule appends active pet schedule and persists JSON',
+    'updateCareSchedule replaces matching active pet schedule from server',
     () async {
       final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
       final notifier = PetNotifier(
         _FakePetService(pets: [pet]),
         _FakeRecordService(),
         _FakeRoutineService(),
+        null,
+        scheduleService,
       );
       await notifier.loadForAuthenticatedUser();
 
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
-
-      expect(notifier.state.schedules.map((schedule) => schedule.id), ['s1']);
-      final prefs = await SharedPreferences.getInstance();
-      final saved =
-          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
-      expect(saved.single['title'], '목욕 예약');
-    },
-  );
-
-  test(
-    'updateCareSchedule replaces matching active pet schedule and persists JSON',
-    () async {
-      final pet = _pet('1');
-      final notifier = PetNotifier(
-        _FakePetService(pets: [pet]),
-        _FakeRecordService(),
-        _FakeRoutineService(),
+      final updated = CareSchedule(
+        id: 's1',
+        petId: pet.id,
+        categoryId: 'hospital',
+        title: 'Updated schedule',
+        startDate: '2026-06-20',
+        startTime: '14:00',
+        endDate: '2026-06-20',
+        endTime: '14:30',
+        allDay: false,
+        place: 'Clinic',
+        memo: 'Bring note',
+        reminder: '2 hours before',
+        createdAt: '2026-06-01T00:00:00.000',
       );
-      await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
-
-      await notifier.updateCareSchedule(
-        CareSchedule(
-          id: 's1',
-          petId: pet.id,
-          categoryId: 'hospital',
-          title: '예방접종 예약',
-          startDate: '2026-06-20',
-          startTime: '14:00',
-          endDate: '2026-06-20',
-          endTime: '14:30',
-          allDay: false,
-          place: '동네 병원',
-          memo: '수첩 챙기기',
-          reminder: '2시간 전',
-          createdAt: '2026-06-01T00:00:00.000',
-        ),
-      );
+      await notifier.updateCareSchedule(updated);
 
       expect(notifier.state.schedules, hasLength(1));
-      expect(notifier.state.schedules.single.title, '예방접종 예약');
-      final prefs = await SharedPreferences.getInstance();
-      final saved =
-          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
-      expect(saved.single['categoryId'], 'hospital');
-      expect(saved.single['startDate'], '2026-06-20');
-      expect(saved.single['startTime'], '14:00');
-      expect(saved.single['place'], '동네 병원');
-      expect(saved.single['memo'], '수첩 챙기기');
-      expect(saved.single['reminder'], '2시간 전');
+      expect(notifier.state.schedules.single.title, 'Updated schedule');
+      expect(scheduleService.updatedRequests.single.$1, 's1');
+      expect(scheduleService.updatedRequests.single.$2.categoryId, 'hospital');
+      expect(scheduleService.updatedRequests.single.$2.startDate, '2026-06-20');
+      expect(scheduleService.updatedRequests.single.$2.startTime, '14:00');
+      expect(scheduleService.updatedRequests.single.$2.place, 'Clinic');
+      expect(scheduleService.updatedRequests.single.$2.memo, 'Bring note');
+      expect(
+        scheduleService.updatedRequests.single.$2.reminder,
+        '2 hours before',
+      );
     },
   );
 
@@ -219,13 +224,17 @@ void main() {
     'updateCareSchedule rejects missing id or inactive pet schedules',
     () async {
       final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
       final notifier = PetNotifier(
         _FakePetService(pets: [pet]),
         _FakeRecordService(),
         _FakeRoutineService(),
+        null,
+        scheduleService,
       );
       await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
 
       expect(
         () => notifier.updateCareSchedule(_schedule('missing', pet.id)),
@@ -239,96 +248,101 @@ void main() {
   );
 
   test(
-    'updateCareSchedule omits cleared optional and all day time fields',
+    'updateCareSchedule clears optional and all day time fields from server response',
     () async {
       final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
       final notifier = PetNotifier(
         _FakePetService(pets: [pet]),
         _FakeRecordService(),
         _FakeRoutineService(),
+        null,
+        scheduleService,
       );
       await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
 
       await notifier.updateCareSchedule(
         CareSchedule(
           id: 's1',
           petId: pet.id,
           categoryId: 'grooming',
-          title: '종일 목욕',
+          title: 'All day bath',
           startDate: '2026-06-17',
           endDate: '2026-06-17',
           allDay: true,
-          reminder: '알림 없음',
+          reminder: 'none',
           createdAt: '2026-06-01T00:00:00.000',
         ),
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      final saved =
-          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
-      expect(saved.single.containsKey('place'), isFalse);
-      expect(saved.single.containsKey('memo'), isFalse);
-      expect(saved.single.containsKey('startTime'), isFalse);
-      expect(saved.single.containsKey('endTime'), isFalse);
+      final schedule = notifier.state.schedules.single;
+      expect(schedule.place, isNull);
+      expect(schedule.memo, isNull);
+      expect(schedule.startTime, isNull);
+      expect(schedule.endTime, isNull);
     },
   );
 
   test(
-    'deleteCareSchedule removes active pet schedule and persists JSON',
+    'deleteCareSchedule removes active pet schedule through server',
     () async {
       final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id), _schedule('s2', pet.id)],
+      );
       final notifier = PetNotifier(
         _FakePetService(pets: [pet]),
         _FakeRecordService(),
         _FakeRoutineService(),
+        null,
+        scheduleService,
       );
       await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
-      await notifier.addCareSchedule(_schedule('s2', pet.id));
 
       await notifier.deleteCareSchedule('s1');
 
       expect(notifier.state.schedules.map((schedule) => schedule.id), ['s2']);
-      final prefs = await SharedPreferences.getInstance();
-      final saved =
-          jsonDecode(prefs.getString('careSchedules:1')!) as List<dynamic>;
-      expect(saved.map((item) => item['id']), ['s2']);
+      expect(scheduleService.deletedRequests, [('1', 's1')]);
     },
   );
 
-  test(
-    'deleteCareSchedule keeps empty persisted array after last schedule',
-    () async {
-      final pet = _pet('1');
-      final notifier = PetNotifier(
-        _FakePetService(pets: [pet]),
-        _FakeRecordService(),
-        _FakeRoutineService(),
-      );
-      await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
+  test('deleteCareSchedule removes last schedule from state', () async {
+    final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      schedules: [_schedule('s1', pet.id)],
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+    await notifier.loadForAuthenticatedUser();
 
-      await notifier.deleteCareSchedule('s1');
+    await notifier.deleteCareSchedule('s1');
 
-      expect(notifier.state.schedules, isEmpty);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('careSchedules:1'), isNotNull);
-      expect(jsonDecode(prefs.getString('careSchedules:1')!), isEmpty);
-    },
-  );
+    expect(notifier.state.schedules, isEmpty);
+    expect(scheduleService.deletedRequests, [('1', 's1')]);
+  });
 
   test(
     'deleteCareSchedule rejects no active pet missing id and inactive pet',
     () async {
       final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
       final notifier = PetNotifier(
         _FakePetService(pets: [pet]),
         _FakeRecordService(),
         _FakeRoutineService(),
+        null,
+        scheduleService,
       );
       await notifier.loadForAuthenticatedUser();
-      await notifier.addCareSchedule(_schedule('s1', pet.id));
 
       expect(
         () => notifier.deleteCareSchedule('missing'),
@@ -374,15 +388,17 @@ void main() {
     },
   );
 
-  test('loadForAuthenticatedUser restores persisted care schedules', () async {
-    SharedPreferences.setMockInitialValues({
-      'careSchedules:1': jsonEncode([_schedule('s1', '1').toJson()]),
-    });
+  test('loadForAuthenticatedUser loads server care schedules', () async {
     final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      schedules: [_schedule('s1', '1')],
+    );
     final notifier = PetNotifier(
       _FakePetService(pets: [pet]),
       _FakeRecordService(),
       _FakeRoutineService(),
+      null,
+      scheduleService,
     );
 
     await notifier.loadForAuthenticatedUser();
@@ -424,10 +440,13 @@ void main() {
 
   test('clearForSignedOutUser clears account-scoped pet data', () async {
     final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService();
     final notifier = PetNotifier(
       _FakePetService(pets: [pet]),
       _FakeRecordService(records: [_record('r1', pet.id)]),
       _FakeRoutineService(routines: [_routine('rt1', pet.id)]),
+      null,
+      scheduleService,
     );
     await notifier.loadForAuthenticatedUser();
     await notifier.addCareSchedule(_schedule('s1', pet.id));
@@ -445,11 +464,6 @@ void main() {
     expect(notifier.state.todaySummary, isNull);
     expect(notifier.state.schedules, isEmpty);
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getKeys().where((key) => key.startsWith('careSchedules:')),
-      isEmpty,
-    );
   });
 
   test(
@@ -500,10 +514,13 @@ void main() {
   test('deletePet clears onboarding after deleting the last pet', () async {
     final pet = _pet('1');
     final petService = _FakePetService(pets: [pet]);
+    final scheduleService = _FakeCareScheduleService();
     final notifier = PetNotifier(
       petService,
       _FakeRecordService(),
       _FakeRoutineService(),
+      null,
+      scheduleService,
     );
     await notifier.loadForAuthenticatedUser();
     await notifier.addCareSchedule(_schedule('s1', pet.id));
@@ -514,8 +531,6 @@ void main() {
     expect(notifier.state.hasOnboarded, isFalse);
     expect(notifier.state.pets, isEmpty);
     expect(notifier.state.activePetId, isNull);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('careSchedules:1'), isNull);
   });
 
   test('deletePet activates and reloads the next pet', () async {
@@ -720,6 +735,43 @@ class _FakeRecordService extends RecordService {
     createdMediaBodies.add(body);
     uploadedFilenames.addAll(files.map((file) => file.filename));
     return createdRecord ?? _record('created-media', petId);
+  }
+}
+
+class _FakeCareScheduleService extends CareScheduleService {
+  _FakeCareScheduleService({this.schedules = const [], this.createdSchedule});
+
+  final List<CareSchedule> schedules;
+  final CareSchedule? createdSchedule;
+  final createdRequests = <CareSchedule>[];
+  final updatedRequests = <(String scheduleId, CareSchedule schedule)>[];
+  final deletedRequests = <(String petId, String scheduleId)>[];
+
+  @override
+  Future<List<CareSchedule>> getSchedules(String petId) async => schedules;
+
+  @override
+  Future<CareSchedule> createSchedule(
+    String petId,
+    CareSchedule schedule,
+  ) async {
+    createdRequests.add(schedule);
+    return createdSchedule ?? schedule;
+  }
+
+  @override
+  Future<CareSchedule> updateSchedule(
+    String petId,
+    String scheduleId,
+    CareSchedule schedule,
+  ) async {
+    updatedRequests.add((scheduleId, schedule));
+    return schedule;
+  }
+
+  @override
+  Future<void> deleteSchedule(String petId, String scheduleId) async {
+    deletedRequests.add((petId, scheduleId));
   }
 }
 
