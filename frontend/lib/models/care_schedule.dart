@@ -60,4 +60,17 @@ class CareSchedule {
     'reminder': reminder,
     'createdAt': createdAt,
   };
+
+  Map<String, dynamic> toRequestJson() => {
+    'categoryId': categoryId,
+    'title': title,
+    'startDate': startDate,
+    if (startTime != null) 'startTime': startTime,
+    'endDate': endDate,
+    if (endTime != null) 'endTime': endTime,
+    'allDay': allDay,
+    if (place != null) 'place': place,
+    if (memo != null) 'memo': memo,
+    'reminder': reminder,
+  };
 }
