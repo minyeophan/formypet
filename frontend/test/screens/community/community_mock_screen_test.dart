@@ -150,11 +150,17 @@ void main() {
       find.byKey(const Key('mock-comment-more-comment-story-1-best')),
       findsOneWidget,
     );
-
-    await tester.enterText(
-      find.byKey(const Key('mock-comment-input')),
-      '새 댓글',
+    await tester.tap(
+      find.byKey(const Key('mock-comment-more-comment-story-1-best')),
     );
+    await tester.pumpAndSettle();
+    expect(find.text('댓글 관리'), findsOneWidget);
+    expect(find.text('삭제하기'), findsOneWidget);
+    expect(find.text('닫기'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('app-action-sheet-close')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('mock-comment-input')), '새 댓글');
     await tester.tap(find.byKey(const Key('mock-comment-submit')));
     await tester.pumpAndSettle();
 

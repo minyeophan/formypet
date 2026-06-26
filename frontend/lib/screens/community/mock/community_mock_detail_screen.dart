@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../models/post.dart';
+import '../../../widgets/app_action_sheet.dart';
+import '../../../widgets/app_more_button.dart';
 import '../../../widgets/app_navigation.dart';
 import '../../../widgets/app_text.dart';
 import 'community_detail_widgets.dart';
@@ -77,11 +79,12 @@ class _CommunityMockDetailScreenState
         title: const AppText('게시글 상세', fontWeight: FontWeight.w700),
         centerTitle: true,
         actions: [
-          IconButton(
-            key: const Key('mock-post-more-button'),
-            tooltip: '더보기',
-            onPressed: _showPostMoreMenu,
-            icon: const Icon(Icons.more_vert_rounded),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: AppMoreButton.surface(
+              key: const Key('mock-post-more-button'),
+              onPressed: _showPostMoreMenu,
+            ),
           ),
         ],
         backgroundColor: AppColors.background,
@@ -161,10 +164,7 @@ class _CommunityMockDetailScreenState
               ],
             ),
           ),
-          Container(
-            height: 10,
-            color: AppColors.background,
-          ),
+          Container(height: 10, color: AppColors.background),
           _CommentsBlock(
             post: post,
             comments: comments,
@@ -233,64 +233,20 @@ class _CommunityMockDetailScreenState
       category == '훈훈익명' ? category : category;
 
   void _showPostMoreMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppText('더보기 메뉴', fontWeight: FontWeight.w700),
-              const SizedBox(height: 18),
-              ListTile(
-                key: const Key('mock-post-report'),
-                title: const Center(child: AppText('신고하기')),
-                onTap: () => Navigator.of(context).pop(),
-              ),
-              ListTile(
-                key: const Key('mock-post-more-close'),
-                title: const Center(child: AppText('닫기')),
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        ),
-      ),
+    showAppActionSheet(
+      context,
+      title: '더보기 메뉴',
+      actions: const [
+        AppActionSheetItem(key: Key('mock-post-report'), label: '신고하기'),
+      ],
     );
   }
 
-  void _showCommentMoreMenu(MockCommunityComment comment) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppText('댓글 관리', fontWeight: FontWeight.w700),
-              const SizedBox(height: 18),
-              ListTile(
-                title: const Center(child: AppText('삭제하기')),
-                onTap: () => Navigator.of(context).pop(),
-              ),
-              ListTile(
-                title: const Center(child: AppText('닫기')),
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        ),
-      ),
+  void _showCommentMoreMenu(MockCommunityComment _) {
+    showAppActionSheet(
+      context,
+      title: '댓글 관리',
+      actions: const [AppActionSheetItem(label: '삭제하기')],
     );
   }
 }
@@ -317,10 +273,7 @@ class _CommentsBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
-            child: AppText(
-              '댓글 $commentsCount개',
-              fontWeight: FontWeight.w700,
-            ),
+            child: AppText('댓글 $commentsCount개', fontWeight: FontWeight.w700),
           ),
           const Divider(height: 28, color: AppColors.border),
           if (comments.isEmpty)
@@ -390,17 +343,12 @@ class _CommentTile extends StatelessWidget {
               ),
             ],
             const Spacer(),
-            AppText(
-              comment.createdAt,
-              fontSize: 12,
-              color: AppColors.muted,
-            ),
+            AppText(comment.createdAt, fontSize: 12, color: AppColors.muted),
             if (canManage)
-              IconButton(
+              AppMoreButton.plain(
                 key: Key('mock-comment-more-${comment.id}'),
                 tooltip: '댓글 관리',
                 onPressed: () => onMore(comment),
-                icon: const Icon(Icons.more_vert_rounded, size: 20),
               ),
           ],
         ),
