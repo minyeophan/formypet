@@ -5,6 +5,7 @@ import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
+import 'package:frontend/services/care_schedule_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -268,7 +269,7 @@ Future<void> _pumpScreen(
 }
 
 PetNotifier _petNotifier({List<CareSchedule> schedules = const []}) =>
-    PetNotifier.test(
+    PetNotifier.testWithServices(
       PetState(
         isLoading: false,
         hasOnboarded: true,
@@ -281,6 +282,7 @@ PetNotifier _petNotifier({List<CareSchedule> schedules = const []}) =>
         routineCompletions: const {},
         quickTypeIds: const ['meal', 'water'],
       ),
+      scheduleService: _FakeCareScheduleService(),
     );
 
 Pet _pet(String id) => Pet(
@@ -310,3 +312,35 @@ CareSchedule _schedule({
   reminder: reminder,
   createdAt: '2026-06-01T00:00:00.000',
 );
+
+class _FakeCareScheduleService extends CareScheduleService {
+  @override
+  Future<CareSchedule> createSchedule(
+    String petId,
+    CareSchedule schedule,
+  ) async => CareSchedule(
+    id: 'server-${schedule.id}',
+    petId: schedule.petId,
+    categoryId: schedule.categoryId,
+    title: schedule.title,
+    startDate: schedule.startDate,
+    startTime: schedule.startTime,
+    endDate: schedule.endDate,
+    endTime: schedule.endTime,
+    allDay: schedule.allDay,
+    place: schedule.place,
+    memo: schedule.memo,
+    reminder: schedule.reminder,
+    createdAt: '2026-06-01T00:00:00.000',
+  );
+
+  @override
+  Future<CareSchedule> updateSchedule(
+    String petId,
+    String scheduleId,
+    CareSchedule schedule,
+  ) async => schedule;
+
+  @override
+  Future<void> deleteSchedule(String petId, String scheduleId) async {}
+}

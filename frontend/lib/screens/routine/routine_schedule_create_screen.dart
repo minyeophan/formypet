@@ -404,16 +404,14 @@ class _RoutineScheduleCreateScreenState
         reminder: _reminder,
         createdAt: editing?.createdAt ?? now.toIso8601String(),
       );
-      if (editing == null) {
-        await ref.read(petProvider.notifier).addCareSchedule(schedule);
-      } else {
-        await ref.read(petProvider.notifier).updateCareSchedule(schedule);
-      }
+      final saved = editing == null
+          ? await ref.read(petProvider.notifier).addCareSchedule(schedule)
+          : await ref.read(petProvider.notifier).updateCareSchedule(schedule);
       if (!mounted) return;
       if (editing == null) {
-        context.go('/routine?date=${schedule.startDate}');
+        context.go('/routine?date=${saved.startDate}');
       } else {
-        context.go('/routine/schedule/${schedule.id}');
+        context.go('/routine/schedule/${saved.id}');
       }
     } catch (_) {
       if (!mounted) return;
