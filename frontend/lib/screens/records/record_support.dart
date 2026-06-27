@@ -14,8 +14,23 @@ const supportedRecordDetailTypeIds = {
   'etc',
 };
 
+const categoryRecordInputTypeIds = {
+  'water',
+  'poop',
+  'walk',
+  'weight',
+  'vet',
+  'medicine',
+  'diary',
+  'etc',
+};
+
 bool isRecordDetailSupported(String typeId) {
   return supportedRecordDetailTypeIds.contains(typeId);
+}
+
+bool isCategoryRecordInputSupported(String typeId) {
+  return categoryRecordInputTypeIds.contains(typeId);
 }
 
 String recordTypeLabel(String typeId) {

@@ -205,7 +205,7 @@ void main() {
     );
     expect(find.text('오전 간식'), findsNothing);
     expect(find.text('저녁 산책'), findsNothing);
-    expect(find.text('전날 체중'), findsOneWidget);
+    expect(find.text('4.1kg'), findsOneWidget);
   });
 
   testWidgets('records main opens detail when selected date row is tapped', (
@@ -433,13 +433,6 @@ List<ActivityRecord> _records() => [
     time: '18:40',
     note: '저녁 산책',
     detail: {'distance': 1.2},
-  ),
-  ActivityRecord(
-    id: 'expense-today',
-    petId: 'pet-1',
-    typeId: 'expense',
-    date: todayIso,
-    time: '20:10',
   ),
   ActivityRecord(
     id: 'weight-yesterday',

@@ -113,7 +113,7 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                             context.push('/records/meal/new?date=$dateQuery');
                             return;
                           }
-                          if (_categoryFormTypeIds.contains(typeId)) {
+                          if (isCategoryRecordInputSupported(typeId)) {
                             context.push(
                               '/records/$typeId/new?date=$dateQuery',
                             );
@@ -412,7 +412,10 @@ class _RecordTypeGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleTypes = _recordTypes
-        .where((type) => type.id != 'expense' && type.id != 'checkup')
+        .where(
+          (type) =>
+              type.id == 'meal' || isCategoryRecordInputSupported(type.id),
+        )
         .toList(growable: false);
 
     return Container(
@@ -867,12 +870,6 @@ const _recordTypes = [
     color: Color(0xFFAB47BC),
   ),
   _RecordTypeConfig(
-    id: 'expense',
-    label: '지출',
-    icon: Icons.payments_rounded,
-    color: Color(0xFFFFB74D),
-  ),
-  _RecordTypeConfig(
     id: 'diary',
     label: '일기',
     icon: Icons.menu_book_rounded,
@@ -887,17 +884,6 @@ const _recordTypes = [
 ];
 
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-
-const _categoryFormTypeIds = {
-  'water',
-  'poop',
-  'walk',
-  'weight',
-  'vet',
-  'medicine',
-  'diary',
-  'etc',
-};
 
 List<ActivityRecord> _recordsForDate(
   List<ActivityRecord> records,
