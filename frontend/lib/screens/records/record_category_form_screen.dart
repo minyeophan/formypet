@@ -288,6 +288,7 @@ class _RecordCategoryFormScreenState
         _SectionBlock(
           title: '색상',
           child: _OptionGrid(
+            key: ValueKey('category-poop-color-$_poopKind'),
             options: colorOptions,
             selectedValue: _poopColor,
             onSelected: (value) => setState(() {
@@ -865,6 +866,7 @@ class _OptionGrid extends StatelessWidget {
   final String keyPrefix;
 
   const _OptionGrid({
+    super.key,
     required this.options,
     required this.selectedValue,
     required this.onSelected,
@@ -915,6 +917,10 @@ class _OptionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: AppColors.primary.withValues(alpha: 0.10),
         onTap: onTap,
         child: Container(
           alignment: Alignment.center,

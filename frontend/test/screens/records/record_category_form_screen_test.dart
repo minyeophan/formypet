@@ -54,6 +54,38 @@ void main() {
     }
   });
 
+  testWidgets('poop option cards do not retain gray web interaction colors', (
+    tester,
+  ) async {
+    await _pumpCategoryRoute(tester, '/records/poop/new');
+
+    final looseInkWell = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const Key('category-poop-shape-loose')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(looseInkWell.hoverColor, Colors.transparent);
+    expect(looseInkWell.focusColor, Colors.transparent);
+    expect(looseInkWell.highlightColor, Colors.transparent);
+    expect(
+      find.byKey(const ValueKey('category-poop-color-stool')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('category-poop-kind-urine')));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('category-poop-color-urine')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('category-poop-color-stool')),
+      findsNothing,
+    );
+  });
+
   testWidgets('poop warning appears for risky stool or urine selections', (
     tester,
   ) async {
