@@ -118,4 +118,18 @@ void main() {
     expect(post.poll?.options.single.text, '오전');
     expect(post.copyWith(commentsCount: 2).commentsCount, 2);
   });
+
+  test('PostComment.fromJson parses author profile image url', () {
+    final comment = PostComment.fromJson({
+      'id': 9,
+      'userId': 1,
+      'authorNickname': 'Momo',
+      'authorProfileImageUrl': '/api/v1/users/1/profile-image',
+      'content': 'hello',
+      'createdAt': '2026-06-24T00:00:00',
+      'commentsCount': 2,
+    });
+
+    expect(comment.authorProfileImageUrl, '/api/v1/users/1/profile-image');
+  });
 }

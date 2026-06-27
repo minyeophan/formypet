@@ -124,69 +124,78 @@ void main() {
     expect((capturedData as FormData).fields.map((e) => e.key), ['payload']);
   });
 
-  test('post detail, vote, and comments use the community API contract', () async {
-    final paths = <String>[];
-    dio.httpClientAdapter = _CannedAdapter((options) {
-      paths.add('${options.method} ${options.path}');
-      if (options.path.endsWith('/comments') && options.method == 'GET') {
+  test(
+    'post detail, vote, and comments use the community API contract',
+    () async {
+      final paths = <String>[];
+      dio.httpClientAdapter = _CannedAdapter((options) {
+        paths.add('${options.method} ${options.path}');
+        if (options.path.endsWith('/comments') && options.method == 'GET') {
+          return _jsonResponse(options, 200, {
+            'data': {
+              'items': [
+                {
+                  'id': 9,
+                  'userId': 1,
+                  'authorNickname': 'Momo',
+                  'authorProfileImageUrl': '/api/v1/users/1/profile-image',
+                  'content': '댓글',
+                  'createdAt': '2026-06-24T00:00:00',
+                  'commentsCount': 2,
+                },
+              ],
+              'nextCursor': null,
+            },
+          });
+        }
+        if (options.path.endsWith('/comments')) {
+          return _jsonResponse(options, 201, {
+            'data': {
+              'id': 10,
+              'userId': 1,
+              'authorNickname': 'Momo',
+              'authorProfileImageUrl': '/api/v1/users/1/profile-image',
+              'content': '새 댓글',
+              'createdAt': '2026-06-24T00:00:00',
+              'commentsCount': 3,
+            },
+          });
+        }
         return _jsonResponse(options, 200, {
           'data': {
-            'items': [
-              {
-                'id': 9,
-                'userId': 1,
-                'authorNickname': 'Momo',
-                'content': '댓글',
-                'createdAt': '2026-06-24T00:00:00',
-                'commentsCount': 2,
-              },
-            ],
-            'nextCursor': null,
-          },
-        });
-      }
-      if (options.path.endsWith('/comments')) {
-        return _jsonResponse(options, 201, {
-          'data': {
-            'id': 10,
-            'userId': 1,
+            'id': 'post-1',
+            'userId': 'user-1',
             'authorNickname': 'Momo',
-            'content': '새 댓글',
+            'content': '내용',
+            'category': 'QUESTION',
+            'mediaUrls': [],
             'createdAt': '2026-06-24T00:00:00',
-            'commentsCount': 3,
           },
         });
-      }
-      return _jsonResponse(options, 200, {
-        'data': {
-          'id': 'post-1',
-          'userId': 'user-1',
-          'authorNickname': 'Momo',
-          'content': '내용',
-          'category': 'QUESTION',
-          'mediaUrls': [],
-          'createdAt': '2026-06-24T00:00:00',
-        },
       });
-    });
 
-    final service = CommunityService();
-    final detail = await service.getPost('post-1');
-    final voted = await service.vote('post-1', 'option-1');
-    final comments = await service.getComments('post-1');
-    final created = await service.createComment('post-1', ' 새 댓글 ');
+      final service = CommunityService();
+      final detail = await service.getPost('post-1');
+      final voted = await service.vote('post-1', 'option-1');
+      final comments = await service.getComments('post-1');
+      final created = await service.createComment('post-1', ' 새 댓글 ');
 
-    expect(detail, isA<Post>());
-    expect(voted, isA<Post>());
-    expect(comments.items.single.content, '댓글');
-    expect(created.commentsCount, 3);
-    expect(paths, [
-      'GET /api/v1/posts/post-1',
-      'POST /api/v1/posts/post-1/poll/options/option-1/vote',
-      'GET /api/v1/posts/post-1/comments',
-      'POST /api/v1/posts/post-1/comments',
-    ]);
-  });
+      expect(detail, isA<Post>());
+      expect(voted, isA<Post>());
+      expect(
+        comments.items.single.authorProfileImageUrl,
+        '/api/v1/users/1/profile-image',
+      );
+      expect(comments.items.single.content, '댓글');
+      expect(created.commentsCount, 3);
+      expect(paths, [
+        'GET /api/v1/posts/post-1',
+        'POST /api/v1/posts/post-1/poll/options/option-1/vote',
+        'GET /api/v1/posts/post-1/comments',
+        'POST /api/v1/posts/post-1/comments',
+      ]);
+    },
+  );
 }
 
 ResponseBody _jsonResponse(

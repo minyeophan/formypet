@@ -128,6 +128,7 @@ class PostComment {
   final String id;
   final String userId;
   final String authorNickname;
+  final String? authorProfileImageUrl;
   final String content;
   final String createdAt;
   final int commentsCount;
@@ -136,6 +137,7 @@ class PostComment {
     required this.id,
     required this.userId,
     required this.authorNickname,
+    this.authorProfileImageUrl,
     required this.content,
     required this.createdAt,
     required this.commentsCount,
@@ -145,6 +147,7 @@ class PostComment {
     id: j['id'].toString(),
     userId: j['userId'].toString(),
     authorNickname: j['authorNickname'] as String? ?? '',
+    authorProfileImageUrl: j['authorProfileImageUrl'] as String?,
     content: j['content'] as String? ?? '',
     createdAt: j['createdAt'] as String? ?? '',
     commentsCount: j['commentsCount'] as int? ?? 0,
