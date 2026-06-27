@@ -322,6 +322,64 @@ void main() {
     expect(find.text('사료 종류'), findsOneWidget);
   });
 
+  testWidgets('/records/expense/new redirects to wallet expense add', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/expense/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.byType(ExpenseAddScreen), findsOneWidget);
+  });
+
+  testWidgets('unsupported record form routes redirect to records main', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    final petState = _petState(
+      isLoading: false,
+      hasOnboarded: true,
+      pets: [pet],
+      activePetId: pet.id,
+    );
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/checkup/new?date=2026-05-09',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(RecordsScreen), findsOneWidget);
+    _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/checkup/new?date=2026-02-30',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(RecordsScreen), findsOneWidget);
+    final now = DateTime.now();
+    _expectSelectedRecordsDate(tester, DateTime(now.year, now.month, now.day));
+
+    await _pumpRouter(
+      tester,
+      initialLocation: '/records/unknown/new',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: petState,
+    );
+    expect(find.byType(RecordsScreen), findsOneWidget);
+  });
+
   testWidgets('/wallet opens keeper wallet actions', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -1190,6 +1248,18 @@ String _todayIso() {
   return '${now.year.toString().padLeft(4, '0')}-'
       '${now.month.toString().padLeft(2, '0')}-'
       '${now.day.toString().padLeft(2, '0')}';
+}
+
+void _expectSelectedRecordsDate(WidgetTester tester, DateTime date) {
+  final label = tester.widget<AppText>(
+    find
+        .descendant(
+          of: find.byKey(const Key('records-selected-date')),
+          matching: find.byType(AppText),
+        )
+        .first,
+  );
+  expect(label.text, '${date.month}월 ${date.day}일 기록');
 }
 
 class _FakeCommunityService extends CommunityService {

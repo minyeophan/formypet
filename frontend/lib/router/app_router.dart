@@ -11,6 +11,7 @@ import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/record_detail_screen.dart';
 import '../screens/records/record_edit_screen.dart';
+import '../screens/records/record_support.dart';
 import '../screens/records/records_screen.dart';
 import '../screens/wallet/expense_add_screen.dart';
 import '../screens/wallet/expense_detail_screen.dart';
@@ -217,6 +218,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/records/:typeId/new',
+        redirect: (c, s) {
+          final typeId = s.pathParameters['typeId']!;
+          if (typeId == 'expense') {
+            return '/wallet/expenses/new';
+          }
+          if (isCategoryRecordInputSupported(typeId)) {
+            return null;
+          }
+
+          final date = _validRouteDate(s.uri.queryParameters['date']);
+          return date == null ? '/records' : '/records?date=$date';
+        },
         builder: (c, s) => RecordCategoryFormScreen(
           typeId: s.pathParameters['typeId']!,
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
@@ -276,17 +289,27 @@ final _routeDatePattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 DateTime _parseRouteDateOrToday(String? raw) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  if (raw == null || !_routeDatePattern.hasMatch(raw)) {
+  final valid = _validRouteDate(raw);
+  if (valid == null) {
     return today;
+  }
+
+  final parsed = DateTime.parse(valid);
+  return DateTime(parsed.year, parsed.month, parsed.day);
+}
+
+String? _validRouteDate(String? raw) {
+  if (raw == null || !_routeDatePattern.hasMatch(raw)) {
+    return null;
   }
 
   final parsed = DateTime.tryParse(raw);
   if (parsed == null) {
-    return today;
+    return null;
   }
 
   final date = DateTime(parsed.year, parsed.month, parsed.day);
-  return _routeDate(date) == raw ? date : today;
+  return _routeDate(date) == raw ? raw : null;
 }
 
 String _routeDate(DateTime date) =>
