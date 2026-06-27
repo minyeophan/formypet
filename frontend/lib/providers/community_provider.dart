@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/post.dart';
 import '../services/community_service.dart';
+import '../screens/community/community_constants.dart';
 
 class CommunityState {
   final Map<String, List<Post>> postsByFeedKey;
@@ -199,10 +200,8 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 }
 
 String normalizeCommunityFeedKey(String feedKey) {
-  final normalized = feedKey.toUpperCase();
-  if (normalized == 'POPULAR') return 'popular';
-  if (normalized == 'ALL') return 'all';
-  return normalized;
+  final normalized = normalizeCommunitySourceKey(feedKey);
+  return normalized.isEmpty ? feedKey.toUpperCase() : normalized;
 }
 
 final communityServiceProvider = Provider<CommunityService>(

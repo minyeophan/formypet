@@ -9,6 +9,7 @@ import '../../core/keyboard_utils.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community_service.dart';
 import '../../widgets/app_text.dart';
+import 'community_constants.dart';
 
 class WriteScreen extends ConsumerStatefulWidget {
   const WriteScreen({super.key});

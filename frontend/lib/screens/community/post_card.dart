@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../models/post.dart';
-import '../../services/community_service.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/authenticated_network_image.dart';
+import 'community_constants.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -49,136 +49,149 @@ class PostCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(999),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: AppText(
+                  kCommunityCategoryLabels[post.category] ?? post.category,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
               ),
-              child: AppText(
-                kCommunityCategoryLabels[post.category] ?? post.category,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 9),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (post.poll != null) ...[
-                            Container(
-                              key: const Key('community-post-poll-badge'),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE8F1FE),
-                                borderRadius: BorderRadius.circular(999),
+              const SizedBox(height: 9),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            if (post.poll != null) ...[
+                              Container(
+                                key: const Key('community-post-poll-badge'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F1FE),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const AppText(
+                                  '투표',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF64B5F6),
+                                ),
                               ),
-                              child: const AppText('투표', fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64B5F6)),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: AppText(
+                                headline,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.5,
+                                color: AppColors.text,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            const SizedBox(width: 6),
                           ],
-                          Expanded(
-                            child: AppText(
-                              headline,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.5,
-                              color: AppColors.text,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                        ),
+                        if (preview.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          AppText(
+                            preview,
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                      ),
-                      if (preview.isNotEmpty) ...[
-                        const SizedBox(height: 5),
-                        AppText(
-                          preview,
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
-                    ],
-                  ),
-                ),
-                if (post.imageUrls.isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  _PostThumbnail(url: post.imageUrls.first, count: post.imageUrls.length),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: AppText(
-                    metaParts.join(' · '),
-                    fontSize: 12,
-                    color: AppColors.muted,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                          onTap: onLike,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 4,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              post.liked
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              size: 18,
-                              color: post.liked ? Colors.red : AppColors.muted,
-                            ),
-                            const SizedBox(width: 4),
-                            AppText(
-                              '${post.likesCount}',
-                              fontSize: 12.5,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.chat_bubble_outline,
-                      size: 18,
-                      color: AppColors.muted,
-                    ),
-                    const SizedBox(width: 4),
-                    AppText(
-                      '${post.commentsCount}',
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
+                  ),
+                  if (post.imageUrls.isNotEmpty) ...[
+                    const SizedBox(width: 12),
+                    _PostThumbnail(
+                      url: post.imageUrls.first,
+                      count: post.imageUrls.length,
                     ),
                   ],
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppText(
+                      metaParts.join(' · '),
+                      fontSize: 12,
+                      color: AppColors.muted,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: onLike,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                post.liked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 18,
+                                color: post.liked
+                                    ? Colors.red
+                                    : AppColors.muted,
+                              ),
+                              const SizedBox(width: 4),
+                              AppText(
+                                '${post.likesCount}',
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: AppColors.muted,
+                      ),
+                      const SizedBox(width: 4),
+                      AppText(
+                        '${post.commentsCount}',
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

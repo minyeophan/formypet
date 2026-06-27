@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../providers/community_provider.dart';
-import '../../services/community_service.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import 'community_constants.dart';
+import 'community_routes.dart';
 import 'post_card.dart';
 
 const Color _communityTeal = Color(0xFF14B8A6);
@@ -561,7 +562,7 @@ class _FeedList extends ConsumerWidget {
             final post = posts[index];
             return PostCard(
               post: post,
-              onOpen: () => context.push('/community/posts/${post.id}'),
+              onOpen: () => context.push(communityPostPath(post.id, feedKey)),
               onLike: () => ref
                   .read(communityProvider.notifier)
                   .toggleLike(post.id, feedKey: feedKey),

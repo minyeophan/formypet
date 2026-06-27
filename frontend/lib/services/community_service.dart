@@ -6,48 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import '../core/api_client.dart';
 import '../models/post.dart';
 
-enum CommunityFeedSort {
-  latest('latest'),
-  popular('popular');
-
-  const CommunityFeedSort(this.apiValue);
-  final String apiValue;
-}
-
-const List<String> kCommunityCategories = [
-  'CARE',
-  'FOOD',
-  'OUTING',
-  'SHOW',
-  'QUESTION',
-  'FREE',
-  'ADOPTION',
-  'RESCUE',
-  'NEWS',
-  'EVENT',
-];
-
-const List<String> kCommunityFeedTabs = [
-  'ALL',
-  'POPULAR',
-  ...kCommunityCategories,
-];
-
-const Map<String, String> kCommunityCategoryLabels = {
-  'ALL': '전체',
-  'POPULAR': '인기',
-  'CARE': '케어',
-  'FOOD': '사료/간식',
-  'OUTING': '산책/외출',
-  'SHOW': '자랑',
-  'QUESTION': '질문',
-  'FREE': '자유',
-  'ADOPTION': '입양',
-  'RESCUE': '구조',
-  'NEWS': '소식',
-  'EVENT': '이벤트',
-};
-
 class PollDraft {
   final String question;
   final List<String> options;
@@ -55,6 +13,14 @@ class PollDraft {
   const PollDraft({required this.question, required this.options});
 
   Map<String, dynamic> toJson() => {'question': question, 'options': options};
+}
+
+enum CommunityFeedSort {
+  latest('latest'),
+  popular('popular');
+
+  const CommunityFeedSort(this.apiValue);
+  final String apiValue;
 }
 
 class CommunityService {
