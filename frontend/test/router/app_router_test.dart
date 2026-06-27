@@ -13,6 +13,8 @@ import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
+import 'package:frontend/screens/community/community_comments_screen.dart';
+import 'package:frontend/screens/community/community_routes.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
 import 'package:frontend/screens/community/mock/community_mock_detail_screen.dart';
@@ -96,56 +98,104 @@ void main() {
     }
   });
 
-  testWidgets('public community mock detail bypasses auth and hides bottom navigation', (
-    tester,
-  ) async {
-    await _pumpRouter(
-      tester,
-      initialLocation: '/community/mock/posts/story-1',
-      authState: const AuthState(isLoading: false, isAuthenticated: false),
-      petState: _petState(isLoading: false, hasOnboarded: false),
-    );
+  testWidgets(
+    'public community mock detail bypasses auth and hides bottom navigation',
+    (tester) async {
+      await _pumpRouter(
+        tester,
+        initialLocation: '/community/mock/posts/story-1',
+        authState: const AuthState(isLoading: false, isAuthenticated: false),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+      );
 
-    expect(find.byType(CommunityMockDetailScreen), findsOneWidget);
-    expect(find.byType(BottomNavigationBar), findsNothing);
-  });
+      expect(find.byType(CommunityMockDetailScreen), findsOneWidget);
+      expect(find.byType(BottomNavigationBar), findsNothing);
+    },
+  );
 
-  testWidgets('actual community detail stays authenticated inside community tab', (
-    tester,
-  ) async {
-    final pet = _pet('1');
-    await _pumpRouter(
-      tester,
-      initialLocation: '/community/posts/post-1',
-      authState: const AuthState(isLoading: false, isAuthenticated: true),
-      petState: _petState(
-        isLoading: false,
-        hasOnboarded: true,
-        pets: [pet],
-        activePetId: pet.id,
-      ),
-      communityService: _FakeCommunityService(),
-    );
+  testWidgets(
+    'actual community detail is authenticated and hides bottom navigation',
+    (tester) async {
+      final pet = _pet('1');
+      await _pumpRouter(
+        tester,
+        initialLocation: '/community/posts/post-1?from=CARE',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [pet],
+          activePetId: pet.id,
+        ),
+        communityService: _FakeCommunityService(),
+      );
 
-    expect(find.byType(CommunityDetailScreen), findsOneWidget);
+      expect(find.byType(CommunityDetailScreen), findsOneWidget);
+      expect(find.byType(BottomNavigationBar), findsNothing);
+      final screen = tester.widget<CommunityDetailScreen>(
+        find.byType(CommunityDetailScreen),
+      );
+      expect(screen.postId, 'post-1');
+      expect(screen.sourceKey, 'CARE');
+    },
+  );
+
+  testWidgets(
+    'actual community comments is authenticated and receives query fields',
+    (tester) async {
+      final pet = _pet('1');
+      await _pumpRouter(
+        tester,
+        initialLocation:
+            '/community/posts/post-1/comments?from=CARE&focus=true',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [pet],
+          activePetId: pet.id,
+        ),
+        communityService: _FakeCommunityService(),
+      );
+
+      expect(find.byType(CommunityCommentsScreen), findsOneWidget);
+      expect(find.byType(BottomNavigationBar), findsNothing);
+      final screen = tester.widget<CommunityCommentsScreen>(
+        find.byType(CommunityCommentsScreen),
+      );
+      expect(screen.postId, 'post-1');
+      expect(screen.sourceKey, 'CARE');
+      expect(screen.autofocus, isTrue);
+    },
+  );
+
+  test('community route helpers normalize source query', () {
     expect(
-      tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex,
-      1,
+      communityPostPath('p1', 'POPULAR'),
+      '/community/posts/p1?from=popular',
     );
+    expect(
+      communityCommentsPath('p1', 'care', focus: true),
+      '/community/posts/p1/comments?from=CARE&focus=true',
+    );
+    expect(communityPostPath('p1', 'bad'), '/community/posts/p1');
+    expect(communityFallbackPath('POPULAR'), '/community');
+    expect(communityFallbackPath('CARE'), '/community/category/CARE');
   });
 
-  testWidgets('actual community detail redirects unauthenticated users to auth', (
-    tester,
-  ) async {
-    await _pumpRouter(
-      tester,
-      initialLocation: '/community/posts/post-1',
-      authState: const AuthState(isLoading: false, isAuthenticated: false),
-      petState: _petState(isLoading: false, hasOnboarded: false),
-    );
+  testWidgets(
+    'actual community detail redirects unauthenticated users to auth',
+    (tester) async {
+      await _pumpRouter(
+        tester,
+        initialLocation: '/community/posts/post-1',
+        authState: const AuthState(isLoading: false, isAuthenticated: false),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+      );
 
-    expect(find.byType(AuthScreen), findsOneWidget);
-  });
+      expect(find.byType(AuthScreen), findsOneWidget);
+    },
+  );
 
   testWidgets('authenticated user without pets redirects to /onboarding', (
     tester,

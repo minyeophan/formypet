@@ -1,17 +1,37 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/core/api_client.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/widgets/authenticated_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
+    initApiClient('http://example.test', includeAuthInterceptor: false);
+  });
+
+  setUp(() {
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      return ResponseBody.fromBytes(
+        Uint8List.fromList([1, 2, 3]),
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['image/png'],
+        },
+      );
+    });
   });
 
   testWidgets('shows post more button after loading detail', (tester) async {
@@ -83,6 +103,73 @@ void main() {
     expect(find.byKey(const Key('community-comment-more-other')), findsNothing);
   });
 
+  testWidgets('does not render a separate comment section title', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      comments: [_comment(id: 'one', userId: 'user-1')],
+    );
+
+    expect(find.text('댓글 1'), findsNothing);
+  });
+
+  testWidgets('shows top divider on bottom action bar', (tester) async {
+    await _pumpDetail(
+      tester,
+      comments: [_comment(id: 'one', userId: 'user-1')],
+    );
+
+    final divider = tester.widget<Divider>(find.byType(Divider).first);
+    expect(divider.height, 1);
+    expect(divider.color, AppColors.border);
+  });
+
+  testWidgets('renders comments as bordered cards', (tester) async {
+    await _pumpDetail(
+      tester,
+      comments: [_comment(id: 'one', userId: 'user-1')],
+    );
+
+    final card = tester.widget<Card>(find.byType(Card).first);
+    expect(card.color, AppColors.surface);
+    expect(card.elevation, 0);
+    final shape = card.shape as RoundedRectangleBorder;
+    expect(shape.side.color, AppColors.border);
+    expect(shape.borderRadius, BorderRadius.circular(16));
+  });
+
+  testWidgets('renders authenticated network image for comment avatar url', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      comments: [
+        _comment(
+          id: 'one',
+          userId: 'user-1',
+          authorProfileImageUrl: '/api/v1/users/1/profile-image',
+        ),
+      ],
+    );
+
+    final image = tester.widget<AuthenticatedNetworkImage>(
+      find.byType(AuthenticatedNetworkImage).first,
+    );
+    expect(image.url, '/api/v1/users/1/profile-image');
+  });
+
+  testWidgets('uses paw fallback when comment avatar url is missing', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      comments: [_comment(id: 'one', userId: 'user-1')],
+    );
+
+    expect(find.text('🐾'), findsOneWidget);
+  });
+
   testWidgets('delete action shows preparing toast', (tester) async {
     await _pumpDetail(
       tester,
@@ -149,15 +236,19 @@ Post _post({required String userId}) => Post(
   createdAt: '2026-06-24T00:00:00',
 );
 
-PostComment _comment({required String id, required String userId}) =>
-    PostComment(
-      id: id,
-      userId: userId,
-      authorNickname: '댓글러',
-      content: '댓글 내용',
-      createdAt: '2026-06-24T00:00:00',
-      commentsCount: 1,
-    );
+PostComment _comment({
+  required String id,
+  required String userId,
+  String? authorProfileImageUrl,
+}) => PostComment(
+  id: id,
+  userId: userId,
+  authorProfileImageUrl: authorProfileImageUrl,
+  authorNickname: '댓글러',
+  content: '댓글 내용',
+  createdAt: '2026-06-24T00:00:00',
+  commentsCount: 1,
+);
 
 class _FakeCommunityService extends CommunityService {
   final Post post;
@@ -182,4 +273,20 @@ class _FakeCommunityService extends CommunityService {
     String? cursor,
     int limit = 20,
   }) async => PostCommentFeed(items: comments);
+}
+
+class _CannedAdapter implements HttpClientAdapter {
+  _CannedAdapter(this.handler);
+
+  final ResponseBody Function(RequestOptions options) handler;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => handler(options);
+
+  @override
+  void close({bool force = false}) {}
 }

@@ -22,6 +22,7 @@ import '../screens/routine/routine_create_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
+import '../screens/community/community_comments_screen.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
 import '../screens/community/mock/community_mock_detail_screen.dart';
@@ -105,6 +106,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) =>
             CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
       ),
+      GoRoute(
+        path: '/community/posts/:postId/comments',
+        builder: (c, s) => CommunityCommentsScreen(
+          postId: s.pathParameters['postId']!,
+          sourceKey: s.uri.queryParameters['from'],
+          autofocus: s.uri.queryParameters['focus'] == 'true',
+        ),
+      ),
+      GoRoute(
+        path: '/community/posts/:postId',
+        builder: (c, s) => CommunityDetailScreen(
+          postId: s.pathParameters['postId']!,
+          sourceKey: s.uri.queryParameters['from'],
+        ),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
@@ -112,12 +128,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
-          ),
-          GoRoute(
-            path: '/community/posts/:postId',
-            builder: (c, s) => CommunityDetailScreen(
-              postId: s.pathParameters['postId']!,
-            ),
           ),
           GoRoute(
             path: '/community/mock',
