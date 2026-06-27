@@ -178,6 +178,14 @@ void main() {
       communityCommentsPath('p1', 'care', focus: true),
       '/community/posts/p1/comments?from=CARE&focus=true',
     );
+    expect(
+      communityCommentsPath('p1', null, threadId: 'root-1'),
+      '/community/posts/p1/comments?thread=root-1',
+    );
+    expect(
+      communityCommentsPath('p1', null, replyToCommentId: 'root-1'),
+      '/community/posts/p1/comments?replyTo=root-1',
+    );
     expect(communityPostPath('p1', 'bad'), '/community/posts/p1');
     expect(communityFallbackPath('POPULAR'), '/community');
     expect(communityFallbackPath('CARE'), '/community/category/CARE');
@@ -1341,6 +1349,7 @@ class _FakeCommunityService extends CommunityService {
     String postId, {
     String? cursor,
     int limit = 20,
+    int replyLimit = 20,
   }) async => const PostCommentFeed(items: []);
 }
 

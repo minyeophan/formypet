@@ -132,6 +132,10 @@ class PostComment {
   final String content;
   final String createdAt;
   final int commentsCount;
+  final String? parentCommentId;
+  final int replyCount;
+  final List<PostComment> replies;
+  final String? repliesNextCursor;
 
   const PostComment({
     required this.id,
@@ -141,6 +145,10 @@ class PostComment {
     required this.content,
     required this.createdAt,
     required this.commentsCount,
+    this.parentCommentId,
+    this.replyCount = 0,
+    this.replies = const [],
+    this.repliesNextCursor,
   });
 
   factory PostComment.fromJson(Map<String, dynamic> j) => PostComment(
@@ -151,6 +159,34 @@ class PostComment {
     content: j['content'] as String? ?? '',
     createdAt: j['createdAt'] as String? ?? '',
     commentsCount: j['commentsCount'] as int? ?? 0,
+    parentCommentId: j['parentCommentId']?.toString(),
+    replyCount: j['replyCount'] as int? ?? 0,
+    replies: (j['replies'] as List<dynamic>? ?? [])
+        .map((e) => PostComment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    repliesNextCursor: j['repliesNextCursor'] as String?,
+  );
+
+  PostComment copyWith({
+    int? commentsCount,
+    int? replyCount,
+    List<PostComment>? replies,
+    String? repliesNextCursor,
+    bool clearRepliesNextCursor = false,
+  }) => PostComment(
+    id: id,
+    userId: userId,
+    authorNickname: authorNickname,
+    authorProfileImageUrl: authorProfileImageUrl,
+    content: content,
+    createdAt: createdAt,
+    commentsCount: commentsCount ?? this.commentsCount,
+    parentCommentId: parentCommentId,
+    replyCount: replyCount ?? this.replyCount,
+    replies: replies ?? this.replies,
+    repliesNextCursor: clearRepliesNextCursor
+        ? null
+        : repliesNextCursor ?? this.repliesNextCursor,
   );
 }
 

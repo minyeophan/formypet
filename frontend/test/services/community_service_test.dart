@@ -196,6 +196,65 @@ void main() {
       ]);
     },
   );
+
+  test('reply requests send reply limit and parent only for replies', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      return _jsonResponse(options, options.method == 'POST' ? 201 : 200, {
+        'data': options.method == 'GET'
+            ? {'items': <Object>[], 'nextCursor': null}
+            : {
+                'id': 1,
+                'userId': 1,
+                'authorNickname': 'author',
+                'content': 'reply',
+                'createdAt': '2026-06-27T00:00:00',
+                'commentsCount': 1,
+              },
+      });
+    });
+
+    final service = CommunityService();
+    await service.getComments('post-1', replyLimit: 3);
+    await service.createComment('post-1', 'root');
+    await service.createComment('post-1', 'reply', parentCommentId: 'root-1');
+
+    expect(requests[0].queryParameters['replyLimit'], 3);
+    expect(requests[1].data, {'content': 'root'});
+    expect(requests[2].data, {'content': 'reply', 'parentCommentId': 'root-1'});
+  });
+
+  test('thread and reply pagination use dedicated endpoints', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      final isReplies = options.path.endsWith('/replies');
+      return _jsonResponse(options, 200, {
+        'data': isReplies
+            ? {'items': <Object>[], 'nextCursor': null}
+            : {
+                'id': 9,
+                'userId': 1,
+                'authorNickname': 'author',
+                'content': 'root',
+                'createdAt': '2026-06-27T00:00:00',
+                'commentsCount': 1,
+                'replyCount': 0,
+                'replies': <Object>[],
+              },
+      });
+    });
+
+    final service = CommunityService();
+    await service.getCommentThread('post-1', '9', replyLimit: 3);
+    await service.getReplies('post-1', '9', cursor: '8');
+
+    expect(requests[0].path, '/api/v1/posts/post-1/comments/9');
+    expect(requests[0].queryParameters['replyLimit'], 3);
+    expect(requests[1].path, '/api/v1/posts/post-1/comments/9/replies');
+    expect(requests[1].queryParameters, {'cursor': '8', 'limit': 20});
+  });
 }
 
 ResponseBody _jsonResponse(

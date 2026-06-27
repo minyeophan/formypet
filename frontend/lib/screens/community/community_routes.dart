@@ -12,6 +12,8 @@ String communityCommentsPath(
   String postId,
   String? sourceKey, {
   bool focus = false,
+  String? threadId,
+  String? replyToCommentId,
 }) {
   final source = normalizeCommunitySourceKey(sourceKey);
   return Uri(
@@ -19,6 +21,8 @@ String communityCommentsPath(
     queryParameters: {
       if (source.isNotEmpty) 'from': source,
       if (focus) 'focus': 'true',
+      'thread': ?threadId,
+      'replyTo': ?replyToCommentId,
     },
   ).toString();
 }

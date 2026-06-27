@@ -108,11 +108,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/community/posts/:postId/comments',
-        builder: (c, s) => CommunityCommentsScreen(
-          postId: s.pathParameters['postId']!,
-          sourceKey: s.uri.queryParameters['from'],
-          autofocus: s.uri.queryParameters['focus'] == 'true',
-        ),
+        builder: (c, s) {
+          final replyTo = s.uri.queryParameters['replyTo'];
+          final thread = replyTo ?? s.uri.queryParameters['thread'];
+          return CommunityCommentsScreen(
+            postId: s.pathParameters['postId']!,
+            sourceKey: s.uri.queryParameters['from'],
+            initialThreadId: thread,
+            initialReplyToCommentId: replyTo,
+            autofocus:
+                s.uri.queryParameters['focus'] == 'true' || replyTo != null,
+          );
+        },
       ),
       GoRoute(
         path: '/community/posts/:postId',

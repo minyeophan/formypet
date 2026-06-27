@@ -142,8 +142,16 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     return post;
   }
 
-  Future<PostComment> createComment(String postId, String content) async {
-    final comment = await _svc.createComment(postId, content);
+  Future<PostComment> createComment(
+    String postId,
+    String content, {
+    String? parentCommentId,
+  }) async {
+    final comment = await _svc.createComment(
+      postId,
+      content,
+      parentCommentId: parentCommentId,
+    );
     final post = state.postsById[postId];
     if (post != null) {
       _replacePost(post.copyWith(commentsCount: comment.commentsCount));

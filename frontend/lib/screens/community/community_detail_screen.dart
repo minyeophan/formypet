@@ -65,7 +65,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     try {
       final feed = await ref
           .read(communityServiceProvider)
-          .getComments(widget.postId, limit: 5);
+          .getComments(widget.postId, limit: 5, replyLimit: 3);
       _comments = feed.items.take(5).toList();
     } catch (_) {
       if (_comments.isEmpty) _comments = const [];
@@ -84,11 +84,21 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     }
   }
 
-  Future<void> _openComments({bool focus = false}) async {
+  Future<void> _openComments({
+    bool focus = false,
+    String? threadId,
+    String? replyToCommentId,
+  }) async {
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     await context.push(
-      communityCommentsPath(widget.postId, widget.sourceKey, focus: focus),
+      communityCommentsPath(
+        widget.postId,
+        widget.sourceKey,
+        focus: focus,
+        threadId: threadId,
+        replyToCommentId: replyToCommentId,
+      ),
     );
     if (mounted) await _load();
   }
@@ -130,6 +140,9 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
                           showCommunityCommentMoreMenu(context),
                       onFirstComment: () => _openComments(focus: true),
                       onMoreComments: () => _openComments(),
+                      onReply: (rootId) =>
+                          _openComments(replyToCommentId: rootId, focus: true),
+                      onThread: (rootId) => _openComments(threadId: rootId),
                     ),
             ),
           ],
@@ -236,6 +249,8 @@ class _DetailBody extends StatelessWidget {
   final VoidCallback onCommentMore;
   final VoidCallback onFirstComment;
   final VoidCallback onMoreComments;
+  final ValueChanged<String> onReply;
+  final ValueChanged<String> onThread;
 
   const _DetailBody({
     required this.controller,
@@ -246,6 +261,8 @@ class _DetailBody extends StatelessWidget {
     required this.onCommentMore,
     required this.onFirstComment,
     required this.onMoreComments,
+    required this.onReply,
+    required this.onThread,
   });
 
   @override
@@ -254,6 +271,23 @@ class _DetailBody extends StatelessWidget {
     controller: controller,
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 108),
     children: [
+      Row(
+        key: const Key('community-detail-author'),
+        children: [
+          CommunityCommentAvatar(
+            key: const Key('community-detail-author-avatar'),
+            url: post.authorProfileImageUrl,
+            size: 36,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: AppText(post.authorNickname, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      const Divider(key: Key('community-detail-author-divider'), height: 1),
+      const SizedBox(height: 16),
       AppText(
         post.title?.trim().isNotEmpty == true
             ? post.title!.trim()
@@ -262,8 +296,6 @@ class _DetailBody extends StatelessWidget {
         fontWeight: FontWeight.bold,
       ),
       const SizedBox(height: 8),
-      AppText(post.authorNickname, fontSize: 12, color: AppColors.muted),
-      const SizedBox(height: 16),
       if (post.title?.trim().isNotEmpty == true)
         AppText(post.content, fontSize: 15, color: AppColors.textSecondary),
       if (post.imageUrls.isNotEmpty) ...[
@@ -292,10 +324,12 @@ class _DetailBody extends StatelessWidget {
         _PollCard(poll: post.poll!, onVote: onVote),
       ],
       const SizedBox(height: 24),
+      const Divider(key: Key('community-detail-content-divider'), height: 1),
+      const SizedBox(height: 16),
       if (comments.isEmpty)
         _FirstCommentButton(onPressed: onFirstComment)
       else ...[
-        for (var i = 0; i < comments.length; i++)
+        for (var i = 0; i < comments.length; i++) ...[
           CommunityCommentTile(
             key: i == 0
                 ? const Key('community-detail-first-comment')
@@ -307,7 +341,33 @@ class _DetailBody extends StatelessWidget {
               comment: comments[i],
             ),
             onMore: onCommentMore,
+            onReply: () => onReply(comments[i].id),
           ),
+          for (final reply in comments[i].replies)
+            CommunityCommentTile(
+              comment: reply,
+              isReply: true,
+              canManage: canManageCommunityComment(
+                currentUserId: currentUserId,
+                post: post,
+                comment: reply,
+              ),
+              onMore: onCommentMore,
+            ),
+          if (comments[i].replyCount >
+              comments[i].replies.map((e) => e.id).toSet().length)
+            Padding(
+              padding: const EdgeInsets.only(left: 36),
+              child: TextButton(
+                key: Key('community-detail-more-replies-${comments[i].id}'),
+                onPressed: () => onThread(comments[i].id),
+                child: AppText(
+                  '답글 ${comments[i].replyCount - comments[i].replies.map((e) => e.id).toSet().length}개 더보기',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
         if (post.commentsCount > comments.length)
           TextButton(
             key: const Key('community-detail-more-comments'),
@@ -433,7 +493,11 @@ class _DetailBottomActionBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Divider(height: 1, color: AppColors.border),
+          const Divider(
+            key: Key('community-detail-bottom-divider'),
+            height: 1,
+            color: AppColors.border,
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
             child: Row(

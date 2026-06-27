@@ -33,26 +33,27 @@ void showCommunityCommentMoreMenu(BuildContext context) {
 
 class CommunityCommentAvatar extends StatelessWidget {
   final String? url;
+  final double size;
 
-  const CommunityCommentAvatar({super.key, required this.url});
+  const CommunityCommentAvatar({super.key, required this.url, this.size = 32});
 
   @override
   Widget build(BuildContext context) {
     final fallback = Material(
       color: AppColors.surfaceSoft,
       shape: const CircleBorder(),
-      child: const SizedBox(
-        width: 32,
-        height: 32,
-        child: Center(child: Text('🐾', style: TextStyle(fontSize: 16))),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: const Center(child: Text('🐾', style: TextStyle(fontSize: 16))),
       ),
     );
     if (url == null || url!.isEmpty) return fallback;
     return ClipOval(
       child: AuthenticatedNetworkImage(
         url: url,
-        width: 32,
-        height: 32,
+        width: size,
+        height: size,
         fit: BoxFit.cover,
         fallback: fallback,
       ),
@@ -65,6 +66,8 @@ class CommunityCommentTile extends StatelessWidget {
   final bool canManage;
   final VoidCallback onMore;
   final Key? moreKey;
+  final bool isReply;
+  final VoidCallback? onReply;
 
   const CommunityCommentTile({
     super.key,
@@ -72,12 +75,19 @@ class CommunityCommentTile extends StatelessWidget {
     required this.canManage,
     required this.onMore,
     this.moreKey,
+    this.isReply = false,
+    this.onReply,
   });
 
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    color: AppColors.surface,
+    key: Key(
+      isReply
+          ? 'community-reply-${comment.id}'
+          : 'community-root-${comment.id}',
+    ),
+    margin: EdgeInsets.only(left: isReply ? 36 : 0, bottom: 10),
+    color: isReply ? AppColors.surfaceSoft : AppColors.surface,
     elevation: 0,
     shape: RoundedRectangleBorder(
       side: const BorderSide(color: AppColors.border),
@@ -90,7 +100,11 @@ class CommunityCommentTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              CommunityCommentAvatar(url: comment.authorProfileImageUrl),
+              CommunityCommentAvatar(
+                key: Key('community-comment-avatar-${comment.id}'),
+                url: comment.authorProfileImageUrl,
+                size: isReply ? 28 : 32,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: AppText(
@@ -111,6 +125,15 @@ class CommunityCommentTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AppText(comment.content, fontSize: 14),
+          if (!isReply && onReply != null) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              key: Key('community-comment-reply-${comment.id}'),
+              onPressed: onReply,
+              icon: const Icon(Icons.reply_rounded, size: 17),
+              label: const AppText('답글쓰기', fontSize: 12),
+            ),
+          ],
         ],
       ),
     ),

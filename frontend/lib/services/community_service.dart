@@ -53,7 +53,7 @@ class CommunityService {
     final payload = {
       'content': content,
       'category': category.toUpperCase(),
-      if (title case final title?) 'title': title,
+      'title': ?title,
       if (poll case final poll?) 'poll': poll.toJson(),
     };
 
@@ -100,18 +100,52 @@ class CommunityService {
     String postId, {
     String? cursor,
     int limit = 20,
+    int replyLimit = 20,
   }) async {
     final res = await dio.get(
       '/api/v1/posts/$postId/comments',
-      queryParameters: {if (cursor != null) 'cursor': cursor, 'limit': limit},
+      queryParameters: {
+        'cursor': ?cursor,
+        'limit': limit,
+        'replyLimit': replyLimit,
+      },
     );
     return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
-  Future<PostComment> createComment(String postId, String content) async {
+  Future<PostComment> getCommentThread(
+    String postId,
+    String commentId, {
+    int replyLimit = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/v1/posts/$postId/comments/$commentId',
+      queryParameters: {'replyLimit': replyLimit},
+    );
+    return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<PostCommentFeed> getReplies(
+    String postId,
+    String commentId, {
+    String? cursor,
+    int limit = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/v1/posts/$postId/comments/$commentId/replies',
+      queryParameters: {'cursor': ?cursor, 'limit': limit},
+    );
+    return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<PostComment> createComment(
+    String postId,
+    String content, {
+    String? parentCommentId,
+  }) async {
     final res = await dio.post(
       '/api/v1/posts/$postId/comments',
-      data: {'content': content.trim()},
+      data: {'content': content.trim(), 'parentCommentId': ?parentCommentId},
     );
     return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
   }

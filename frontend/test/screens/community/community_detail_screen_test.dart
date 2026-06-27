@@ -120,7 +120,9 @@ void main() {
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
 
-    final divider = tester.widget<Divider>(find.byType(Divider).first);
+    final divider = tester.widget<Divider>(
+      find.byKey(const Key('community-detail-bottom-divider')),
+    );
     expect(divider.height, 1);
     expect(divider.color, AppColors.border);
   });
@@ -131,7 +133,9 @@ void main() {
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
 
-    final card = tester.widget<Card>(find.byType(Card).first);
+    final card = tester.widget<Card>(
+      find.byKey(const Key('community-root-one')),
+    );
     expect(card.color, AppColors.surface);
     expect(card.elevation, 0);
     final shape = card.shape as RoundedRectangleBorder;
@@ -167,7 +171,45 @@ void main() {
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
 
-    expect(find.text('🐾'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('community-comment-avatar-one')),
+        matching: find.text('🐾'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('renders three replies and the remaining reply count', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      comments: [
+        _comment(
+          id: 'root',
+          userId: 'user-1',
+          replyCount: 5,
+          replies: [
+            _comment(id: 'reply-1', userId: 'user-2', parentCommentId: 'root'),
+            _comment(id: 'reply-2', userId: 'user-2', parentCommentId: 'root'),
+            _comment(id: 'reply-3', userId: 'user-2', parentCommentId: 'root'),
+          ],
+        ),
+      ],
+    );
+
+    expect(find.byKey(const Key('community-reply-reply-1')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('community-reply-reply-3')),
+      180,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('community-detail-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(find.byKey(const Key('community-reply-reply-3')), findsOneWidget);
+    expect(find.text('답글 2개 더보기'), findsOneWidget);
   });
 
   testWidgets('delete action shows preparing toast', (tester) async {
@@ -240,6 +282,9 @@ PostComment _comment({
   required String id,
   required String userId,
   String? authorProfileImageUrl,
+  String? parentCommentId,
+  int replyCount = 0,
+  List<PostComment> replies = const [],
 }) => PostComment(
   id: id,
   userId: userId,
@@ -248,6 +293,9 @@ PostComment _comment({
   content: '댓글 내용',
   createdAt: '2026-06-24T00:00:00',
   commentsCount: 1,
+  parentCommentId: parentCommentId,
+  replyCount: replyCount,
+  replies: replies,
 );
 
 class _FakeCommunityService extends CommunityService {
@@ -272,6 +320,7 @@ class _FakeCommunityService extends CommunityService {
     String postId, {
     String? cursor,
     int limit = 20,
+    int replyLimit = 20,
   }) async => PostCommentFeed(items: comments);
 }
 
