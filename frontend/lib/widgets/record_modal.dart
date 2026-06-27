@@ -8,7 +8,10 @@ import 'record_detail_form.dart';
 
 class RecordModal {
   static Future<void> show(
-      BuildContext context, WidgetRef ref, String? initialTypeId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String? initialTypeId,
+  ) async {
     String? selectedTypeId = initialTypeId;
 
     if (selectedTypeId == null) {
@@ -57,8 +60,11 @@ class _TypeSelectSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const AppText('기록 유형 선택',
-                fontWeight: FontWeight.bold, fontSize: 16),
+            const AppText(
+              '기록 유형 선택',
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
             const SizedBox(height: 16),
             GridView.builder(
               shrinkWrap: true,
@@ -153,9 +159,10 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
       await ref.read(petProvider.notifier).addRecord({
         'typeId': widget.typeId,
         'date': dateStr,
-        if (timeStr != null) 'time': timeStr,
+        'time': ?timeStr,
         if (_noteCtrl.text.isNotEmpty) 'note': _noteCtrl.text,
-        if (_detail.isNotEmpty) 'detail': sanitizeDetail(_detail, widget.typeId),
+        if (_detail.isNotEmpty)
+          'detail': sanitizeDetail(_detail, widget.typeId),
       });
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -195,8 +202,11 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               children: [
                 Icon(type?.icon ?? Icons.circle, color: Colors.blue),
                 const SizedBox(width: 8),
-                AppText(type?.label ?? widget.typeId,
-                    fontWeight: FontWeight.bold, fontSize: 16),
+                AppText(
+                  type?.label ?? widget.typeId,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -220,9 +230,7 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                   const Icon(Icons.access_time, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   AppText(
-                    _time != null
-                        ? _time!.format(context)
-                        : '시간 선택 (선택)',
+                    _time != null ? _time!.format(context) : '시간 선택 (선택)',
                     color: Colors.grey,
                   ),
                 ],
@@ -232,7 +240,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
             TextField(
               controller: _noteCtrl,
               decoration: const InputDecoration(
-                  hintText: '메모 (선택)', border: OutlineInputBorder()),
+                hintText: '메모 (선택)',
+                border: OutlineInputBorder(),
+              ),
               maxLines: 2,
             ),
             if (_error != null) ...[
@@ -261,9 +271,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const AppText('저장',
-                            fontWeight: FontWeight.bold),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const AppText('저장', fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
