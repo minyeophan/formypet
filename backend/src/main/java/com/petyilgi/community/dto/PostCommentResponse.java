@@ -6,6 +6,7 @@ public record PostCommentResponse(
         Long id,
         Long userId,
         String authorNickname,
+        String authorProfileImageUrl,
         String content,
         LocalDateTime createdAt,
         int commentsCount

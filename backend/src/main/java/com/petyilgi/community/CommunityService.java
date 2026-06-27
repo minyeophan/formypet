@@ -114,7 +114,7 @@ public class CommunityService {
         int pageSize = Math.max(1, Math.min(limit, 50));
         List<Object> params = new ArrayList<>(List.of(postId));
         StringBuilder sql = new StringBuilder("""
-                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, pc.content, pc.created_at
+                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, u.profile_media_id, pc.content, pc.created_at
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
                 WHERE pc.post_id = ?
@@ -307,7 +307,7 @@ public class CommunityService {
 
     private PostCommentResponse findCommentResponse(Long commentId, int commentsCount) {
         Map<String, Object> row = jdbcTemplate.queryForMap("""
-                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, pc.content, pc.created_at
+                SELECT pc.id, pc.user_id, u.nickname AS author_nickname, u.profile_media_id, pc.content, pc.created_at
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
                 WHERE pc.id = ?
@@ -320,10 +320,18 @@ public class CommunityService {
                 ((Number) row.get("id")).longValue(),
                 ((Number) row.get("user_id")).longValue(),
                 (String) row.get("author_nickname"),
+                commentAuthorProfileImageUrl(row),
                 (String) row.get("content"),
                 normalizeDateTime(row.get("created_at")),
                 commentsCount
         );
+    }
+
+    private String commentAuthorProfileImageUrl(Map<String, Object> row) {
+        if (row.get("profile_media_id") == null) {
+            return null;
+        }
+        return "/api/v1/users/" + ((Number) row.get("user_id")).longValue() + "/profile-image";
     }
 
     private PostResponse toPostResponse(Map<String, Object> row, Long currentUserId) {

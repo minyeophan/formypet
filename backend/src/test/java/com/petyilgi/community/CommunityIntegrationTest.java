@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -20,24 +21,29 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
 @Transactional
+@TestPropertySource(properties = "app.media.storage-root=build/community-media-test-storage")
 class CommunityIntegrationTest extends IntegrationTestSupport {
 
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String POSTS_URL = "/api/v1/posts";
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update("UPDATE users SET profile_media_id = NULL");
+        jdbcTemplate.update("DELETE FROM media_resources");
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -296,6 +302,46 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void commentsExposeAuthenticatedAuthorProfileImageUrl() throws Exception {
+        String authorToken = registerAndGetToken("comment-profile-author@example.com", "author");
+        String viewerToken = registerAndGetToken("comment-profile-viewer@example.com", "viewer");
+        Long authorId = readUserId(authorToken);
+        uploadProfileImage(authorToken);
+        Long postId = createPost(authorToken, "profile comment", "FREE", "profile target");
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"profile comment\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.authorProfileImageUrl")
+                        .value("/api/v1/users/" + authorId + "/profile-image"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].authorProfileImageUrl")
+                        .value("/api/v1/users/" + authorId + "/profile-image"));
+
+        mockMvc.perform(get("/api/v1/users/" + authorId + "/profile-image")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentType("image/png"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .bytes("profile-image-bytes".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/api/v1/users/" + authorId + "/profile-image"))
+                .andExpect(status().isUnauthorized());
+
+        Long viewerId = readUserId(viewerToken);
+        mockMvc.perform(get("/api/v1/users/" + viewerId + "/profile-image")
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("PROFILE_IMAGE_NOT_FOUND"));
+    }
+
+    @Test
     void blankCommentIsRejected() throws Exception {
         String token = registerAndGetToken("blank-comment@example.com", "blankcomment");
         Long postId = createPost(token, "댓글 검증", "FREE", "comment validation");
@@ -357,6 +403,15 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 "image-bytes-1".getBytes(StandardCharsets.UTF_8));
     }
 
+    private void uploadProfileImage(String token) throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png",
+                "profile-image-bytes".getBytes(StandardCharsets.UTF_8));
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(file)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+    }
+
     private String registerAndGetToken(String email, String nickname) throws Exception {
         MvcResult result = mockMvc.perform(post(AUTH_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -374,5 +429,14 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     private Long readId(MvcResult result) throws Exception {
         var data = (Map<?, ?>) objectMapper.readValue(result.getResponse().getContentAsString(), Map.class).get("data");
         return ((Number) data.get("id")).longValue();
+    }
+
+    private Long readUserId(String token) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        var data = (Map<?, ?>) objectMapper.readValue(result.getResponse().getContentAsString(), Map.class).get("data");
+        return Long.parseLong(data.get("id").toString());
     }
 }
