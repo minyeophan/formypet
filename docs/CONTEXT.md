@@ -127,10 +127,10 @@
 
 ## 최신 Handover
 
-- Goal: 루틴 일정을 SharedPreferences 로컬 저장에서 서버 DB/API 저장으로 전환하고 Flutter 일정 화면/provider를 서버 응답 기반으로 연결한다.
-- Done: `V18__create_care_schedules.sql`, 테스트 스키마, care schedule CRUD API와 통합 테스트를 추가했다. Flutter에는 `CareScheduleService`, provider service 주입, 서버 기반 일정 load/create/update/delete, 생성 후 서버 id 기반 이동을 반영했다. `docs/FRONTEND_STATUS.md`와 `docs/ERD.md`도 일정 API/테이블 기준으로 갱신했다.
-- Remaining: 장소 검색은 계획대로 제외되어 `준비중` 토스트를 유지한다. 기존 로컬 `careSchedules:{petId}` 데이터 이관은 하지 않았다. 전체 Flutter suite는 기존 범위 밖 실패 가능성이 있어 선택 테스트 중심으로 검증했다.
-- Next step: 실제 앱 실행 시 백엔드 `.\gradlew.bat bootRun` 후 Flutter `flutter run -d chrome` 또는 `flutter run`으로 로그인 → 루틴 → 일정 생성/상세/수정/삭제 흐름을 수동 확인한다.
+- Goal: 기록 화면에서 `expense` 레거시 타입을 제거하고 `/records/expense/new` 직접 접근은 지갑 비용 추가 화면으로 안전하게 redirect한다.
+- Done: `record_support.dart`에 카테고리 기록 입력 지원 타입과 판정 함수를 추가했고, 기록 메인 화면은 `meal`과 지원 카테고리 타입만 노출하도록 정리했다. `/records/:typeId/new` 라우트는 `expense`를 `/wallet/expenses/new`로 보내고, 지원하지 않는 타입은 `/records`로 redirect하되 strict valid `date=YYYY-MM-DD`만 보존한다. 관련 router/records 테스트와 `docs/FRONTEND_STATUS.md`를 현재 지갑 도메인 기준으로 갱신했다.
+- Remaining: 백엔드와 지갑 화면/provider/service는 이번 범위에서 변경하지 않았다. `checkup` config 자체 삭제는 범위 밖이라 기록 화면 노출 기준으로만 숨긴다.
+- Next step: 실제 앱 실행 시 `/records`, `/records/expense/new`, `/records/checkup/new?date=2026-05-09`, `/wallet/expenses/new` 진입을 수동 확인한다.
 - Warnings: 커뮤니티/미디어/프로필 이미지 관련 dirty 파일은 병렬/이전 작업 변경으로 보고 건드리지 않았다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
 
 ## 이전 Handover

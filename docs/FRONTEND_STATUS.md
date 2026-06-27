@@ -48,7 +48,7 @@
 | Records | `반려기록` 메인, 전체 기록, 성장 | ✅ 구현됨 | `/records`, `/records/all`, `/records/growth`로 이동 |
 | Records | 급식, 음수, 배변, 산책, 몸무게, 병원, 영양, 일기, 기타 | 🔌 연동됨 | 전체 화면 입력 후 기록 생성 API 호출 |
 | Records | 기록 목록 row | 🚧 부분 구현 | 목록 표시는 되지만 상세, 수정, 삭제 진입 UI 없음 |
-| Wallet | 지갑, 지출 리포트, 비용 추가 | 🚧 부분 구현 | 조회·입력 UI는 있으나 비용 저장, 항목 추가, 사진 첨부는 미구현 |
+| Wallet | 지갑, 지출 리포트, 비용 추가 | 🔌 연동됨 | 지갑 목록/요약/생성/상세/수정/삭제 UI와 provider/service가 wallet expense API를 호출 |
 | Routine | 루틴 생성, 완료 체크, 삭제 | 🔌 연동됨 | API 호출 연결 |
 | Routine | 루틴 수정 | 🧭 진입점 없음 | service/provider는 있으나 수정 화면 진입 없음 |
 | Routine | 일정 목록, 일정 추가 | 🔌 연동됨 | 목록/상세/생성/수정/삭제는 care schedule API와 provider 상태에 연결. 지도 검색은 `준비중` 토스트 유지 |
@@ -194,17 +194,18 @@
 
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| `expense` | 🚧 부분 구현 | 메인 기록 카드에서는 숨김. 별도 지갑 UI가 있으나 저장 계약 미확정 |
+| `expense` | 🔌 연동됨 | 기록 타입이 아니라 지갑 전용 도메인. 메인 기록 카드에서는 숨기고 지갑 UI에서 wallet expense API로 처리 |
 
 ### 지갑/지출 UI
 
 | 항목 | 상태 | 프론트 기준 |
 |------|------|-------------|
 | 홈 지갑 진입 | ✅ 구현됨 | 홈 `지갑` 메뉴 → `/wallet` |
-| 지갑 요약 | ✅ 구현됨 | `screens/records/expense_wallet_screen.dart`, records 상태의 `expense` 항목 집계 |
+| 지갑 요약 | 🔌 연동됨 | `screens/wallet/expense_wallet_screen.dart`, wallet expense provider/service 상태 집계 |
 | 지출 리포트 | ✅ 구현됨 | `/wallet/report`, 카테고리 합계와 지출 목록 표시 |
-| 비용 추가 화면 | ✅ 구현됨 | `/records/expense/new`, 금액/카테고리/기본 정보/메모 UI |
-| 지출 저장 | 🟡 Sync 필요 | 저장 버튼은 현재 `준비중`; 백엔드 저장 API/typeId 미확정 |
+| 비용 추가 화면 | 🔌 연동됨 | `/wallet/expenses/new`, 금액/카테고리/기본 정보/메모 UI와 저장 API 연결 |
+| 레거시 비용 추가 URL | ✅ 구현됨 | `/records/expense/new`는 기록 입력이 아니라 `/wallet/expenses/new`로 redirect |
+| 지출 저장 | 🔌 연동됨 | `WalletExpenseProvider.createExpense()`가 wallet expense 생성 API 호출 |
 | 비용 항목 추가, 사진 첨부 | 🚧 부분 구현 | 비용 추가 화면에 표시되지만 현재는 눌리지 않는 정적 UI |
 
 ### Backend sync needed
@@ -416,7 +417,7 @@ interface CommunityComment {
 | 펫 | 온보딩, 펫 추가/수정/삭제, 프로필 사진 |
 | 기록 | 현재 접근 가능한 타입별 기록, 급식 사진 업로드, 목록/성장 표시. 상세·수정·삭제 UI 추가 후 해당 흐름 확인 |
 | 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI 추가 후 해당 흐름 확인 |
-| 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가 UI. 저장 계약 결정 후 실제 저장 |
+| 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가/상세/수정/삭제 UI와 API 저장 흐름 |
 | 커뮤니티 | 피드, 카테고리 탭, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글 작성, 투표 참여. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
 
 ---
