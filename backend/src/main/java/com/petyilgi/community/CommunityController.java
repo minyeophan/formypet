@@ -53,8 +53,26 @@ public class CommunityController {
     public ApiResponse<PostCommentFeedResponse> comments(@AuthenticationPrincipal String email,
                                                           @PathVariable Long postId,
                                                           @RequestParam(required = false) String cursor,
-                                                          @RequestParam(defaultValue = "20") int limit) {
-        return ApiResponse.of(communityService.comments(email, postId, cursor, limit));
+                                                          @RequestParam(defaultValue = "20") int limit,
+                                                          @RequestParam(defaultValue = "20") int replyLimit) {
+        return ApiResponse.of(communityService.comments(email, postId, cursor, limit, replyLimit));
+    }
+
+    @GetMapping("/{postId}/comments/{commentId}")
+    public ApiResponse<PostCommentResponse> commentThread(@AuthenticationPrincipal String email,
+                                                           @PathVariable Long postId,
+                                                           @PathVariable Long commentId,
+                                                           @RequestParam(defaultValue = "20") int replyLimit) {
+        return ApiResponse.of(communityService.commentThread(email, postId, commentId, replyLimit));
+    }
+
+    @GetMapping("/{postId}/comments/{commentId}/replies")
+    public ApiResponse<PostCommentFeedResponse> replies(@AuthenticationPrincipal String email,
+                                                         @PathVariable Long postId,
+                                                         @PathVariable Long commentId,
+                                                         @RequestParam(required = false) String cursor,
+                                                         @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.of(communityService.replies(email, postId, commentId, cursor, limit));
     }
 
     @PostMapping("/{postId}/comments")
