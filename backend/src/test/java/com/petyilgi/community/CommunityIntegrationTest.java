@@ -353,6 +353,91 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void repliesAreLimitedPagedAndCannotBeNested() throws Exception {
+        String token = registerAndGetToken("reply@example.com", "reply-user");
+        Long postId = createPost(token, "reply post", "FREE", "body");
+        Long rootId = createComment(token, postId, "root", null);
+        Long oldestReplyId = null;
+        Long newestReplyId = null;
+        for (int i = 1; i <= 21; i++) {
+            Long id = createComment(token, postId, "reply-" + i, rootId);
+            if (i == 1) oldestReplyId = id;
+            newestReplyId = id;
+        }
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("replyLimit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].replyCount").value(21))
+                .andExpect(jsonPath("$.data.items[0].replies", hasSize(3)))
+                .andExpect(jsonPath("$.data.items[0].replies[2].id").value(newestReplyId))
+                .andExpect(jsonPath("$.data.items[0].repliesNextCursor").isNotEmpty())
+                .andExpect(jsonPath("$.data.items[0].commentsCount").value(22));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments/" + rootId + "/replies")
+                        .header("Authorization", "Bearer " + token)
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(20)))
+                .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "content", "nested", "parentCommentId", oldestReplyId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments/" + oldestReplyId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("replyLimit", "21"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void missingAndCrossPostParentsReturnSpecificErrors() throws Exception {
+        String token = registerAndGetToken("parent-errors@example.com", "parent-errors");
+        Long firstPostId = createPost(token, "first", "FREE", "body");
+        Long secondPostId = createPost(token, "second", "FREE", "body");
+        Long rootId = createComment(token, firstPostId, "root", null);
+
+        mockMvc.perform(post(POSTS_URL + "/" + secondPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "content", "cross", "parentCommentId", rootId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"missing\",\"parentCommentId\":999999}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_NOT_FOUND"));
+    }
+
+    private Long createComment(String token, Long postId, String content, Long parentCommentId) throws Exception {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("content", content);
+        if (parentCommentId != null) payload.put("parentCommentId", parentCommentId);
+        MvcResult result = mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result);
+    }
+
     private Long createPost(String token, String title, String category, String content) throws Exception {
         MvcResult result = mockMvc.perform(multipartPost(token, Map.of(
                         "title", title,
