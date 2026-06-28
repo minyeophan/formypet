@@ -1,6 +1,6 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
-> 마지막 갱신: 2026-06-26
+> 마지막 갱신: 2026-06-27
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 
 ## 상태 표기
@@ -39,6 +39,7 @@
 | Home | `반려로그` 메뉴 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 별도 화면 없음 |
 | Community | 상단 알림, 검색 아이콘 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 알림 목록과 검색 화면 없음 |
 | Community | 게시글 카드 | 🔌 연동됨 | 피드 조회, 좋아요, 상세 진입, 첫 이미지 썸네일, 이미지 개수, 투표 badge 표시 |
+| Community | 댓글, 답글 | 🔌 연동됨 | 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회 지원 |
 | Community | 카테고리 화면 `전체⌄`, 이용 가이드 | 🚧 부분 구현 | 표시 전용 UI. 필터 선택과 가이드 화면 없음 |
 | My | 펫 카드, `펫 추가하기` | ✅ 구현됨 | `/pet/{id}`, `/pets/new`로 이동 |
 | My | 설정, `모두보기`, 프로필 편집 | ✅ 구현됨 | `/my/settings`, `/my/pets`, `/my/profile`로 이동 |
@@ -47,7 +48,7 @@
 | My | 로그아웃 | 🔌 연동됨 | 설정의 확인 시트 승인 후 `AuthNotifier.logout()` 호출 |
 | Records | `반려기록` 메인, 전체 기록, 성장 | ✅ 구현됨 | `/records`, `/records/all`, `/records/growth`로 이동 |
 | Records | 급식, 음수, 배변, 산책, 몸무게, 병원, 영양, 일기, 기타 | 🔌 연동됨 | 전체 화면 입력 후 기록 생성 API 호출 |
-| Records | 기록 목록 row | 🚧 부분 구현 | 목록 표시는 되지만 상세, 수정, 삭제 진입 UI 없음 |
+| Records | 기록 목록 row | 🔌 연동됨 | 목록 row → 상세 → 수정 화면으로 이동하며 수정 화면에서 저장·삭제 API 호출 |
 | Wallet | 지갑, 지출 리포트, 비용 추가 | 🔌 연동됨 | 지갑 목록/요약/생성/상세/수정/삭제 UI와 provider/service가 wallet expense API를 호출 |
 | Routine | 루틴 생성, 완료 체크, 삭제 | 🔌 연동됨 | API 호출 연결 |
 | Routine | 루틴 수정 | 🧭 진입점 없음 | service/provider는 있으나 수정 화면 진입 없음 |
@@ -141,7 +142,7 @@
 
 ### 요약
 
-현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. `/records?date=YYYY-MM-DD`와 입력 화면의 `date` query를 지원하며, 메인에서 선택한 날짜를 입력 화면의 고정 날짜로 사용한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다. 기록 목록은 표시되지만 상세, 수정, 삭제 진입 UI는 아직 없다.
+현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. `/records?date=YYYY-MM-DD`와 입력 화면의 `date` query를 지원하며, 메인에서 선택한 날짜를 입력 화면의 고정 날짜로 사용한다. 기록 목록 row는 `/records/:recordId` 상세로 이동하고, 상세의 수정 버튼은 `/records/:recordId/edit`로 이동한다. 수정 화면에서 저장과 삭제 API를 호출한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다.
 
 활동 기록 타입은 `meal`, `water`, `poop`, `walk`, `medicine`, `weight`, `vet`, `diary`, `etc` 9개만 유지한다. `/records/:typeId/new`으로 `play`, `sleep`, `checkup`, `bath`, `groom`에 직접 접근하면 `/records`로 redirect한다. 일정·지갑의 `grooming`과 병원 방문 사유 `checkup`은 이 정책의 대상이 아니다.
 
@@ -155,13 +156,14 @@
 | 이전 빠른 기록 bottom sheet | 🧭 진입점 없음 | `widgets/record_modal.dart`, `screens/home/quick_record_row.dart`는 남아 있으나 현재 Home과 라우터에서 호출하지 않음 |
 | 오늘 Home 요약 | ✅ 구현됨 | `home_screen.dart`의 오늘 관리 타임라인과 최근 건강 상태 |
 | 성장/체중 그래프 | ✅ 구현됨 | `/records/growth`, `GrowthRecordsScreen` |
-| 기록 상세/수정/삭제 UI | 🧭 진입점 없음 | provider/service 메서드는 있으나 현재 기록 목록 row에서 들어갈 화면이나 액션 없음 |
+| 기록 상세/수정/삭제 UI | 🔌 연동됨 | `RecordDetailScreen`, `RecordEditScreen`; 목록 row → 상세 → 수정, 수정 화면의 저장·삭제가 provider/service API 호출 |
 | 미디어 업로드 service | 🔌 연동됨 | `services/record_service.dart`, 기록 생성 후 media 업로드 |
 | 현재 기록 입력 사진 첨부 | 🚧 부분 구현 | 급식 화면은 사진 1장 첨부 가능. 범용 카테고리 폼은 사진 첨부 없음 |
 | 날짜/시간 입력 | ✅ 구현됨 | 전체 화면 기록 입력은 route date를 읽기 전용으로 표시하고 시간만 picker로 수정. 지출 입력은 별도 날짜 picker 유지 |
 | 숫자 입력 preview | ✅ 구현됨 | `widgets/record_inputs/record_number_input.dart`, `record_picker_sheet.dart` |
 | 저장 후 이동 | ✅ 구현됨 | 급식/카테고리 기록 저장 성공 후 `/records?date=<저장 날짜>`로 이동 |
 | 급식/배변 메모 | 🔌 연동됨 | `meal`, `poop` payload의 `note`에 저장 |
+| 배변 옵션 카드 | ✅ 구현됨 | 대변·소변 전환 시 그리드 상태를 분리하고 웹 hover/focus 회색 잔상이 남지 않도록 처리 |
 
 ### API 요구사항
 
@@ -277,7 +279,7 @@
 
 ### 요약
 
-피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시하고, 상세 화면에서 전체 본문·이미지·투표·댓글을 표시한다. 검색, 알림, 카테고리 필터 동작은 아직 연결되지 않았다.
+피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시한다. 상세 화면은 댓글 preview를 표시하고 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회를 처리한다. 게시글과 댓글 작성자 프로필 이미지는 인증 이미지 응답을 사용한다. 검색, 알림, 카테고리 필터 동작은 아직 연결되지 않았다.
 
 ### 현재 프론트 구현
 
@@ -291,8 +293,10 @@
 | 투표 작성 UI | ✅ 구현됨 | `write_screen.dart`, `PollDraft` 생성 |
 | 피드 투표 표시 | ✅ 구현됨 | `PostCard`는 투표 badge, 상세 화면은 투표 문항·항목·비율 표시 |
 | 투표 참여 | 🔌 연동됨 | `CommunityService.vote()`, `CommunityProvider.vote()`가 투표 API 호출 후 캐시 갱신 |
-| 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`, `CommunityDetailScreen`, 댓글 목록/작성 API 연결 |
+| 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`, `/community/posts/:postId/comments`, 상세 preview와 댓글 전용 화면 연결 |
 | 댓글 수 동기화 | 🔌 연동됨 | 댓글 작성 응답의 서버 `commentsCount`로 피드와 상세 캐시 갱신 |
+| 댓글 작성자 프로필 이미지 | 🔌 연동됨 | `authorProfileImageUrl`, 인증 이미지 위젯, `/api/v1/users/{userId}/profile-image` 사용 |
+| 답글 작성·조회 | 🔌 연동됨 | root 댓글의 `replyCount`, preview replies, thread 조회, cursor 기반 답글 추가 조회 및 `parentCommentId` 작성 |
 | 상단 알림, 검색 | 🧭 진입점 없음 | 아이콘은 있으나 `준비중` 토스트만 표시 |
 | 카테고리 필터, 이용 가이드 | 🚧 부분 구현 | `전체⌄` pill과 가이드 패널은 표시 전용 |
 | 해시태그·팔로우 | ❌ 제외 | MVP 제외 |
@@ -309,8 +313,11 @@
 | 좋아요 | `POST /api/v1/posts/{postId}/like` |
 | 투표 작성 | `payload.poll: { question, options }` |
 | 투표 참여 | `POST /api/v1/posts/{postId}/poll/options/{optionId}/vote` |
-| 댓글 목록 | `GET /api/v1/posts/{postId}/comments?cursor=&limit=20` |
-| 댓글 작성 | `POST /api/v1/posts/{postId}/comments`, `{ "content": "..." }` |
+| 댓글 목록 | `GET /api/v1/posts/{postId}/comments?cursor=&limit=20&replyLimit=20` |
+| 댓글 thread | `GET /api/v1/posts/{postId}/comments/{commentId}?replyLimit=20` |
+| 답글 목록 | `GET /api/v1/posts/{postId}/comments/{commentId}/replies?cursor=&limit=20` |
+| 댓글 작성 | `POST /api/v1/posts/{postId}/comments`, `{ "content": "...", "parentCommentId": null }` |
+| 답글 작성 | 댓글 작성 API에 root 댓글의 `parentCommentId` 전달. 중첩 답글은 허용하지 않음 |
 
 투표 option 응답의 표시 텍스트는 백엔드 `label` 필드가 기준이다. Flutter `PostPollOption`은 기존 호환을 위해 `text`, `optionText`, `label`을 모두 읽되, 현재 서버 계약은 `label`이다.
 
@@ -342,7 +349,7 @@
 - 이미지 최대 개수는 백엔드 계약과 맞춰야 한다. 기존 문서 기준은 최대 3장이나, 현재 프론트 입력 제한과 재확인 필요.
 - 투표 `question`을 별도 입력받을지, 현재 임시값 `투표`를 허용할지 결정 필요.
 - 카테고리 enum은 현재 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다.
-- 댓글은 현재 단일 단계이며 작성자·내용·시각만 표시한다. 대댓글, 수정, 삭제, 신고는 현재 범위 밖이다.
+- 댓글은 root 댓글과 한 단계 답글을 지원한다. 답글의 답글은 허용하지 않으며 댓글·답글 수정, 실제 삭제, 신고는 후속 범위다.
 
 ---
 
@@ -399,8 +406,13 @@ interface CommunityComment {
   id: string;
   postId: string;
   authorNickname: string;
+  authorProfileImageUrl?: string;
   content: string;
   createdAt: string;
+  parentCommentId?: string;
+  replyCount: number;
+  replies: CommunityComment[];
+  repliesNextCursor?: string;
   commentsCount: number; // 댓글 작성 응답에서 서버 기준 게시글 댓글 수 동기화에 사용
 }
 ```
@@ -415,10 +427,10 @@ interface CommunityComment {
 |------|-----------|
 | 인증 | 회원가입, 로그인, 카카오 로그인, 토큰 갱신. 로그아웃은 UI 진입점 추가 후 재진입 확인 |
 | 펫 | 온보딩, 펫 추가/수정/삭제, 프로필 사진 |
-| 기록 | 현재 접근 가능한 타입별 기록, 급식 사진 업로드, 목록/성장 표시. 상세·수정·삭제 UI 추가 후 해당 흐름 확인 |
+| 기록 | 타입별 생성, 목록→상세→수정·삭제와 날짜 이동은 수동 확인 완료. 급식 사진, 잘못된 recordId 직접 접근, 배변 옵션 카드 웹 잔상 재현 여부는 회귀 확인 |
 | 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI 추가 후 해당 흐름 확인 |
 | 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가/상세/수정/삭제 UI와 API 저장 흐름 |
-| 커뮤니티 | 피드, 카테고리 탭, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글 작성, 투표 참여. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
+| 커뮤니티 | 피드, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글·답글 작성과 pagination, 투표 참여를 수동 확인. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
 
 ---
 

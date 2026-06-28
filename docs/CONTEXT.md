@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-06-27 커뮤니티 댓글·답글 최종 검증
+
+- `V19__add_post_comment_replies.sql`로 `post_comments.parent_comment_id`, self FK `ON DELETE CASCADE`, thread cursor 인덱스를 추가했다. root 댓글과 한 단계 답글만 허용하며 다른 게시글 parent, 존재하지 않는 parent, 답글을 parent로 지정하는 요청을 구분해 거부한다.
+- 댓글 목록은 root cursor와 root별 최신 답글을 함께 반환하고, thread 단건 조회와 이전 답글 cursor 조회 API를 제공한다. 게시글·댓글 작성자 프로필 이미지 URL과 전체 댓글·답글 합산 `commentsCount`를 반환한다.
+- Flutter는 thread 보기와 답글 작성 route query를 분리하고, target 조회 중 작성 차단, root/reply 병합, root별 답글 추가 조회, 상세 답글 3개 preview와 남은 개수 표시를 지원한다.
+- 최종 검증: `flutter test` GREEN(326 tests), `flutter analyze` `No issues found!`, `CommunityIntegrationTest`와 `FlywayMigrationTest` `--rerun-tasks` GREEN, 한글 깨짐 검사와 `git diff --check` GREEN.
+
 ## 2026-06-25 커뮤니티 상세·댓글·투표 참여 연동
 
 - 커뮤니티 피드 카드는 제목 1줄, 본문 2줄 preview로 정리했고, 첫 첨부 이미지를 오른쪽 썸네일로 표시한다. 이미지가 2장 이상이면 썸네일 위에 전체 개수를 표시하며, 투표 글은 제목 왼쪽에 작은 `투표` badge를 표시한다. 카드 열기와 좋아요 tap 영역은 분리했다.
@@ -81,10 +88,10 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 전체 검증: 백엔드 2026-05-18 `.\gradlew.bat clean test`, 프론트 2026-06-02 `flutter test`, `flutter analyze --no-fatal-infos`, `flutter build web` 성공. 2026-06-25 커뮤니티 상세·댓글·투표 변경은 선택 검증을 통과했지만 전체 Flutter suite는 기존/범위 밖 실패가 남아 있다.
-3. 최신 스키마: Flyway `V1`부터 `V18__create_care_schedules.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
-4. 최근 변경 흐름: PetEdit/Onboarding 날짜 입력 UI 보정, 기록 입력 route date 유지, `etc` note-only 기록, 홈 지갑 진입, 지갑/리포트 화면, 루틴 월간 달력과 전체 화면 생성 route, 커뮤니티 상세·댓글·투표 참여를 보강했다.
-5. 다음 우선순위: 기록 상세·수정·삭제, 지출 저장, 커뮤니티 검색/알림/카테고리 필터, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
+2. 마지막 확인된 검증: 2026-06-27 프론트 `flutter test` GREEN(326 tests), `flutter analyze` `No issues found!`; 백엔드 `CommunityIntegrationTest`, `FlywayMigrationTest` 강제 재실행 GREEN. 마지막 확인된 웹 빌드는 2026-06-02 성공이다.
+3. 최신 스키마: Flyway `V1`부터 `V19__add_post_comment_replies.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
+4. 최근 변경 흐름: 기록 `expense` 레거시 정리, 기록 상세·수정·삭제 동선, 배변 옵션 카드 웹 상호작용 색상 안정화, 커뮤니티 댓글 전용 화면·작성자 프로필 이미지·한 단계 답글을 보강했다.
+5. 다음 우선순위: 커뮤니티 댓글·답글 수동 회귀, 기록 direct URL 예외 확인, 커뮤니티 검색/알림/카테고리 필터, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
 
 ## 마지막 검증
 
@@ -107,6 +114,8 @@
 - PetEdit 입력 UI 보정 후 부분 검증: 2026-06-05 `flutter test test/screens/pet/pet_screen_test.dart test/screens/onboarding/onboarding_screen_test.dart` GREEN(24 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 3건), `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN.
 - 커뮤니티 상세·댓글·투표 연동 후 부분 검증: 2026-06-25 `.\gradlew.bat test --tests com.petyilgi.community.CommunityIntegrationTest` GREEN, `flutter test test\models\post_test.dart test\services\community_service_test.dart test\screens\community\community_screen_test.dart test\router\app_router_test.dart` GREEN(66 tests), 선택 파일 `dart analyze` Exit 0(info 2건), `git diff --check` whitespace 오류 없음, `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1` GREEN. 전체 `flutter test`는 기존/범위 밖 `community_mock_screen_test.dart` 3건과 `records_screen_test.dart` 1건 실패로 통과하지 않았다.
 - 루틴 일정 서버 연동 후 부분 검증: 2026-06-26 `.\gradlew.bat test --tests com.petyilgi.routine.CareScheduleIntegrationTest` GREEN, `flutter test test\services\care_schedule_service_test.dart` GREEN, `flutter test test\providers\pet_provider_test.dart test\screens\routine\routine_schedule_create_screen_test.dart test\screens\routine\routine_screen_test.dart test\router\app_router_test.dart` GREEN(72 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 4건).
+- 기록 CRUD 수동 검증 및 배변 옵션 카드 보정: 2026-06-27 타입별 기록 생성, 목록→상세→수정·삭제 기본 동선이 정상 동작함을 확인했다. 배변 옵션 카드의 Flutter Web hover/focus 회색 잔상을 제거하고 대변·소변 색상 그리드 상태를 분리했다. `flutter test test/screens/records/record_category_form_screen_test.dart` GREEN(19 tests), `git diff --check` whitespace 오류 없음.
+- 커뮤니티 댓글·답글 최종 검증: 2026-06-27 `flutter test` GREEN(326 tests), `flutter analyze` `No issues found!`, `.\gradlew.bat test --rerun-tasks --tests com.petyilgi.community.CommunityIntegrationTest --tests com.petyilgi.support.FlywayMigrationTest` GREEN, 한글 깨짐 검사와 `git diff --check` GREEN.
 
 ## 다음 행동
 
@@ -117,7 +126,7 @@
 
 ## 주의사항
 
-- `backend/src/main/resources/db/migration/V1`부터 `V18`까지 기존 Flyway 파일은 수정하지 않는다.
+- `backend/src/main/resources/db/migration/V1`부터 `V19`까지 기존 Flyway 파일은 수정하지 않는다.
 - 새 DB 변경은 다음 번호의 새 마이그레이션으로만 추가한다.
 - 문서 정리만 하는 작업에서는 `backend/`, `frontend/`, `DESIGN.md`를 수정하지 않는다.
 - 기존 dirty worktree 변경은 사용자 또는 이전 작업자의 작업으로 보고 되돌리지 않는다.
@@ -127,11 +136,11 @@
 
 ## 최신 Handover
 
-- Goal: 기록 화면에서 `expense` 레거시 타입을 제거하고 `/records/expense/new` 직접 접근은 지갑 비용 추가 화면으로 안전하게 redirect한다.
-- Done: `record_support.dart`에 카테고리 기록 입력 지원 타입과 판정 함수를 추가했고, 기록 메인 화면은 `meal`과 지원 카테고리 타입만 노출하도록 정리했다. `/records/:typeId/new` 라우트는 `expense`를 `/wallet/expenses/new`로 보내고, 지원하지 않는 타입은 `/records`로 redirect하되 strict valid `date=YYYY-MM-DD`만 보존한다. 관련 router/records 테스트와 `docs/FRONTEND_STATUS.md`를 현재 지갑 도메인 기준으로 갱신했다.
-- Remaining: 백엔드와 지갑 화면/provider/service는 이번 범위에서 변경하지 않았다. `checkup` config 자체 삭제는 범위 밖이라 기록 화면 노출 기준으로만 숨긴다.
-- Next step: 실제 앱 실행 시 `/records`, `/records/expense/new`, `/records/checkup/new?date=2026-05-09`, `/wallet/expenses/new` 진입을 수동 확인한다.
-- Warnings: 커뮤니티/미디어/프로필 이미지 관련 dirty 파일은 병렬/이전 작업 변경으로 보고 건드리지 않았다. 사용자 요청 없이 Git add, commit, push를 하지 않았다.
+- Goal: 최근 기록·지갑 레거시 정리와 커뮤니티 댓글·답글 구현 상태를 실제 코드 및 검증 결과 기준으로 문서에 동기화한다.
+- Done: 기록 입력 지원 타입을 한 곳으로 통합하고 `expense` 직접 URL을 지갑 비용 추가로 redirect했다. 기록 목록 row에서 상세와 수정 화면으로 진입하고 수정 화면에서 저장·삭제 API를 호출하는 동선을 수동 확인했다. 배변 옵션 카드의 Flutter Web 회색 hover/focus 잔상을 제거했다. 커뮤니티는 댓글 전용 화면, 작성자 프로필 이미지, `V19__add_post_comment_replies.sql`, root 댓글 thread와 한 단계 답글 조회·작성·pagination을 구현했다. Flutter 전체 326개 테스트와 정적 분석, 백엔드 커뮤니티/Flyway 강제 재실행 검증이 통과했다.
+- Remaining: 기록의 잘못된 recordId 직접 접근과 급식 사진 보존을 추가 수동 확인한다. 커뮤니티 댓글·답글은 실제 앱에서 작성, thread 이동, 추가 조회, 새로고침 후 유지 흐름을 수동 검증해야 한다. 검색, 알림, 카테고리 필터와 댓글·답글 수정/삭제/신고는 후속 범위다.
+- Next step: 백엔드와 Flutter를 함께 실행해 커뮤니티 게시글 작성 → root 댓글 작성 → 답글 작성 → 답글 더보기 → 새로고침 흐름을 확인하고, 실패하면 해당 API 응답과 Flutter 콘솔 로그를 함께 수집한다.
+- Warnings: 기존 Flyway `V1`~`V19`는 수정하지 않는다. 문서 정리 작업에서는 애플리케이션 코드를 추가로 변경하지 않았고 사용자 요청 없이 Git add, commit, push를 하지 않는다.
 
 ## 이전 Handover
 

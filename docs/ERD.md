@@ -191,6 +191,21 @@ erDiagram
         DATETIME updated_at "NOT NULL"
     }
 
+    WALLET_EXPENSES {
+        BIGINT id PK "AUTO_INCREMENT"
+        BIGINT user_id FK "NOT NULL"
+        BIGINT pet_id FK "NOT NULL"
+        DATE expense_date "NOT NULL"
+        TIME expense_time
+        BIGINT amount "NOT NULL"
+        VARCHAR(3) currency "NOT NULL DEFAULT KRW"
+        VARCHAR(40) category "NOT NULL"
+        VARCHAR(100) item_name
+        VARCHAR(500) note
+        DATETIME created_at "NOT NULL"
+        DATETIME updated_at "NOT NULL"
+    }
+
     POSTS {
         BIGINT id PK
         BIGINT user_id FK "NOT NULL"
@@ -241,6 +256,7 @@ erDiagram
         BIGINT id PK "AUTO_INCREMENT"
         BIGINT post_id FK "NOT NULL"
         BIGINT user_id FK "NOT NULL"
+        BIGINT parent_comment_id FK "nullable, self reference"
         TEXT content "NOT NULL"
         DATETIME created_at "NOT NULL"
     }
@@ -263,6 +279,8 @@ erDiagram
     PETS ||--o{ ACTIVITY_RECORDS : "has"
     PETS ||--o{ ROUTINES : "has"
     PETS ||--o{ CARE_SCHEDULES : "has"
+    USERS ||--o{ WALLET_EXPENSES : "owns"
+    PETS ||--o{ WALLET_EXPENSES : "has"
     PETS ||--o{ MEDIA_RESOURCES : "profile photos"
     ACTIVITY_TYPES ||--o{ ACTIVITY_RECORDS : "classifies"
     ACTIVITY_TYPES ||--o{ ROUTINES : "classifies"
@@ -281,6 +299,7 @@ erDiagram
     PETS ||--o{ ROUTINE_COMPLETIONS : "daily tasks"
     POSTS ||--o{ POST_LIKES : "receives"
     POSTS ||--o{ POST_COMMENTS : "has comments"
+    POST_COMMENTS ||--o{ POST_COMMENTS : "has replies"
     POSTS ||--o{ POST_MEDIA : "has media"
     MEDIA_RESOURCES ||--o{ POST_MEDIA : "attached to posts"
     POSTS ||--o| POST_POLLS : "has poll"
@@ -372,7 +391,8 @@ backend/src/main/resources/db/migration/
 ├── V15__allow_pet_birth_date_nullable.sql
 ├── V16__create_wallet_expenses.sql
 ├── V17__create_post_comments.sql
-└── V18__create_care_schedules.sql
+├── V18__create_care_schedules.sql
+└── V19__add_post_comment_replies.sql
 ```
 
 > **규칙:** 한번 배포된 `V*.sql`은 절대 수정 금지. 변경 시 `V{n+1}__alter_xxx.sql` 신규 파일 작성.
@@ -575,22 +595,25 @@ ALTER TABLE routine_completions
 
 ### 커뮤니티 댓글 (POST_COMMENTS)
 
-댓글은 단일 단계로만 지원한다. `post_comments`는 게시글과 작성자를 참조하고, 댓글 내용과 작성 시각만 저장한다. 댓글 수정, 삭제, 대댓글, 신고는 현재 스키마 범위 밖이다.
+댓글은 root와 한 단계 답글을 지원한다. `parent_comment_id IS NULL`이면 root이고, 값이 있으면 같은 게시글의 root 댓글을 참조하는 답글이다. API가 parent가 root인지 검증해 답글의 답글을 거부한다. 댓글·답글 수정, 실제 삭제, 신고는 현재 범위 밖이다.
 
 ```sql
 CREATE TABLE post_comments (
   id         BIGINT AUTO_INCREMENT PRIMARY KEY,
   post_id    BIGINT   NOT NULL,
   user_id    BIGINT   NOT NULL,
+  parent_comment_id BIGINT NULL,
   content    TEXT     NOT NULL,
   created_at DATETIME NOT NULL,
   CONSTRAINT fk_post_comments_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   CONSTRAINT fk_post_comments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_post_comments_post_cursor (post_id, id)
+  CONSTRAINT fk_post_comments_parent FOREIGN KEY (parent_comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
+  INDEX idx_post_comments_post_cursor (post_id, id),
+  INDEX idx_post_comments_thread_cursor (post_id, parent_comment_id, id DESC)
 ) ENGINE=InnoDB;
 ```
 
-댓글 작성 시 `posts.comments_count` 증가는 같은 트랜잭션에서 처리한다. 클라이언트는 댓글 수를 추측해서 증가시키지 않고, 댓글 작성 응답의 서버 기준 `commentsCount`를 사용한다.
+댓글·답글 작성 시 `posts.comments_count` 증가는 같은 트랜잭션에서 처리하며 두 종류를 모두 합산한다. root 삭제 기능을 추가할 때는 cascade로 삭제되는 답글 수까지 함께 감소시켜야 한다. 클라이언트는 댓글 수를 추측해서 증가시키지 않고, 작성 응답의 서버 기준 `commentsCount`를 사용한다.
 
 ---
 
