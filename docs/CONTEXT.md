@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-06-29 커뮤니티 게시글 검색 및 pagination 보완
+
+- `GET /api/v1/posts`에 선택 `keyword`를 추가했다. 검색어는 trim 후 Unicode code point 기준 2~20자이며 제목 또는 본문에 포함되는 글을 조회하고, category와 AND로 조합한다.
+- `!`, `%`, `_`를 MySQL `LIKE ... ESCAPE '!'` 규칙에 맞게 escape하고 제목·본문 pattern을 prepared parameter로 전달한다. 빈 검색어는 기존 피드로 처리하며 잘못된 길이는 `INVALID_INPUT` 400을 반환한다.
+- latest와 popular 피드는 `limit + 1`개를 조회해 실제 다음 행이 있을 때만 마지막 반환 항목 기준 cursor를 발급한다. keyword, category, sort가 바뀌면 클라이언트가 기존 cursor를 폐기해야 한다.
+- 검증 상태: `CommunityIntegrationTest` GREEN. 백엔드 전체 테스트는 107개 중 병렬 수정 중인 기존 wallet summary SQL의 `BadSqlGrammarException` 1건으로 실패했으며, 커뮤니티 변경 범위에서는 수정하지 않았다.
+
 ## 2026-06-27 커뮤니티 댓글·답글 최종 검증
 
 - `V19__add_post_comment_replies.sql`로 `post_comments.parent_comment_id`, self FK `ON DELETE CASCADE`, thread cursor 인덱스를 추가했다. root 댓글과 한 단계 답글만 허용하며 다른 게시글 parent, 존재하지 않는 parent, 답글을 parent로 지정하는 요청을 구분해 거부한다.
@@ -136,11 +143,11 @@
 
 ## 최신 Handover
 
-- Goal: 최근 기록·지갑 레거시 정리와 커뮤니티 댓글·답글 구현 상태를 실제 코드 및 검증 결과 기준으로 문서에 동기화한다.
-- Done: 기록 입력 지원 타입을 한 곳으로 통합하고 `expense` 직접 URL을 지갑 비용 추가로 redirect했다. 기록 목록 row에서 상세와 수정 화면으로 진입하고 수정 화면에서 저장·삭제 API를 호출하는 동선을 수동 확인했다. 배변 옵션 카드의 Flutter Web 회색 hover/focus 잔상을 제거했다. 커뮤니티는 댓글 전용 화면, 작성자 프로필 이미지, `V19__add_post_comment_replies.sql`, root 댓글 thread와 한 단계 답글 조회·작성·pagination을 구현했다. Flutter 전체 326개 테스트와 정적 분석, 백엔드 커뮤니티/Flyway 강제 재실행 검증이 통과했다.
-- Remaining: 기록의 잘못된 recordId 직접 접근과 급식 사진 보존을 추가 수동 확인한다. 커뮤니티 댓글·답글은 실제 앱에서 작성, thread 이동, 추가 조회, 새로고침 후 유지 흐름을 수동 검증해야 한다. 검색, 알림, 카테고리 필터와 댓글·답글 수정/삭제/신고는 후속 범위다.
-- Next step: 백엔드와 Flutter를 함께 실행해 커뮤니티 게시글 작성 → root 댓글 작성 → 답글 작성 → 답글 더보기 → 새로고침 흐름을 확인하고, 실패하면 해당 API 응답과 Flutter 콘솔 로그를 함께 수집한다.
-- Warnings: 기존 Flyway `V1`~`V19`는 수정하지 않는다. 문서 정리 작업에서는 애플리케이션 코드를 추가로 변경하지 않았고 사용자 요청 없이 Git add, commit, push를 하지 않는다.
+- Goal: 커뮤니티 게시글 검색 API와 피드 pagination cursor 판정을 보완하고 계약·검증 결과를 동기화한다.
+- Done: 선택 `keyword` 제목·본문 검색, Unicode code point 2~20자 검증, literal `LIKE` escape, category 조합을 구현했다. latest와 popular 피드는 `limit + 1` 조회로 실제 다음 행이 있을 때만 cursor를 반환하며 검색 pagination 통합 테스트를 추가했다.
+- Remaining: 검색 UI, 알림, 카테고리 필터 UI와 댓글·답글 수정/삭제/신고는 후속 범위다. 검색 조건과 cursor를 서버가 결합해 검증하지 않으므로 프론트가 조건 변경 시 cursor를 초기화해야 한다.
+- Next step: 프론트 검색 화면 구현 시 `keyword`, `category`, `sort` 변경마다 첫 페이지를 요청하고 400 검색어 길이 오류를 사용자 입력 안내로 연결한다.
+- Warnings: `%keyword%` 검색은 posts 전체 스캔 가능성이 있고 popular pagination은 조회 중 좋아요 변경에 대한 snapshot 일관성을 보장하지 않는다. 기존 Flyway `V1`~`V19`, frontend, scripts는 수정하지 않는다.
 
 ## 이전 Handover
 
