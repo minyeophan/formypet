@@ -222,6 +222,35 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void summaryWithoutFiltersReturnsTotalAndCategoryBreakdown() throws Exception {
+        String token = registerAndGetToken(
+                "wallet-unfiltered-summary@example.com",
+                "wallet-unfiltered-summary"
+        );
+        Long petId = createPet(token, "Mochi");
+        createExpense(token, petId, "2026-06-12", "09:00",
+                2000, "food", "food", null);
+        createExpense(token, petId, "2026-06-13", "10:00",
+                7000, "hospital", "hospital", null);
+
+        mockMvc.perform(get(expensesUrl(petId) + "/summary")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalAmount").value(9000))
+                .andExpect(jsonPath("$.data.count").value(2))
+                .andExpect(jsonPath("$.data.currency").value("KRW"))
+                .andExpect(jsonPath("$.data.from").doesNotExist())
+                .andExpect(jsonPath("$.data.to").doesNotExist())
+                .andExpect(jsonPath("$.data.categories", hasSize(2)))
+                .andExpect(jsonPath("$.data.categories[0].category")
+                        .value("hospital"))
+                .andExpect(jsonPath("$.data.categories[0].amount").value(7000))
+                .andExpect(jsonPath("$.data.categories[1].category")
+                        .value("food"))
+                .andExpect(jsonPath("$.data.categories[1].amount").value(2000));
+    }
+
+    @Test
     void summaryReturnsEmptySummary() throws Exception {
         String token = registerAndGetToken("wallet-empty-summary@example.com", "wallet-empty-summary");
         Long petId = createPet(token, "Mochi");

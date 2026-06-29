@@ -132,13 +132,16 @@ public class WalletExpenseService {
                 SELECT COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS total_count
                 FROM wallet_expenses
                 """ + where, params.toArray());
-        List<WalletExpenseCategorySummary> categories = jdbcTemplate.query("""
+        String categorySummarySql = """
                 SELECT category, COALESCE(SUM(amount), 0) AS amount, COUNT(*) AS count
                 FROM wallet_expenses
-                """ + where + """
-                GROUP BY category
-                ORDER BY amount DESC, category ASC
-                """, (rs, rowNum) -> new WalletExpenseCategorySummary(
+                """ + where
+                + " GROUP BY category"
+                + " ORDER BY amount DESC, category ASC";
+
+        List<WalletExpenseCategorySummary> categories = jdbcTemplate.query(
+                categorySummarySql,
+                (rs, rowNum) -> new WalletExpenseCategorySummary(
                 rs.getString("category"),
                 categoryLabel(rs.getString("category")),
                 rs.getLong("amount"),
