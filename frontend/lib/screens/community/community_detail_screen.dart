@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../core/keyboard_utils.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
@@ -10,6 +11,7 @@ import '../../providers/community_provider.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 import 'community_comment_widgets.dart';
@@ -506,7 +508,11 @@ class _DetailBottomActionBar extends StatelessWidget {
                   key: const Key('community-detail-top-button'),
                   tooltip: '맨 위로',
                   onPressed: onTop,
-                  icon: const Text('🔝', style: TextStyle(fontSize: 21)),
+                  icon: const AppVisual(
+                    id: AppVisualId.communityTop,
+                    size: 21,
+                    semanticLabel: '맨 위로',
+                  ),
                 ),
                 const Spacer(),
                 TextButton.icon(

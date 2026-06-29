@@ -133,7 +133,6 @@ void main() {
       findsNothing,
     );
     expect(find.text('(54)'), findsNothing);
-    expect(find.text('👁'), findsNothing);
   });
 
   testWidgets('main category carousel renders two fixed panels', (

@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
 import 'community_comment_widgets.dart';
 import 'community_routes.dart';
@@ -145,10 +147,7 @@ class _CommunityCommentsScreenState
       0,
       (value, comment) => max(value, comment.commentsCount),
     );
-    _displayedCount = max(
-      max(baseCount, responseCount),
-      _loadedCommentCount(),
-    );
+    _displayedCount = max(max(baseCount, responseCount), _loadedCommentCount());
     if (commentsError != null && _comments.isEmpty) {
       _errorText = '댓글을 불러오지 못했습니다';
     }
@@ -369,7 +368,7 @@ class _CommunityCommentsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🐾', style: TextStyle(fontSize: 42)),
+            AppVisual(id: AppVisualId.communityPaw, size: 42),
             SizedBox(height: 10),
             AppText('아직 댓글이 없어요', fontSize: 15, fontWeight: FontWeight.bold),
           ],

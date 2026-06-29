@@ -7,6 +7,7 @@ import '../../providers/community_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import 'community_constants.dart';
 import 'community_routes.dart';
 import 'post_card.dart';
@@ -390,7 +391,7 @@ class _CategoryTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_communityIconFor(category), color: accent, size: 21),
+            AppVisual(id: communityVisualId(category), color: accent, size: 21),
             const SizedBox(height: 5),
             AppText(
               kCommunityCategoryLabels[category] ?? category,
@@ -588,22 +589,6 @@ const List<String> _communityPrimaryCategories = [
 ];
 
 const List<String> _communitySecondaryCategories = ['NEWS', 'EVENT'];
-
-IconData _communityIconFor(String category) => switch (category) {
-  'ALL' => Icons.grid_view_rounded,
-  'POPULAR' => Icons.trending_up_rounded,
-  'CARE' => Icons.health_and_safety_outlined,
-  'FOOD' => Icons.restaurant_outlined,
-  'OUTING' => Icons.directions_walk_rounded,
-  'SHOW' => Icons.photo_camera_outlined,
-  'QUESTION' => Icons.help_outline_rounded,
-  'FREE' => Icons.chat_bubble_outline_rounded,
-  'ADOPTION' => Icons.volunteer_activism_outlined,
-  'RESCUE' => Icons.emergency_outlined,
-  'NEWS' => Icons.article_outlined,
-  'EVENT' => Icons.celebration_outlined,
-  _ => Icons.grid_view_rounded,
-};
 
 Color _communityAccentFor(String category) => switch (category) {
   'POPULAR' || 'FOOD' || 'RESCUE' => const Color(0xFFFF8A65),

@@ -1,3 +1,5 @@
+import '../../core/visuals/app_visual_id.dart';
+
 const List<String> kCommunityCategories = [
   'CARE',
   'FOOD',
@@ -54,3 +56,20 @@ String communitySourceLabel(String? raw) {
       : key;
   return kCommunityCategoryLabels[labelKey] ?? '';
 }
+
+AppVisualId communityVisualId(String category) =>
+    switch (category.toUpperCase()) {
+      'ALL' => AppVisualId.communityAll,
+      'POPULAR' => AppVisualId.communityPopular,
+      'CARE' => AppVisualId.communityCare,
+      'FOOD' => AppVisualId.communityFood,
+      'OUTING' => AppVisualId.communityOuting,
+      'SHOW' => AppVisualId.communityShow,
+      'QUESTION' => AppVisualId.communityQuestion,
+      'FREE' => AppVisualId.communityFree,
+      'ADOPTION' => AppVisualId.communityAdoption,
+      'RESCUE' => AppVisualId.communityRescue,
+      'NEWS' => AppVisualId.communityNews,
+      'EVENT' => AppVisualId.communityEvent,
+      _ => AppVisualId.genericUnknown,
+    };
