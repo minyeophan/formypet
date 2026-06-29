@@ -8,13 +8,15 @@ $roots = @(
     'docs',
     'tasks',
     'backend/src',
+    'frontend/lib',
+    'frontend/test',
     'frontend/app',
     'frontend/src',
     'AGENTS.md'
 )
 
 $extensions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-@('.md', '.java', '.sql', '.yml', '.yaml', '.ts', '.tsx', '.json') | ForEach-Object {
+@('.md', '.java', '.sql', '.yml', '.yaml', '.ts', '.tsx', '.json', '.dart') | ForEach-Object {
     [void]$extensions.Add($_)
 }
 
