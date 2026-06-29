@@ -120,7 +120,8 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                         .param("limit", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items", hasSize(1)))
-                .andExpect(jsonPath("$.data.items[0].id").value(freeId));
+                .andExpect(jsonPath("$.data.items[0].id").value(freeId))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
 
         mockMvc.perform(get(POSTS_URL)
                         .header("Authorization", "Bearer " + token)
@@ -138,6 +139,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
         String likerOneToken = registerAndGetToken("post-popular-one@example.com", "one");
         String likerTwoToken = registerAndGetToken("post-popular-two@example.com", "two");
         Long leastPopularId = createPost(ownerToken, "인기 낮음", "FREE", "least");
+        Long otherLeastPopularId = createPost(ownerToken, "인기 조금 낮음", "FREE", "other least");
         Long middlePopularId = createPost(ownerToken, "인기 중간", "FREE", "middle");
         Long mostPopularId = createPost(ownerToken, "인기 높음", "FREE", "most");
         like(likerOneToken, middlePopularId);
@@ -164,8 +166,125 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                         .param("cursor", nextCursor)
                         .param("limit", "2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items", hasSize(1)))
-                .andExpect(jsonPath("$.data.items[0].id").value(leastPopularId));
+                .andExpect(jsonPath("$.data.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.items[0].id").value(otherLeastPopularId))
+                .andExpect(jsonPath("$.data.items[1].id").value(leastPopularId))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    @Test
+    void feedPaginatesAllSearchResultsForLatestAndPopular() throws Exception {
+        String ownerToken = registerAndGetToken("post-search-page-owner@example.com", "pageowner");
+        String likerOneToken = registerAndGetToken("post-search-page-one@example.com", "pageone");
+        String likerTwoToken = registerAndGetToken("post-search-page-two@example.com", "pagetwo");
+        Long firstId = createPost(ownerToken, "검색 첫째", "FREE", "first");
+        Long secondId = createPost(ownerToken, "검색 둘째", "FREE", "second");
+        Long thirdId = createPost(ownerToken, "검색 셋째", "FREE", "third");
+        createPost(ownerToken, "제외 게시글", "FREE", "excluded");
+        like(likerOneToken, secondId);
+        like(likerOneToken, thirdId);
+        like(likerTwoToken, thirdId);
+
+        assertSearchPages(ownerToken, "latest", thirdId, secondId, firstId, secondId.toString());
+        assertSearchPages(ownerToken, "popular", thirdId, secondId, firstId, "1:" + secondId);
+    }
+
+    @Test
+    void feedSearchesTitleAndContentAndCombinesCategory() throws Exception {
+        String token = registerAndGetToken("post-search@example.com", "searcher");
+        Long titleMatchId = createPost(token, "강아지 산책", "FREE", "오늘 공원에 다녀왔어요");
+        Long contentMatchId = createPost(token, "주말 이야기", "FREE", "강아지와 함께 쉬었어요");
+        createPost(token, "고양이 이야기", "FREE", "창가에서 쉬었어요");
+        createPost(token, "강아지 훈련", "TRAINING", "기다려 연습");
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "강아지")
+                        .param("category", "FREE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.items[0].id").value(contentMatchId))
+                .andExpect(jsonPath("$.data.items[1].id").value(titleMatchId))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "검색결과없음"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(0)))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    @Test
+    void feedRejectsKeywordOutsideCodePointLengthRange() throws Exception {
+        String token = registerAndGetToken("post-search-length@example.com", "length");
+
+        for (String keyword : List.of("가", "가".repeat(21))) {
+            mockMvc.perform(get(POSTS_URL)
+                            .header("Authorization", "Bearer " + token)
+                            .param("keyword", keyword))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Invalid Input"))
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.detail")
+                            .value("Search keyword must be between 2 and 20 characters."))
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+        }
+    }
+
+    @Test
+    void feedTreatsMissingEmptyAndBlankKeywordAsNoFilter() throws Exception {
+        String token = registerAndGetToken("post-search-blank@example.com", "blank");
+        createPost(token, "첫 게시글", "FREE", "first");
+        createPost(token, "둘째 게시글", "FREE", "second");
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)));
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)));
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "   "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)));
+    }
+
+    @Test
+    void feedAcceptsTrimmedCodePointBoundariesAndMatchesCaseInsensitively() throws Exception {
+        String token = registerAndGetToken("post-search-boundary@example.com", "boundary");
+        Long twoCodePointId = createPost(token, "🐶개 이야기", "FREE", "emoji");
+        String twentyCodePoints = "가".repeat(20);
+        Long twentyCodePointId = createPost(token, twentyCodePoints, "FREE", "twenty");
+        Long caseInsensitiveId = createPost(token, "CASE Search", "FREE", "case");
+
+        assertSingleSearchResult(token, "  🐶개  ", twoCodePointId);
+        assertSingleSearchResult(token, twentyCodePoints, twentyCodePointId);
+        assertSingleSearchResult(token, "case", caseInsensitiveId);
+    }
+
+    @Test
+    void feedTreatsLikeWildcardsAndSqlSyntaxAsLiteralText() throws Exception {
+        String token = registerAndGetToken("post-search-literal@example.com", "literal");
+        Long percentId = createPost(token, "할인 50% 적용", "FREE", "percent");
+        createPost(token, "할인 500 적용", "FREE", "not percent");
+        Long underscoreId = createPost(token, "코드 a_b", "FREE", "underscore");
+        createPost(token, "코드 axb", "FREE", "not underscore");
+        Long exclamationId = createPost(token, "느낌표 !!", "FREE", "exclamation");
+
+        assertSingleSearchResult(token, "50%", percentId);
+        assertSingleSearchResult(token, "a_b", underscoreId);
+        assertSingleSearchResult(token, "!!", exclamationId);
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "%' OR 1=1 --"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
     }
 
     @Test
@@ -436,6 +555,43 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result);
+    }
+
+    private void assertSingleSearchResult(String token, String keyword, Long expectedPostId) throws Exception {
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", keyword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].id").value(expectedPostId));
+    }
+
+    private void assertSearchPages(String token, String sort, Long firstId, Long secondId,
+                                   Long thirdId, String expectedCursor) throws Exception {
+        MvcResult firstPage = mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "검색")
+                        .param("sort", sort)
+                        .param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.items[0].id").value(firstId))
+                .andExpect(jsonPath("$.data.items[1].id").value(secondId))
+                .andExpect(jsonPath("$.data.nextCursor").value(expectedCursor))
+                .andReturn();
+        var data = (Map<?, ?>) objectMapper.readValue(
+                firstPage.getResponse().getContentAsString(), Map.class).get("data");
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "검색")
+                        .param("sort", sort)
+                        .param("cursor", data.get("nextCursor").toString())
+                        .param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].id").value(thirdId))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
     }
 
     private Long createPost(String token, String title, String category, String content) throws Exception {
