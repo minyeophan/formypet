@@ -6,12 +6,14 @@ import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
 import '../../core/pet_taxonomy.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../models/activity_record.dart';
 import '../../models/pet.dart';
 import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 
@@ -367,11 +369,7 @@ class _PetEmojiFallback extends StatelessWidget {
     return Container(
       color: color.bgLight,
       alignment: Alignment.center,
-      child: AppText(
-        speciesEmoji(pet.species),
-        fontSize: 44,
-        textAlign: TextAlign.center,
-      ),
+      child: AppVisual(id: speciesVisualId(pet.species), size: 44),
     );
   }
 }
@@ -452,26 +450,30 @@ class _HomeMenuGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       _HomeMenuItem(
+        id: 'records',
         label: '반려기록',
-        icon: Icons.edit_note_rounded,
+        visualId: AppVisualId.homeRecords,
         color: const Color(0xFFFF8A65),
         onTap: () => context.push('/records'),
       ),
       _HomeMenuItem(
+        id: 'wallet',
         label: '지갑',
-        icon: Icons.account_balance_wallet_rounded,
+        visualId: AppVisualId.homeWallet,
         color: const Color(0xFF4F8FCF),
         onTap: () => context.push('/wallet'),
       ),
       _HomeMenuItem(
+        id: 'routine',
         label: '루틴',
-        icon: Icons.check_circle_outline_rounded,
+        visualId: AppVisualId.homeRoutine,
         color: const Color(0xFF81C784),
         onTap: () => context.push('/routine'),
       ),
       _HomeMenuItem(
+        id: 'pet-log',
         label: '반려로그',
-        icon: Icons.category_outlined,
+        visualId: AppVisualId.homePetLog,
         color: const Color(0xFFE879B9),
         onTap: onCategoryTap,
       ),
@@ -503,14 +505,16 @@ class _HomeMenuGrid extends StatelessWidget {
 }
 
 class _HomeMenuItem extends StatelessWidget {
+  final String id;
   final String label;
-  final IconData icon;
+  final AppVisualId visualId;
   final Color color;
   final VoidCallback? onTap;
 
   const _HomeMenuItem({
+    required this.id,
     required this.label,
-    required this.icon,
+    required this.visualId,
     required this.color,
     required this.onTap,
   });
@@ -526,7 +530,7 @@ class _HomeMenuItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24),
+          AppVisual(id: visualId, color: color, size: 24),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -547,6 +551,7 @@ class _HomeMenuItem extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        key: Key('home-menu-$id'),
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: content,

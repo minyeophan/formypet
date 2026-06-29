@@ -10,6 +10,7 @@ import '../../models/pet.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'pet_confirm_dialog.dart';
 
@@ -141,8 +142,7 @@ class PetDetailScreen extends ConsumerWidget {
                     actions: [
                       PetConfirmDialogAction(
                         label: '취소',
-                        onPressed: () =>
-                            Navigator.of(dialogContext).pop(false),
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
                       ),
                       PetConfirmDialogAction(
                         label: '삭제',
@@ -210,7 +210,7 @@ class _ProfileHero extends StatelessWidget {
                 height: 92,
                 color: bgLight,
                 alignment: Alignment.center,
-                child: AppText(speciesEmoji(pet.species), fontSize: 38),
+                child: AppVisual(id: speciesVisualId(pet.species), size: 38),
               ),
             ),
           ),

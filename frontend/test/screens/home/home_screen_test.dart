@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/core/date_utils.dart';
+import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
@@ -10,6 +11,8 @@ import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../support/app_visual_finder.dart';
 
 void main() {
   setUpAll(() {
@@ -61,7 +64,7 @@ void main() {
       find.descendant(of: _homeProfileCards(), matching: find.text('건강 양호')),
       findsNothing,
     );
-    expect(find.text('🐶'), findsOneWidget);
+    expect(findAppVisual(AppVisualId.petDog), findsOneWidget);
     expect(find.byType(PageView), findsOneWidget);
     expect(
       find.byWidgetPredicate(
@@ -77,8 +80,8 @@ void main() {
     expect(find.text('일정'), findsNothing);
     expect(find.text('성장'), findsNothing);
     expect(find.text('반려로그'), findsOneWidget);
-    expect(find.byIcon(Icons.account_balance_wallet_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.category_outlined), findsOneWidget);
+    expect(findAppVisual(AppVisualId.homeWallet), findsOneWidget);
+    expect(findAppVisual(AppVisualId.homePetLog), findsOneWidget);
     expect(find.text('+'), findsNothing);
     expect(find.byKey(const Key('home-growth-button')), findsOneWidget);
     expect(
@@ -107,11 +110,11 @@ void main() {
     expect(notifier.activePetChanges, ['2']);
     expect(find.text('나비'), findsWidgets);
     expect(find.text('품종 미상'), findsOneWidget);
-    expect(find.text('🐱'), findsOneWidget);
+    expect(findAppVisual(AppVisualId.petCat), findsOneWidget);
 
-    await tester.ensureVisible(find.text('반려로그'));
+    await tester.ensureVisible(find.byKey(const Key('home-menu-pet-log')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('반려로그'));
+    await tester.tap(find.byKey(const Key('home-menu-pet-log')));
     await tester.pump();
     expect(find.text('준비중'), findsOneWidget);
   });
