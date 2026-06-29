@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/pet_provider.dart';
 import '../../models/activity_record.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_visual.dart';
 import '../../core/date_utils.dart';
 import '../../widgets/app_text.dart';
 
@@ -21,7 +22,9 @@ class _ActivityTabState extends ConsumerState<ActivityTab> {
   Widget build(BuildContext context) {
     final records = ref.watch(petProvider).records;
     final filtered = records.where((r) {
-      if (_selectedTypeId != null && r.typeId != _selectedTypeId) return false;
+      if (_selectedTypeId != null && r.typeId != _selectedTypeId) {
+        return false;
+      }
       if (_selectedDate != null && r.date != _selectedDate) return false;
       return true;
     }).toList()
@@ -106,7 +109,11 @@ class _RecordTile extends StatelessWidget {
     final type =
         kQuickTypes.where((t) => t.id == record.typeId).firstOrNull;
     return ListTile(
-      leading: Icon(type?.icon ?? Icons.circle, color: Colors.blue),
+      leading: AppVisual(
+        id: recordTypeVisualId(record.typeId),
+        size: 24,
+        color: Colors.blue,
+      ),
       title: AppText(type?.label ?? record.typeId),
       subtitle: record.time != null
           ? AppText(formatTime12h(record.time), fontSize: 12)

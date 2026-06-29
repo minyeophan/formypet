@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/keyboard_utils.dart';
 import '../core/record_utils.dart';
+import 'app_visual.dart';
 import '../providers/pet_provider.dart';
 import '../widgets/app_text.dart';
 import 'record_detail_form.dart';
@@ -90,7 +91,11 @@ class _TypeSelectSheet extends StatelessWidget {
                           color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(t.icon, color: Colors.blue),
+                        child: AppVisual(
+                          id: t.visualId,
+                          size: 24,
+                          color: Colors.blue,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       AppText(t.label, fontSize: 11),
@@ -200,7 +205,11 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(type?.icon ?? Icons.circle, color: Colors.blue),
+                AppVisual(
+                  id: recordTypeVisualId(widget.typeId),
+                  size: 24,
+                  color: Colors.blue,
+                ),
                 const SizedBox(width: 8),
                 AppText(
                   type?.label ?? widget.typeId,

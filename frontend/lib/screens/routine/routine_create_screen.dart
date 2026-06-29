@@ -9,6 +9,7 @@ import '../../core/record_utils.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/record_inputs/record_date_time_pickers.dart';
 
 class RoutineCreateScreen extends ConsumerStatefulWidget {
@@ -182,6 +183,7 @@ class _RoutineTypeStep extends StatelessWidget {
           (option) => Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: InkWell(
+              key: Key('routine-type-${option.typeId}'),
               borderRadius: BorderRadius.circular(18),
               onTap: () => onSelect(option),
               child: Container(
@@ -196,8 +198,9 @@ class _RoutineTypeStep extends StatelessWidget {
                         color: option.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(
-                        recordTypeIcon(option.typeId),
+                      child: AppVisual(
+                        id: recordTypeVisualId(option.typeId),
+                        size: 24,
                         color: option.color,
                       ),
                     ),

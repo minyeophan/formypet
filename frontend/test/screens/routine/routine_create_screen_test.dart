@@ -28,7 +28,7 @@ void main() {
   ) async {
     final notifier = _FakePetNotifier(_petState());
     await _pumpScreen(tester, notifier);
-    await tester.tap(find.text('투약'));
+    await tester.tap(find.byKey(const Key('routine-type-medicine')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('매주'));
     await tester.pumpAndSettle();
@@ -55,7 +55,7 @@ void main() {
 
   testWidgets('routine time field opens shared time picker', (tester) async {
     await _pumpScreen(tester, _FakePetNotifier(_petState()));
-    await tester.tap(find.text('급식'));
+    await tester.tap(find.byKey(const Key('routine-type-meal')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('routine-time-field')));
@@ -69,7 +69,7 @@ void main() {
   ) async {
     final notifier = _FakePetNotifier(_petState(), failAdd: true);
     await _pumpScreen(tester, notifier);
-    await tester.tap(find.text('놀이'));
+    await tester.tap(find.byKey(const Key('routine-type-play')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('저장'));
     await tester.pumpAndSettle();

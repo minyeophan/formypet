@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/models/activity_record.dart';
+import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -13,6 +14,8 @@ import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../support/app_visual_finder.dart';
 
 void main() {
   setUpAll(() {
@@ -53,19 +56,19 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
 
-    for (final emoji in [
-      '🥫',
-      '🍚',
-      '🦴',
-      '💊',
-      '🥩',
-      '❄️',
-      '😭',
-      '😐',
-      '🙂',
-      '🥰',
+    for (final visualId in [
+      AppVisualId.mealWet,
+      AppVisualId.mealDry,
+      AppVisualId.mealSnack,
+      AppVisualId.mealPrescription,
+      AppVisualId.mealRaw,
+      AppVisualId.mealFreezeDried,
+      AppVisualId.mealConsumed25,
+      AppVisualId.mealConsumed50,
+      AppVisualId.mealConsumed75,
+      AppVisualId.mealConsumed100,
     ]) {
-      expect(find.text(emoji), findsOneWidget);
+      expect(findAppVisual(visualId), findsOneWidget);
     }
 
     for (final label in ['25%', '50%', '75%', '100%']) {

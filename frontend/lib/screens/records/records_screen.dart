@@ -7,10 +7,12 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
 import 'record_support.dart';
 
@@ -480,7 +482,11 @@ class _RecordTypeCard extends StatelessWidget {
                   color: type.color.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(type.icon, color: type.color, size: 23),
+                child: AppVisual(
+                  id: type.visualId,
+                  color: type.color,
+                  size: 23,
+                ),
               ),
               const SizedBox(height: 8),
               AppText(
@@ -581,9 +587,6 @@ class _SelectedDateRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = _typeConfig(record.typeId);
-    final icon = record.typeId == 'water'
-        ? Icons.water_drop_rounded
-        : type.icon;
     final summary = recordListSummary(record);
 
     return Material(
@@ -603,7 +606,11 @@ class _SelectedDateRecordRow extends StatelessWidget {
                   color: type.color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: type.color, size: 22),
+                child: AppVisual(
+                  id: type.visualId,
+                  color: type.color,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -809,13 +816,13 @@ class _EmptyRecordsPanel extends StatelessWidget {
 class _RecordTypeConfig {
   final String id;
   final String label;
-  final IconData icon;
+  final AppVisualId visualId;
   final Color color;
 
   const _RecordTypeConfig({
     required this.id,
     required this.label,
-    required this.icon,
+    required this.visualId,
     required this.color,
   });
 }
@@ -824,61 +831,61 @@ const _recordTypes = [
   _RecordTypeConfig(
     id: 'meal',
     label: '급식',
-    icon: Icons.restaurant_rounded,
+    visualId: AppVisualId.recordMeal,
     color: Color(0xFFFF8A65),
   ),
   _RecordTypeConfig(
     id: 'water',
     label: '음수',
-    icon: Icons.water_drop_rounded,
+    visualId: AppVisualId.recordWater,
     color: Color(0xFF42A5F5),
   ),
   _RecordTypeConfig(
     id: 'poop',
     label: '배변',
-    icon: Icons.pets_rounded,
+    visualId: AppVisualId.recordPoop,
     color: Color(0xFF8D6E63),
   ),
   _RecordTypeConfig(
     id: 'walk',
     label: '산책',
-    icon: Icons.directions_walk_rounded,
+    visualId: AppVisualId.recordWalk,
     color: Color(0xFF66BB6A),
   ),
   _RecordTypeConfig(
     id: 'medicine',
     label: '영양',
-    icon: Icons.medication_rounded,
+    visualId: AppVisualId.recordMedicine,
     color: Color(0xFF42A5F5),
   ),
   _RecordTypeConfig(
     id: 'vet',
     label: '병원',
-    icon: Icons.local_hospital_rounded,
+    visualId: AppVisualId.recordVet,
     color: Color(0xFFEF5350),
   ),
   _RecordTypeConfig(
     id: 'checkup',
     label: '접종',
-    icon: Icons.vaccines_rounded,
+    visualId: AppVisualId.recordCheckup,
     color: Color(0xFF5C6BC0),
   ),
   _RecordTypeConfig(
     id: 'weight',
     label: '몸무게',
-    icon: Icons.monitor_weight_rounded,
+    visualId: AppVisualId.recordWeight,
     color: Color(0xFFAB47BC),
   ),
   _RecordTypeConfig(
     id: 'diary',
     label: '일기',
-    icon: Icons.menu_book_rounded,
+    visualId: AppVisualId.recordDiary,
     color: Color(0xFF78909C),
   ),
   _RecordTypeConfig(
     id: 'etc',
     label: '기타',
-    icon: Icons.more_horiz_rounded,
+    visualId: AppVisualId.recordEtc,
     color: Color(0xFF9E9E9E),
   ),
 ];
@@ -916,7 +923,7 @@ _RecordTypeConfig _typeConfig(String typeId) {
     orElse: () => _RecordTypeConfig(
       id: typeId,
       label: typeId,
-      icon: Icons.notes_rounded,
+      visualId: AppVisualId.genericUnknown,
       color: AppColors.muted,
     ),
   );

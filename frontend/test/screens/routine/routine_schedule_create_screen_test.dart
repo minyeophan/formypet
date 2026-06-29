@@ -55,7 +55,7 @@ void main() {
         tester.widget(find.byKey(const Key('schedule-save-button')));
 
     expect(saveButton().onPressed, isNull);
-    await tester.tap(find.text('미용'));
+    await tester.tap(find.byKey(const Key('schedule-category-grooming')));
     await tester.enterText(
       find.byKey(const Key('schedule-title-field')),
       '목욕 예약',

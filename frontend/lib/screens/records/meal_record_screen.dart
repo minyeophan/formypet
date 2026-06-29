@@ -6,10 +6,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import 'record_support.dart';
@@ -526,9 +528,9 @@ class _FoodTypeGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final option = _foodTypeOptions[index];
-        return _EmojiOptionCard(
+        return _VisualOptionCard(
           key: Key('meal-food-type-${option.value}'),
-          emoji: option.emoji,
+          visualId: option.visualId!,
           label: option.label,
           selected: selectedValue == option.value,
           onTap: () => onSelected(option.value),
@@ -558,9 +560,9 @@ class _ConsumeGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final option = _consumeOptions[index];
-        return _EmojiOptionCard(
+        return _VisualOptionCard(
           key: Key('meal-consumed-${option.value}'),
-          emoji: option.emoji,
+          visualId: option.visualId,
           label: '${option.value}%',
           selected: selectedValue == option.value,
           onTap: () => onSelected(option.value),
@@ -570,15 +572,15 @@ class _ConsumeGrid extends StatelessWidget {
   }
 }
 
-class _EmojiOptionCard extends StatelessWidget {
-  final String emoji;
+class _VisualOptionCard extends StatelessWidget {
+  final AppVisualId visualId;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _EmojiOptionCard({
+  const _VisualOptionCard({
     super.key,
-    required this.emoji,
+    required this.visualId,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -603,7 +605,7 @@ class _EmojiOptionCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 24)),
+              AppVisual(id: visualId, size: 24),
               const SizedBox(height: 6),
               AppText(
                 label,
@@ -1023,40 +1025,40 @@ class _DashedBorderPainter extends CustomPainter {
 class _StringOption {
   final String value;
   final String label;
-  final String emoji;
+  final AppVisualId? visualId;
 
-  const _StringOption(this.value, this.label, this.emoji);
+  const _StringOption(this.value, this.label, [this.visualId]);
 }
 
 class _IntOption {
   final int value;
-  final String emoji;
+  final AppVisualId visualId;
 
-  const _IntOption(this.value, this.emoji);
+  const _IntOption(this.value, this.visualId);
 }
 
 const _selectedFill = Color(0xFFFFF7EF);
 
 const _foodTypeOptions = [
-  _StringOption('wet', '습식', '🥫'),
-  _StringOption('dry', '건식', '🍚'),
-  _StringOption('snack', '간식', '🦴'),
-  _StringOption('prescription', '처방식', '💊'),
-  _StringOption('raw', '생식', '🥩'),
-  _StringOption('freezeDried', '동결건조', '❄️'),
+  _StringOption('wet', '습식', AppVisualId.mealWet),
+  _StringOption('dry', '건식', AppVisualId.mealDry),
+  _StringOption('snack', '간식', AppVisualId.mealSnack),
+  _StringOption('prescription', '처방식', AppVisualId.mealPrescription),
+  _StringOption('raw', '생식', AppVisualId.mealRaw),
+  _StringOption('freezeDried', '동결건조', AppVisualId.mealFreezeDried),
 ];
 
 const _consumeOptions = [
-  _IntOption(25, '😭'),
-  _IntOption(50, '😐'),
-  _IntOption(75, '🙂'),
-  _IntOption(100, '🥰'),
+  _IntOption(25, AppVisualId.mealConsumed25),
+  _IntOption(50, AppVisualId.mealConsumed50),
+  _IntOption(75, AppVisualId.mealConsumed75),
+  _IntOption(100, AppVisualId.mealConsumed100),
 ];
 
 const _feedingMethodOptions = [
-  _StringOption('served', '배식', ''),
-  _StringOption('freeFeed', '자율급식', ''),
-  _StringOption('autoFeeder', '자동급식기', ''),
+  _StringOption('served', '배식'),
+  _StringOption('freeFeed', '자율급식'),
+  _StringOption('autoFeeder', '자동급식기'),
 ];
 
 TimeOfDay? _timeOfDayFrom(String? raw) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/activity_record.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_visual.dart';
 import '../../core/date_utils.dart';
 import '../../widgets/app_text.dart';
 
@@ -52,7 +53,11 @@ class RecentRecordsCard extends StatelessWidget {
             ...todayRecords.map((r) {
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(recordTypeIcon(r.typeId), color: Colors.blue),
+                leading: AppVisual(
+                  id: recordTypeVisualId(r.typeId),
+                  size: 24,
+                  color: Colors.blue,
+                ),
                 title: AppText(recordTypeLabel(r.typeId)),
                 subtitle: r.time != null
                     ? AppText(formatTime12h(r.time), fontSize: 12)

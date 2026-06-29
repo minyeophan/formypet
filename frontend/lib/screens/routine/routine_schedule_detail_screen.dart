@@ -8,7 +8,9 @@ import '../../models/care_schedule.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import 'routine_schedule_create_screen.dart';
+import 'routine_schedule_values.dart';
 
 class RoutineScheduleDetailScreen extends ConsumerWidget {
   final String scheduleId;
@@ -132,10 +134,10 @@ class _DetailHero extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  _scheduleIcon(schedule.categoryId),
-                  color: AppColors.primary,
+                child: AppVisual(
+                  id: scheduleVisualId(schedule.categoryId),
                   size: 28,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -326,16 +328,6 @@ String _categoryLabel(String categoryId) => switch (categoryId) {
   'outing' => '카페외출',
   'event' => '행사이벤트',
   _ => '기타',
-};
-
-IconData _scheduleIcon(String categoryId) => switch (categoryId) {
-  'grooming' => Icons.content_cut_rounded,
-  'hospital' => Icons.local_hospital_rounded,
-  'travel' => Icons.luggage_rounded,
-  'hotel' => Icons.home_work_rounded,
-  'outing' => Icons.local_cafe_rounded,
-  'event' => Icons.celebration_rounded,
-  _ => Icons.event_note_rounded,
 };
 
 String _dateTimeLabel(CareSchedule schedule) {

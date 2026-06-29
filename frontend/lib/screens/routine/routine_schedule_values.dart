@@ -1,5 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../core/visuals/app_visual_id.dart';
+
+AppVisualId scheduleVisualId(String categoryId) => switch (categoryId) {
+  'grooming' => AppVisualId.scheduleGrooming,
+  'hospital' => AppVisualId.scheduleHospital,
+  'travel' => AppVisualId.scheduleTravel,
+  'hotel' => AppVisualId.scheduleHotel,
+  'outing' => AppVisualId.scheduleOuting,
+  'event' => AppVisualId.scheduleEvent,
+  'etc' => AppVisualId.scheduleEtc,
+  _ => AppVisualId.genericUnknown,
+};
+
 class ScheduleRange {
   final DateTime endDate;
   final TimeOfDay endTime;

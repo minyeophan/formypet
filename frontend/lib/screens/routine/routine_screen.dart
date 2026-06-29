@@ -10,6 +10,8 @@ import '../../models/care_schedule.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
+import 'routine_schedule_values.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
@@ -545,8 +547,9 @@ class _ScheduleTile extends StatelessWidget {
                   color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  _scheduleIcon(schedule.categoryId),
+                child: AppVisual(
+                  id: scheduleVisualId(schedule.categoryId),
+                  size: 24,
                   color: accentColor,
                 ),
               ),
@@ -667,16 +670,6 @@ int _scheduleCompare(CareSchedule a, CareSchedule b) {
   if (dateCompare != 0) return dateCompare;
   return (a.startTime ?? '').compareTo(b.startTime ?? '');
 }
-
-IconData _scheduleIcon(String categoryId) => switch (categoryId) {
-  'grooming' => Icons.content_cut_rounded,
-  'hospital' => Icons.local_hospital_rounded,
-  'travel' => Icons.luggage_rounded,
-  'hotel' => Icons.home_work_rounded,
-  'outing' => Icons.local_cafe_rounded,
-  'event' => Icons.celebration_rounded,
-  _ => Icons.event_note_rounded,
-};
 
 String _scheduleSubtitle(CareSchedule schedule) {
   final startTime = schedule.startTime?.trim();

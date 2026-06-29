@@ -10,6 +10,7 @@ import '../../models/care_schedule.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import '../../widgets/record_inputs/record_input_style.dart';
@@ -571,6 +572,7 @@ class _CategoryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      key: Key('schedule-category-${category.id}'),
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
@@ -586,7 +588,11 @@ class _CategoryButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(category.icon, size: 18, color: category.color),
+            AppVisual(
+              id: scheduleVisualId(category.id),
+              size: 18,
+              color: category.color,
+            ),
             const SizedBox(width: 7),
             Expanded(
               child: AppText(
@@ -690,14 +696,12 @@ class _ScheduleCategory {
   final String id;
   final String label;
   final String description;
-  final IconData icon;
   final Color color;
 
   const _ScheduleCategory({
     required this.id,
     required this.label,
     required this.description,
-    required this.icon,
     required this.color,
   });
 }
@@ -707,49 +711,42 @@ const _categories = [
     id: 'grooming',
     label: '미용',
     description: '목욕, 미용, 발톱 관리 일정을 기록해요.',
-    icon: Icons.content_cut_rounded,
     color: Color(0xFFD4779B),
   ),
   _ScheduleCategory(
     id: 'hospital',
     label: '병원 예약',
     description: '진료와 예방접종 예약을 잊지 않게 챙겨요.',
-    icon: Icons.local_hospital_rounded,
     color: Color(0xFF5B8DEF),
   ),
   _ScheduleCategory(
     id: 'travel',
     label: '여행숙박',
     description: '함께 떠나는 여행과 숙박 일정을 기록해요.',
-    icon: Icons.luggage_rounded,
     color: Color(0xFF8D7A64),
   ),
   _ScheduleCategory(
     id: 'hotel',
     label: '호텔링',
     description: '돌봄과 호텔링 일정을 미리 확인해요.',
-    icon: Icons.home_work_rounded,
     color: Color(0xFF5E9F7B),
   ),
   _ScheduleCategory(
     id: 'outing',
     label: '카페외출',
     description: '카페와 외출 약속을 기록해요.',
-    icon: Icons.local_cafe_rounded,
     color: Color(0xFFE29B45),
   ),
   _ScheduleCategory(
     id: 'event',
     label: '행사이벤트',
     description: '행사와 이벤트 일정을 모아봐요.',
-    icon: Icons.celebration_rounded,
     color: Color(0xFF8D6CCF),
   ),
   _ScheduleCategory(
     id: 'etc',
     label: '기타',
     description: '그 밖의 중요한 일정을 기록해요.',
-    icon: Icons.event_note_rounded,
     color: Color(0xFF7A8491),
   ),
 ];
