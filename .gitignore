@@ -5,6 +5,9 @@ node_modules
 .claude/
 .superpowers/
 .worktrees/
+.vscode/
+scripts/
+CHANGES.md
 docs/superpowers/plans/
 docs/devlog-drafts/
 
