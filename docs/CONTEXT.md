@@ -1,11 +1,18 @@
 # 현재 컨텍스트
 
+## 2026-06-30 CORS·로그아웃 안정화와 커뮤니티 검색 통합 검증
+
+- 로컬 개발 origin의 CORS preflight에 `PATCH`를 허용하고 사용자 프로필 및 루틴 완료 API 경로를 통합 테스트로 고정했다.
+- `PetNotifier.clearForSignedOutUser()`가 quick type 환경설정 로드를 기다리지 않고 즉시 signed-out 상태를 정리하도록 바꿨다. 환경설정 로드 실패는 기본 상태를 유지하며, 지연 중이거나 실패해도 로그아웃을 막지 않는다.
+- 커뮤니티 게시글 검색 백엔드와 pagination 보완을 `develop`에 통합하고, Flutter `CommunityService.getFeed()`가 trim한 선택 `keyword`를 기존 category·sort·cursor·limit와 함께 전달하도록 연결했다. null·빈 문자열·공백 keyword는 요청에서 생략한다.
+- 최종 검증: 백엔드 `.\gradlew.bat test --rerun-tasks` `BUILD SUCCESSFUL`, Flutter `flutter test` GREEN(339 tests), `flutter analyze` `No issues found!`, 한글 깨짐 검사와 `git diff --check` GREEN.
+
 ## 2026-06-29 커뮤니티 게시글 검색 및 pagination 보완
 
 - `GET /api/v1/posts`에 선택 `keyword`를 추가했다. 검색어는 trim 후 Unicode code point 기준 2~20자이며 제목 또는 본문에 포함되는 글을 조회하고, category와 AND로 조합한다.
 - `!`, `%`, `_`를 MySQL `LIKE ... ESCAPE '!'` 규칙에 맞게 escape하고 제목·본문 pattern을 prepared parameter로 전달한다. 빈 검색어는 기존 피드로 처리하며 잘못된 길이는 `INVALID_INPUT` 400을 반환한다.
 - latest와 popular 피드는 `limit + 1`개를 조회해 실제 다음 행이 있을 때만 마지막 반환 항목 기준 cursor를 발급한다. keyword, category, sort가 바뀌면 클라이언트가 기존 cursor를 폐기해야 한다.
-- 검증 상태: `CommunityIntegrationTest` GREEN. 백엔드 전체 테스트는 107개 중 병렬 수정 중인 기존 wallet summary SQL의 `BadSqlGrammarException` 1건으로 실패했으며, 커뮤니티 변경 범위에서는 수정하지 않았다.
+- 검증 상태: `CommunityIntegrationTest` GREEN. 당시 wallet summary SQL 실패는 `a725638`에서 수정됐고, 2026-06-30 통합 후 백엔드 전체 테스트도 GREEN이다.
 
 ## 2026-06-27 커뮤니티 댓글·답글 최종 검증
 
@@ -95,10 +102,10 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 검증: 2026-06-27 프론트 `flutter test` GREEN(326 tests), `flutter analyze` `No issues found!`; 백엔드 `CommunityIntegrationTest`, `FlywayMigrationTest` 강제 재실행 GREEN. 마지막 확인된 웹 빌드는 2026-06-02 성공이다.
+2. 마지막 확인된 검증: 2026-06-30 프론트 `flutter test` GREEN(339 tests), `flutter analyze` `No issues found!`; 백엔드 전체 `test --rerun-tasks` `BUILD SUCCESSFUL`. 마지막 확인된 웹 빌드는 2026-06-02 성공이다.
 3. 최신 스키마: Flyway `V1`부터 `V19__add_post_comment_replies.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
-4. 최근 변경 흐름: 기록 `expense` 레거시 정리, 기록 상세·수정·삭제 동선, 배변 옵션 카드 웹 상호작용 색상 안정화, 커뮤니티 댓글 전용 화면·작성자 프로필 이미지·한 단계 답글을 보강했다.
-5. 다음 우선순위: 커뮤니티 댓글·답글 수동 회귀, 기록 direct URL 예외 확인, 커뮤니티 검색/알림/카테고리 필터, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
+4. 최근 변경 흐름: 로컬 CORS `PATCH`, 로그아웃 시 펫 상태 정리, 커뮤니티 제목·본문 검색과 피드 pagination, Flutter service keyword 전달을 보강했다.
+5. 다음 우선순위: 커뮤니티 검색 UI·알림·카테고리 필터, 댓글·답글 수동 회귀, 기록 direct URL 예외 확인, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
 
 ## 마지막 검증
 
@@ -123,6 +130,7 @@
 - 루틴 일정 서버 연동 후 부분 검증: 2026-06-26 `.\gradlew.bat test --tests com.petyilgi.routine.CareScheduleIntegrationTest` GREEN, `flutter test test\services\care_schedule_service_test.dart` GREEN, `flutter test test\providers\pet_provider_test.dart test\screens\routine\routine_schedule_create_screen_test.dart test\screens\routine\routine_screen_test.dart test\router\app_router_test.dart` GREEN(72 tests), `flutter analyze --no-fatal-infos` Exit 0(기존 info 4건).
 - 기록 CRUD 수동 검증 및 배변 옵션 카드 보정: 2026-06-27 타입별 기록 생성, 목록→상세→수정·삭제 기본 동선이 정상 동작함을 확인했다. 배변 옵션 카드의 Flutter Web hover/focus 회색 잔상을 제거하고 대변·소변 색상 그리드 상태를 분리했다. `flutter test test/screens/records/record_category_form_screen_test.dart` GREEN(19 tests), `git diff --check` whitespace 오류 없음.
 - 커뮤니티 댓글·답글 최종 검증: 2026-06-27 `flutter test` GREEN(326 tests), `flutter analyze` `No issues found!`, `.\gradlew.bat test --rerun-tasks --tests com.petyilgi.community.CommunityIntegrationTest --tests com.petyilgi.support.FlywayMigrationTest` GREEN, 한글 깨짐 검사와 `git diff --check` GREEN.
+- CORS·로그아웃 안정화와 커뮤니티 검색 통합 검증: 2026-06-30 `.\gradlew.bat test --rerun-tasks` `BUILD SUCCESSFUL`, `flutter test` GREEN(339 tests), `flutter analyze` `No issues found!`, 한글 깨짐 검사와 `git diff --check` GREEN.
 
 ## 다음 행동
 
@@ -143,11 +151,11 @@
 
 ## 최신 Handover
 
-- Goal: 커뮤니티 게시글 검색 API와 피드 pagination cursor 판정을 보완하고 계약·검증 결과를 동기화한다.
-- Done: 선택 `keyword` 제목·본문 검색, Unicode code point 2~20자 검증, literal `LIKE` escape, category 조합을 구현했다. latest와 popular 피드는 `limit + 1` 조회로 실제 다음 행이 있을 때만 cursor를 반환하며 검색 pagination 통합 테스트를 추가했다.
+- Goal: CORS·로그아웃 안정화 작업 A와 커뮤니티 게시글 검색 작업 B를 `develop`에 통합하고 전체 회귀를 검증한다.
+- Done: 로컬 CORS `PATCH` preflight, quick type 로드와 무관한 signed-out 펫 상태 정리, 선택 `keyword` 제목·본문 검색, literal `LIKE` escape, category 조합, `limit + 1` cursor 판정, Flutter service keyword 전달을 통합했다. 백엔드 전체 테스트와 Flutter 339개 테스트·정적 분석이 통과했다.
 - Remaining: 검색 UI, 알림, 카테고리 필터 UI와 댓글·답글 수정/삭제/신고는 후속 범위다. 검색 조건과 cursor를 서버가 결합해 검증하지 않으므로 프론트가 조건 변경 시 cursor를 초기화해야 한다.
 - Next step: 프론트 검색 화면 구현 시 `keyword`, `category`, `sort` 변경마다 첫 페이지를 요청하고 400 검색어 길이 오류를 사용자 입력 안내로 연결한다.
-- Warnings: `%keyword%` 검색은 posts 전체 스캔 가능성이 있고 popular pagination은 조회 중 좋아요 변경에 대한 snapshot 일관성을 보장하지 않는다. 기존 Flyway `V1`~`V19`, frontend, scripts는 수정하지 않는다.
+- Warnings: B의 기존 백엔드·문서 커밋은 merge commit `87559e9`에 포함됐고, A 코드·테스트와 B Flutter 5개 파일 및 이 문서 갱신은 아직 working tree 변경이다. 기존 Flyway `V1`~`V19`는 수정하지 않는다.
 
 ## 이전 Handover
 
