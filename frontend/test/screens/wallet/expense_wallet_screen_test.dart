@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -52,6 +53,17 @@ void main() {
     expect(find.text('expense-food'), findsOneWidget);
   });
 
+  testWidgets('wallet recent row keeps its surface and shows focus border', (
+    tester,
+  ) async {
+    await _pumpScreen(tester, const ExpenseWalletScreen());
+
+    await _expectRowInteraction(
+      tester,
+      const Key('wallet-expense-row-expense-food'),
+    );
+  });
+
   testWidgets('report screen shows summary and opens detail route', (
     tester,
   ) async {
@@ -79,6 +91,49 @@ void main() {
 
     expect(find.text('expense-food'), findsOneWidget);
   });
+
+  testWidgets('report row keeps its surface and shows focus border', (
+    tester,
+  ) async {
+    await _pumpScreen(tester, const ExpenseReportScreen());
+
+    await _expectRowInteraction(
+      tester,
+      const Key('wallet-report-expense-row-expense-food'),
+    );
+  });
+}
+
+Future<void> _expectRowInteraction(WidgetTester tester, Key materialKey) async {
+  final materialFinder = find.byKey(materialKey);
+  var material = tester.widget<Material>(materialFinder);
+  var inkWell = material.child! as InkWell;
+
+  expect(inkWell.hoverColor, Colors.transparent);
+  expect(inkWell.focusColor, Colors.transparent);
+  expect(inkWell.highlightColor, Colors.transparent);
+  expect(inkWell.splashColor, AppColors.text.withValues(alpha: 0.06));
+  expect(inkWell.onFocusChange, isNotNull);
+
+  inkWell.onFocusChange!(true);
+  await tester.pump();
+
+  material = tester.widget<Material>(materialFinder);
+  inkWell = material.child! as InkWell;
+  var decoration = (inkWell.child! as Container).decoration! as BoxDecoration;
+  var border = decoration.border! as Border;
+  expect(border.top.color, AppColors.textSecondary);
+  expect(border.top.width, 2);
+
+  inkWell.onFocusChange!(false);
+  await tester.pump();
+
+  material = tester.widget<Material>(materialFinder);
+  inkWell = material.child! as InkWell;
+  decoration = (inkWell.child! as Container).decoration! as BoxDecoration;
+  border = decoration.border! as Border;
+  expect(border.top.color, AppColors.border);
+  expect(border.top.width, 1);
 }
 
 Future<void> _pumpScreen(WidgetTester tester, Widget screen) async {

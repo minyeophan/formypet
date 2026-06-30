@@ -193,13 +193,21 @@ class _CategorySummaryRow extends StatelessWidget {
   }
 }
 
-class _ReportExpenseRow extends StatelessWidget {
+class _ReportExpenseRow extends StatefulWidget {
   final WalletExpense expense;
 
   const _ReportExpenseRow({required this.expense});
 
   @override
+  State<_ReportExpenseRow> createState() => _ReportExpenseRowState();
+}
+
+class _ReportExpenseRowState extends State<_ReportExpenseRow> {
+  bool _isFocused = false;
+
+  @override
   Widget build(BuildContext context) {
+    final expense = widget.expense;
     return Material(
       key: Key('wallet-report-expense-row-${expense.id}'),
       color: AppColors.surfaceSoft,
@@ -207,12 +215,23 @@ class _ReportExpenseRow extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => context.push('/wallet/expenses/${expense.id}'),
+        onFocusChange: (isFocused) {
+          if (_isFocused == isFocused) return;
+          setState(() => _isFocused = isFocused);
+        },
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: AppColors.text.withValues(alpha: 0.06),
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(
+              color: _isFocused ? AppColors.textSecondary : AppColors.border,
+              width: _isFocused ? 2 : 1,
+            ),
           ),
           child: Row(
             children: [
