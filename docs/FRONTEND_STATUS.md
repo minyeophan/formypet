@@ -1,6 +1,6 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
-> 마지막 갱신: 2026-06-27
+> 마지막 갱신: 2026-06-30
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 
 ## 상태 표기
@@ -71,6 +71,7 @@
 | 토큰 갱신 | 🔌 연동됨 | `core/api_client.dart`에서 401 응답 시 refresh 처리 |
 | 로그아웃 service | 🔌 연동됨 | `AuthService.logout()` 호출 후 로컬 토큰 삭제 |
 | 로그아웃 UI | 🔌 연동됨 | `/my/settings` 위험 액션 카드와 확인 시트에서 호출 |
+| 로그아웃 펫 상태 정리 | ✅ 구현됨 | quick type 환경설정 로드를 기다리지 않고 즉시 signed-out 상태로 정리하며 로드 실패는 로그만 남김 |
 | 토큰 저장 | ✅ 구현됨 | `flutter_secure_storage` 기반 access/refresh 저장 |
 
 ### API 요구사항
@@ -89,10 +90,6 @@
 - 닉네임 변경은 `PATCH /api/v1/users/me`에 `{ "nickname": "..." }`를 보내며, 서버에서 trim한 1~50자를 허용한다.
 - 사진 등록은 `POST /api/v1/users/me/profile-image`의 multipart `file` 한 개다. `jpg`, `jpeg`, `png`, `webp`와 최대 5MB를 허용한다.
 - 프로필 사진은 사용자당 최신 한 장만 유지한다. 새 파일을 저장한 뒤 이전 DB 행과 저장 파일을 커밋 후 정리하며, 사진 삭제 API는 제공하지 않는다.
-
-### Backend sync needed
-
-- `PetNotifier.clearForSignedOutUser()`의 환경설정 Future 실패 및 무한 대기 방어는 프론트 후속 작업으로 남긴다.
 
 ---
 
@@ -286,6 +283,7 @@
 | 항목 | 상태 | 프론트 기준 |
 |------|------|-------------|
 | 피드 조회 | 🔌 연동됨 | `screens/community/community_screen.dart`, `services/community_service.dart` |
+| 검색 요청 service | 🔌 연동됨 | `CommunityService.getFeed()`가 trim한 선택 `keyword`를 전달하고 null·빈 문자열·공백은 생략 |
 | 글쓰기 | 🔌 연동됨 | `screens/community/write_screen.dart`, `CommunityService.createPost()` |
 | 좋아요 | 🔌 연동됨 | `post_card.dart`, `CommunityService.toggleLike()` |
 | 글쓰기 이미지 첨부 | 🔌 연동됨 | `write_screen.dart`, multipart `files` |
