@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -465,6 +466,95 @@ void main() {
     expect(notifier.state.schedules, isEmpty);
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
   });
+
+  test(
+    'clearForSignedOutUser clears immediately while quick types are loading',
+    () async {
+      final loader = Completer<List<String>>();
+      final notifier = PetNotifier.testWithServices(
+        PetState(
+          isLoading: true,
+          hasOnboarded: true,
+          pets: [_pet('1')],
+          activePetId: '1',
+          records: [_record('r1', '1')],
+          routines: [_routine('rt1', '1')],
+          schedules: [_schedule('s1', '1')],
+          todayRoutineItems: [
+            _todayRoutineItem(
+              routine: _routine('rt1', '1'),
+              date: '2026-06-30',
+              status: CompletionStatus.completed,
+            ),
+          ],
+          routineCompletions: const {
+            'rt1:2026-06-30': CompletionStatus.completed,
+          },
+          todaySummary: const TodayRoutineSummary(total: 1, done: 1, rate: 1),
+          quickTypeIds: const ['meal', 'water'],
+        ),
+        quickTypeIdsLoader: () => loader.future,
+      );
+
+      final clearFuture = notifier.clearForSignedOutUser();
+
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.hasOnboarded, isFalse);
+      expect(notifier.state.pets, isEmpty);
+      expect(notifier.state.activePetId, isNull);
+      expect(notifier.state.records, isEmpty);
+      expect(notifier.state.routines, isEmpty);
+      expect(notifier.state.schedules, isEmpty);
+      expect(notifier.state.todayRoutineItems, isEmpty);
+      expect(notifier.state.routineCompletions, isEmpty);
+      expect(notifier.state.todaySummary, isNull);
+      expect(notifier.state.quickTypeIds, const ['meal', 'water']);
+
+      loader.complete(const ['walk', 'vet']);
+      await clearFuture;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.state.quickTypeIds, const ['walk', 'vet']);
+      expect(notifier.state.pets, isEmpty);
+      expect(notifier.state.activePetId, isNull);
+      expect(notifier.state.records, isEmpty);
+      expect(notifier.state.routines, isEmpty);
+      expect(notifier.state.schedules, isEmpty);
+    },
+  );
+
+  test(
+    'failed quick type loading does not block signed-out state cleanup',
+    () async {
+      final loader = Completer<List<String>>();
+      final notifier = PetNotifier.testWithServices(
+        PetState(
+          isLoading: true,
+          hasOnboarded: true,
+          pets: [_pet('1')],
+          activePetId: '1',
+          records: [_record('r1', '1')],
+          routines: const [],
+          schedules: const [],
+          todayRoutineItems: const [],
+          routineCompletions: const {},
+          quickTypeIds: const ['meal', 'water'],
+        ),
+        quickTypeIdsLoader: () => loader.future,
+      );
+
+      final clearFuture = notifier.clearForSignedOutUser();
+      loader.completeError(Exception('preferences unavailable'));
+      await clearFuture;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.hasOnboarded, isFalse);
+      expect(notifier.state.pets, isEmpty);
+      expect(notifier.state.activePetId, isNull);
+      expect(notifier.state.quickTypeIds, const ['meal', 'water']);
+    },
+  );
 
   test(
     'addPet makes the newly created pet active and loads its data',

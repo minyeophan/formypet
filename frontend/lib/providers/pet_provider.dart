@@ -119,7 +119,7 @@ class PetNotifier extends StateNotifier<PetState> {
            quickTypeIds: kDefaultQuickIds,
          ),
        ) {
-    _preferencesReady = _loadQuickTypeIds();
+    _preferencesReady = _initializeQuickTypeIds(_readStoredQuickTypeIds);
   }
 
   PetNotifier.test(super.initialState)
@@ -138,19 +138,32 @@ class PetNotifier extends StateNotifier<PetState> {
     RoutineService? routineService,
     MediaService? mediaService,
     CareScheduleService? scheduleService,
+    Future<List<String>> Function()? quickTypeIdsLoader,
   }) : _petSvc = petService ?? PetService(),
        _mediaSvc = mediaService ?? MediaService(),
        _recSvc = recordService ?? RecordService(),
        _routSvc = routineService ?? RoutineService(),
        _scheduleSvc = scheduleService {
-    _preferencesReady = Future.value();
+    _preferencesReady = quickTypeIdsLoader == null
+        ? Future.value()
+        : _initializeQuickTypeIds(quickTypeIdsLoader);
   }
 
-  Future<void> _loadQuickTypeIds() async {
+  Future<List<String>> _readStoredQuickTypeIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedQuickIds =
-        prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
-    state = state.copyWith(isLoading: false, quickTypeIds: savedQuickIds);
+    return prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+  }
+
+  Future<void> _initializeQuickTypeIds(
+    Future<List<String>> Function() loader,
+  ) async {
+    try {
+      final quickTypeIds = await loader();
+      state = state.copyWith(isLoading: false, quickTypeIds: quickTypeIds);
+    } catch (error) {
+      debugPrint('Failed to load quick type ids: $error');
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   Future<void> loadForAuthenticatedUser() async {
@@ -194,7 +207,6 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> clearForSignedOutUser() async {
-    await _preferencesReady;
     state = PetState(
       isLoading: false,
       hasOnboarded: false,
