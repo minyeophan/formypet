@@ -29,8 +29,10 @@ class CommunityService {
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
+    String? keyword,
   }) async {
     final normalizedCategory = category?.toUpperCase();
+    final normalizedKeyword = keyword?.trim();
     final params = <String, dynamic>{'limit': limit, 'sort': sort.apiValue};
     if (normalizedCategory != null &&
         normalizedCategory != 'ALL' &&
@@ -38,6 +40,9 @@ class CommunityService {
       params['category'] = normalizedCategory;
     }
     if (cursor != null) params['cursor'] = cursor;
+    if (normalizedKeyword != null && normalizedKeyword.isNotEmpty) {
+      params['keyword'] = normalizedKeyword;
+    }
 
     final res = await dio.get('/api/v1/posts', queryParameters: params);
     return PostFeed.fromJson(unwrap(res) as Map<String, dynamic>);

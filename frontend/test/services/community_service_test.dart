@@ -53,6 +53,52 @@ void main() {
     expect(captured?.queryParameters['category'], 'CARE');
   });
 
+  test('getFeed sends trimmed keyword with existing feed parameters', () async {
+    RequestOptions? captured;
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured = options;
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    await CommunityService().getFeed(
+      category: 'CARE',
+      sort: CommunityFeedSort.popular,
+      cursor: '10:post-1',
+      limit: 10,
+      keyword: '  산책  ',
+    );
+
+    expect(captured?.queryParameters, {
+      'limit': 10,
+      'sort': 'popular',
+      'category': 'CARE',
+      'cursor': '10:post-1',
+      'keyword': '산책',
+    });
+  });
+
+  test('getFeed omits null empty and blank keyword', () async {
+    final captured = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured.add(options);
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    final service = CommunityService();
+    await service.getFeed(keyword: null);
+    await service.getFeed(keyword: '');
+    await service.getFeed(keyword: '   ');
+
+    expect(captured, hasLength(3));
+    for (final request in captured) {
+      expect(request.queryParameters.containsKey('keyword'), isFalse);
+    }
+  });
+
   test(
     'createPost always sends multipart payload with poll and files',
     () async {

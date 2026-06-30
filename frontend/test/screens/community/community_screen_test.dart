@@ -905,6 +905,7 @@ class _FakeCommunityService extends CommunityService {
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
+    String? keyword,
   }) async {
     final key = sort == CommunityFeedSort.popular
         ? 'popular'
