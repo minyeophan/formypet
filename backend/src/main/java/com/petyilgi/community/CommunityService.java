@@ -66,9 +66,10 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
-    public PostFeedResponse feed(String email, String category, String sort, String cursor, int limit) {
+    public PostFeedResponse feed(String email, String keyword, String category, String sort, String cursor, int limit) {
         User user = findUser(email);
         String normalizedSort = SORTS.contains(sort) ? sort : "latest";
+        String normalizedKeyword = normalizeKeyword(keyword);
         int pageSize = Math.max(1, Math.min(limit, 50));
 
         List<Object> params = new ArrayList<>();
@@ -85,18 +86,27 @@ public class CommunityService {
             sql.append(" AND p.category = ?");
             params.add(normalizeCategory(category));
         }
+        if (normalizedKeyword != null) {
+            String pattern = "%" + escapeLikeKeyword(normalizedKeyword) + "%";
+            sql.append(" AND (p.title LIKE ? ESCAPE '!' OR p.content LIKE ? ESCAPE '!')");
+            params.add(pattern);
+            params.add(pattern);
+        }
         appendCursor(sql, params, normalizedSort, cursor);
         if ("popular".equals(normalizedSort)) {
             sql.append(" ORDER BY p.likes_count DESC, p.id DESC LIMIT ?");
         } else {
             sql.append(" ORDER BY p.id DESC LIMIT ?");
         }
-        params.add(pageSize);
+        params.add(pageSize + 1);
 
-        List<PostResponse> items = jdbcTemplate.queryForList(sql.toString(), params.toArray()).stream()
+        List<Map<String, Object>> fetchedRows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        boolean hasNext = fetchedRows.size() > pageSize;
+        List<Map<String, Object>> pageRows = hasNext ? fetchedRows.subList(0, pageSize) : fetchedRows;
+        List<PostResponse> items = pageRows.stream()
                 .map(row -> toPostResponse(row, user.getId()))
                 .toList();
-        String nextCursor = items.size() == pageSize ? cursorFor(items.getLast(), normalizedSort) : null;
+        String nextCursor = hasNext ? cursorFor(items.getLast(), normalizedSort) : null;
         return PostFeedResponse.of(items, nextCursor);
     }
 
@@ -486,6 +496,27 @@ public class CommunityService {
             throw new IllegalArgumentException("replyLimit must be between 0 and 20.");
         }
         return replyLimit;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.strip();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        int length = normalized.codePointCount(0, normalized.length());
+        if (length < 2 || length > 20) {
+            throw new IllegalArgumentException("Search keyword must be between 2 and 20 characters.");
+        }
+        return normalized;
+    }
+
+    private String escapeLikeKeyword(String keyword) {
+        return keyword.replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 
     private Map<Long, List<PostCommentResponse>> loadReplies(List<Map<String, Object>> roots,

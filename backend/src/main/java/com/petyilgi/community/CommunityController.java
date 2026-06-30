@@ -37,11 +37,12 @@ public class CommunityController {
 
     @GetMapping
     public ApiResponse<PostFeedResponse> feed(@AuthenticationPrincipal String email,
+                                              @RequestParam(required = false) String keyword,
                                               @RequestParam(required = false) String category,
                                               @RequestParam(defaultValue = "latest") String sort,
                                               @RequestParam(required = false) String cursor,
                                               @RequestParam(defaultValue = "10") int limit) {
-        return ApiResponse.of(communityService.feed(email, category, sort, cursor, limit));
+        return ApiResponse.of(communityService.feed(email, keyword, category, sort, cursor, limit));
     }
 
     @GetMapping("/{postId}")

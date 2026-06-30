@@ -279,7 +279,7 @@
 
 ### 요약
 
-피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시한다. 상세 화면은 댓글 preview를 표시하고 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회를 처리한다. 게시글과 댓글 작성자 프로필 이미지는 인증 이미지 응답을 사용한다. 검색, 알림, 카테고리 필터 동작은 아직 연결되지 않았다.
+피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시한다. 상세 화면은 댓글 preview를 표시하고 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회를 처리한다. 게시글과 댓글 작성자 프로필 이미지는 인증 이미지 응답을 사용한다. 백엔드는 제목·본문 검색을 지원하지만 검색 UI와 카테고리 필터 동작은 아직 연결되지 않았고 알림도 후속 범위다.
 
 ### 현재 프론트 구현
 
@@ -305,7 +305,7 @@
 
 | 항목 | 엔드포인트/필드 |
 |------|----------------|
-| 피드 조회 | `GET /api/v1/posts?cursor=&limit=20&sort=latest|popular&category=...` |
+| 피드 조회 | `GET /api/v1/posts?keyword=...&category=...&sort=latest|popular&cursor=&limit=20` |
 | 상세 조회 | `GET /api/v1/posts/{postId}` |
 | 글쓰기 | `POST /api/v1/posts` |
 | 글쓰기 payload | multipart field `payload`에 JSON 문자열 |
@@ -318,6 +318,8 @@
 | 답글 목록 | `GET /api/v1/posts/{postId}/comments/{commentId}/replies?cursor=&limit=20` |
 | 댓글 작성 | `POST /api/v1/posts/{postId}/comments`, `{ "content": "...", "parentCommentId": null }` |
 | 답글 작성 | 댓글 작성 API에 root 댓글의 `parentCommentId` 전달. 중첩 답글은 허용하지 않음 |
+
+`keyword`는 선택값이며 생략·빈 문자열·공백은 일반 피드로 처리한다. 값이 있으면 trim 후 Unicode code point 기준 2~20자여야 하고, 제목 또는 본문에 literal 포함되는 게시글을 찾는다. `category`와는 AND로 조합한다. 프론트는 `keyword`, `category`, `sort` 중 하나라도 바뀌면 기존 cursor를 폐기하고 첫 페이지부터 요청해야 한다.
 
 투표 option 응답의 표시 텍스트는 백엔드 `label` 필드가 기준이다. Flutter `PostPollOption`은 기존 호환을 위해 `text`, `optionText`, `label`을 모두 읽되, 현재 서버 계약은 `label`이다.
 
