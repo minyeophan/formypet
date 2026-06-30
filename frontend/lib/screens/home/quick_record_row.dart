@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/app_text.dart';
 
 class QuickRecordRow extends StatelessWidget {
@@ -45,7 +46,7 @@ class QuickRecordRow extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(t.icon, size: 22),
+                    child: AppVisual(id: t.visualId, size: 22),
                   ),
                   const SizedBox(height: 4),
                   AppText(t.label, fontSize: 11),

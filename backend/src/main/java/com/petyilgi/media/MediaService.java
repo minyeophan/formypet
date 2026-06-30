@@ -2,6 +2,7 @@ package com.petyilgi.media;
 
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
+import com.petyilgi.common.exception.ApiException;
 import com.petyilgi.media.dto.MediaResponse;
 import com.petyilgi.media.storage.LoadedMedia;
 import com.petyilgi.media.storage.MediaStorage;
@@ -9,6 +10,7 @@ import com.petyilgi.media.storage.StoredMedia;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -62,6 +64,22 @@ public class MediaService {
     }
 
     @Transactional
+    public void deleteUserProfileMedia(Long userId, Long mediaId) {
+        var rows = jdbcTemplate.queryForList("""
+                SELECT storage_key
+                FROM media_resources
+                WHERE id = ? AND user_id = ? AND pet_id IS NULL AND record_id IS NULL
+                """, mediaId, userId);
+        if (rows.isEmpty()) {
+            return;
+        }
+
+        String storageKey = (String) rows.getFirst().get("storage_key");
+        jdbcTemplate.update("DELETE FROM media_resources WHERE id = ? AND user_id = ?", mediaId, userId);
+        registerAfterCommitCleanup(storageKey);
+    }
+
+    @Transactional
     public MediaResponse uploadCommunityMedia(User user, MultipartFile file) {
         return storeAndInsert(user.getId(), null, null, "PUBLIC", "community", file);
     }
@@ -87,6 +105,31 @@ public class MediaService {
         if (!"PUBLIC".equals(media.get("visibility"))) {
             throw new AccessDeniedException("Cannot access private media from public endpoint.");
         }
+        try {
+            return mediaStorage.load((String) media.get("storage_key"), (String) media.get("content_type"));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read media file.", e);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public LoadedMedia loadUserProfileImage(Long userId) {
+        var rows = jdbcTemplate.queryForList("""
+                SELECT mr.storage_key, mr.content_type
+                FROM users u
+                JOIN media_resources mr ON mr.id = u.profile_media_id
+                WHERE u.id = ?
+                """, userId);
+        if (rows.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "profile-image-not-found",
+                    "Profile Image Not Found",
+                    "Profile image not found.",
+                    "PROFILE_IMAGE_NOT_FOUND"
+            );
+        }
+        Map<String, Object> media = rows.getFirst();
         try {
             return mediaStorage.load((String) media.get("storage_key"), (String) media.get("content_type"));
         } catch (IOException e) {
@@ -187,6 +230,19 @@ public class MediaService {
                 if (status == STATUS_ROLLED_BACK) {
                     deleteQuietly(storageKey);
                 }
+            }
+        });
+    }
+
+    private void registerAfterCommitCleanup(String storageKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteQuietly(storageKey);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteQuietly(storageKey);
             }
         });
     }

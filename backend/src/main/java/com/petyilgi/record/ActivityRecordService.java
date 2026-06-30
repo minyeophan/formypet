@@ -34,7 +34,8 @@ import java.util.*;
 public class ActivityRecordService {
 
     private static final Set<String> SUPPORTED_TYPES = Set.of(
-            "meal", "water", "medicine", "poop", "walk", "sleep", "play", "weight", "vet", "checkup"
+            "meal", "water", "medicine", "poop", "walk", "sleep", "play", "weight", "vet", "checkup", "diary",
+            "etc"
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -257,8 +258,12 @@ public class ActivityRecordService {
                            vet_cost AS vetCost, vet_next_visit_date AS vetNextVisitDate
                     FROM record_vet WHERE record_id = ?
                     """;
+            case "diary", "etc" -> null;
             default -> throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
         };
+        if (sql == null) {
+            return Map.of();
+        }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, recordId);
         return rows.isEmpty() ? Map.of() : rows.getFirst();
     }
@@ -299,6 +304,8 @@ public class ActivityRecordService {
                     """, recordId, str(detail, "vetClinicName"), point(detail, "clinicLng", "clinicLat"),
                     str(detail, "vetVisitReason"), str(detail, "vetDiagnosis"), str(detail, "vetTreatment"),
                     integer(detail, "vetCost"), localDate(detail, "vetNextVisitDate"));
+            case "diary", "etc" -> {
+            }
             default -> throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
         }
     }
@@ -312,8 +319,12 @@ public class ActivityRecordService {
             case "walk", "sleep", "play" -> "record_walk";
             case "weight" -> "record_weight";
             case "vet", "checkup" -> "record_vet";
+            case "diary", "etc" -> null;
             default -> throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
         };
+        if (table == null) {
+            return;
+        }
         jdbcTemplate.update("DELETE FROM " + table + " WHERE record_id = ?", recordId);
     }
 

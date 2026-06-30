@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/activity_record.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_visual.dart';
 import '../../core/date_utils.dart';
 import '../../widgets/app_text.dart';
 
@@ -8,16 +9,16 @@ class RecentRecordsCard extends StatelessWidget {
   final List<ActivityRecord> records;
   final VoidCallback onViewAll;
 
-  const RecentRecordsCard(
-      {super.key, required this.records, required this.onViewAll});
+  const RecentRecordsCard({
+    super.key,
+    required this.records,
+    required this.onViewAll,
+  });
 
   @override
   Widget build(BuildContext context) {
     final today = todayString();
-    final todayRecords = records
-        .where((r) => r.date == today)
-        .take(3)
-        .toList();
+    final todayRecords = records.where((r) => r.date == today).take(3).toList();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -32,10 +33,15 @@ class RecentRecordsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const AppText('오늘의 기록',
-                  fontWeight: FontWeight.bold, fontSize: 15),
+              const AppText(
+                '오늘의 기록',
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
               TextButton(
-                  onPressed: onViewAll, child: const AppText('전체', color: Colors.blue)),
+                onPressed: onViewAll,
+                child: const AppText('전체', color: Colors.blue),
+              ),
             ],
           ),
           if (todayRecords.isEmpty)
@@ -45,14 +51,17 @@ class RecentRecordsCard extends StatelessWidget {
             )
           else
             ...todayRecords.map((r) {
-              final type =
-                  kQuickTypes.where((t) => t.id == r.typeId).firstOrNull;
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(type?.icon ?? Icons.circle, color: Colors.blue),
-                title: AppText(type?.label ?? r.typeId),
-                subtitle:
-                    r.time != null ? AppText(formatTime12h(r.time), fontSize: 12) : null,
+                leading: AppVisual(
+                  id: recordTypeVisualId(r.typeId),
+                  size: 24,
+                  color: Colors.blue,
+                ),
+                title: AppText(recordTypeLabel(r.typeId)),
+                subtitle: r.time != null
+                    ? AppText(formatTime12h(r.time), fontSize: 12)
+                    : null,
               );
             }),
         ],

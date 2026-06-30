@@ -3,15 +3,20 @@ package com.petyilgi.community;
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
 import com.petyilgi.community.dto.PostCreateRequest;
+import com.petyilgi.community.dto.PostCommentCreateRequest;
+import com.petyilgi.community.dto.PostCommentFeedResponse;
+import com.petyilgi.community.dto.PostCommentResponse;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
 import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
+import com.petyilgi.common.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -69,7 +74,7 @@ public class CommunityService {
         List<Object> params = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
                 SELECT p.id, p.user_id, u.nickname AS author_nickname, p.title, p.category, p.pet_species, p.content,
-                       p.likes_count, p.comments_count, p.created_at,
+                       p.likes_count, p.comments_count, p.created_at, u.profile_media_id,
                        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked
                 FROM posts p
                 JOIN users u ON u.id = p.user_id
@@ -93,6 +98,122 @@ public class CommunityService {
                 .toList();
         String nextCursor = items.size() == pageSize ? cursorFor(items.getLast(), normalizedSort) : null;
         return PostFeedResponse.of(items, nextCursor);
+    }
+
+    @Transactional(readOnly = true)
+    public PostResponse detail(String email, Long postId) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        return findPostResponse(postId, user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public PostCommentFeedResponse comments(String email, Long postId, String cursor, int limit, int replyLimit) {
+        findUser(email);
+        ensurePostExists(postId);
+        int pageSize = Math.max(1, Math.min(limit, 50));
+        int nestedPageSize = validateReplyLimit(replyLimit);
+        int commentsCount = commentsCount(postId);
+        List<Object> params = new ArrayList<>(List.of(postId));
+        StringBuilder sql = new StringBuilder("""
+                SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
+                       pc.content, pc.created_at,
+                       (SELECT COUNT(*) FROM post_comments child WHERE child.parent_comment_id = pc.id) AS reply_count
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.post_id = ? AND pc.parent_comment_id IS NULL
+                """);
+        if (cursor != null && !cursor.isBlank()) {
+            sql.append(" AND pc.id < ?");
+            params.add(parseCommentCursor(cursor));
+        }
+        sql.append(" ORDER BY pc.id DESC LIMIT ?");
+        params.add(pageSize + 1);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        boolean hasNext = rows.size() > pageSize;
+        if (hasNext) rows = new ArrayList<>(rows.subList(0, pageSize));
+        Map<Long, List<PostCommentResponse>> replies = loadReplies(rows, nestedPageSize, commentsCount);
+        List<PostCommentResponse> items = rows.stream()
+                .map(row -> rootCommentResponse(row, commentsCount, replies.getOrDefault(idOf(row), List.of())))
+                .toList();
+        String nextCursor = hasNext ? items.getLast().id().toString() : null;
+        return PostCommentFeedResponse.of(items, nextCursor);
+    }
+
+    @Transactional(readOnly = true)
+    public PostCommentResponse commentThread(String email, Long postId, Long commentId, int replyLimit) {
+        findUser(email);
+        ensurePostExists(postId);
+        Map<String, Object> row = requireComment(postId, commentId);
+        if (row.get("parent_comment_id") != null) throw invalidCommentParent();
+        int commentsCount = commentsCount(postId);
+        List<PostCommentResponse> replies = loadReplies(List.of(row), validateReplyLimit(replyLimit), commentsCount)
+                .getOrDefault(commentId, List.of());
+        return rootCommentResponse(row, commentsCount, replies);
+    }
+
+    @Transactional(readOnly = true)
+    public PostCommentFeedResponse replies(String email, Long postId, Long commentId, String cursor, int limit) {
+        findUser(email);
+        ensurePostExists(postId);
+        Map<String, Object> parent = requireComment(postId, commentId);
+        if (parent.get("parent_comment_id") != null) throw invalidCommentParent();
+        int pageSize = Math.max(1, Math.min(limit, 20));
+        int commentsCount = commentsCount(postId);
+        List<Object> params = new ArrayList<>(List.of(postId, commentId));
+        StringBuilder sql = new StringBuilder("""
+                SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
+                       pc.content, pc.created_at, 0 AS reply_count
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.post_id = ? AND pc.parent_comment_id = ?
+                """);
+        if (cursor != null && !cursor.isBlank()) {
+            sql.append(" AND pc.id < ?");
+            params.add(parseCommentCursor(cursor));
+        }
+        sql.append(" ORDER BY pc.id DESC LIMIT ?");
+        params.add(pageSize + 1);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        boolean hasNext = rows.size() > pageSize;
+        if (hasNext) rows = new ArrayList<>(rows.subList(0, pageSize));
+        Collections.reverse(rows);
+        List<PostCommentResponse> items = rows.stream().map(row -> leafCommentResponse(row, commentsCount)).toList();
+        String nextCursor = hasNext && !items.isEmpty() ? items.getFirst().id().toString() : null;
+        return PostCommentFeedResponse.of(items, nextCursor);
+    }
+
+    @Transactional
+    public PostCommentResponse createComment(String email, Long postId, PostCommentCreateRequest request) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        String content = request == null || request.content() == null ? "" : request.content().trim();
+        if (content.isEmpty() || content.length() > 1000) {
+            throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
+        }
+        Long parentCommentId = request.parentCommentId();
+        if (parentCommentId != null) {
+            Map<String, Object> parent = requireCommentAnyPost(parentCommentId);
+            if (!postId.equals(((Number) parent.get("post_id")).longValue()) || parent.get("parent_comment_id") != null) {
+                throw invalidCommentParent();
+            }
+        }
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement("""
+                    INSERT INTO post_comments (post_id, user_id, parent_comment_id, content, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, postId);
+            ps.setLong(2, user.getId());
+            ps.setObject(3, parentCommentId);
+            ps.setString(4, content);
+            ps.setObject(5, LocalDateTime.now());
+            return ps;
+        }, keyHolder);
+        jdbcTemplate.update("UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?", postId);
+        Long commentId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        return findCommentResponse(commentId, commentsCount(postId));
     }
 
     @Transactional
@@ -234,7 +355,7 @@ public class CommunityService {
     private PostResponse findPostResponse(Long postId, Long currentUserId) {
         Map<String, Object> row = jdbcTemplate.queryForMap("""
                 SELECT p.id, p.user_id, u.nickname AS author_nickname, p.title, p.category, p.pet_species, p.content,
-                       p.likes_count, p.comments_count, p.created_at,
+                       p.likes_count, p.comments_count, p.created_at, u.profile_media_id,
                        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked
                 FROM posts p
                 JOIN users u ON u.id = p.user_id
@@ -243,12 +364,59 @@ public class CommunityService {
         return toPostResponse(row, currentUserId);
     }
 
+    private PostCommentResponse findCommentResponse(Long commentId, int commentsCount) {
+        Map<String, Object> row = jdbcTemplate.queryForMap("""
+                SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
+                       pc.content, pc.created_at, 0 AS reply_count
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.id = ?
+                """, commentId);
+        return leafCommentResponse(row, commentsCount);
+    }
+
+    private PostCommentResponse leafCommentResponse(Map<String, Object> row, int commentsCount) {
+        return new PostCommentResponse(
+                ((Number) row.get("id")).longValue(),
+                ((Number) row.get("user_id")).longValue(),
+                (String) row.get("author_nickname"),
+                commentAuthorProfileImageUrl(row),
+                (String) row.get("content"),
+                normalizeDateTime(row.get("created_at")),
+                commentsCount,
+                row.get("parent_comment_id") == null ? null : ((Number) row.get("parent_comment_id")).longValue(),
+                0,
+                List.of(),
+                null
+        );
+    }
+
+    private PostCommentResponse rootCommentResponse(Map<String, Object> row, int commentsCount,
+                                                     List<PostCommentResponse> replies) {
+        int replyCount = ((Number) row.get("reply_count")).intValue();
+        String nextCursor = replyCount > replies.size() && !replies.isEmpty()
+                ? replies.getFirst().id().toString() : null;
+        return new PostCommentResponse(idOf(row), ((Number) row.get("user_id")).longValue(),
+                (String) row.get("author_nickname"), commentAuthorProfileImageUrl(row),
+                (String) row.get("content"), normalizeDateTime(row.get("created_at")), commentsCount,
+                null, replyCount, replies, nextCursor);
+    }
+
+    private String commentAuthorProfileImageUrl(Map<String, Object> row) {
+        if (row.get("profile_media_id") == null) {
+            return null;
+        }
+        return "/api/v1/users/" + ((Number) row.get("user_id")).longValue() + "/profile-image";
+    }
+
     private PostResponse toPostResponse(Map<String, Object> row, Long currentUserId) {
         Long postId = ((Number) row.get("id")).longValue();
         return PostResponse.of(
                 postId,
                 ((Number) row.get("user_id")).longValue(),
                 (String) row.get("author_nickname"),
+                row.get("profile_media_id") == null ? null
+                        : "/api/v1/users/" + ((Number) row.get("user_id")).longValue() + "/profile-image",
                 (String) row.get("title"),
                 (String) row.get("category"),
                 (String) row.get("pet_species"),
@@ -304,7 +472,86 @@ public class CommunityService {
     private void ensurePostExists(Long postId) {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM posts WHERE id = ?", Integer.class, postId);
         if (count == null || count == 0) {
-            throw new IllegalArgumentException("Post not found.");
+            throw new ApiException(HttpStatus.NOT_FOUND, "post-not-found", "Post Not Found", "Post not found.", "POST_NOT_FOUND");
+        }
+    }
+
+    private int commentsCount(Long postId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT comments_count FROM posts WHERE id = ?", Integer.class, postId);
+        return count == null ? 0 : count;
+    }
+
+    private int validateReplyLimit(int replyLimit) {
+        if (replyLimit < 0 || replyLimit > 20) {
+            throw new IllegalArgumentException("replyLimit must be between 0 and 20.");
+        }
+        return replyLimit;
+    }
+
+    private Map<Long, List<PostCommentResponse>> loadReplies(List<Map<String, Object>> roots,
+                                                              int replyLimit, int commentsCount) {
+        if (roots.isEmpty() || replyLimit == 0) return Map.of();
+        String placeholders = String.join(",", Collections.nCopies(roots.size(), "?"));
+        List<Object> params = roots.stream().map(this::idOf).map(value -> (Object) value).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        params.add(replyLimit);
+        String sql = """
+                SELECT ranked.id, ranked.user_id, ranked.parent_comment_id, ranked.author_nickname,
+                       ranked.profile_media_id, ranked.content, ranked.created_at, 0 AS reply_count
+                FROM (
+                    SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname,
+                           u.profile_media_id, pc.content, pc.created_at,
+                           ROW_NUMBER() OVER (PARTITION BY pc.parent_comment_id ORDER BY pc.id DESC) AS rn
+                    FROM post_comments pc
+                    JOIN users u ON u.id = pc.user_id
+                    WHERE pc.parent_comment_id IN (%s)
+                ) ranked
+                WHERE ranked.rn <= ?
+                ORDER BY ranked.parent_comment_id, ranked.id ASC
+                """.formatted(placeholders);
+        Map<Long, List<PostCommentResponse>> result = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql, params.toArray())) {
+            Long parentId = ((Number) row.get("parent_comment_id")).longValue();
+            result.computeIfAbsent(parentId, ignored -> new ArrayList<>()).add(leafCommentResponse(row, commentsCount));
+        }
+        return result;
+    }
+
+    private Map<String, Object> requireComment(Long postId, Long commentId) {
+        Map<String, Object> row = requireCommentAnyPost(commentId);
+        if (!postId.equals(((Number) row.get("post_id")).longValue())) throw invalidCommentParent();
+        return row;
+    }
+
+    private Map<String, Object> requireCommentAnyPost(Long commentId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT pc.id, pc.post_id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname,
+                       u.profile_media_id, pc.content, pc.created_at,
+                       (SELECT COUNT(*) FROM post_comments child WHERE child.parent_comment_id = pc.id) AS reply_count
+                FROM post_comments pc
+                JOIN users u ON u.id = pc.user_id
+                WHERE pc.id = ?
+                """, commentId);
+        if (rows.isEmpty()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "comment-not-found", "Comment Not Found",
+                    "Comment not found.", "COMMENT_NOT_FOUND");
+        }
+        return rows.getFirst();
+    }
+
+    private ApiException invalidCommentParent() {
+        return new ApiException(HttpStatus.BAD_REQUEST, "invalid-comment-parent", "Invalid Comment Parent",
+                "The parent comment must be a root comment on the same post.", "INVALID_COMMENT_PARENT");
+    }
+
+    private Long idOf(Map<String, Object> row) {
+        return ((Number) row.get("id")).longValue();
+    }
+
+    private long parseCommentCursor(String cursor) {
+        try {
+            return Long.parseLong(cursor);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Invalid comment cursor.");
         }
     }
 

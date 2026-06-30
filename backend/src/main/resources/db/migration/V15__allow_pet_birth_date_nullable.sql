@@ -1,0 +1,1 @@
+ALTER TABLE pets MODIFY COLUMN birth_date DATE NULL;

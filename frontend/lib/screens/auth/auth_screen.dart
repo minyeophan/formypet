@@ -88,7 +88,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AppText('petyilgi', fontSize: 32, fontWeight: FontWeight.bold),
+              AppText('포마펫', fontSize: 32, fontWeight: FontWeight.bold),
               const SizedBox(height: 8),
               AppText('반려동물 케어 앱', fontSize: 14, color: const Color(0xFF5F5F5D)),
               const SizedBox(height: 40),

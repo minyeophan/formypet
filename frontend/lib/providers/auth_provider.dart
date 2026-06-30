@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../core/api_client.dart';
 import '../core/secure_storage.dart';
 import '../models/user_profile.dart';
@@ -38,12 +39,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _init();
   }
 
-  AuthNotifier.test(super.initialState)
-    : _svc = AuthService(),
-      _petNotifier = null;
+  AuthNotifier.test(
+    super.initialState, {
+    AuthService? service,
+    PetNotifier? petNotifier,
+    bool registerAuthExpiredHandler = false,
+  }) : _svc = service ?? AuthService(),
+       _petNotifier = petNotifier {
+    if (registerAuthExpiredHandler) {
+      setAuthExpiredHandler(_handleAuthExpired);
+    }
+  }
 
   Future<void> _handleAuthExpired() async {
-    await _petNotifier?.clearForSignedOutUser();
+    await _completeSignedOut();
+  }
+
+  Future<void> _completeSignedOut() async {
+    try {
+      await _petNotifier?.clearForSignedOutUser();
+    } catch (error) {
+      debugPrint('Failed to clear pet state for signed-out user: $error');
+    }
     state = const AuthState(isLoading: false, isAuthenticated: false);
   }
 
@@ -65,7 +82,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       } catch (_) {
         await clearTokens();
-        await _petNotifier?.clearForSignedOutUser();
+        await _completeSignedOut();
+        return;
       }
     }
     state = const AuthState(isLoading: false, isAuthenticated: false);
@@ -117,10 +135,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> updateProfile({required String nickname}) async {
+    final profile = await _svc.updateProfile(nickname: nickname);
+    state = state.copyWith(profile: profile);
+  }
+
+  Future<void> uploadProfileImage({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final profile = await _svc.uploadProfileImage(
+      bytes: bytes,
+      filename: filename,
+    );
+    state = state.copyWith(profile: profile);
+  }
+
   Future<void> logout() async {
-    await _svc.logout();
-    await _petNotifier?.clearForSignedOutUser();
-    state = const AuthState(isLoading: false, isAuthenticated: false);
+    final authenticatedState = state;
+    state = state.copyWith(isLoading: true);
+    try {
+      await _svc.logout();
+    } catch (_) {
+      state = authenticatedState;
+      rethrow;
+    }
+    await _completeSignedOut();
   }
 }
 

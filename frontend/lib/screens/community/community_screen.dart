@@ -4,9 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../providers/community_provider.dart';
-import '../../services/community_service.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
+import 'community_constants.dart';
+import 'community_routes.dart';
 import 'post_card.dart';
+
+const Color _communityTeal = Color(0xFF14B8A6);
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
@@ -29,15 +35,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const AppText('커뮤니티', fontWeight: FontWeight.bold),
-        backgroundColor: AppColors.background,
-        surfaceTintColor: AppColors.background,
-      ),
       body: const _CommunityMainBody(),
       floatingActionButton: FloatingActionButton(
         key: const Key('community-write-fab'),
-        backgroundColor: AppColors.primary,
+        shape: const CircleBorder(),
+        backgroundColor: _communityTeal,
         foregroundColor: AppColors.white,
         onPressed: () => context.push('/community/write'),
         child: const Icon(Icons.edit),
@@ -82,23 +84,11 @@ class _CommunityCategoryScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: AppText(
-          kCommunityCategoryLabels[widget.initialCategory.toUpperCase()] ??
-              '커뮤니티',
-          fontWeight: FontWeight.bold,
-        ),
-        backgroundColor: AppColors.background,
-        surfaceTintColor: AppColors.background,
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(52),
-          child: _CategoryTabs(),
-        ),
-      ),
-      body: const _FeedList(key: Key('community-category-feed')),
+      body: const _CommunityCategoryBody(),
       floatingActionButton: FloatingActionButton(
         key: const Key('community-write-fab'),
-        backgroundColor: AppColors.primary,
+        shape: const CircleBorder(),
+        backgroundColor: _communityTeal,
         foregroundColor: AppColors.white,
         onPressed: () => context.push('/community/write'),
         child: const Icon(Icons.edit),
@@ -112,65 +102,268 @@ class _CommunityMainBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: const [
-        SliverToBoxAdapter(child: _CategoryCarousel()),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 6),
-            child: AppText('인기글', fontSize: 16, fontWeight: FontWeight.bold),
+    return SafeArea(
+      child: Column(
+        children: const [
+          _CommunityHeader(),
+          _CategoryCarousel(),
+          _CommunitySectionHeader(),
+          Expanded(
+            child: _FeedList(
+              key: Key('community-main-popular-feed'),
+              feedKey: 'popular',
+            ),
           ),
-        ),
-        SliverFillRemaining(
-          hasScrollBody: true,
-          child: _FeedList(key: Key('community-main-popular-feed')),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _CategoryCarousel extends StatelessWidget {
+class _CommunityCategoryBody extends ConsumerWidget {
+  const _CommunityCategoryBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeKey = ref.watch(communityProvider).activeFeedKey;
+    return SafeArea(
+      child: Column(
+        children: [
+          const _CommunityHeader(showBack: true),
+          Expanded(
+            child: ColoredBox(
+              color: AppColors.surface,
+              child: Column(
+                children: [
+                  const _CategoryTabs(),
+                  const _CategoryFilterRow(),
+                  const _GuidePanel(),
+                  Expanded(
+                    child: _FeedList(
+                      key: const Key('community-category-feed'),
+                      feedKey: activeKey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommunityHeader extends StatelessWidget {
+  final bool showBack;
+
+  const _CommunityHeader({this.showBack = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('community-header'),
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(color: AppColors.background),
+      child: Row(
+        children: [
+          SizedBox(
+            key: const Key('community-header-leading-slot'),
+            width: showBack ? 44 : 0,
+            height: 44,
+            child: showBack
+                ? AppBackButton(
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        context.pop();
+                        return;
+                      }
+                      context.go('/community');
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (showBack) const SizedBox(width: 8),
+          const Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AppText(
+                '커뮤니티',
+                key: Key('community-header-title'),
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Row(
+            key: const Key('community-header-actions'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppHeaderIconButton(
+                key: const Key('community-notification-button'),
+                icon: Icons.notifications_none_rounded,
+                tooltip: '알림',
+                onTap: () => _showCommunityToast(context, '준비중'),
+              ),
+              const SizedBox(width: 4),
+              AppHeaderIconButton(
+                key: const Key('community-search-button'),
+                icon: Icons.search_rounded,
+                tooltip: '검색',
+                onTap: () => _showCommunityToast(context, '준비중'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommunitySectionHeader extends StatelessWidget {
+  const _CommunitySectionHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 10, 20, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: AppText('지금 인기글', fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          AppText(
+            'popular · 전체',
+            fontSize: 11,
+            color: AppColors.muted,
+            fontWeight: FontWeight.w700,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryCarousel extends StatefulWidget {
   const _CategoryCarousel();
+
+  @override
+  State<_CategoryCarousel> createState() => _CategoryCarouselState();
+}
+
+class _CategoryCarouselState extends State<_CategoryCarousel> {
+  final ScrollController _controller = ScrollController();
+  bool _isSnapping = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _snapToNearestPanel() async {
+    if (!_controller.hasClients) return;
+    if (_isSnapping) return;
+
+    final position = _controller.position;
+    final panelWidth = _communityCategoryPanelWidth(context);
+    final nextPanelOffset = (panelWidth + 12).clamp(
+      0.0,
+      position.maxScrollExtent,
+    );
+    final target = position.pixels < nextPanelOffset / 2
+        ? 0.0
+        : nextPanelOffset;
+
+    if ((position.pixels - target).abs() <= 0.5) return;
+
+    _isSnapping = true;
+    try {
+      await position.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      _isSnapping = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       key: const Key('community-category-carousel'),
-      height: 188,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final viewport = MediaQuery.sizeOf(context).width;
-              final boxWidth = viewport > 390 ? 350.0 : viewport - 56;
-              final tileWidth = (boxWidth - 32) / 5;
-              return Container(
-                width: boxWidth,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 10,
-                  children: kCommunityCategories
-                      .map(
-                        (category) => SizedBox(
-                          width: tileWidth,
-                          height: 64,
-                          child: _CategoryTile(category: category),
-                        ),
-                      )
-                      .toList(),
-                ),
-              );
-            },
+      height: 184,
+      child: Listener(
+        onPointerUp: (_) => _snapToNearestPanel(),
+        onPointerCancel: (_) => _snapToNearestPanel(),
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: (notification) {
+            if (notification.depth != 0) return false;
+            _snapToNearestPanel();
+            return true;
+          },
+          child: ListView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            children: const [
+              _CategoryPanel(index: 0, entries: _communityPrimaryCategories),
+              _CategoryPanel(index: 1, entries: _communitySecondaryCategories),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+double _communityCategoryPanelWidth(BuildContext context) {
+  final viewport = MediaQuery.sizeOf(context).width;
+  return viewport > 390 ? 350.0 : viewport - 32;
+}
+
+class _CategoryPanel extends StatelessWidget {
+  final int index;
+  final List<String> entries;
+
+  const _CategoryPanel({required this.index, required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final panelWidth = _communityCategoryPanelWidth(context);
+    return Container(
+      key: Key('community-category-panel-$index'),
+      width: panelWidth,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          for (var row = 0; row < 2; row++) ...[
+            Row(
+              children: [
+                for (var column = 0; column < 5; column++) ...[
+                  Expanded(
+                    child: SizedBox(
+                      height: 63,
+                      child: row * 5 + column < entries.length
+                          ? _CategoryTile(category: entries[row * 5 + column])
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                  if (column != 4) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+            if (row != 1) const SizedBox(height: 10),
+          ],
         ],
       ),
     );
@@ -184,6 +377,7 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _communityAccentFor(category);
     return InkWell(
       key: Key('community-category-tile-$category'),
       borderRadius: BorderRadius.circular(14),
@@ -191,17 +385,23 @@ class _CategoryTile extends StatelessWidget {
       child: Ink(
         decoration: BoxDecoration(
           color: AppColors.surfaceSoft,
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Center(
-          child: AppText(
-            kCommunityCategoryLabels[category] ?? category,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppVisual(id: communityVisualId(category), color: accent, size: 21),
+            const SizedBox(height: 5),
+            AppText(
+              kCommunityCategoryLabels[category] ?? category,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -216,10 +416,10 @@ class _CategoryTabs extends ConsumerWidget {
     final activeKey = ref.watch(communityProvider).activeFeedKey;
     return SizedBox(
       key: const Key('community-category-tabs'),
-      height: 52,
+      height: 56,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         itemBuilder: (context, index) {
           final tab = kCommunityFeedTabs[index];
           final tabKey = tab == 'POPULAR'
@@ -228,38 +428,110 @@ class _CategoryTabs extends ConsumerWidget {
               ? 'all'
               : tab;
           final isActive = activeKey == tabKey;
-          return ChoiceChip(
+          return InkWell(
             key: Key('community-tab-$tab'),
-            selected: isActive,
-            label: AppText(
-              kCommunityCategoryLabels[tab] ?? tab,
-              fontSize: 13,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-              color: isActive ? AppColors.white : AppColors.text,
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => ref.read(communityProvider.notifier).setFeedKey(tab),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(3, 8, 3, 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isActive ? AppColors.text : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: AppText(
+                kCommunityCategoryLabels[tab] ?? tab,
+                fontSize: 15,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                color: isActive ? AppColors.text : AppColors.textSecondary,
+              ),
             ),
-            selectedColor: AppColors.primary,
-            backgroundColor: AppColors.surface,
-            side: const BorderSide(color: AppColors.border),
-            onSelected: (_) =>
-                ref.read(communityProvider.notifier).setFeedKey(tab),
           );
         },
-        separatorBuilder: (_, index) => const SizedBox(width: 8),
+        separatorBuilder: (_, index) => const SizedBox(width: 20),
         itemCount: kCommunityFeedTabs.length,
       ),
     );
   }
 }
 
+class _CategoryFilterRow extends StatelessWidget {
+  const _CategoryFilterRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            key: const Key('community-filter-pill'),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const AppText(
+              '전체⌄',
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuidePanel extends StatelessWidget {
+  const _GuidePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('community-guide-panel'),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFFAF8),
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.info_outline_rounded, size: 18, color: AppColors.muted),
+          SizedBox(width: 8),
+          Expanded(
+            child: AppText(
+              '커뮤니티 이용 가이드',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          AppDisclosureChevron(size: 20),
+        ],
+      ),
+    );
+  }
+}
+
 class _FeedList extends ConsumerWidget {
-  const _FeedList({super.key});
+  final String feedKey;
+
+  const _FeedList({super.key, required this.feedKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(communityProvider);
-    final posts = state.activePosts;
+    final posts = state.postsForFeed(feedKey);
+    final isLoading = state.isLoadingFeed(feedKey);
+    final nextCursor = state.nextCursorForFeed(feedKey);
 
-    if (posts.isEmpty && state.isLoading) {
+    if (posts.isEmpty && isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (posts.isEmpty) {
@@ -267,19 +539,20 @@ class _FeedList extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(communityProvider.notifier).loadFeed(refresh: true),
+      onRefresh: () => ref
+          .read(communityProvider.notifier)
+          .loadFeed(feedKey: feedKey, refresh: true),
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           if (notification is ScrollEndNotification &&
               notification.metrics.extentAfter < 200) {
-            ref.read(communityProvider.notifier).loadMore();
+            ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
           }
           return false;
         },
         child: ListView.builder(
           padding: const EdgeInsets.only(bottom: 92),
-          itemCount: posts.length + (state.nextCursor != null ? 1 : 0),
+          itemCount: posts.length + (nextCursor != null ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == posts.length) {
               return const Padding(
@@ -290,12 +563,64 @@ class _FeedList extends ConsumerWidget {
             final post = posts[index];
             return PostCard(
               post: post,
-              onLike: () =>
-                  ref.read(communityProvider.notifier).toggleLike(post.id),
+              onOpen: () => context.push(communityPostPath(post.id, feedKey)),
+              onLike: () => ref
+                  .read(communityProvider.notifier)
+                  .toggleLike(post.id, feedKey: feedKey),
             );
           },
         ),
       ),
     );
   }
+}
+
+const List<String> _communityPrimaryCategories = [
+  'ALL',
+  'POPULAR',
+  'CARE',
+  'FOOD',
+  'OUTING',
+  'SHOW',
+  'QUESTION',
+  'FREE',
+  'ADOPTION',
+  'RESCUE',
+];
+
+const List<String> _communitySecondaryCategories = ['NEWS', 'EVENT'];
+
+Color _communityAccentFor(String category) => switch (category) {
+  'POPULAR' || 'FOOD' || 'RESCUE' => const Color(0xFFFF8A65),
+  'CARE' || 'FREE' => const Color(0xFF81C784),
+  'OUTING' || 'QUESTION' || 'NEWS' => const Color(0xFF64B5F6),
+  'SHOW' || 'ADOPTION' || 'EVENT' => const Color(0xFFBA68C8),
+  _ => AppColors.textSecondary,
+};
+
+void _showCommunityToast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Center(
+          widthFactor: 1,
+          child: AppText(
+            message,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        width: 112,
+        elevation: 0,
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
 }

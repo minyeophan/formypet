@@ -10,6 +10,10 @@ void setAuthExpiredHandler(Future<void> Function()? handler) {
   _authExpiredHandler = handler;
 }
 
+Future<void> notifyAuthExpired() async {
+  await _authExpiredHandler?.call();
+}
+
 void initApiClient(String baseUrl, {bool includeAuthInterceptor = true}) {
   dio = Dio(
     BaseOptions(
@@ -28,12 +32,14 @@ class ApiException implements Exception {
   final int statusCode;
   final String title;
   final String? detail;
+  final String? errorCode;
   final Map<String, String>? fieldErrors;
 
   ApiException({
     required this.statusCode,
     required this.title,
     this.detail,
+    this.errorCode,
     this.fieldErrors,
   });
 
@@ -41,7 +47,7 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $title — $detail';
 }
 
-ApiException _parseError(DioException e) {
+ApiException parseApiError(DioException e) {
   final data = e.response?.data;
   if (data is Map) {
     final fieldErrors = <String, String>{};
@@ -54,6 +60,7 @@ ApiException _parseError(DioException e) {
       statusCode: e.response?.statusCode ?? 0,
       title: data['title']?.toString() ?? 'Unknown error',
       detail: data['detail']?.toString(),
+      errorCode: data['errorCode']?.toString(),
       fieldErrors: fieldErrors.isNotEmpty ? fieldErrors : null,
     );
   }
@@ -134,7 +141,7 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
         }
         _pendingQueue.clear();
         await clearTokens();
-        await _authExpiredHandler?.call();
+        await notifyAuthExpired();
         handler.reject(err);
       } finally {
         _isRefreshing = false;
@@ -145,7 +152,7 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
       DioException(
         requestOptions: err.requestOptions,
         response: err.response,
-        error: _parseError(err),
+        error: parseApiError(err),
         type: err.type,
       ),
     );

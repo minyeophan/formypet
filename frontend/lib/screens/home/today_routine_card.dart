@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/routine.dart';
 import '../../core/record_utils.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/app_text.dart';
 
 class TodayRoutineCard extends StatelessWidget {
@@ -59,8 +60,11 @@ class TodayRoutineCard extends StatelessWidget {
                   kQuickTypes.where((t) => t.id == r.typeId).firstOrNull;
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(type?.icon ?? Icons.check_circle_outline,
-                    color: isDone ? Colors.green : Colors.grey),
+                leading: AppVisual(
+                  id: recordTypeVisualId(r.typeId),
+                  size: 24,
+                  color: isDone ? Colors.green : Colors.grey,
+                ),
                 title: AppText(type?.label ?? r.typeId),
                 trailing: GestureDetector(
                   onTap: () => onToggle(r.id),

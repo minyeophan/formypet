@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import '../core/api_client.dart';
@@ -98,6 +101,27 @@ class AuthService {
 
   Future<UserProfile> getProfile() async {
     final res = await dio.get('/api/v1/users/me');
+    return UserProfile.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<UserProfile> updateProfile({required String nickname}) async {
+    final res = await dio.patch(
+      '/api/v1/users/me',
+      data: {'nickname': nickname},
+    );
+    return UserProfile.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<UserProfile> uploadProfileImage({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final res = await dio.post(
+      '/api/v1/users/me/profile-image',
+      data: FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      }),
+    );
     return UserProfile.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 }

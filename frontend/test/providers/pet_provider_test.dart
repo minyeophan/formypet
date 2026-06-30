@@ -2,9 +2,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/activity_record.dart';
+import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/services/care_schedule_service.dart';
 import 'package:frontend/services/media_service.dart';
 import 'package:frontend/services/pet_service.dart';
 import 'package:frontend/services/record_service.dart';
@@ -89,16 +91,365 @@ void main() {
     expect(notifier.state.routineCompletions, {
       'rt1:2026-05-21': CompletionStatus.completed,
     });
+    expect(notifier.state.todaySummary?.done, 1);
+    expect(notifier.state.todaySummary?.rate, 100.0);
   });
+
+  test('addRoutine appends routine and refreshes today routines', () async {
+    final pet = _pet('1');
+    final original = _routine('rt1', pet.id);
+    final created = _routine('rt2', pet.id);
+    final routineService = _FakeRoutineService(
+      routines: [original],
+      todayItems: [
+        _todayRoutineItem(
+          routine: original,
+          date: '2026-06-01',
+          status: CompletionStatus.pending,
+        ),
+      ],
+      createdRoutine: created,
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      routineService,
+    );
+    await notifier.loadForAuthenticatedUser();
+    routineService.todayItems = [
+      _todayRoutineItem(
+        routine: created,
+        date: '2026-06-01',
+        status: CompletionStatus.completed,
+      ),
+    ];
+
+    await notifier.addRoutine({'label': 'Routine rt2'});
+
+    expect(notifier.state.routines, [original, created]);
+    expect(notifier.state.todayRoutineItems.single.routine, created);
+    expect(notifier.state.routineCompletions, {
+      'rt2:2026-06-01': CompletionStatus.completed,
+    });
+  });
+
+  test('addRoutine keeps local success when today refresh fails', () async {
+    final pet = _pet('1');
+    final created = _routine('rt2', pet.id);
+    final routineService = _FakeRoutineService(createdRoutine: created);
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      routineService,
+    );
+    await notifier.loadForAuthenticatedUser();
+    routineService.failTodayRefresh = true;
+
+    await notifier.addRoutine({'label': 'Routine rt2'});
+
+    expect(notifier.state.routines, [created]);
+  });
+
+  test('addCareSchedule appends server-created active pet schedule', () async {
+    final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      createdSchedule: _schedule('server-s1', pet.id),
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+    expect(scheduleService.createdRequests.single.id, 's1');
+    expect(notifier.state.schedules.map((schedule) => schedule.id), [
+      'server-s1',
+    ]);
+  });
+
+  test(
+    'updateCareSchedule replaces matching active pet schedule from server',
+    () async {
+      final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        null,
+        scheduleService,
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      final updated = CareSchedule(
+        id: 's1',
+        petId: pet.id,
+        categoryId: 'hospital',
+        title: 'Updated schedule',
+        startDate: '2026-06-20',
+        startTime: '14:00',
+        endDate: '2026-06-20',
+        endTime: '14:30',
+        allDay: false,
+        place: 'Clinic',
+        memo: 'Bring note',
+        reminder: '2 hours before',
+        createdAt: '2026-06-01T00:00:00.000',
+      );
+      await notifier.updateCareSchedule(updated);
+
+      expect(notifier.state.schedules, hasLength(1));
+      expect(notifier.state.schedules.single.title, 'Updated schedule');
+      expect(scheduleService.updatedRequests.single.$1, 's1');
+      expect(scheduleService.updatedRequests.single.$2.categoryId, 'hospital');
+      expect(scheduleService.updatedRequests.single.$2.startDate, '2026-06-20');
+      expect(scheduleService.updatedRequests.single.$2.startTime, '14:00');
+      expect(scheduleService.updatedRequests.single.$2.place, 'Clinic');
+      expect(scheduleService.updatedRequests.single.$2.memo, 'Bring note');
+      expect(
+        scheduleService.updatedRequests.single.$2.reminder,
+        '2 hours before',
+      );
+    },
+  );
+
+  test(
+    'updateCareSchedule rejects missing id or inactive pet schedules',
+    () async {
+      final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        null,
+        scheduleService,
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      expect(
+        () => notifier.updateCareSchedule(_schedule('missing', pet.id)),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => notifier.updateCareSchedule(_schedule('s1', 'other-pet')),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
+  test(
+    'updateCareSchedule clears optional and all day time fields from server response',
+    () async {
+      final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        null,
+        scheduleService,
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      await notifier.updateCareSchedule(
+        CareSchedule(
+          id: 's1',
+          petId: pet.id,
+          categoryId: 'grooming',
+          title: 'All day bath',
+          startDate: '2026-06-17',
+          endDate: '2026-06-17',
+          allDay: true,
+          reminder: 'none',
+          createdAt: '2026-06-01T00:00:00.000',
+        ),
+      );
+
+      final schedule = notifier.state.schedules.single;
+      expect(schedule.place, isNull);
+      expect(schedule.memo, isNull);
+      expect(schedule.startTime, isNull);
+      expect(schedule.endTime, isNull);
+    },
+  );
+
+  test(
+    'deleteCareSchedule removes active pet schedule through server',
+    () async {
+      final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id), _schedule('s2', pet.id)],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        null,
+        scheduleService,
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      await notifier.deleteCareSchedule('s1');
+
+      expect(notifier.state.schedules.map((schedule) => schedule.id), ['s2']);
+      expect(scheduleService.deletedRequests, [('1', 's1')]);
+    },
+  );
+
+  test('deleteCareSchedule removes last schedule from state', () async {
+    final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      schedules: [_schedule('s1', pet.id)],
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.deleteCareSchedule('s1');
+
+    expect(notifier.state.schedules, isEmpty);
+    expect(scheduleService.deletedRequests, [('1', 's1')]);
+  });
+
+  test(
+    'deleteCareSchedule rejects no active pet missing id and inactive pet',
+    () async {
+      final pet = _pet('1');
+      final scheduleService = _FakeCareScheduleService(
+        schedules: [_schedule('s1', pet.id)],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        null,
+        scheduleService,
+      );
+      await notifier.loadForAuthenticatedUser();
+
+      expect(
+        () => notifier.deleteCareSchedule('missing'),
+        throwsA(isA<StateError>()),
+      );
+      final inactiveNotifier = PetNotifier.test(
+        PetState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1'), _pet('2')],
+          activePetId: '1',
+          records: const [],
+          routines: const [],
+          schedules: [_schedule('inactive-schedule', '2')],
+          todayRoutineItems: const [],
+          routineCompletions: const {},
+          quickTypeIds: const ['meal', 'water'],
+        ),
+      );
+      expect(
+        () => inactiveNotifier.deleteCareSchedule('inactive-schedule'),
+        throwsA(isA<StateError>()),
+      );
+
+      final noActiveNotifier = PetNotifier.test(
+        const PetState(
+          isLoading: false,
+          hasOnboarded: false,
+          pets: [],
+          activePetId: null,
+          records: [],
+          routines: [],
+          schedules: [],
+          todayRoutineItems: [],
+          routineCompletions: {},
+          quickTypeIds: ['meal', 'water'],
+        ),
+      );
+      expect(
+        () => noActiveNotifier.deleteCareSchedule('s1'),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
+  test('loadForAuthenticatedUser loads server care schedules', () async {
+    final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService(
+      schedules: [_schedule('s1', '1')],
+    );
+    final notifier = PetNotifier(
+      _FakePetService(pets: [pet]),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+
+    await notifier.loadForAuthenticatedUser();
+
+    expect(notifier.state.schedules.single.id, 's1');
+  });
+
+  test(
+    'deleteRoutine removes all completion keys for deleted routine',
+    () async {
+      final pet = _pet('1');
+      final routine = _routine('rt1', pet.id);
+      final routineService = _FakeRoutineService(
+        routines: [routine],
+        todayItems: [
+          _todayRoutineItem(
+            routine: routine,
+            date: '2026-06-01',
+            status: CompletionStatus.pending,
+          ),
+        ],
+      );
+      final notifier = PetNotifier(
+        _FakePetService(pets: [pet]),
+        _FakeRecordService(),
+        routineService,
+      );
+      await notifier.loadForAuthenticatedUser();
+      await notifier.toggleRoutineCompletion('rt1', '2026-06-20');
+      routineService.todayItems = const [];
+
+      await notifier.deleteRoutine('rt1');
+
+      expect(notifier.state.routines, isEmpty);
+      expect(notifier.state.routineCompletions, isEmpty);
+      expect(routineService.deletedRoutineIds, [('1', 'rt1')]);
+    },
+  );
 
   test('clearForSignedOutUser clears account-scoped pet data', () async {
     final pet = _pet('1');
+    final scheduleService = _FakeCareScheduleService();
     final notifier = PetNotifier(
       _FakePetService(pets: [pet]),
       _FakeRecordService(records: [_record('r1', pet.id)]),
       _FakeRoutineService(routines: [_routine('rt1', pet.id)]),
+      null,
+      scheduleService,
     );
     await notifier.loadForAuthenticatedUser();
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
     await notifier.setQuickTypeIds(const ['meal', 'water']);
 
     await notifier.clearForSignedOutUser();
@@ -111,6 +462,7 @@ void main() {
     expect(notifier.state.routineCompletions, isEmpty);
     expect(notifier.state.todayRoutineItems, isEmpty);
     expect(notifier.state.todaySummary, isNull);
+    expect(notifier.state.schedules, isEmpty);
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
   });
 
@@ -158,6 +510,45 @@ void main() {
       expect(notifier.state.pets.single.profileImageUrl, '/api/v1/media/9');
     },
   );
+
+  test('deletePet clears onboarding after deleting the last pet', () async {
+    final pet = _pet('1');
+    final petService = _FakePetService(pets: [pet]);
+    final scheduleService = _FakeCareScheduleService();
+    final notifier = PetNotifier(
+      petService,
+      _FakeRecordService(),
+      _FakeRoutineService(),
+      null,
+      scheduleService,
+    );
+    await notifier.loadForAuthenticatedUser();
+    await notifier.addCareSchedule(_schedule('s1', pet.id));
+
+    await notifier.deletePet(pet.id);
+
+    expect(petService.deletedPetIds, ['1']);
+    expect(notifier.state.hasOnboarded, isFalse);
+    expect(notifier.state.pets, isEmpty);
+    expect(notifier.state.activePetId, isNull);
+  });
+
+  test('deletePet activates and reloads the next pet', () async {
+    final firstPet = _pet('1');
+    final secondPet = _pet('2');
+    final recordService = _FakeRecordService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [firstPet, secondPet]),
+      recordService,
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    await notifier.deletePet(firstPet.id);
+
+    expect(notifier.state.activePetId, '2');
+    expect(recordService.loadedPetIds, ['1', '2']);
+  });
 
   test('addRecord creates record and appends it locally', () async {
     final pet = _pet('1');
@@ -226,9 +617,26 @@ Pet _pet(String id) => Pet(
 ActivityRecord _record(String id, String petId) =>
     ActivityRecord(id: id, petId: petId, typeId: 'water', date: '2026-05-18');
 
+CareSchedule _schedule(String id, String petId) => CareSchedule(
+  id: id,
+  petId: petId,
+  categoryId: 'grooming',
+  title: '목욕 예약',
+  startDate: '2026-06-17',
+  startTime: '10:30',
+  endDate: '2026-06-17',
+  endTime: '11:00',
+  allDay: false,
+  place: '동네 미용실',
+  memo: null,
+  reminder: '하루 전',
+  createdAt: '2026-06-01T00:00:00.000',
+);
+
 Routine _routine(String id, String petId) => Routine(
   id: id,
   petId: petId,
+  label: 'Routine $id',
   typeId: 'water',
   repeatType: 'daily',
   times: const [],
@@ -256,6 +664,7 @@ class _FakePetService extends PetService {
 
   final List<Pet> pets;
   final Pet? createdPet;
+  final deletedPetIds = <String>[];
 
   @override
   Future<List<Pet>> getPets() async => pets;
@@ -263,6 +672,11 @@ class _FakePetService extends PetService {
   @override
   Future<Pet> createPet(Map<String, dynamic> body) async =>
       createdPet ?? _pet('created');
+
+  @override
+  Future<void> deletePet(String petId) async {
+    deletedPetIds.add(petId);
+  }
 }
 
 class _FakeMediaService extends MediaService {
@@ -324,11 +738,55 @@ class _FakeRecordService extends RecordService {
   }
 }
 
+class _FakeCareScheduleService extends CareScheduleService {
+  _FakeCareScheduleService({this.schedules = const [], this.createdSchedule});
+
+  final List<CareSchedule> schedules;
+  final CareSchedule? createdSchedule;
+  final createdRequests = <CareSchedule>[];
+  final updatedRequests = <(String scheduleId, CareSchedule schedule)>[];
+  final deletedRequests = <(String petId, String scheduleId)>[];
+
+  @override
+  Future<List<CareSchedule>> getSchedules(String petId) async => schedules;
+
+  @override
+  Future<CareSchedule> createSchedule(
+    String petId,
+    CareSchedule schedule,
+  ) async {
+    createdRequests.add(schedule);
+    return createdSchedule ?? schedule;
+  }
+
+  @override
+  Future<CareSchedule> updateSchedule(
+    String petId,
+    String scheduleId,
+    CareSchedule schedule,
+  ) async {
+    updatedRequests.add((scheduleId, schedule));
+    return schedule;
+  }
+
+  @override
+  Future<void> deleteSchedule(String petId, String scheduleId) async {
+    deletedRequests.add((petId, scheduleId));
+  }
+}
+
 class _FakeRoutineService extends RoutineService {
-  _FakeRoutineService({this.routines = const [], this.todayItems = const []});
+  _FakeRoutineService({
+    this.routines = const [],
+    this.todayItems = const [],
+    this.createdRoutine,
+  });
 
   final List<Routine> routines;
-  final List<TodayRoutineItem> todayItems;
+  List<TodayRoutineItem> todayItems;
+  final Routine? createdRoutine;
+  bool failTodayRefresh = false;
+  final deletedRoutineIds = <(String petId, String routineId)>[];
   final patchRequests =
       <
         (String petId, String routineId, String date, CompletionStatus status)
@@ -339,18 +797,39 @@ class _FakeRoutineService extends RoutineService {
 
   @override
   Future<TodayRoutineData> getTodayRoutines(String petId) async =>
-      TodayRoutineData(
-        items: todayItems,
-        summary: TodayRoutineSummary(
-          total: todayItems.length,
-          done: todayItems
-              .where(
-                (item) => item.completion.status == CompletionStatus.completed,
-              )
-              .length,
-          rate: 0,
-        ),
-      );
+      failTodayRefresh
+      ? throw Exception('today refresh failed')
+      : TodayRoutineData(
+          items: todayItems,
+          summary: TodayRoutineSummary(
+            total: todayItems.length,
+            done: todayItems
+                .where(
+                  (item) =>
+                      item.completion.status == CompletionStatus.completed,
+                )
+                .length,
+            rate: 0,
+          ),
+        );
+
+  @override
+  Future<Routine> createRoutine(
+    String petId,
+    Map<String, dynamic> body,
+  ) async => createdRoutine ?? _routine('created', petId);
+
+  @override
+  Future<Routine> updateRoutine(
+    String petId,
+    String routineId,
+    Map<String, dynamic> body,
+  ) async => _routine(routineId, petId);
+
+  @override
+  Future<void> deleteRoutine(String petId, String routineId) async {
+    deletedRoutineIds.add((petId, routineId));
+  }
 
   @override
   Future<RoutineCompletion> patchCompletion({

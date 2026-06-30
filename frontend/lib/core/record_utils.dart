@@ -1,30 +1,56 @@
-import 'package:flutter/material.dart';
+import 'visuals/app_visual_id.dart';
+
+export 'pet_taxonomy.dart' show kSpeciesList, speciesLabel;
 
 class RecordType {
   final String id;
   final String label;
-  final IconData icon;
+  final AppVisualId visualId;
 
-  const RecordType({required this.id, required this.label, required this.icon});
+  const RecordType({
+    required this.id,
+    required this.label,
+    required this.visualId,
+  });
 }
 
-// 12 quick types (all supported + diary excluded — diary/groom not supported by backend)
+// Quick/routine types keep diary hidden even though the backend stores it.
 const List<RecordType> kQuickTypes = [
-  RecordType(id: 'meal', label: '급식', icon: Icons.restaurant),
-  RecordType(id: 'water', label: '음수', icon: Icons.water_drop),
-  RecordType(id: 'walk', label: '산책', icon: Icons.directions_walk),
-  RecordType(id: 'poop', label: '배변', icon: Icons.pets),
-  RecordType(id: 'play', label: '놀이', icon: Icons.sports_esports),
-  RecordType(id: 'sleep', label: '수면', icon: Icons.bedtime),
-  RecordType(id: 'medicine', label: '투약', icon: Icons.medication),
-  RecordType(id: 'weight', label: '체중', icon: Icons.monitor_weight),
-  RecordType(id: 'vet', label: '병원', icon: Icons.local_hospital),
-  RecordType(id: 'checkup', label: '검진', icon: Icons.health_and_safety),
-  RecordType(id: 'bath', label: '목욕', icon: Icons.bathtub),
-  RecordType(id: 'groom', label: '미용', icon: Icons.content_cut),
+  RecordType(id: 'meal', label: '급식', visualId: AppVisualId.recordMeal),
+  RecordType(id: 'water', label: '음수', visualId: AppVisualId.recordWater),
+  RecordType(id: 'walk', label: '산책', visualId: AppVisualId.recordWalk),
+  RecordType(id: 'poop', label: '배변', visualId: AppVisualId.recordPoop),
+  RecordType(id: 'play', label: '놀이', visualId: AppVisualId.recordPlay),
+  RecordType(id: 'sleep', label: '수면', visualId: AppVisualId.recordSleep),
+  RecordType(id: 'medicine', label: '투약', visualId: AppVisualId.recordMedicine),
+  RecordType(id: 'weight', label: '체중', visualId: AppVisualId.recordWeight),
+  RecordType(id: 'vet', label: '병원', visualId: AppVisualId.recordVet),
+  RecordType(id: 'checkup', label: '검진', visualId: AppVisualId.recordCheckup),
+  RecordType(id: 'bath', label: '목욕', visualId: AppVisualId.recordBath),
+  RecordType(id: 'groom', label: '미용', visualId: AppVisualId.recordGroom),
 ];
 
-// Backend-supported types (excludes diary/groom from API calls)
+const Map<String, String> kRecordTypeFallbackLabels = {
+  'diary': '일기',
+  'etc': '기타',
+};
+
+String recordTypeLabel(String typeId) {
+  final quickType = kQuickTypes.where((type) => type.id == typeId).firstOrNull;
+  return quickType?.label ?? kRecordTypeFallbackLabels[typeId] ?? typeId;
+}
+
+AppVisualId recordTypeVisualId(String typeId) {
+  final quickType = kQuickTypes.where((type) => type.id == typeId).firstOrNull;
+  if (quickType != null) return quickType.visualId;
+  return switch (typeId) {
+    'diary' => AppVisualId.recordDiary,
+    'etc' => AppVisualId.recordEtc,
+    _ => AppVisualId.genericUnknown,
+  };
+}
+
+// Backend-supported types for quick record API calls; diary is intentionally excluded.
 const Set<String> kSupportedTypeIds = {
   'meal',
   'water',
@@ -62,27 +88,6 @@ const Map<String, List<String>> kDetailKeysByType = {
   'bath': ['shampoo'],
   'groom': ['groomType'],
 };
-
-const List<String> kSpeciesList = [
-  'dog',
-  'cat',
-  'rabbit',
-  'hamster',
-  'bird',
-  'other',
-];
-
-String speciesLabel(String species) {
-  const map = {
-    'dog': '강아지',
-    'cat': '고양이',
-    'rabbit': '토끼',
-    'hamster': '햄스터',
-    'bird': '새',
-    'other': '기타',
-  };
-  return map[species] ?? species;
-}
 
 // Strip null/empty detail fields before API send
 Map<String, dynamic> sanitizeDetail(

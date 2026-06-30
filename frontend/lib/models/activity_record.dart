@@ -38,9 +38,10 @@ class ActivityRecord {
       typeId: j['typeId'] as String,
       date: j['date'] as String,
       time: j['time'] as String?,
-      routineId: j['routineId'] != null ? j['routineId'].toString() : null,
+      routineId: j['routineId']?.toString(),
       note: j['note'] as String?,
-      mediaUrls: (j['mediaUrls'] as List<dynamic>?)
+      mediaUrls:
+          (j['mediaUrls'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -49,11 +50,11 @@ class ActivityRecord {
   }
 
   Map<String, dynamic> toJson() => {
-        'typeId': typeId,
-        'date': date,
-        if (time != null) 'time': time,
-        if (routineId != null) 'routineId': routineId,
-        if (note != null) 'note': note,
-        if (detail.isNotEmpty) 'detail': detail,
-      };
+    'typeId': typeId,
+    'date': date,
+    if (time != null) 'time': time,
+    if (routineId != null) 'routineId': routineId,
+    if (note != null) 'note': note,
+    if (detail.isNotEmpty) 'detail': detail,
+  };
 }

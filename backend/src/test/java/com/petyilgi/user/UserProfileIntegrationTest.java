@@ -14,9 +14,12 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +44,8 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update("UPDATE users SET profile_media_id = NULL");
+        jdbcTemplate.update("DELETE FROM media_resources");
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -52,6 +57,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/v1/users/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.email").value("profile@example.com"))
                 .andExpect(jsonPath("$.data.nickname").value("초코보호자"))
                 .andExpect(jsonPath("$.data.profileImageUrl").doesNotExist());
@@ -66,12 +72,14 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("nickname", "새이름"))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.email").value("rename@example.com"))
                 .andExpect(jsonPath("$.data.nickname").value("새이름"));
 
         mockMvc.perform(get("/api/v1/users/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.nickname").value("새이름"));
     }
 
@@ -94,6 +102,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
                         .file(image("profile.webp"))
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.email").value("image-profile@example.com"))
                 .andExpect(jsonPath("$.data.nickname").value("사진유저"))
                 .andExpect(jsonPath("$.data.profileImageUrl").value(matchesPattern("/api/v1/media/[0-9]+")));
@@ -104,6 +113,39 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
                 WHERE pet_id IS NULL AND record_id IS NULL
                 """, Integer.class);
         assertThat(detachedProfileMedia).isEqualTo(1);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void replacingMyProfileImageKeepsOnlyTheLatestMediaAndDeletesThePreviousFileAfterCommit() throws Exception {
+        String email = "replace-profile@example.com";
+        String token = registerAndGetToken(email, "replace");
+
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(image("first.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        Long previousMediaId = jdbcTemplate.queryForObject(
+                "SELECT profile_media_id FROM users WHERE email = ?", Long.class, email);
+        String previousStorageKey = jdbcTemplate.queryForObject(
+                "SELECT storage_key FROM media_resources WHERE id = ?", String.class, previousMediaId);
+
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(image("second.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        Long latestMediaId = jdbcTemplate.queryForObject(
+                "SELECT profile_media_id FROM users WHERE email = ?", Long.class, email);
+        String latestStorageKey = jdbcTemplate.queryForObject(
+                "SELECT storage_key FROM media_resources WHERE id = ?", String.class, latestMediaId);
+
+        assertThat(latestMediaId).isNotEqualTo(previousMediaId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM media_resources WHERE id = ?", Integer.class, previousMediaId)).isZero();
+        assertThat(Files.exists(profileStoragePath(previousStorageKey))).isFalse();
+        assertThat(Files.exists(profileStoragePath(latestStorageKey))).isTrue();
     }
 
     @Test
@@ -129,5 +171,9 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
     private MockMultipartFile image(String originalName) {
         return new MockMultipartFile("file", originalName, "image/webp",
                 "profile-bytes".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Path profileStoragePath(String storageKey) {
+        return Path.of("build/profile-media-test-storage").resolve(storageKey);
     }
 }

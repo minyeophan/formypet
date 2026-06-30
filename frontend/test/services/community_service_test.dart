@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
+import 'package:frontend/models/post.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -121,6 +122,138 @@ void main() {
 
     expect(capturedData, isA<FormData>());
     expect((capturedData as FormData).fields.map((e) => e.key), ['payload']);
+  });
+
+  test(
+    'post detail, vote, and comments use the community API contract',
+    () async {
+      final paths = <String>[];
+      dio.httpClientAdapter = _CannedAdapter((options) {
+        paths.add('${options.method} ${options.path}');
+        if (options.path.endsWith('/comments') && options.method == 'GET') {
+          return _jsonResponse(options, 200, {
+            'data': {
+              'items': [
+                {
+                  'id': 9,
+                  'userId': 1,
+                  'authorNickname': 'Momo',
+                  'authorProfileImageUrl': '/api/v1/users/1/profile-image',
+                  'content': '댓글',
+                  'createdAt': '2026-06-24T00:00:00',
+                  'commentsCount': 2,
+                },
+              ],
+              'nextCursor': null,
+            },
+          });
+        }
+        if (options.path.endsWith('/comments')) {
+          return _jsonResponse(options, 201, {
+            'data': {
+              'id': 10,
+              'userId': 1,
+              'authorNickname': 'Momo',
+              'authorProfileImageUrl': '/api/v1/users/1/profile-image',
+              'content': '새 댓글',
+              'createdAt': '2026-06-24T00:00:00',
+              'commentsCount': 3,
+            },
+          });
+        }
+        return _jsonResponse(options, 200, {
+          'data': {
+            'id': 'post-1',
+            'userId': 'user-1',
+            'authorNickname': 'Momo',
+            'content': '내용',
+            'category': 'QUESTION',
+            'mediaUrls': [],
+            'createdAt': '2026-06-24T00:00:00',
+          },
+        });
+      });
+
+      final service = CommunityService();
+      final detail = await service.getPost('post-1');
+      final voted = await service.vote('post-1', 'option-1');
+      final comments = await service.getComments('post-1');
+      final created = await service.createComment('post-1', ' 새 댓글 ');
+
+      expect(detail, isA<Post>());
+      expect(voted, isA<Post>());
+      expect(
+        comments.items.single.authorProfileImageUrl,
+        '/api/v1/users/1/profile-image',
+      );
+      expect(comments.items.single.content, '댓글');
+      expect(created.commentsCount, 3);
+      expect(paths, [
+        'GET /api/v1/posts/post-1',
+        'POST /api/v1/posts/post-1/poll/options/option-1/vote',
+        'GET /api/v1/posts/post-1/comments',
+        'POST /api/v1/posts/post-1/comments',
+      ]);
+    },
+  );
+
+  test('reply requests send reply limit and parent only for replies', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      return _jsonResponse(options, options.method == 'POST' ? 201 : 200, {
+        'data': options.method == 'GET'
+            ? {'items': <Object>[], 'nextCursor': null}
+            : {
+                'id': 1,
+                'userId': 1,
+                'authorNickname': 'author',
+                'content': 'reply',
+                'createdAt': '2026-06-27T00:00:00',
+                'commentsCount': 1,
+              },
+      });
+    });
+
+    final service = CommunityService();
+    await service.getComments('post-1', replyLimit: 3);
+    await service.createComment('post-1', 'root');
+    await service.createComment('post-1', 'reply', parentCommentId: 'root-1');
+
+    expect(requests[0].queryParameters['replyLimit'], 3);
+    expect(requests[1].data, {'content': 'root'});
+    expect(requests[2].data, {'content': 'reply', 'parentCommentId': 'root-1'});
+  });
+
+  test('thread and reply pagination use dedicated endpoints', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      final isReplies = options.path.endsWith('/replies');
+      return _jsonResponse(options, 200, {
+        'data': isReplies
+            ? {'items': <Object>[], 'nextCursor': null}
+            : {
+                'id': 9,
+                'userId': 1,
+                'authorNickname': 'author',
+                'content': 'root',
+                'createdAt': '2026-06-27T00:00:00',
+                'commentsCount': 1,
+                'replyCount': 0,
+                'replies': <Object>[],
+              },
+      });
+    });
+
+    final service = CommunityService();
+    await service.getCommentThread('post-1', '9', replyLimit: 3);
+    await service.getReplies('post-1', '9', cursor: '8');
+
+    expect(requests[0].path, '/api/v1/posts/post-1/comments/9');
+    expect(requests[0].queryParameters['replyLimit'], 3);
+    expect(requests[1].path, '/api/v1/posts/post-1/comments/9/replies');
+    expect(requests[1].queryParameters, {'cursor': '8', 'limit': 20});
   });
 }
 

@@ -51,7 +51,12 @@ class Post {
     createdAt: j['createdAt'] as String? ?? '',
   );
 
-  Post copyWith({bool? liked, int? likesCount}) => Post(
+  Post copyWith({
+    bool? liked,
+    int? likesCount,
+    int? commentsCount,
+    PostPoll? poll,
+  }) => Post(
     id: id,
     userId: userId,
     authorNickname: authorNickname,
@@ -61,9 +66,9 @@ class Post {
     category: category,
     likesCount: likesCount ?? this.likesCount,
     liked: liked ?? this.liked,
-    commentsCount: commentsCount,
+    commentsCount: commentsCount ?? this.commentsCount,
     imageUrls: imageUrls,
-    poll: poll,
+    poll: poll ?? this.poll,
     createdAt: createdAt,
   );
 }
@@ -86,6 +91,9 @@ class PostPoll {
         .map((e) => PostPollOption.fromJson(e as Map<String, dynamic>))
         .toList(),
   );
+
+  PostPoll copyWith({List<PostPollOption>? options}) =>
+      PostPoll(id: id, question: question, options: options ?? this.options);
 }
 
 class PostPollOption {
@@ -103,9 +111,96 @@ class PostPollOption {
 
   factory PostPollOption.fromJson(Map<String, dynamic> j) => PostPollOption(
     id: j['id'].toString(),
-    text: (j['text'] ?? j['optionText'] ?? '').toString(),
+    text: (j['text'] ?? j['optionText'] ?? j['label'] ?? '').toString(),
     votesCount: j['votesCount'] as int? ?? 0,
     votedByMe: j['votedByMe'] as bool? ?? false,
+  );
+
+  PostPollOption copyWith({int? votesCount, bool? votedByMe}) => PostPollOption(
+    id: id,
+    text: text,
+    votesCount: votesCount ?? this.votesCount,
+    votedByMe: votedByMe ?? this.votedByMe,
+  );
+}
+
+class PostComment {
+  final String id;
+  final String userId;
+  final String authorNickname;
+  final String? authorProfileImageUrl;
+  final String content;
+  final String createdAt;
+  final int commentsCount;
+  final String? parentCommentId;
+  final int replyCount;
+  final List<PostComment> replies;
+  final String? repliesNextCursor;
+
+  const PostComment({
+    required this.id,
+    required this.userId,
+    required this.authorNickname,
+    this.authorProfileImageUrl,
+    required this.content,
+    required this.createdAt,
+    required this.commentsCount,
+    this.parentCommentId,
+    this.replyCount = 0,
+    this.replies = const [],
+    this.repliesNextCursor,
+  });
+
+  factory PostComment.fromJson(Map<String, dynamic> j) => PostComment(
+    id: j['id'].toString(),
+    userId: j['userId'].toString(),
+    authorNickname: j['authorNickname'] as String? ?? '',
+    authorProfileImageUrl: j['authorProfileImageUrl'] as String?,
+    content: j['content'] as String? ?? '',
+    createdAt: j['createdAt'] as String? ?? '',
+    commentsCount: j['commentsCount'] as int? ?? 0,
+    parentCommentId: j['parentCommentId']?.toString(),
+    replyCount: j['replyCount'] as int? ?? 0,
+    replies: (j['replies'] as List<dynamic>? ?? [])
+        .map((e) => PostComment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    repliesNextCursor: j['repliesNextCursor'] as String?,
+  );
+
+  PostComment copyWith({
+    int? commentsCount,
+    int? replyCount,
+    List<PostComment>? replies,
+    String? repliesNextCursor,
+    bool clearRepliesNextCursor = false,
+  }) => PostComment(
+    id: id,
+    userId: userId,
+    authorNickname: authorNickname,
+    authorProfileImageUrl: authorProfileImageUrl,
+    content: content,
+    createdAt: createdAt,
+    commentsCount: commentsCount ?? this.commentsCount,
+    parentCommentId: parentCommentId,
+    replyCount: replyCount ?? this.replyCount,
+    replies: replies ?? this.replies,
+    repliesNextCursor: clearRepliesNextCursor
+        ? null
+        : repliesNextCursor ?? this.repliesNextCursor,
+  );
+}
+
+class PostCommentFeed {
+  final List<PostComment> items;
+  final String? nextCursor;
+
+  const PostCommentFeed({required this.items, this.nextCursor});
+
+  factory PostCommentFeed.fromJson(Map<String, dynamic> j) => PostCommentFeed(
+    items: (j['items'] as List<dynamic>? ?? [])
+        .map((e) => PostComment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    nextCursor: j['nextCursor'] as String?,
   );
 }
 

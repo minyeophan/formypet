@@ -53,13 +53,19 @@ CREATE TABLE IF NOT EXISTS pets (
     user_id                     BIGINT          NOT NULL,
     name                        VARCHAR(50)     NOT NULL,
     species                     VARCHAR(30)     NOT NULL,
-    birth_date                  DATE            NOT NULL,
+    birth_date                  DATE,
+    breed                       VARCHAR(80),
+    adoption_date               DATE,
     gender                      ENUM('male','female'),
     weight                      DECIMAL(5,2),
     animal_registration_number  VARCHAR(20),
     neutered                    BOOLEAN,
     diseases                    TEXT,
     special_notes               TEXT,
+    guardian_nickname           VARCHAR(30),
+    special_status              VARCHAR(30),
+    personality                 TEXT,
+    primary_hospital_name       VARCHAR(100),
     accent_color                VARCHAR(7)      NOT NULL,
     bg_light                    VARCHAR(7)      NOT NULL,
     is_deleted                  BOOLEAN         NOT NULL DEFAULT false,
@@ -86,7 +92,9 @@ INSERT INTO activity_types (id, name, display_order) VALUES
     ('vet',      'vet',      7),
     ('sleep',    'sleep',    8),
     ('play',     'play',     9),
-    ('checkup',  'checkup', 10);
+    ('checkup',  'checkup', 10),
+    ('diary',    'diary',   11),
+    ('etc',      'etc',     12);
 
 CREATE TABLE IF NOT EXISTS activity_records (
     id         BIGINT      AUTO_INCREMENT PRIMARY KEY,
@@ -206,6 +214,47 @@ CREATE TABLE IF NOT EXISTS routine_completions (
     INDEX idx_pet_scheduled (pet_id, scheduled_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+CREATE TABLE IF NOT EXISTS wallet_expenses (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id      BIGINT NOT NULL,
+    pet_id       BIGINT NOT NULL,
+    expense_date DATE NOT NULL,
+    expense_time TIME NULL,
+    amount       BIGINT NOT NULL,
+    currency     VARCHAR(3) NOT NULL DEFAULT 'KRW',
+    category     VARCHAR(40) NOT NULL,
+    item_name    VARCHAR(100) NULL,
+    note         VARCHAR(500) NULL,
+    created_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_wallet_expense_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_wallet_expense_pet FOREIGN KEY (pet_id) REFERENCES pets (id) ON DELETE CASCADE,
+    INDEX idx_wallet_expenses_pet_date (pet_id, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_user_date (user_id, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_pet_category_date (pet_id, category, expense_date, expense_time, id),
+    INDEX idx_wallet_expenses_user_category_date (user_id, category, expense_date, expense_time, id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS care_schedules (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    pet_id      BIGINT       NOT NULL,
+    category_id VARCHAR(40)  NOT NULL,
+    title       VARCHAR(100) NOT NULL,
+    start_date  DATE         NOT NULL,
+    start_time  TIME         NULL,
+    end_date    DATE         NOT NULL,
+    end_time    TIME         NULL,
+    all_day     BOOLEAN      NOT NULL DEFAULT false,
+    place       VARCHAR(200) NULL,
+    memo        VARCHAR(500) NULL,
+    reminder    VARCHAR(100) NOT NULL,
+    created_at  DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at  DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_care_schedule_pet FOREIGN KEY (pet_id) REFERENCES pets (id) ON DELETE CASCADE,
+    INDEX idx_care_schedules_pet_date (pet_id, start_date, end_date, id),
+    INDEX idx_care_schedules_pet_category_date (pet_id, category_id, start_date, id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 CREATE TABLE IF NOT EXISTS posts (
     id           BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id      BIGINT       NOT NULL,
@@ -229,6 +278,20 @@ CREATE TABLE IF NOT EXISTS post_likes (
     PRIMARY KEY (user_id, post_id),
     CONSTRAINT fk_post_like_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_post_like_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS post_comments (
+    id         BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    post_id    BIGINT        NOT NULL,
+    user_id    BIGINT        NOT NULL,
+    parent_comment_id BIGINT NULL,
+    content    VARCHAR(1000) NOT NULL,
+    created_at DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_post_comment_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    CONSTRAINT fk_post_comment_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_post_comment_parent FOREIGN KEY (parent_comment_id) REFERENCES post_comments (id) ON DELETE CASCADE,
+    INDEX idx_post_comment_cursor (post_id, id DESC),
+    INDEX idx_post_comment_thread_cursor (post_id, parent_comment_id, id DESC)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS media_resources (

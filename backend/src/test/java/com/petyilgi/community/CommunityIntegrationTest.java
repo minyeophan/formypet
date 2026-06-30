@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -20,24 +21,29 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
 @Transactional
+@TestPropertySource(properties = "app.media.storage-root=build/community-media-test-storage")
 class CommunityIntegrationTest extends IntegrationTestSupport {
 
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String POSTS_URL = "/api/v1/posts";
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update("UPDATE users SET profile_media_id = NULL");
+        jdbcTemplate.update("DELETE FROM media_resources");
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -238,6 +244,200 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.poll.options[1].votedByMe").value(true));
     }
 
+    @Test
+    void postDetailReturnsPostAndMissingPostReturnsPostNotFound() throws Exception {
+        String token = registerAndGetToken("post-detail@example.com", "detail");
+        Long postId = createPost(token, "상세 글", "FREE", "detail target");
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(postId))
+                .andExpect(jsonPath("$.data.title").value("상세 글"));
+
+        mockMvc.perform(get(POSTS_URL + "/999999/comments")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("POST_NOT_FOUND"));
+
+        mockMvc.perform(get(POSTS_URL + "/999999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    void commentsAreTrimmedPaginatedAndIncreaseOnlyTheirPostCount() throws Exception {
+        String token = registerAndGetToken("post-comment@example.com", "commenter");
+        Long firstPostId = createPost(token, "첫 글", "FREE", "first");
+        Long secondPostId = createPost(token, "둘째 글", "FREE", "second");
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"  첫 댓글  \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.content").value("첫 댓글"))
+                .andExpect(jsonPath("$.data.commentsCount").value(1));
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"둘째 댓글\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.commentsCount").value(2));
+
+        mockMvc.perform(get(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].content").value("둘째 댓글"))
+                .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
+
+        mockMvc.perform(get(POSTS_URL + "/" + secondPostId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.commentsCount").value(0));
+    }
+
+    @Test
+    void commentsExposeAuthenticatedAuthorProfileImageUrl() throws Exception {
+        String authorToken = registerAndGetToken("comment-profile-author@example.com", "author");
+        String viewerToken = registerAndGetToken("comment-profile-viewer@example.com", "viewer");
+        Long authorId = readUserId(authorToken);
+        uploadProfileImage(authorToken);
+        Long postId = createPost(authorToken, "profile comment", "FREE", "profile target");
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"profile comment\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.authorProfileImageUrl")
+                        .value("/api/v1/users/" + authorId + "/profile-image"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].authorProfileImageUrl")
+                        .value("/api/v1/users/" + authorId + "/profile-image"));
+
+        mockMvc.perform(get("/api/v1/users/" + authorId + "/profile-image")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentType("image/png"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .bytes("profile-image-bytes".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/api/v1/users/" + authorId + "/profile-image"))
+                .andExpect(status().isUnauthorized());
+
+        Long viewerId = readUserId(viewerToken);
+        mockMvc.perform(get("/api/v1/users/" + viewerId + "/profile-image")
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("PROFILE_IMAGE_NOT_FOUND"));
+    }
+
+    @Test
+    void blankCommentIsRejected() throws Exception {
+        String token = registerAndGetToken("blank-comment@example.com", "blankcomment");
+        Long postId = createPost(token, "댓글 검증", "FREE", "comment validation");
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void repliesAreLimitedPagedAndCannotBeNested() throws Exception {
+        String token = registerAndGetToken("reply@example.com", "reply-user");
+        Long postId = createPost(token, "reply post", "FREE", "body");
+        Long rootId = createComment(token, postId, "root", null);
+        Long oldestReplyId = null;
+        Long newestReplyId = null;
+        for (int i = 1; i <= 21; i++) {
+            Long id = createComment(token, postId, "reply-" + i, rootId);
+            if (i == 1) oldestReplyId = id;
+            newestReplyId = id;
+        }
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("replyLimit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].replyCount").value(21))
+                .andExpect(jsonPath("$.data.items[0].replies", hasSize(3)))
+                .andExpect(jsonPath("$.data.items[0].replies[2].id").value(newestReplyId))
+                .andExpect(jsonPath("$.data.items[0].repliesNextCursor").isNotEmpty())
+                .andExpect(jsonPath("$.data.items[0].commentsCount").value(22));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments/" + rootId + "/replies")
+                        .header("Authorization", "Bearer " + token)
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(20)))
+                .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "content", "nested", "parentCommentId", oldestReplyId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments/" + oldestReplyId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .param("replyLimit", "21"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void missingAndCrossPostParentsReturnSpecificErrors() throws Exception {
+        String token = registerAndGetToken("parent-errors@example.com", "parent-errors");
+        Long firstPostId = createPost(token, "first", "FREE", "body");
+        Long secondPostId = createPost(token, "second", "FREE", "body");
+        Long rootId = createComment(token, firstPostId, "root", null);
+
+        mockMvc.perform(post(POSTS_URL + "/" + secondPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "content", "cross", "parentCommentId", rootId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_COMMENT_PARENT"));
+
+        mockMvc.perform(post(POSTS_URL + "/" + firstPostId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"missing\",\"parentCommentId\":999999}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_NOT_FOUND"));
+    }
+
+    private Long createComment(String token, Long postId, String content, Long parentCommentId) throws Exception {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("content", content);
+        if (parentCommentId != null) payload.put("parentCommentId", parentCommentId);
+        MvcResult result = mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result);
+    }
+
     private Long createPost(String token, String title, String category, String content) throws Exception {
         MvcResult result = mockMvc.perform(multipartPost(token, Map.of(
                         "title", title,
@@ -288,6 +488,15 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 "image-bytes-1".getBytes(StandardCharsets.UTF_8));
     }
 
+    private void uploadProfileImage(String token) throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png",
+                "profile-image-bytes".getBytes(StandardCharsets.UTF_8));
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(file)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+    }
+
     private String registerAndGetToken(String email, String nickname) throws Exception {
         MvcResult result = mockMvc.perform(post(AUTH_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -305,5 +514,14 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     private Long readId(MvcResult result) throws Exception {
         var data = (Map<?, ?>) objectMapper.readValue(result.getResponse().getContentAsString(), Map.class).get("data");
         return ((Number) data.get("id")).longValue();
+    }
+
+    private Long readUserId(String token) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        var data = (Map<?, ?>) objectMapper.readValue(result.getResponse().getContentAsString(), Map.class).get("data");
+        return Long.parseLong(data.get("id").toString());
     }
 }
