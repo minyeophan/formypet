@@ -6,7 +6,7 @@ import '../../widgets/app_text.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'community_constants.dart';
 
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final Post post;
   final VoidCallback onLike;
   final VoidCallback? onOpen;
@@ -19,7 +19,15 @@ class PostCard extends StatelessWidget {
   });
 
   @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  bool _isFocused = false;
+
+  @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final title = post.title?.trim() ?? '';
     final content = post.content.trim();
     final hasTitle = title.isNotEmpty;
@@ -41,10 +49,21 @@ class PostCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(
+          color: _isFocused ? AppColors.textSecondary : AppColors.border,
+          width: _isFocused ? 2 : 1,
+        ),
       ),
       child: InkWell(
-        onTap: onOpen,
+        onTap: widget.onOpen,
+        onFocusChange: (isFocused) {
+          if (_isFocused == isFocused) return;
+          setState(() => _isFocused = isFocused);
+        },
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: AppColors.text.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
@@ -147,7 +166,7 @@ class PostCard extends StatelessWidget {
                     children: [
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: onLike,
+                        onTap: widget.onLike,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 5,

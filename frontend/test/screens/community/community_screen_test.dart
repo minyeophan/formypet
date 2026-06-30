@@ -135,6 +135,51 @@ void main() {
     expect(find.text('(54)'), findsNothing);
   });
 
+  testWidgets('post card keeps its surface and shows keyboard focus border', (
+    tester,
+  ) async {
+    final post = _post(
+      '포커스 카드 본문',
+      'CARE',
+      id: 'focus-card-1',
+      title: '포커스 카드',
+    );
+
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [post]),
+    );
+    await tester.pumpAndSettle();
+
+    final cardFinder = find.byKey(
+      const ValueKey('community-post-card-focus-card-1'),
+    );
+    final card = tester.widget<Card>(cardFinder);
+    final inkWell = card.child! as InkWell;
+
+    expect(inkWell.hoverColor, Colors.transparent);
+    expect(inkWell.focusColor, Colors.transparent);
+    expect(inkWell.highlightColor, Colors.transparent);
+    expect(inkWell.splashColor, AppColors.text.withValues(alpha: 0.06));
+    expect(inkWell.onFocusChange, isNotNull);
+
+    inkWell.onFocusChange!(true);
+    await tester.pump();
+
+    var shape =
+        tester.widget<Card>(cardFinder).shape! as RoundedRectangleBorder;
+    expect(shape.side.color, AppColors.textSecondary);
+    expect(shape.side.width, 2);
+
+    (tester.widget<Card>(cardFinder).child! as InkWell).onFocusChange!(false);
+    await tester.pump();
+
+    shape = tester.widget<Card>(cardFinder).shape! as RoundedRectangleBorder;
+    expect(shape.side.color, AppColors.border);
+    expect(shape.side.width, 1);
+  });
+
   testWidgets('main category carousel renders two fixed panels', (
     tester,
   ) async {
