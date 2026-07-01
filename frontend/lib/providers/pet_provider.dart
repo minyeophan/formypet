@@ -12,6 +12,11 @@ import '../services/routine_service.dart';
 import '../services/care_schedule_service.dart';
 import '../core/record_utils.dart';
 
+const _deprecatedQuickTypeIds = {'play', 'sleep', 'checkup'};
+
+List<String> _removeDeprecatedQuickTypeIds(List<String> ids) =>
+    ids.where((id) => !_deprecatedQuickTypeIds.contains(id)).toList();
+
 class PetState {
   final bool isLoading;
   final bool hasOnboarded;
@@ -152,14 +157,19 @@ class PetNotifier extends StateNotifier<PetState> {
 
   Future<List<String>> _readStoredQuickTypeIds() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+    final stored = prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+    final cleaned = _removeDeprecatedQuickTypeIds(stored);
+    if (!listEquals(stored, cleaned)) {
+      await prefs.setStringList('quickTypeIds', cleaned);
+    }
+    return cleaned;
   }
 
   Future<void> _initializeQuickTypeIds(
     Future<List<String>> Function() loader,
   ) async {
     try {
-      final quickTypeIds = await loader();
+      final quickTypeIds = _removeDeprecatedQuickTypeIds(await loader());
       state = state.copyWith(isLoading: false, quickTypeIds: quickTypeIds);
     } catch (error) {
       debugPrint('Failed to load quick type ids: $error');
@@ -595,9 +605,10 @@ class PetNotifier extends StateNotifier<PetState> {
 
   // QuickTypeIds persistence
   Future<void> setQuickTypeIds(List<String> ids) async {
+    final cleaned = _removeDeprecatedQuickTypeIds(ids);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('quickTypeIds', ids);
-    state = state.copyWith(quickTypeIds: ids);
+    await prefs.setStringList('quickTypeIds', cleaned);
+    state = state.copyWith(quickTypeIds: cleaned);
   }
 }
 
