@@ -96,6 +96,16 @@ const Map<AppVisualId, AppVisualSpec> appVisualCatalog = {
   AppVisualId.homePetLog: AppVisualSpec(
     source: MaterialVisualSource(Icons.category_outlined),
   ),
+  AppVisualId.homeNewsSnack: AppVisualSpec(
+    source: MaterialVisualSource(Icons.cookie_outlined),
+  ),
+  AppVisualId.homeNewsWalk: AppVisualSpec(
+    source: MaterialVisualSource(Icons.directions_walk_rounded),
+  ),
+  AppVisualId.homeNewsDental: AppVisualSpec(
+    source: MaterialVisualSource(Icons.health_and_safety_outlined),
+  ),
+  AppVisualId.homeBottomBanner: AppVisualSpec(source: EmojiVisualSource('🐾')),
   AppVisualId.communityAll: AppVisualSpec(
     source: MaterialVisualSource(Icons.grid_view_rounded),
   ),

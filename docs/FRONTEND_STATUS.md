@@ -34,9 +34,11 @@
 
 | 영역 | 사용자 동선 | 상태 | 현재 동작 또는 남은 일 |
 |------|-------------|------|------------------------|
-| Home | 상단 알림 아이콘 | 🧭 진입점 없음 | 표시 전용 비활성 버튼. 알림 목록 화면 없음 |
-| Home | `일정` 메뉴 | 🚧 부분 구현 | `준비중` 토스트만 표시. 실제 일정은 루틴 화면의 일정 탭에서 샘플로만 표시 |
+| Home | 상단 알림 아이콘 | 🚧 부분 구현 | `준비중` 안내 표시. 알림 목록 화면 없음 |
+| Home | 빠른 메뉴 | ✅ 구현됨 | 반려기록 → `/records`, 지갑 → `/wallet`, 루틴 → `/routine` |
 | Home | `반려로그` 메뉴 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 별도 화면 없음 |
+| Home | 오늘의 뉴스 | 🚧 부분 구현 | 외부 요청 없는 정적 카드 3개. 카드와 모두 보기는 `준비중` 안내 표시 |
+| Home | 오늘의 인기글 | 🔌 연동됨 | popular feed 상위 3개 조회, 로딩·빈 결과·오류·재시도 지원, 상세 route 연결 |
 | Community | 상단 알림, 검색 아이콘 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 알림 목록과 검색 화면 없음 |
 | Community | 게시글 카드 | 🔌 연동됨 | 피드 조회, 좋아요, 상세 진입, 첫 이미지 썸네일, 이미지 개수, 투표 badge 표시 |
 | Community | 댓글, 답글 | 🔌 연동됨 | 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회 지원 |
@@ -151,7 +153,7 @@
 | 전체 기록 목록 | ✅ 구현됨 | `/records/all`, 날짜별 그룹 표시 |
 | 타입별 전체 화면 입력 | 🔌 연동됨 | `meal_record_screen.dart`, `record_category_form_screen.dart`; 현재 진입 가능한 타입은 아래 표 참고 |
 | 이전 빠른 기록 bottom sheet | 🧭 진입점 없음 | `widgets/record_modal.dart`, `screens/home/quick_record_row.dart`는 남아 있으나 현재 Home과 라우터에서 호출하지 않음 |
-| 오늘 Home 요약 | ✅ 구현됨 | `home_screen.dart`의 오늘 관리 타임라인과 최근 건강 상태 |
+| Home V2 | 🔌 연동됨 | 프로필 pager, 빠른 메뉴, 정적 뉴스, 실제 인기글, 하단 배너. 기존 오늘 관리·타임라인·건강 요약 UI는 제거됨 |
 | 성장/체중 그래프 | ✅ 구현됨 | `/records/growth`, `GrowthRecordsScreen` |
 | 기록 상세/수정/삭제 UI | 🔌 연동됨 | `RecordDetailScreen`, `RecordEditScreen`; 목록 row → 상세 → 수정, 수정 화면의 저장·삭제가 provider/service API 호출 |
 | 미디어 업로드 service | 🔌 연동됨 | `services/record_service.dart`, 기록 생성 후 media 업로드 |

@@ -1,5 +1,13 @@
 # 현재 컨텍스트
 
+## 2026-07-01 Home V2 구현
+
+- Home을 고정 `ForMyPet` 헤더, 반려동물 프로필 pager, 빠른 메뉴, 정적 뉴스 3개, 실제 인기글 3개, 하단 배너 순서로 재구성했다. 기존 오늘 관리·오늘 타임라인·최근 건강 상태 UI는 제거했으며 기존 라우트와 `MainScaffold` 하단 내비게이션 계약은 유지한다.
+- 홈 인기글은 별도 auto-dispose provider가 `popular`, `limit: 3`으로 조회한다. 초기 로딩·빈 결과·초기 오류/재시도·데이터 보존 새로고침 오류를 분리하고 중복 요청을 하나의 Future로 합친다.
+- `PetNotifier.refreshPets()`를 추가했다. 기존 active pet 유지, 삭제된 active pet 교체 시 상세 데이터 원자 적용, 상세 실패 시 이전 pet 데이터 제거, 빈 목록 온보딩 복귀, 중복 요청 차단과 늦은 상세 응답 방어를 적용했다.
+- Plus Jakarta Sans variable TTF와 OFL을 로컬 asset으로 포함했다. 뉴스와 배너는 AppVisual 의미 ID의 Material/emoji fallback만 사용하며 외부 이미지 요청은 없다. `ui-reference/`는 Git ignore 대상이다.
+- 검증: Flutter 관련 선택 테스트 84건과 전체 `flutter test` 348건 GREEN, 전체 `dart analyze` `No issues found!`, 백엔드 `CommunityIntegrationTest --rerun-tasks` Exit 0, 한글 깨짐 검사와 `git diff --check` GREEN. Home 위젯 테스트는 320·360·412px viewport overflow를 확인했다. 이 세션에는 브라우저 자동화 실행 도구가 노출되지 않아 실제 스크린샷 비교는 수행하지 못했다.
+
 ## 2026-06-30 CORS·로그아웃 안정화와 커뮤니티 검색 통합 검증
 
 - 로컬 개발 origin의 CORS preflight에 `PATCH`를 허용하고 사용자 프로필 및 루틴 완료 API 경로를 통합 테스트로 고정했다.

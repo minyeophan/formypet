@@ -64,6 +64,74 @@ void main() {
     },
   );
 
+  test('refreshPets preserves active pet and its loaded data', () async {
+    final first = _pet('1');
+    final second = _pet('2');
+    final petService = _FakePetService(pets: [first, second]);
+    final notifier = PetNotifier(
+      petService,
+      _FakeRecordService(records: [_record('r1', first.id)]),
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+    final records = notifier.state.records;
+
+    petService.pets = [first, second];
+    await notifier.refreshPets();
+
+    expect(notifier.state.activePetId, first.id);
+    expect(notifier.state.records, same(records));
+  });
+
+  test('refreshPets clears pet data when active pet was deleted', () async {
+    final first = _pet('1');
+    final second = _pet('2');
+    final petService = _FakePetService(pets: [first]);
+    final recordService = _FakeRecordService(
+      records: [_record('r1', first.id)],
+    );
+    final notifier = PetNotifier(
+      petService,
+      recordService,
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+
+    petService.pets = [second];
+    recordService.failPetIds.add(second.id);
+    await expectLater(notifier.refreshPets(), throwsException);
+
+    expect(notifier.state.activePetId, second.id);
+    expect(notifier.state.records, isEmpty);
+    expect(notifier.state.routines, isEmpty);
+    expect(notifier.state.todayRoutineItems, isEmpty);
+  });
+
+  test('late pet data response cannot overwrite the active pet', () async {
+    final first = _pet('1');
+    final second = _pet('2');
+    final records = _DelayedRecordService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [first, second]),
+      records,
+      _FakeRoutineService(),
+    );
+    final load = notifier.loadForAuthenticatedUser();
+    await Future<void>.delayed(Duration.zero);
+    records.complete(first.id, [_record('r1', first.id)]);
+    await load;
+
+    final firstRequest = notifier.setActivePet(first.id);
+    final secondRequest = notifier.setActivePet(second.id);
+    records.complete(second.id, [_record('r2', second.id)]);
+    await secondRequest;
+    records.complete(first.id, [_record('late', first.id)]);
+    await firstRequest;
+
+    expect(notifier.state.activePetId, second.id);
+    expect(notifier.state.records.single.petId, second.id);
+  });
+
   test('toggleRoutineCompletion keeps completion map behavior', () async {
     final pet = _pet('1');
     final routine = _routine('rt1', pet.id);
@@ -752,7 +820,7 @@ TodayRoutineItem _todayRoutineItem({
 class _FakePetService extends PetService {
   _FakePetService({required this.pets, this.createdPet});
 
-  final List<Pet> pets;
+  List<Pet> pets;
   final Pet? createdPet;
   final deletedPetIds = <String>[];
 
@@ -790,6 +858,7 @@ class _FakeRecordService extends RecordService {
   _FakeRecordService({this.records = const [], this.createdRecord});
 
   final List<ActivityRecord> records;
+  final failPetIds = <String>{};
   final ActivityRecord? createdRecord;
   final loadedPetIds = <String>[];
   final createdBodies = <Map<String, dynamic>>[];
@@ -804,6 +873,9 @@ class _FakeRecordService extends RecordService {
     int? limit,
   }) async {
     loadedPetIds.add(petId);
+    if (failPetIds.contains(petId)) {
+      throw Exception('record load failed');
+    }
     return records;
   }
 
@@ -825,6 +897,26 @@ class _FakeRecordService extends RecordService {
     createdMediaBodies.add(body);
     uploadedFilenames.addAll(files.map((file) => file.filename));
     return createdRecord ?? _record('created-media', petId);
+  }
+}
+
+class _DelayedRecordService extends RecordService {
+  final _requests = <String, List<Completer<List<ActivityRecord>>>>{};
+
+  @override
+  Future<List<ActivityRecord>> getRecords(
+    String petId, {
+    String? date,
+    String? typeId,
+    int? limit,
+  }) {
+    final completer = Completer<List<ActivityRecord>>();
+    _requests.putIfAbsent(petId, () => []).add(completer);
+    return completer.future;
+  }
+
+  void complete(String petId, List<ActivityRecord> records) {
+    _requests[petId]!.removeAt(0).complete(records);
   }
 }
 

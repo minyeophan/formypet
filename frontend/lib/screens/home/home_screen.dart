@@ -2,22 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/app_colors.dart';
-import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
 import '../../core/pet_taxonomy.dart';
 import '../../core/visuals/app_visual_id.dart';
-import '../../models/activity_record.dart';
 import '../../models/pet.dart';
-import '../../models/routine.dart';
+import '../../models/post.dart';
+import '../../providers/home_popular_posts_provider.dart';
 import '../../providers/pet_provider.dart';
-import '../../widgets/app_header.dart';
-import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
-
-const _appName = 'petyilgi';
+import 'home_v2_tokens.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +23,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   PageController? _pageController;
+  bool _isRefreshing = false;
 
   @override
   void dispose() {
@@ -37,88 +33,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(petProvider);
-    final pet = state.activePet;
-
-    if (state.isLoading) {
+    final pets = ref.watch(petProvider);
+    if (pets.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final activeIndex = state.pets.indexWhere((p) => p.id == state.activePetId);
+    final activeIndex = pets.pets.indexWhere((p) => p.id == pets.activePetId);
     final pageIndex = activeIndex < 0 ? 0 : activeIndex;
     _pageController ??= PageController(initialPage: pageIndex);
-    _syncPageController(pageIndex);
+    _syncPage(pageIndex);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: HomeV2Tokens.background,
       body: SafeArea(
-        child: pet == null
-            ? const _EmptyHome()
-            : CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const _HomeHeader(),
-                        _PetProfilePager(
-                          pets: state.pets,
-                          pageController: _pageController!,
-                          activeIndex: pageIndex,
-                          onGrowthTap: () => context.push('/records/growth'),
-                          onPageChanged: (index) {
-                            if (index < 0 || index >= state.pets.length) {
-                              return;
-                            }
-                            final nextPet = state.pets[index];
-                            if (nextPet.id == state.activePetId) {
-                              return;
-                            }
-                            ref
-                                .read(petProvider.notifier)
-                                .setActivePet(nextPet.id);
-                          },
-                        ),
-                        _HomeMenuGrid(
-                          onCategoryTap: () => showPreparingToast(context),
-                        ),
-                        const SizedBox(height: 14),
-                        _TodayCareSection(
-                          items: state.todayRoutineItems,
-                          completions: state.routineCompletions,
-                          records: state.records,
-                          onToggle: (routineId, date) => ref
-                              .read(petProvider.notifier)
-                              .toggleRoutineCompletion(routineId, date),
-                        ),
-                        const SizedBox(height: 14),
-                        _HealthSummarySection(records: state.records),
-                        const SizedBox(
-                          key: Key('home-bottom-spacer'),
-                          height: 96,
-                        ),
-                      ],
+        child: Column(
+          children: [
+            const _HomeHeader(),
+            Expanded(
+              child: pets.activePet == null
+                  ? const _EmptyHome()
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              HomeV2Tokens.gutter,
+                              4,
+                              HomeV2Tokens.gutter,
+                              0,
+                            ),
+                            sliver: SliverList.list(
+                              children: [
+                                _PetProfilePager(
+                                  pets: pets.pets,
+                                  controller: _pageController!,
+                                  activeIndex: pageIndex,
+                                  locked: _isRefreshing,
+                                  onChanged: (index) {
+                                    if (index >= pets.pets.length) return;
+                                    ref
+                                        .read(petProvider.notifier)
+                                        .setActivePet(pets.pets[index].id);
+                                  },
+                                ),
+                                const SizedBox(height: HomeV2Tokens.sectionGap),
+                                _QuickMenu(
+                                  onPreparing: () =>
+                                      showPreparingToast(context),
+                                ),
+                                const SizedBox(height: HomeV2Tokens.sectionGap),
+                                _NewsSection(
+                                  onPreparing: () =>
+                                      showPreparingToast(context),
+                                ),
+                                const SizedBox(height: HomeV2Tokens.sectionGap),
+                                const _PopularPostsSection(),
+                                const SizedBox(height: HomeV2Tokens.sectionGap),
+                                const _BottomBanner(),
+                                const SizedBox(
+                                  key: Key('home-bottom-spacer'),
+                                  height: 96,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _syncPageController(int activeIndex) {
+  Future<void> _refresh() async {
+    setState(() => _isRefreshing = true);
+    Object? error;
+    await Future.wait([
+      ref.read(petProvider.notifier).refreshPets().catchError((e) {
+        error = e;
+      }),
+      ref.read(homePopularPostsProvider.notifier).refresh().catchError((e) {
+        error = e;
+      }),
+    ]);
+    if (!mounted) return;
+    setState(() => _isRefreshing = false);
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('새로고침하지 못했어요. 다시 시도해 주세요.')));
+    }
+  }
+
+  void _syncPage(int index) {
     final controller = _pageController;
-    if (controller == null || !controller.hasClients) {
-      return;
-    }
-    final currentPage = controller.page?.round() ?? controller.initialPage;
-    if (currentPage == activeIndex) {
-      return;
-    }
+    if (controller == null || !controller.hasClients) return;
+    if ((controller.page?.round() ?? controller.initialPage) == index) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && controller.hasClients) {
-        controller.jumpToPage(activeIndex);
-      }
+      if (mounted && controller.hasClients) controller.jumpToPage(index);
     });
   }
 }
@@ -127,933 +143,612 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 14, 8),
-      child: Row(
-        children: [
-          const Expanded(
-            child: AppText(
-              _appName,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) => Container(
+    key: const Key('home-v2-header'),
+    color: HomeV2Tokens.background,
+    padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
+    child: Row(
+      children: [
+        const Icon(Icons.pets, color: HomeV2Tokens.primary, size: 25),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'ForMyPet',
+            style: TextStyle(
+              fontFamily: HomeV2Tokens.brandFont,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: HomeV2Tokens.primary,
             ),
           ),
-          const SizedBox.square(
-            dimension: 48,
-            child: Center(
-              child: AppHeaderIconButton(
-                key: Key('home-notification-button'),
-                icon: Icons.notifications_none_rounded,
-                tooltip: '알림',
-                onTap: null,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        IconButton(
+          key: const Key('home-notification-button'),
+          tooltip: '알림',
+          onPressed: () => showPreparingToast(context),
+          icon: const Icon(Icons.notifications_none_rounded),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PetProfilePager extends StatelessWidget {
-  final List<Pet> pets;
-  final PageController pageController;
-  final int activeIndex;
-  final VoidCallback onGrowthTap;
-  final ValueChanged<int> onPageChanged;
-
   const _PetProfilePager({
     required this.pets,
-    required this.pageController,
+    required this.controller,
     required this.activeIndex,
-    required this.onGrowthTap,
-    required this.onPageChanged,
+    required this.locked,
+    required this.onChanged,
   });
 
+  final List<Pet> pets;
+  final PageController controller;
+  final int activeIndex;
+  final bool locked;
+  final ValueChanged<int> onChanged;
+
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 190,
-          child: PageView.builder(
-            controller: pageController,
-            itemCount: pets.length,
-            onPageChanged: onPageChanged,
-            itemBuilder: (context, index) =>
-                _PetProfileCard(pet: pets[index], onGrowthTap: onGrowthTap),
+  Widget build(BuildContext context) => Column(
+    children: [
+      SizedBox(
+        height: 178,
+        child: PageView.builder(
+          controller: controller,
+          physics: locked ? const NeverScrollableScrollPhysics() : null,
+          itemCount: pets.length,
+          onPageChanged: onChanged,
+          itemBuilder: (_, index) => _PetProfileCard(pet: pets[index]),
+        ),
+      ),
+      if (pets.length > 1)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            pets.length,
+            (index) => AnimatedContainer(
+              key: Key('home-pet-dot-$index'),
+              duration: const Duration(milliseconds: 160),
+              width: index == activeIndex ? 18 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+              decoration: BoxDecoration(
+                color: index == activeIndex
+                    ? HomeV2Tokens.primary
+                    : HomeV2Tokens.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
           ),
         ),
-        if (pets.length > 1) ...[
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(pets.length, (index) {
-              final isActive = index == activeIndex;
-              return AnimatedContainer(
-                key: Key('home-pet-dot-$index'),
-                duration: const Duration(milliseconds: 160),
-                width: isActive ? 18 : 6,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.text : AppColors.border,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 16),
-        ] else
-          const SizedBox(height: 18),
-      ],
-    );
-  }
+    ],
+  );
 }
 
 class _PetProfileCard extends StatelessWidget {
+  const _PetProfileCard({required this.pet});
   final Pet pet;
-  final VoidCallback onGrowthTap;
-
-  const _PetProfileCard({required this.pet, required this.onGrowthTap});
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
+  Widget build(BuildContext context) => Container(
+    key: Key('home-profile-card-${pet.id}'),
+    padding: const EdgeInsets.all(18),
+    decoration: _cardDecoration(radius: 28),
+    child: Row(
       children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF3A2A18).withValues(alpha: 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: SizedBox.square(
+            dimension: 112,
+            child: AuthenticatedNetworkImage(
+              url: pet.profileImageUrl,
+              fit: BoxFit.cover,
+              fallback: ColoredBox(
+                color: colorPairForHex(pet.accentColor).bgLight,
+                child: Center(
+                  child: AppVisual(id: speciesVisualId(pet.species), size: 48),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      pet.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: HomeV2Tokens.text,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('home-growth-button'),
+                    tooltip: '성장 기록',
+                    onPressed: () => context.push('/records/growth'),
+                    icon: const Icon(Icons.show_chart_rounded),
+                    color: HomeV2Tokens.primary,
+                  ),
+                ],
+              ),
+              Text(
+                _compact(pet.breed) ?? '품종 미상',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: HomeV2Tokens.textSecondary),
+              ),
+              const SizedBox(height: 3),
+              Text(speciesLabel(pet.species)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _Fact(label: '나이', value: _age(pet.birthDate)),
+                  ),
+                  Expanded(
+                    child: _Fact(
+                      label: '함께한 날',
+                      value: _daysTogether(pet.adoptionDate),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _PetProfilePhoto(pet: pet)),
-              const SizedBox(width: 12),
-              Expanded(
+        ),
+      ],
+    ),
+  );
+}
+
+class _Fact extends StatelessWidget {
+  const _Fact({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(fontSize: 10, color: HomeV2Tokens.textSecondary),
+      ),
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontFamily: HomeV2Tokens.brandFont,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  );
+}
+
+class _QuickMenu extends StatelessWidget {
+  const _QuickMenu({required this.onPreparing});
+  final VoidCallback onPreparing;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(String, String, AppVisualId, Color, VoidCallback)>[
+      (
+        'records',
+        '반려기록',
+        AppVisualId.homeRecords,
+        Colors.orange,
+        () => context.push('/records'),
+      ),
+      (
+        'wallet',
+        '지갑',
+        AppVisualId.homeWallet,
+        Colors.blue,
+        () => context.push('/wallet'),
+      ),
+      (
+        'routine',
+        '루틴',
+        AppVisualId.homeRoutine,
+        Colors.green,
+        () => context.push('/routine'),
+      ),
+      ('pet-log', '반려로그', AppVisualId.homePetLog, Colors.purple, onPreparing),
+    ];
+    return Row(
+      key: const Key('home-menu-panel'),
+      children: [
+        for (final item in items)
+          Expanded(
+            child: InkWell(
+              key: Key('home-menu-${item.$1}'),
+              borderRadius: BorderRadius.circular(16),
+              onTap: item.$5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 42),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppText(
-                            pet.name,
-                            fontSize: 21,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 5),
-                          AppText(
-                            _breedLabel(pet.breed),
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          AppText(
-                            speciesLabel(pet.species),
-                            fontSize: 13,
-                            color: AppColors.text,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: item.$4.withValues(alpha: .09),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: AppVisual(id: item.$3, color: item.$4, size: 25),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _ProfileFactLine(
-                      label: '나이',
-                      value: _ageLabel(pet.birthDate),
-                    ),
-                    const SizedBox(height: 4),
-                    _ProfileFactLine(
-                      label: '함께한 날',
-                      value: _daysTogetherLabel(pet.adoptionDate),
+                    const SizedBox(height: 7),
+                    Text(
+                      item.$2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-        Positioned(
-          top: 24,
-          right: 32,
-          child: Tooltip(
-            message: '성장',
-            child: Semantics(
-              label: '성장',
-              button: true,
-              child: Material(
-                color: AppColors.surfaceSoft,
-                shape: const CircleBorder(
-                  side: BorderSide(color: AppColors.border),
-                ),
-                child: InkWell(
-                  key: const Key('home-growth-button'),
-                  customBorder: const CircleBorder(),
-                  onTap: onGrowthTap,
-                  child: const SizedBox.square(
-                    dimension: 40,
-                    child: Icon(
-                      Icons.show_chart_rounded,
-                      color: Color(0xFFBA68C8),
-                      size: 22,
-                    ),
-                  ),
+      ],
+    );
+  }
+}
+
+class _NewsSection extends StatelessWidget {
+  const _NewsSection({required this.onPreparing});
+  final VoidCallback onPreparing;
+
+  @override
+  Widget build(BuildContext context) {
+    const news = [
+      (AppVisualId.homeNewsSnack, '수제 강아지 간식 레시피: 야채 비스킷'),
+      (AppVisualId.homeNewsWalk, '안전하고 즐거운 산책을 위한 준비사항'),
+      (AppVisualId.homeNewsDental, '반려동물 치아관리, 거부감 없이 시작하는 법'),
+    ];
+    return Column(
+      key: const Key('home-news-section'),
+      children: [
+        _SectionHeader(title: '오늘의 뉴스', action: '모두 보기', onTap: onPreparing),
+        const SizedBox(height: 10),
+        for (final item in news) ...[
+          _NewsCard(visual: item.$1, title: item.$2, onTap: onPreparing),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _NewsCard extends StatelessWidget {
+  const _NewsCard({
+    required this.visual,
+    required this.title,
+    required this.onTap,
+  });
+  final AppVisualId visual;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(HomeV2Tokens.radius),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: HomeV2Tokens.primarySoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: AppVisual(
+                  id: visual,
+                  color: HomeV2Tokens.primary,
+                  size: 28,
                 ),
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PetProfilePhoto extends StatelessWidget {
-  final Pet pet;
-
-  const _PetProfilePhoto({required this.pet});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return AuthenticatedNetworkImage(
-            url: pet.profileImageUrl,
-            width: constraints.maxWidth,
-            height: constraints.maxHeight,
-            fit: BoxFit.cover,
-            fallback: _PetEmojiFallback(pet: pet),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _PetEmojiFallback extends StatelessWidget {
-  final Pet pet;
-
-  const _PetEmojiFallback({required this.pet});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = colorPairForHex(pet.accentColor);
-    return Container(
-      color: color.bgLight,
-      alignment: Alignment.center,
-      child: AppVisual(id: speciesVisualId(pet.species), size: 44),
-    );
-  }
-}
-
-class _ProfileFactLine extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ProfileFactLine({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        AppText(
-          label,
-          fontSize: 12,
-          color: AppColors.textSecondary,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(width: 7),
-        Expanded(
-          child: AppText(
-            value,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _breedLabel(String? breed) {
-  final value = _compactText(breed);
-  return value ?? '품종 미상';
-}
-
-String _ageLabel(String? birthDateIso) {
-  final birth = DateTime.tryParse(birthDateIso ?? '');
-  if (birth == null) return '-';
-  final now = DateTime.now();
-  var years = now.year - birth.year;
-  final hasBirthdayPassed =
-      now.month > birth.month ||
-      (now.month == birth.month && now.day >= birth.day);
-  if (!hasBirthdayPassed) {
-    years -= 1;
-  }
-  return '${years < 0 ? 0 : years}살';
-}
-
-String _daysTogetherLabel(String? adoptionDateIso) {
-  final adoptionDate = DateTime.tryParse(adoptionDateIso ?? '');
-  if (adoptionDate == null) return '-';
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final target = DateTime(
-    adoptionDate.year,
-    adoptionDate.month,
-    adoptionDate.day,
-  );
-  final days = today.difference(target).inDays + 1;
-  if (days < 1) return '-';
-  return '$days일';
-}
-
-class _HomeMenuGrid extends StatelessWidget {
-  final VoidCallback onCategoryTap;
-
-  const _HomeMenuGrid({required this.onCategoryTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _HomeMenuItem(
-        id: 'records',
-        label: '반려기록',
-        visualId: AppVisualId.homeRecords,
-        color: const Color(0xFFFF8A65),
-        onTap: () => context.push('/records'),
-      ),
-      _HomeMenuItem(
-        id: 'wallet',
-        label: '지갑',
-        visualId: AppVisualId.homeWallet,
-        color: const Color(0xFF4F8FCF),
-        onTap: () => context.push('/wallet'),
-      ),
-      _HomeMenuItem(
-        id: 'routine',
-        label: '루틴',
-        visualId: AppVisualId.homeRoutine,
-        color: const Color(0xFF81C784),
-        onTap: () => context.push('/routine'),
-      ),
-      _HomeMenuItem(
-        id: 'pet-log',
-        label: '반려로그',
-        visualId: AppVisualId.homePetLog,
-        color: const Color(0xFFE879B9),
-        onTap: onCategoryTap,
-      ),
-    ];
-
-    return Container(
-      key: const Key('home-menu-panel'),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: 4,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 0,
-          crossAxisSpacing: 10,
-          childAspectRatio: 0.72,
-        ),
-        itemBuilder: (context, index) => items[index],
-      ),
-    );
-  }
-}
-
-class _HomeMenuItem extends StatelessWidget {
-  final String id;
-  final String label;
-  final AppVisualId visualId;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _HomeMenuItem({
-    required this.id,
-    required this.label,
-    required this.visualId,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AppVisual(id: visualId, color: color, size: 24),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: AppText(
-              label,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _Badge(label: '준비중'),
+                  const SizedBox(height: 5),
+                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: Key('home-menu-$id'),
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: content,
-      ),
-    );
-  }
-}
-
-class _TodayCareSection extends StatelessWidget {
-  final List<TodayRoutineItem> items;
-  final Map<String, CompletionStatus> completions;
-  final List<ActivityRecord> records;
-  final void Function(String routineId, String date) onToggle;
-
-  const _TodayCareSection({
-    required this.items,
-    required this.completions,
-    required this.records,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final timeline = _timelineItems(items, records);
-
-    return _HomeSectionCard(
-      title: '오늘 관리',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (items.isEmpty)
-            const _EmptyPanel(
-              title: '오늘 예정된 루틴이 없어요',
-              message: '루틴을 만들면 오늘 해야 할 관리를 한눈에 볼 수 있어요.',
-            )
-          else
-            ...items.map((item) {
-              final routine = item.routine;
-              final date = item.completion.scheduledDate;
-              final key = '${routine.id}:$date';
-              final status = completions[key] ?? item.completion.status;
-              final done = status == CompletionStatus.completed;
-              return _RoutineChecklistRow(
-                item: item,
-                isDone: done,
-                onTap: () => onToggle(routine.id, date),
-              );
-            }),
-          const SizedBox(height: 14),
-          const AppText(
-            '오늘 타임라인',
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 8),
-          if (timeline.isEmpty)
-            const _TimelineEmpty()
-          else
-            ...timeline.map((item) => _TimelineRow(item: item)),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoutineChecklistRow extends StatelessWidget {
-  final TodayRoutineItem item;
-  final bool isDone;
-  final VoidCallback onTap;
-
-  const _RoutineChecklistRow({
-    required this.item,
-    required this.isDone,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final routine = item.routine;
-    final count = routine.times.isEmpty ? 1 : routine.times.length;
-    final title = '${_routineTitle(routine)} · 오늘 $count회 예정';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: isDone ? AppColors.surfaceSoft : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 54),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  isDone
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: isDone ? AppColors.primary : AppColors.muted,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: AppText(
-                    title,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: isDone ? AppColors.textSecondary : AppColors.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                AppText(
-                  isDone ? '완료' : '예정',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isDone ? AppColors.primary : AppColors.muted,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HealthSummarySection extends StatelessWidget {
-  final List<ActivityRecord> records;
-
-  const _HealthSummarySection({required this.records});
-
-  @override
-  Widget build(BuildContext context) {
-    final weight = _latestRecord(records, 'weight');
-    final poop = _latestRecord(records, 'poop');
-    final hasMealToday = _hasRecordToday(records, 'meal');
-    final hasMedicineToday = _hasRecordToday(records, 'medicine');
-    final hasAnyData =
-        weight != null || poop != null || hasMealToday || hasMedicineToday;
-
-    return _HomeSectionCard(
-      title: '최근 건강 상태',
-      subtitle: hasAnyData ? '최근 기록 기준으로 관리 중이에요' : null,
-      child: hasAnyData
-          ? Column(
-              children: [
-                _HealthMetricRow(
-                  label: '최신 체중',
-                  value: _weightRecordValue(weight) ?? '기록 없음',
-                ),
-                _HealthMetricRow(
-                  label: '최신 배변',
-                  value: _poopRecordValue(poop) ?? '기록 없음',
-                ),
-                _HealthMetricRow(
-                  label: '오늘 급식',
-                  value: hasMealToday ? '기록됨' : '기록 없음',
-                ),
-                _HealthMetricRow(
-                  label: '오늘 투약',
-                  value: hasMedicineToday ? '기록됨' : '기록 없음',
-                ),
-              ],
-            )
-          : const _EmptyPanel(
-              title: '아직 기록이 부족해요',
-              message: '체중, 배변, 급식 기록을 남기면 최근 상태를 보여드릴게요.',
-            ),
-    );
-  }
-}
-
-class _HomeSectionCard extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final Widget child;
-
-  const _HomeSectionCard({
-    required this.title,
-    this.subtitle,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(
-            title,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            AppText(subtitle!, fontSize: 12, color: AppColors.textSecondary),
+            const Icon(Icons.chevron_right, color: HomeV2Tokens.textSecondary),
           ],
-          const SizedBox(height: 12),
-          child,
-        ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _HealthMetricRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _HealthMetricRow({required this.label, required this.value});
+class _PopularPostsSection extends ConsumerWidget {
+  const _PopularPostsSection();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppText(
-              label,
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(homePopularPostsProvider);
+    return Column(
+      key: const Key('home-popular-section'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionHeader(title: '오늘의 인기글'),
+        const SizedBox(height: 10),
+        if (state.isInitialLoading)
+          for (var i = 0; i < 3; i++) ...[
+            const _PopularSkeleton(),
+            const SizedBox(height: 8),
+          ]
+        else if (state.initialError != null)
+          _PopularMessage(
+            message: '인기글을 불러오지 못했어요',
+            action: TextButton(
+              key: const Key('home-popular-retry'),
+              onPressed: () => ref
+                  .read(homePopularPostsProvider.notifier)
+                  .load()
+                  .catchError((_) {}),
+              child: const Text('다시 시도'),
             ),
-          ),
-          AppText(
-            value,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+          )
+        else if (state.posts.isEmpty)
+          const _PopularMessage(message: '아직 인기글이 없어요')
+        else
+          for (final post in state.posts) ...[
+            _PopularPostCard(post: post),
+            const SizedBox(height: 8),
+          ],
+      ],
     );
   }
 }
 
-class _EmptyPanel extends StatelessWidget {
-  final String title;
+class _PopularPostCard extends StatelessWidget {
+  const _PopularPostCard({required this.post});
+  final Post post;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(HomeV2Tokens.radius),
+      onTap: () => context.push('/community/posts/${post.id}?source=popular'),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Badge(label: _categoryLabel(post.category)),
+                  const SizedBox(height: 5),
+                  Text(
+                    _postTitle(post),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _Metric(icon: Icons.favorite_border, value: post.likesCount),
+            const SizedBox(width: 10),
+            _Metric(icon: Icons.chat_bubble_outline, value: post.commentsCount),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.icon, required this.value});
+  final IconData icon;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: HomeV2Tokens.textSecondary),
+      const SizedBox(width: 3),
+      Text(
+        '$value',
+        style: const TextStyle(
+          fontFamily: HomeV2Tokens.brandFont,
+          fontSize: 11,
+        ),
+      ),
+    ],
+  );
+}
+
+class _PopularSkeleton extends StatelessWidget {
+  const _PopularSkeleton();
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 76,
+    decoration: _cardDecoration(color: HomeV2Tokens.surfaceSoft),
+  );
+}
+
+class _PopularMessage extends StatelessWidget {
+  const _PopularMessage({required this.message, this.action});
   final String message;
-
-  const _EmptyPanel({required this.title, required this.message});
-
+  final Widget? action;
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(
-            title,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 4),
-          AppText(message, fontSize: 12, color: AppColors.textSecondary),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: _cardDecoration(),
+    child: Column(children: [Text(message), ?action]),
+  );
 }
 
-class _TimelineRow extends StatelessWidget {
-  final _TimelineItem item;
-
-  const _TimelineRow({required this.item});
-
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.action, this.onTap});
+  final String title;
+  final String? action;
+  final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 72,
-            child: AppText(
-              '${item.time} ${item.status}',
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: item.isRecord ? AppColors.primary : AppColors.muted,
-            ),
-          ),
-          Expanded(
-            child: AppText(
-              item.title,
-              fontSize: 13,
-              color: AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
       ),
-    );
-  }
+      if (action != null) TextButton(onPressed: onTap, child: Text(action!)),
+    ],
+  );
 }
 
-class _TimelineEmpty extends StatelessWidget {
-  const _TimelineEmpty();
-
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label});
+  final String label;
   @override
-  Widget build(BuildContext context) {
-    return const AppText(
-      '오늘 시간 기록이 아직 없어요',
-      fontSize: 12,
-      color: AppColors.textSecondary,
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: HomeV2Tokens.primarySoft,
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: HomeV2Tokens.primary,
+      ),
+    ),
+  );
+}
+
+class _BottomBanner extends StatelessWidget {
+  const _BottomBanner();
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('home-bottom-banner'),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: HomeV2Tokens.primarySoft,
+      borderRadius: BorderRadius.circular(28),
+    ),
+    child: Row(
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '오늘 하루도 포마이펫과 함께!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '반려동물의 행복을 기록해요',
+                style: TextStyle(color: HomeV2Tokens.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        AppVisual(id: AppVisualId.homeBottomBanner, size: 54),
+      ],
+    ),
+  );
 }
 
 class _EmptyHome extends StatelessWidget {
   const _EmptyHome();
-
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: AppText(
-          '반려동물을 등록해 주세요.',
-          fontSize: 15,
-          color: AppColors.textSecondary,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
+  Widget build(BuildContext context) =>
+      const Center(child: Text('반려동물을 먼저 등록해 주세요'));
+}
+
+BoxDecoration _cardDecoration({
+  double radius = HomeV2Tokens.radius,
+  Color color = HomeV2Tokens.surface,
+}) => BoxDecoration(
+  color: color,
+  borderRadius: BorderRadius.circular(radius),
+  border: Border.all(color: HomeV2Tokens.border),
+  boxShadow: const [
+    BoxShadow(color: Color(0x09000000), blurRadius: 20, offset: Offset(0, 7)),
+  ],
+);
+
+String? _compact(String? value) {
+  final result = value?.trim();
+  return result == null || result.isEmpty ? null : result;
+}
+
+String _postTitle(Post post) =>
+    _compact(post.title) ?? _compact(post.content) ?? '내용 없음';
+
+String _categoryLabel(String category) =>
+    const {
+      'FREE': '자유',
+      'QUESTION': '질문',
+      'CARE': '돌봄',
+      'FOOD': '먹거리',
+      'OUTING': '외출',
+      'SHOW': '자랑',
+    }[category.toUpperCase()] ??
+    category;
+
+String _age(String? value) {
+  final birth = DateTime.tryParse(value ?? '');
+  if (birth == null) return '-';
+  final now = DateTime.now();
+  var years = now.year - birth.year;
+  if (now.month < birth.month ||
+      (now.month == birth.month && now.day < birth.day)) {
+    years--;
   }
+  return '${years.clamp(0, 999)}살';
 }
 
-class _TimelineItem {
-  final String time;
-  final String title;
-  final String status;
-  final bool isRecord;
-
-  const _TimelineItem({
-    required this.time,
-    required this.title,
-    required this.status,
-    required this.isRecord,
-  });
-}
-
-List<_TimelineItem> _timelineItems(
-  List<TodayRoutineItem> routineItems,
-  List<ActivityRecord> records,
-) {
-  final today = todayString();
-  final items = <_TimelineItem>[];
-  for (final item in routineItems) {
-    final times = item.routine.times.isEmpty
-        ? const ['--:--']
-        : item.routine.times;
-    for (final time in times) {
-      items.add(
-        _TimelineItem(
-          time: time,
-          title: _routineTitle(item.routine),
-          status: '예정',
-          isRecord: false,
-        ),
-      );
-    }
-  }
-  for (final record in records.where(
-    (record) =>
-        record.date == today &&
-        record.time != null &&
-        const {'medicine', 'vet', 'checkup'}.contains(record.typeId),
-  )) {
-    items.add(
-      _TimelineItem(
-        time: record.time!,
-        title: _recordTitle(record),
-        status: '기록됨',
-        isRecord: true,
-      ),
-    );
-  }
-  items.sort((a, b) => a.time.compareTo(b.time));
-  return items;
-}
-
-ActivityRecord? _latestRecord(List<ActivityRecord> records, String typeId) {
-  final filtered = records.where((record) => record.typeId == typeId).toList();
-  if (filtered.isEmpty) {
-    return null;
-  }
-  filtered.sort((a, b) {
-    final dateCompare = b.date.compareTo(a.date);
-    if (dateCompare != 0) {
-      return dateCompare;
-    }
-    return (b.time ?? '').compareTo(a.time ?? '');
-  });
-  return filtered.first;
-}
-
-bool _hasRecordToday(List<ActivityRecord> records, String typeId) {
-  final today = todayString();
-  return records.any(
-    (record) => record.typeId == typeId && record.date == today,
-  );
-}
-
-String _routineTitle(Routine routine) {
-  final label = _compactText(routine.label);
-  if (label != null) return label;
-  return _typeLabel(routine.typeId);
-}
-
-String _recordTitle(ActivityRecord record) => _typeLabel(record.typeId);
-
-String _typeLabel(String typeId) {
-  const labels = {
-    'meal': '급식',
-    'water': '음수',
-    'walk': '산책',
-    'poop': '배변',
-    'play': '놀이',
-    'sleep': '수면',
-    'medicine': '투약',
-    'weight': '체중',
-    'vet': '병원',
-    'checkup': '검진',
-    'diary': '일기',
-    'etc': '기타',
-    'bath': '목욕',
-    'groom': '미용',
-  };
-  return labels[typeId] ?? typeId;
-}
-
-String? _weightRecordValue(ActivityRecord? record) {
-  if (record == null) {
-    return null;
-  }
-  final value = record.detail['value'] ?? record.detail['weight'];
-  if (value == null) {
-    return null;
-  }
-  final unit = record.detail['unit']?.toString();
-  final normalized = _numberLabel(value);
-  return unit == null || unit.isEmpty ? '${normalized}kg' : '$normalized$unit';
-}
-
-String? _poopRecordValue(ActivityRecord? record) {
-  if (record == null) {
-    return null;
-  }
-  final consistency = record.detail['consistency'];
-  return consistency?.toString();
-}
-
-String _numberLabel(Object value) {
-  final parsed = double.tryParse(value.toString());
-  if (parsed == null) {
-    return value.toString();
-  }
-  final rounded = parsed.toStringAsFixed(1);
-  return rounded.endsWith('.0')
-      ? rounded.substring(0, rounded.length - 2)
-      : rounded;
-}
-
-String? _compactText(String? value) {
-  final trimmed = value?.trim();
-  if (trimmed == null || trimmed.isEmpty) {
-    return null;
-  }
-  return trimmed;
+String _daysTogether(String? value) {
+  final date = DateTime.tryParse(value ?? '');
+  if (date == null) return '-';
+  final now = DateTime.now();
+  final days =
+      DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).difference(DateTime(date.year, date.month, date.day)).inDays +
+      1;
+  return days < 1 ? '-' : '$days일';
 }
