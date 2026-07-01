@@ -46,10 +46,10 @@
 
 ## 2026-06-23 레거시 기록 타입 영구 삭제 계획(현재 코드 미반영)
 
-- 당시 계획은 `V17__remove_deprecated_activity_types.sql`로 `play`, `sleep`, `checkup` 기록의 미디어 storage key를 `media_cleanup_queue`에 복사하고, 관련 루틴 참조를 null 처리한 뒤 대상 루틴·완료 이력·기록·타입(`bath`, `groom` 포함)을 영구 삭제하는 것이었다. 현재 실제 `V17`은 `V17__create_post_comments.sql`이므로 이 cleanup을 적용하려면 실제 migration 목록 기준의 새 번호로 재검토해야 한다.
+- `V20__remove_deprecated_activity_types.sql`로 `play`, `sleep`, `checkup` 기록의 미디어 storage key를 `media_cleanup_queue`에 먼저 보존하고, 관련 루틴 참조를 null 처리한 뒤 대상 루틴·완료 이력·기록·타입을 영구 삭제한다. `bath`, `groom`, 일정·지갑의 `grooming`, 병원 방문 사유 `checkup`은 보존한다.
 - 앱 시작 `MediaCleanupRunner`는 queue의 파일을 먼저 삭제하고 성공한 key만 queue에서 제거한다. 로컬 저장소 삭제는 `deleteIfExists`라 멱등이며, 파일 또는 DB queue 삭제 실패는 다음 시작에서 재시도한다.
 - 백엔드는 create/list filter와 루틴 create/update에서 제거 타입을 400으로 거부한다. Flutter는 타입 정의, quick type preference, 루틴 선택지, 홈/health 표시 및 직접 URL redirect를 9개 타입 기준으로 맞춘다. 일정·지갑 `grooming`과 병원 방문 사유 `checkup`은 유지한다.
-- 검증 상태: `MediaCleanupRunnerTest`와 backend `testClasses`는 통과했다. Docker daemon 부재로 Testcontainers 통합 테스트와 Flyway migration 실행은 보류됐고, Flutter wrapper가 120초 무출력 timeout되어 Flutter test/pub get은 보류됐다. 직접 Dart analyze는 worktree의 Flutter 의존성 해석 파일 부재로 실행할 수 없었다.
+- 검증 상태: V20 정상·부분 재시도와 빈 DB V1→V20, runner·기록·루틴·CareSchedule·Wallet을 포함한 backend 전체 테스트가 통과했다. Flutter 전체 353개 테스트, analyze, web build, `git diff --check`, 한글 깨짐 검사도 통과했고 `pubspec.lock` 변경은 없다.
 
 ## 2026-06-05 PetEdit 입력 UI 보정
 
