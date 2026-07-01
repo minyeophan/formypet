@@ -90,9 +90,6 @@ INSERT INTO activity_types (id, name, display_order) VALUES
     ('poop',     'poop',     5),
     ('weight',   'weight',   6),
     ('vet',      'vet',      7),
-    ('sleep',    'sleep',    8),
-    ('play',     'play',     9),
-    ('checkup',  'checkup', 10),
     ('diary',    'diary',   11),
     ('etc',      'etc',     12);
 
@@ -314,6 +311,11 @@ CREATE TABLE IF NOT EXISTS media_resources (
     INDEX idx_media_pet (pet_id),
     INDEX idx_media_record (record_id),
     INDEX idx_media_visibility (visibility)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS media_cleanup_queue (
+    storage_key VARCHAR(500) PRIMARY KEY,
+    created_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS post_media (

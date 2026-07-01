@@ -128,6 +128,38 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createRoutineWithUnknownActivityTypeReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("unknown-routine-type@example.com", "unknown-routine-type");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "label", "Unknown",
+                                "typeId", "play",
+                                "repeatType", "daily",
+                                "startDate", "2026-05-09"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void updateRoutineWithUnknownActivityTypeReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("update-unknown-routine-type@example.com", "update-unknown-routine-type");
+        Long petId = createPet(token, "Maro");
+        Long routineId = createRoutine(token, petId, "Meal", "meal");
+
+        mockMvc.perform(put(routinesUrl(petId) + "/" + routineId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("typeId", "play"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
     void markCompletionChangesStatus() throws Exception {
         String token = registerAndGetToken("completion-routine@example.com", "completion");
         Long petId = createPet(token, "Dubu");

@@ -535,6 +535,97 @@ void main() {
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
   });
 
+  test('stored quick types remove only deprecated values and persist migration', () async {
+    SharedPreferences.setMockInitialValues({
+      'quickTypeIds': [
+        'meal',
+        'play',
+        'bath',
+        'unknown',
+        'sleep',
+        'meal',
+        'checkup',
+        'groom',
+      ],
+    });
+    final notifier = PetNotifier(
+      _FakePetService(pets: const []),
+      _FakeRecordService(),
+      _FakeRoutineService(),
+    );
+
+    await notifier.loadForAuthenticatedUser();
+
+    const expected = ['meal', 'bath', 'unknown', 'meal', 'groom'];
+    expect(notifier.state.quickTypeIds, expected);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList('quickTypeIds'), expected);
+  });
+
+  test('test quick type loader removes only deprecated values before state update', () async {
+    final notifier = PetNotifier.testWithServices(
+      PetState(
+        isLoading: true,
+        hasOnboarded: false,
+        pets: const [],
+        records: const [],
+        routines: const [],
+        schedules: const [],
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        quickTypeIds: const [],
+      ),
+      quickTypeIdsLoader: () async => const [
+        'play',
+        'bath',
+        'unknown',
+        'sleep',
+        'bath',
+        'checkup',
+        'groom',
+      ],
+    );
+
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      notifier.state.quickTypeIds,
+      const ['bath', 'unknown', 'bath', 'groom'],
+    );
+  });
+
+  test('setQuickTypeIds removes only deprecated values before saving', () async {
+    final notifier = PetNotifier.test(
+      PetState(
+        isLoading: false,
+        hasOnboarded: false,
+        pets: const [],
+        records: const [],
+        routines: const [],
+        schedules: const [],
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        quickTypeIds: const [],
+      ),
+    );
+
+    await notifier.setQuickTypeIds(const [
+      'meal',
+      'play',
+      'unknown',
+      'sleep',
+      'meal',
+      'checkup',
+      'bath',
+      'groom',
+    ]);
+
+    const expected = ['meal', 'unknown', 'meal', 'bath', 'groom'];
+    expect(notifier.state.quickTypeIds, expected);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList('quickTypeIds'), expected);
+  });
+
   test(
     'clearForSignedOutUser clears immediately while quick types are loading',
     () async {

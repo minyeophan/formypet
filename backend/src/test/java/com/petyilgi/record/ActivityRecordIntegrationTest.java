@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -272,8 +273,6 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
                 "endLng", 127.0300,
                 "endLat", 37.5000
         ));
-        createRecord(token, petId, "sleep", Map.of("duration", 480));
-        createRecord(token, petId, "play", Map.of("duration", 20));
         createRecord(token, petId, "weight", Map.of("weight", 5.25));
         createRecord(token, petId, "vet", Map.of(
                 "vetClinicName", "Town Vet",
@@ -282,17 +281,44 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
                 "vetVisitReason", "checkup",
                 "vetCost", 30000
         ));
-        createRecord(token, petId, "checkup", Map.of(
-                "vetClinicName", "Town Vet",
-                "vetVisitReason", "checkup",
-                "vetCost", 20000
-        ));
         createRecord(token, petId, "diary", Map.of());
         createRecord(token, petId, "etc", Map.of());
 
         mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(11)));
+                .andExpect(jsonPath("$.data", hasSize(8)));
+    }
+
+    @Test
+    void createDeprecatedRecordTypesReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("deprecated-create@example.com", "deprecated-create");
+        Long petId = createPet(token, "Coco");
+
+        for (String typeId : List.of("play", "sleep", "checkup")) {
+            mockMvc.perform(post(recordsUrl(petId))
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "typeId", typeId,
+                                    "date", "2026-05-09"
+                            ))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+        }
+    }
+
+    @Test
+    void filterByDeprecatedRecordTypesReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("deprecated-filter@example.com", "deprecated-filter");
+        Long petId = createPet(token, "Coco");
+
+        for (String typeId : List.of("play", "sleep", "checkup")) {
+            mockMvc.perform(get(recordsUrl(petId))
+                            .header("Authorization", "Bearer " + token)
+                            .param("typeId", typeId))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+        }
     }
 
     @Test

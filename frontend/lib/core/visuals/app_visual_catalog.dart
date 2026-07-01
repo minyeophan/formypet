@@ -23,12 +23,6 @@ const Map<AppVisualId, AppVisualSpec> appVisualCatalog = {
   AppVisualId.recordPoop: AppVisualSpec(
     source: MaterialVisualSource(Icons.pets_rounded),
   ),
-  AppVisualId.recordPlay: AppVisualSpec(
-    source: MaterialVisualSource(Icons.sports_esports_rounded),
-  ),
-  AppVisualId.recordSleep: AppVisualSpec(
-    source: MaterialVisualSource(Icons.bedtime_rounded),
-  ),
   AppVisualId.recordMedicine: AppVisualSpec(
     source: MaterialVisualSource(Icons.medication_rounded),
   ),
@@ -37,9 +31,6 @@ const Map<AppVisualId, AppVisualSpec> appVisualCatalog = {
   ),
   AppVisualId.recordVet: AppVisualSpec(
     source: MaterialVisualSource(Icons.local_hospital_rounded),
-  ),
-  AppVisualId.recordCheckup: AppVisualSpec(
-    source: MaterialVisualSource(Icons.health_and_safety_rounded),
   ),
   AppVisualId.recordBath: AppVisualSpec(
     source: MaterialVisualSource(Icons.bathtub_rounded),

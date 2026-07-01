@@ -6,8 +6,7 @@ import '../../widgets/app_visual.dart';
 import '../../core/date_utils.dart';
 import '../../widgets/app_text.dart';
 
-// Health types: medicine, vet, checkup
-const _healthTypeIds = {'medicine', 'vet', 'checkup'};
+const _healthTypeIds = {'medicine', 'vet'};
 
 class HealthTab extends ConsumerWidget {
   const HealthTab({super.key});

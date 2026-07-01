@@ -26,7 +26,6 @@ class RecordDetailForm extends StatelessWidget {
       'water' => _SimpleAmountForm(detail: detail, onSet: _set, unit: 'ml'),
       'weight' => _WeightForm(detail: detail, onSet: _set),
       'walk' => _WalkForm(detail: detail, onSet: _set),
-      'sleep' || 'play' => _DurationForm(detail: detail, onSet: _set),
       'medicine' => _MedicineForm(detail: detail, onSet: _set),
       'vet' => _VetForm(detail: detail, onSet: _set),
       'poop' => _PoopForm(detail: detail, onSet: _set),
@@ -193,23 +192,6 @@ class _WeightForm extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DurationForm extends StatelessWidget {
-  final Map<String, dynamic> detail;
-  final void Function(String, dynamic) onSet;
-
-  const _DurationForm({required this.detail, required this.onSet});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Field(
-      label: '시간(분)',
-      initial: detail['duration']?.toString(),
-      onChanged: (v) => onSet('duration', v),
-      keyboardType: TextInputType.number,
     );
   }
 }
