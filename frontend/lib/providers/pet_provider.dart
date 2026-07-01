@@ -97,6 +97,7 @@ class PetNotifier extends StateNotifier<PetState> {
   final RoutineService _routSvc;
   final CareScheduleService? _scheduleSvc;
   late final Future<void> _preferencesReady;
+  Future<void>? _refreshInFlight;
 
   PetNotifier(
     this._petSvc,
@@ -220,7 +221,7 @@ class PetNotifier extends StateNotifier<PetState> {
     );
   }
 
-  Future<void> _loadPetData(String petId) async {
+  Future<_PetData> _fetchPetData(String petId) async {
     final results = await Future.wait([
       _recSvc.getRecords(petId),
       _routSvc.getRoutines(petId),
@@ -241,7 +242,7 @@ class PetNotifier extends StateNotifier<PetState> {
       completions[key] = item.completion.status;
     }
 
-    state = state.copyWith(
+    return _PetData(
       records: records,
       routines: routines,
       schedules: schedules,
@@ -249,6 +250,62 @@ class PetNotifier extends StateNotifier<PetState> {
       todaySummary: todayData.summary,
       routineCompletions: completions,
     );
+  }
+
+  Future<void> _loadPetData(String petId) async {
+    final data = await _fetchPetData(petId);
+    if (state.activePetId != petId) return;
+    state = data.applyTo(state);
+  }
+
+  Future<void> refreshPets() =>
+      _refreshInFlight ??= _refreshPets().whenComplete(() {
+        _refreshInFlight = null;
+      });
+
+  Future<void> _refreshPets() async {
+    final pets = await _petSvc.getPets();
+    if (pets.isEmpty) {
+      state = PetState(
+        isLoading: false,
+        hasOnboarded: false,
+        pets: const [],
+        records: const [],
+        routines: const [],
+        schedules: const [],
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        quickTypeIds: state.quickTypeIds,
+      );
+      return;
+    }
+
+    final activeId = state.activePetId;
+    if (activeId != null && pets.any((pet) => pet.id == activeId)) {
+      state = state.copyWith(pets: pets, hasOnboarded: true);
+      return;
+    }
+
+    final nextId = pets.first.id;
+    try {
+      final data = await _fetchPetData(nextId);
+      state = data.applyTo(
+        state.copyWith(pets: pets, activePetId: nextId, hasOnboarded: true),
+      );
+    } catch (_) {
+      state = state.copyWith(
+        pets: pets,
+        activePetId: nextId,
+        hasOnboarded: true,
+        records: const [],
+        routines: const [],
+        schedules: const [],
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        clearTodaySummary: true,
+      );
+      rethrow;
+    }
   }
 
   Future<void> setActivePet(String petId) async {
@@ -542,6 +599,34 @@ class PetNotifier extends StateNotifier<PetState> {
     await prefs.setStringList('quickTypeIds', ids);
     state = state.copyWith(quickTypeIds: ids);
   }
+}
+
+class _PetData {
+  final List<ActivityRecord> records;
+  final List<Routine> routines;
+  final List<CareSchedule> schedules;
+  final List<TodayRoutineItem> todayRoutineItems;
+  final Map<String, CompletionStatus> routineCompletions;
+  final TodayRoutineSummary? todaySummary;
+
+  const _PetData({
+    required this.records,
+    required this.routines,
+    required this.schedules,
+    required this.todayRoutineItems,
+    required this.routineCompletions,
+    required this.todaySummary,
+  });
+
+  PetState applyTo(PetState state) => state.copyWith(
+    records: records,
+    routines: routines,
+    schedules: schedules,
+    todayRoutineItems: todayRoutineItems,
+    routineCompletions: routineCompletions,
+    todaySummary: todaySummary,
+    clearTodaySummary: todaySummary == null,
+  );
 }
 
 final petServiceProvider = Provider<PetService>((_) => PetService());
