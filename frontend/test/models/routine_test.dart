@@ -32,7 +32,7 @@ void main() {
       'id': 1,
       'petId': 2,
       'label': '정기 검진',
-      'typeId': 'checkup',
+      'typeId': 'vet',
       'repeatType': 'monthly',
       'times': ['09:30'],
       'days': <int>[],

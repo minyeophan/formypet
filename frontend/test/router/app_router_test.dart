@@ -419,6 +419,17 @@ void main() {
     expect(find.byType(RecordsScreen), findsOneWidget);
     _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
 
+    for (final typeId in ['play', 'sleep']) {
+      await _pumpRouter(
+        tester,
+        initialLocation: '/records/$typeId/new?date=2026-05-09',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+      expect(find.byType(RecordsScreen), findsOneWidget);
+      _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
+    }
+
     await _pumpRouter(
       tester,
       initialLocation: '/records/checkup/new?date=2026-02-30',

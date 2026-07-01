@@ -430,9 +430,7 @@ class _RoutineTypeOption {
 const _routineTypeOptions = [
   _RoutineTypeOption(typeId: 'medicine', color: Color(0xFF5E9F7B)),
   _RoutineTypeOption(typeId: 'meal', color: Color(0xFFE29B45)),
-  _RoutineTypeOption(typeId: 'checkup', color: Color(0xFF5B8DEF)),
   _RoutineTypeOption(typeId: 'vet', color: Color(0xFFD4667A)),
-  _RoutineTypeOption(typeId: 'play', color: Color(0xFF8D7A64)),
 ];
 
 const _repeatOptions = {

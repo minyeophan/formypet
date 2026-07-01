@@ -17,9 +17,9 @@ void main() {
 
     expect(find.text('투약'), findsOneWidget);
     expect(find.text('급식'), findsOneWidget);
-    expect(find.text('검진'), findsOneWidget);
     expect(find.text('병원'), findsOneWidget);
-    expect(find.text('놀이'), findsOneWidget);
+    expect(find.text('검진'), findsNothing);
+    expect(find.text('놀이'), findsNothing);
     expect(find.text('커스텀'), findsNothing);
   });
 
@@ -69,7 +69,7 @@ void main() {
   ) async {
     final notifier = _FakePetNotifier(_petState(), failAdd: true);
     await _pumpScreen(tester, notifier);
-    await tester.tap(find.byKey(const Key('routine-type-play')));
+    await tester.tap(find.byKey(const Key('routine-type-medicine')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('저장'));
     await tester.pumpAndSettle();

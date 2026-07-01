@@ -865,12 +865,6 @@ const _recordTypes = [
     color: Color(0xFFEF5350),
   ),
   _RecordTypeConfig(
-    id: 'checkup',
-    label: '접종',
-    visualId: AppVisualId.recordCheckup,
-    color: Color(0xFF5C6BC0),
-  ),
-  _RecordTypeConfig(
     id: 'weight',
     label: '몸무게',
     visualId: AppVisualId.recordWeight,
