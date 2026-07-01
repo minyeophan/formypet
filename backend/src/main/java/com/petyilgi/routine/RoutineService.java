@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
+import com.petyilgi.common.exception.InvalidInputException;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
 import com.petyilgi.routine.dto.*;
@@ -40,6 +41,7 @@ public class RoutineService {
     @Transactional
     public RoutineResponse create(String email, Long petId, RoutineCreateRequest request) {
         Pet pet = findOwnedPet(email, petId);
+        validateActivityType(request.typeId());
         validateRepeatType(request.repeatType());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -91,6 +93,8 @@ public class RoutineService {
     public RoutineResponse update(String email, Long petId, Long routineId, RoutineUpdateRequest request) {
         Pet pet = findOwnedPet(email, petId);
         Map<String, Object> current = findRoutineRow(pet.getId(), routineId);
+        String typeId = request.typeId() != null ? request.typeId() : (String) current.get("type_id");
+        validateActivityType(typeId);
         String repeatType = request.repeatType() != null ? request.repeatType() : (String) current.get("repeat_type");
         validateRepeatType(repeatType);
 
@@ -102,7 +106,7 @@ public class RoutineService {
                 WHERE id = ? AND pet_id = ?
                 """,
                 request.label() != null ? request.label() : current.get("label"),
-                request.typeId() != null ? request.typeId() : current.get("type_id"),
+                typeId,
                 repeatType,
                 toJson(request.days() != null ? request.days() : parseIntegerList(current.get("days"))),
                 request.monthlyInterval() != null ? request.monthlyInterval() : ((Number) current.get("monthly_interval")).intValue(),
@@ -263,6 +267,16 @@ public class RoutineService {
     private void validateRepeatType(String repeatType) {
         if (!SUPPORTED_REPEAT_TYPES.contains(repeatType)) {
             throw new IllegalArgumentException("Unsupported routine repeat type.");
+        }
+    }
+
+    private void validateActivityType(String typeId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM activity_types WHERE id = ?",
+                Integer.class,
+                typeId);
+        if (count == null || count == 0) {
+            throw new InvalidInputException("Unsupported activity type.", "INVALID_INPUT");
         }
     }
 

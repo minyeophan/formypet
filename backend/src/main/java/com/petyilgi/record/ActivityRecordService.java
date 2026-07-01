@@ -2,6 +2,7 @@ package com.petyilgi.record;
 
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
+import com.petyilgi.common.exception.InvalidInputException;
 import com.petyilgi.media.storage.MediaStorage;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
@@ -34,8 +35,7 @@ import java.util.*;
 public class ActivityRecordService {
 
     private static final Set<String> SUPPORTED_TYPES = Set.of(
-            "meal", "water", "medicine", "poop", "walk", "sleep", "play", "weight", "vet", "checkup", "diary",
-            "etc"
+            "meal", "water", "medicine", "poop", "walk", "weight", "vet", "diary", "etc"
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -75,6 +75,9 @@ public class ActivityRecordService {
     @Transactional(readOnly = true)
     public List<ActivityRecordResponse> list(String email, Long petId, LocalDate date, String typeId, Integer limit) {
         Pet pet = findOwnedPet(email, petId);
+        if (typeId != null && !typeId.isBlank()) {
+            validateType(typeId);
+        }
         List<Object> params = new ArrayList<>();
         params.add(pet.getId());
 
@@ -250,9 +253,8 @@ public class ActivityRecordService {
                            ST_X(end_location) AS endLng, ST_Y(end_location) AS endLat
                     FROM record_walk WHERE record_id = ?
                     """;
-            case "sleep", "play" -> "SELECT duration FROM record_walk WHERE record_id = ?";
             case "weight" -> "SELECT weight FROM record_weight WHERE record_id = ?";
-            case "vet", "checkup" -> """
+            case "vet" -> """
                     SELECT vet_clinic_name AS vetClinicName, ST_X(clinic_location) AS clinicLng, ST_Y(clinic_location) AS clinicLat,
                            vet_visit_reason AS vetVisitReason, vet_diagnosis AS vetDiagnosis, vet_treatment AS vetTreatment,
                            vet_cost AS vetCost, vet_next_visit_date AS vetNextVisitDate
@@ -292,13 +294,9 @@ public class ActivityRecordService {
                     VALUES (?, ?, ?, ST_GeomFromText(?, 4326), ST_GeomFromText(?, 4326))
                     """, recordId, decimal(detail, "distance"), integer(detail, "duration"),
                     point(detail, "startLng", "startLat"), point(detail, "endLng", "endLat"));
-            case "sleep", "play" -> jdbcTemplate.update("""
-                    INSERT INTO record_walk (record_id, distance, duration, start_location, end_location)
-                    VALUES (?, NULL, ?, NULL, NULL)
-                    """, recordId, integer(detail, "duration"));
             case "weight" -> jdbcTemplate.update("INSERT INTO record_weight (record_id, weight) VALUES (?, ?)",
                     recordId, decimal(detail, "weight"));
-            case "vet", "checkup" -> jdbcTemplate.update("""
+            case "vet" -> jdbcTemplate.update("""
                     INSERT INTO record_vet (record_id, vet_clinic_name, clinic_location, vet_visit_reason, vet_diagnosis, vet_treatment, vet_cost, vet_next_visit_date)
                     VALUES (?, ?, ST_GeomFromText(?, 4326), ?, ?, ?, ?, ?)
                     """, recordId, str(detail, "vetClinicName"), point(detail, "clinicLng", "clinicLat"),
@@ -316,9 +314,9 @@ public class ActivityRecordService {
             case "water" -> "record_water";
             case "medicine" -> "record_medicine";
             case "poop" -> "record_poop";
-            case "walk", "sleep", "play" -> "record_walk";
+            case "walk" -> "record_walk";
             case "weight" -> "record_weight";
-            case "vet", "checkup" -> "record_vet";
+            case "vet" -> "record_vet";
             case "diary", "etc" -> null;
             default -> throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
         };
@@ -338,7 +336,7 @@ public class ActivityRecordService {
 
     private void validateType(String typeId) {
         if (!SUPPORTED_TYPES.contains(typeId)) {
-            throw new IllegalArgumentException("지원하지 않는 기록 타입입니다.");
+            throw new InvalidInputException("Unsupported activity record type.", "INVALID_INPUT");
         }
     }
 
