@@ -55,6 +55,7 @@ class FlywayMigrationTest {
 
         try (Connection connection = connection()) {
             insertRemovalFixtures(connection);
+            assertRemovalFixtures(connection);
         }
 
         flyway = flyway(null);
@@ -72,6 +73,7 @@ class FlywayMigrationTest {
 
         try (Connection connection = connection()) {
             insertRemovalFixtures(connection);
+            assertRemovalFixtures(connection);
             execute(connection, """
                     CREATE TABLE media_cleanup_queue (
                         storage_key VARCHAR(500) PRIMARY KEY,
@@ -134,10 +136,18 @@ class FlywayMigrationTest {
                     (3, 1, 'checkup', '2026-01-01', 'remove', 3),
                     (4, 1, 'meal', '2026-01-01', 'keep but unlink', 1),
                     (5, 1, 'vet', '2026-01-01', 'keep checkup reason', NULL),
-                    (6, 1, 'bath', '2026-01-01', 'keep', 4)
+                    (6, 1, 'bath', '2026-01-01', 'keep', 4),
+                    (7, 1, 'walk', '2026-01-01', 'keep', NULL)
                 """);
         execute(connection, "INSERT INTO record_meal (record_id, food_type) VALUES (4, 'dry')");
-        execute(connection, "INSERT INTO record_vet (record_id, vet_visit_reason) VALUES (5, 'checkup')");
+        execute(connection, """
+                INSERT INTO record_walk (record_id)
+                VALUES (1), (2), (7)
+                """);
+        execute(connection, """
+                INSERT INTO record_vet (record_id, vet_visit_reason)
+                VALUES (3, 'vaccination'), (5, 'checkup')
+                """);
         execute(connection, """
                 INSERT INTO routine_completions (id, routine_id, pet_id, activity_record_id, scheduled_date, status)
                 VALUES
@@ -157,6 +167,25 @@ class FlywayMigrationTest {
                 """);
     }
 
+    private void assertRemovalFixtures(Connection connection) throws Exception {
+        assertEquals(2, count(connection, "SELECT COUNT(*) FROM record_walk WHERE record_id IN (1, 2)"));
+        assertEquals(1, count(connection, "SELECT COUNT(*) FROM record_vet WHERE record_id = 3"));
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*)
+                FROM activity_records record
+                JOIN record_walk walk ON walk.record_id = record.id
+                WHERE record.id = 7 AND record.type_id = 'walk'
+                """));
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*)
+                FROM activity_records record
+                JOIN record_vet vet ON vet.record_id = record.id
+                WHERE record.id = 5
+                  AND record.type_id = 'vet'
+                  AND vet.vet_visit_reason = 'checkup'
+                """));
+    }
+
     private void assertRemovalResult(Connection connection) throws Exception {
         assertEquals(0, count(connection, "SELECT COUNT(*) FROM activity_records WHERE type_id IN ('play', 'sleep', 'checkup')"));
         assertEquals(0, count(connection, "SELECT COUNT(*) FROM routines WHERE type_id IN ('play', 'sleep', 'checkup')"));
@@ -167,6 +196,26 @@ class FlywayMigrationTest {
         assertEquals(1, count(connection, "SELECT COUNT(*) FROM activity_records WHERE id = 4 AND type_id = 'meal' AND routine_id IS NULL"));
         assertEquals(1, count(connection, "SELECT COUNT(*) FROM record_meal WHERE record_id = 4"));
         assertEquals(1, count(connection, "SELECT COUNT(*) FROM media_resources WHERE storage_key = 'records/meal.jpg'"));
+        assertEquals(0, count(connection, "SELECT COUNT(*) FROM record_walk WHERE record_id IN (1, 2)"));
+        assertEquals(0, count(connection, "SELECT COUNT(*) FROM record_vet WHERE record_id = 3"));
+        assertEquals(0, count(connection, """
+                SELECT COUNT(*)
+                FROM record_walk detail
+                LEFT JOIN activity_records record ON record.id = detail.record_id
+                WHERE record.id IS NULL
+                """));
+        assertEquals(0, count(connection, """
+                SELECT COUNT(*)
+                FROM record_vet detail
+                LEFT JOIN activity_records record ON record.id = detail.record_id
+                WHERE record.id IS NULL
+                """));
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*)
+                FROM activity_records record
+                JOIN record_walk walk ON walk.record_id = record.id
+                WHERE record.id = 7 AND record.type_id = 'walk'
+                """));
         assertEquals(1, count(connection, "SELECT COUNT(*) FROM record_vet WHERE record_id = 5 AND vet_visit_reason = 'checkup'"));
         assertEquals(2, count(connection, "SELECT COUNT(*) FROM activity_types WHERE id IN ('bath', 'groom')"));
         assertEquals(2, count(connection, "SELECT COUNT(*) FROM routines WHERE type_id IN ('bath', 'groom')"));
