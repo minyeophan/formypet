@@ -1,5 +1,14 @@
 # 현재 컨텍스트
 
+## 2026-07-02 커뮤니티 메인 V2 구현
+
+- `/community`를 고정 헤더와 최대 672px 본문, 카테고리 5열 2행 PageView 2페이지, 페이지 표시점, 단일 세로 `CustomScrollView`, 공용 V2 게시글 카드 구조로 전환했다. 검색과 알림은 기존 `준비중` 안내를 유지하며 상세·댓글·글쓰기·라우터·`MainScaffold` 계약은 변경하지 않았다.
+- 카테고리 첫 페이지는 전체·인기·케어·사료/간식·산책·자랑·질문·자유·입양·구조, 두 번째 페이지는 뉴스·이벤트를 앞쪽에 표시한다. Flutter Web에서도 마우스 drag가 동작하도록 이 PageView 범위에 mouse·touch·stylus·trackpad 입력을 허용하고 회귀 테스트를 추가했다.
+- 피드 상태는 initial·refresh·loadMore 요청을 feed key별로 분리하고, 오류도 해당 feed와 요청 종류별로 보존한다. 세로 최상위 스크롤이 하단에 접근했을 때만 pagination을 실행하며 loadMore 결과는 게시글 ID 기준으로 중복 제거한다.
+- 게시글 카드는 category·투표 badge, 상대 시간, 제목·본문 fallback, 96px 썸네일, 32px 작성자 avatar와 `communityPaw` fallback, 좋아요·댓글 통계를 표시한다. 좋아요는 게시글별 중복 요청을 막고 처리 중 접근성 상태와 실패 안내를 제공한다.
+- 공통 색상·gutter·Plus Jakarta Sans 값을 `AppV2Tokens`로 분리하고 `HomeV2Tokens`는 Home 고유 radius·sectionGap을 유지한 채 공통 값만 위임한다. `docs/SCREEN_V2_STATUS.md`에서는 `/community`만 `[O]`로 갱신했다.
+- 검증: 전체 Flutter 테스트 357건 GREEN, Community widget/provider 선택 테스트 28건 GREEN, 마우스 drag 재현 테스트 RED→GREEN, 전체 Dart analyze `No issues found!`, 한글 깨짐 검사와 `git diff --check` GREEN. 백엔드 코드는 변경하지 않았으며 `CommunityIntegrationTest`는 격리 worktree의 Gradle 배포본 다운로드가 샌드박스 네트워크에 차단되어 재실행하지 못했다. Chrome 320·360·412px 수동 비교는 미실행이다.
+
 ## 2026-07-01 화면 V2 전환 현황 문서
 
 - `docs/SCREEN_V2_STATUS.md`에 라우터 기준 41개 사용자 화면의 V2 상태를 정리했다. Home V2만 `[O]`, 나머지 40개 화면은 `[X]`로 시작한다.

@@ -1,16 +1,16 @@
-import 'package:flutter/material.dart';
+import '../../core/app_v2_tokens.dart';
 
 abstract final class HomeV2Tokens {
-  static const background = Color(0xFFF9F9FF);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceSoft = Color(0xFFF0F3FF);
-  static const primary = Color(0xFF006C49);
-  static const primarySoft = Color(0xFFE7F8F0);
-  static const text = Color(0xFF151C27);
-  static const textSecondary = Color(0xFF3C4A42);
-  static const border = Color(0xFFE7EEFE);
-  static const gutter = 20.0;
+  static const background = AppV2Tokens.background;
+  static const surface = AppV2Tokens.surface;
+  static const surfaceSoft = AppV2Tokens.surfaceSoft;
+  static const primary = AppV2Tokens.primary;
+  static const primarySoft = AppV2Tokens.primarySoft;
+  static const text = AppV2Tokens.text;
+  static const textSecondary = AppV2Tokens.textSecondary;
+  static const border = AppV2Tokens.border;
+  static const gutter = AppV2Tokens.gutter;
   static const sectionGap = 20.0;
   static const radius = 20.0;
-  static const brandFont = 'PlusJakartaSans';
+  static const brandFont = AppV2Tokens.fontFamily;
 }

@@ -63,7 +63,7 @@
 
 | V2 | 경로 | 화면 | 기능 상태 | V2 작업 핵심 | Phase |
 |----|------|------|-----------|--------------|------:|
-| `[X]` | `/community` | 커뮤니티 메인 | 연동·검색/알림 준비중 | Home V2와 헤더·카드 통일, 검색, 필터, 새로고침, pagination | 1 |
+| `[O]` | `/community` | 커뮤니티 메인 | V2 완료·검색/알림 준비중 | 고정 헤더, 카테고리 PageView, 새로고침, pagination, 공용 PostCard | 1 |
 | `[X]` | `/community/category/:category` | 카테고리 피드 | 연동·일부 표시 전용 | 카테고리 전환, 필터 초기화, cursor 폐기, 빈 상태 | 1 |
 | `[X]` | `/community/posts/:postId` | 게시글 상세 | 연동 | 로딩, 없는 글, 이미지, 좋아요, 투표, 댓글 preview, 뒤로가기 | 2 |
 | `[X]` | `/community/posts/:postId/comments` | 댓글·답글 | 연동 | 작성, thread, pagination, 키보드, 중복 제출, 실패 복구 | 2 |
