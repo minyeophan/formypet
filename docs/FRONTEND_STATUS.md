@@ -279,18 +279,20 @@
 
 ### 요약
 
-피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. 피드 카드는 제목/본문 preview와 첫 이미지 썸네일, 이미지 개수, 투표 badge를 표시한다. 상세 화면은 댓글 preview를 표시하고 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회를 처리한다. 게시글과 댓글 작성자 프로필 이미지는 인증 이미지 응답을 사용한다. 백엔드는 제목·본문 검색을 지원하지만 검색 UI와 카테고리 필터 동작은 아직 연결되지 않았고 알림도 후속 범위다.
+피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. `/community` 메인은 고정 V2 헤더, 2페이지 카테고리 PageView, 단일 세로 스크롤, 요청 종류별 로딩·오류·빈 상태, 공용 PostCard를 사용한다. 카테고리 피드도 같은 헤더·카드·상태 renderer를 사용하지만 기존 탭·표시 전용 필터·가이드는 유지한다. 백엔드는 제목·본문 검색을 지원하지만 검색 UI와 알림은 아직 후속 범위다.
 
 ### 현재 프론트 구현
 
 | 항목 | 상태 | 프론트 기준 |
 |------|------|-------------|
-| 피드 조회 | 🔌 연동됨 | `screens/community/community_screen.dart`, `services/community_service.dart` |
+| 피드 조회 | 🔌 연동됨 | `screens/community/community_screen.dart`, `services/community_service.dart`; initial·refresh·loadMore와 feed별 오류 상태 분리 |
+| 커뮤니티 메인 V2 | ✅ 구현됨 | 고정 헤더, 최대 672px 본문, 카테고리 PageView 2페이지, 단일 세로 sliver scroll, pull-to-refresh |
+| 카테고리 PageView | ✅ 구현됨 | 5열 2행 고정 grid, 페이지 표시점, touch·mouse·stylus·trackpad 좌우 drag 지원 |
 | 검색 요청 service | 🔌 연동됨 | `CommunityService.getFeed()`가 trim한 선택 `keyword`를 전달하고 null·빈 문자열·공백은 생략 |
 | 글쓰기 | 🔌 연동됨 | `screens/community/write_screen.dart`, `CommunityService.createPost()` |
-| 좋아요 | 🔌 연동됨 | `post_card.dart`, `CommunityService.toggleLike()` |
+| 좋아요 | 🔌 연동됨 | `post_card.dart`, `CommunityService.toggleLike()`; 게시글별 중복 요청 차단, 처리 중 비활성화·접근성 상태, 실패 안내 |
 | 글쓰기 이미지 첨부 | 🔌 연동됨 | `write_screen.dart`, multipart `files` |
-| 피드 이미지 표시 | ✅ 구현됨 | `PostCard`가 첫 이미지 썸네일과 2장 이상 개수를 표시 |
+| 피드 이미지 표시 | ✅ 구현됨 | `PostCard`가 96px 첫 이미지 썸네일과 2장 이상 개수, 32px 작성자 avatar와 paw fallback 표시 |
 | 투표 작성 UI | ✅ 구현됨 | `write_screen.dart`, `PollDraft` 생성 |
 | 피드 투표 표시 | ✅ 구현됨 | `PostCard`는 투표 badge, 상세 화면은 투표 문항·항목·비율 표시 |
 | 투표 참여 | 🔌 연동됨 | `CommunityService.vote()`, `CommunityProvider.vote()`가 투표 API 호출 후 캐시 갱신 |
@@ -299,7 +301,7 @@
 | 댓글 작성자 프로필 이미지 | 🔌 연동됨 | `authorProfileImageUrl`, 인증 이미지 위젯, `/api/v1/users/{userId}/profile-image` 사용 |
 | 답글 작성·조회 | 🔌 연동됨 | root 댓글의 `replyCount`, preview replies, thread 조회, cursor 기반 답글 추가 조회 및 `parentCommentId` 작성 |
 | 상단 알림, 검색 | 🧭 진입점 없음 | 아이콘은 있으나 `준비중` 토스트만 표시 |
-| 카테고리 필터, 이용 가이드 | 🚧 부분 구현 | `전체⌄` pill과 가이드 패널은 표시 전용 |
+| 카테고리 선택, 필터, 이용 가이드 | 🚧 부분 구현 | 메인 12개 카테고리 route와 카테고리 탭은 동작. `전체⌄` pill과 가이드 패널은 표시 전용 |
 | 해시태그·팔로우 | ❌ 제외 | MVP 제외 |
 
 ### API 요구사항
