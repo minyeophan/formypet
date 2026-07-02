@@ -5,25 +5,46 @@ import '../models/post.dart';
 import '../services/community_service.dart';
 import '../screens/community/community_constants.dart';
 
+enum CommunityFeedRequestKind { initial, refresh, loadMore }
+
+class CommunityFeedFailure {
+  final CommunityFeedRequestKind requestKind;
+  final Object error;
+
+  const CommunityFeedFailure({required this.requestKind, required this.error});
+}
+
 class CommunityState {
   final Map<String, List<Post>> postsByFeedKey;
   final Map<String, String?> cursorByFeedKey;
-  final Map<String, bool> loadingByFeedKey;
+  final Map<String, CommunityFeedRequestKind> requestKindByFeedKey;
+  final Map<String, CommunityFeedFailure> failureByFeedKey;
+  final Set<String> likingPostIds;
   final Map<String, Post> postsById;
   final String activeFeedKey;
 
   const CommunityState({
     required this.postsByFeedKey,
     required this.cursorByFeedKey,
-    required this.loadingByFeedKey,
+    required this.requestKindByFeedKey,
+    required this.failureByFeedKey,
+    required this.likingPostIds,
     required this.postsById,
     required this.activeFeedKey,
   });
 
   List<Post> postsForFeed(String feedKey) =>
       postsByFeedKey[normalizeCommunityFeedKey(feedKey)] ?? [];
-  bool isLoadingFeed(String feedKey) =>
-      loadingByFeedKey[normalizeCommunityFeedKey(feedKey)] ?? false;
+  CommunityFeedRequestKind? requestKindForFeed(String feedKey) =>
+      requestKindByFeedKey[normalizeCommunityFeedKey(feedKey)];
+  bool isLoadingFeed(String feedKey) => requestKindForFeed(feedKey) != null;
+  bool isRefreshingFeed(String feedKey) =>
+      requestKindForFeed(feedKey) == CommunityFeedRequestKind.refresh;
+  bool isLoadingMoreFeed(String feedKey) =>
+      requestKindForFeed(feedKey) == CommunityFeedRequestKind.loadMore;
+  CommunityFeedFailure? failureForFeed(String feedKey) =>
+      failureByFeedKey[normalizeCommunityFeedKey(feedKey)];
+  bool isLiking(String postId) => likingPostIds.contains(postId);
   String? nextCursorForFeed(String feedKey) =>
       cursorByFeedKey[normalizeCommunityFeedKey(feedKey)];
 
@@ -34,13 +55,17 @@ class CommunityState {
   CommunityState copyWith({
     Map<String, List<Post>>? postsByFeedKey,
     Map<String, String?>? cursorByFeedKey,
-    Map<String, bool>? loadingByFeedKey,
+    Map<String, CommunityFeedRequestKind>? requestKindByFeedKey,
+    Map<String, CommunityFeedFailure>? failureByFeedKey,
+    Set<String>? likingPostIds,
     Map<String, Post>? postsById,
     String? activeFeedKey,
   }) => CommunityState(
     postsByFeedKey: postsByFeedKey ?? this.postsByFeedKey,
     cursorByFeedKey: cursorByFeedKey ?? this.cursorByFeedKey,
-    loadingByFeedKey: loadingByFeedKey ?? this.loadingByFeedKey,
+    requestKindByFeedKey: requestKindByFeedKey ?? this.requestKindByFeedKey,
+    failureByFeedKey: failureByFeedKey ?? this.failureByFeedKey,
+    likingPostIds: likingPostIds ?? this.likingPostIds,
     postsById: postsById ?? this.postsById,
     activeFeedKey: activeFeedKey ?? this.activeFeedKey,
   );
@@ -54,7 +79,9 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         const CommunityState(
           postsByFeedKey: {},
           cursorByFeedKey: {},
-          loadingByFeedKey: {},
+          requestKindByFeedKey: {},
+          failureByFeedKey: {},
+          likingPostIds: {},
           postsById: {},
           activeFeedKey: 'popular',
         ),
@@ -72,12 +99,31 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   Future<void> loadFeed({String? feedKey, bool refresh = false}) async {
     final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
-    if (state.loadingByFeedKey[key] == true) return;
+    if (state.isLoadingFeed(key)) return;
 
-    final cursor = refresh ? null : state.cursorByFeedKey[key];
-    final loading = Map<String, bool>.from(state.loadingByFeedKey);
-    loading[key] = true;
-    state = state.copyWith(loadingByFeedKey: loading);
+    final hasPosts = state.postsForFeed(key).isNotEmpty;
+    final kind = refresh && hasPosts
+        ? CommunityFeedRequestKind.refresh
+        : CommunityFeedRequestKind.initial;
+    await _requestFeed(key, kind);
+  }
+
+  Future<void> _requestFeed(String key, CommunityFeedRequestKind kind) async {
+    if (state.isLoadingFeed(key)) return;
+    final requests = Map<String, CommunityFeedRequestKind>.from(
+      state.requestKindByFeedKey,
+    )..[key] = kind;
+    final failures = Map<String, CommunityFeedFailure>.from(
+      state.failureByFeedKey,
+    )..remove(key);
+    state = state.copyWith(
+      requestKindByFeedKey: requests,
+      failureByFeedKey: failures,
+    );
+
+    final cursor = kind == CommunityFeedRequestKind.loadMore
+        ? state.cursorByFeedKey[key]
+        : null;
 
     try {
       final feed = await _svc.getFeed(
@@ -88,10 +134,14 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
       final cursors = Map<String, String?>.from(state.cursorByFeedKey);
 
-      if (refresh) {
+      if (kind != CommunityFeedRequestKind.loadMore) {
         posts[key] = feed.items;
       } else {
-        posts[key] = [...(posts[key] ?? []), ...feed.items];
+        final merged = [...(posts[key] ?? []), ...feed.items];
+        posts[key] = [
+          for (final id in merged.map((post) => post.id).toSet())
+            merged.firstWhere((post) => post.id == id),
+        ];
       }
       final postCache = Map<String, Post>.from(state.postsById);
       for (final post in feed.items) {
@@ -99,35 +149,54 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       }
       cursors[key] = feed.nextCursor;
 
-      final done = Map<String, bool>.from(state.loadingByFeedKey);
-      done[key] = false;
+      final done = Map<String, CommunityFeedRequestKind>.from(
+        state.requestKindByFeedKey,
+      )..remove(key);
       state = state.copyWith(
         postsByFeedKey: posts,
         cursorByFeedKey: cursors,
-        loadingByFeedKey: done,
+        requestKindByFeedKey: done,
         postsById: postCache,
       );
-    } catch (_) {
-      final done = Map<String, bool>.from(state.loadingByFeedKey);
-      done[key] = false;
-      state = state.copyWith(loadingByFeedKey: done);
+    } catch (error) {
+      final done = Map<String, CommunityFeedRequestKind>.from(
+        state.requestKindByFeedKey,
+      )..remove(key);
+      final failures = Map<String, CommunityFeedFailure>.from(
+        state.failureByFeedKey,
+      )..[key] = CommunityFeedFailure(requestKind: kind, error: error);
+      state = state.copyWith(
+        requestKindByFeedKey: done,
+        failureByFeedKey: failures,
+      );
     }
   }
 
   Future<void> loadMore({String? feedKey}) async {
     final key = normalizeCommunityFeedKey(feedKey ?? state.activeFeedKey);
     if (state.cursorByFeedKey[key] == null) return;
-    await loadFeed(feedKey: key);
+    await _requestFeed(key, CommunityFeedRequestKind.loadMore);
   }
 
   Future<void> toggleLike(String postId, {String? feedKey}) async {
-    final result = await _svc.toggleLike(postId);
-    final liked = result['liked'] as bool;
-    final likesCount = result['likesCount'] as int;
-
-    final post = state.postsById[postId];
-    if (post == null) return;
-    _replacePost(post.copyWith(liked: liked, likesCount: likesCount));
+    if (state.isLiking(postId)) return;
+    state = state.copyWith(likingPostIds: {...state.likingPostIds, postId});
+    try {
+      final result = await _svc.toggleLike(postId);
+      final post = state.postsById[postId];
+      if (post != null) {
+        _replacePost(
+          post.copyWith(
+            liked: result['liked'] as bool,
+            likesCount: result['likesCount'] as int,
+          ),
+        );
+      }
+    } finally {
+      state = state.copyWith(
+        likingPostIds: {...state.likingPostIds}..remove(postId),
+      );
+    }
   }
 
   Future<Post> loadPost(String postId) async {
