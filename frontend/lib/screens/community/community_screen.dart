@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../providers/community_provider.dart';
-import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
@@ -106,14 +107,7 @@ class _CommunityMainBody extends StatelessWidget {
       child: Column(
         children: const [
           _CommunityHeader(),
-          _CategoryCarousel(),
-          _CommunitySectionHeader(),
-          Expanded(
-            child: _FeedList(
-              key: Key('community-main-popular-feed'),
-              feedKey: 'popular',
-            ),
-          ),
+          Expanded(child: _CommunityMainScroll()),
         ],
       ),
     );
@@ -127,26 +121,38 @@ class _CommunityCategoryBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeKey = ref.watch(communityProvider).activeFeedKey;
     return SafeArea(
-      child: Column(
+      child: Stack(
         children: [
-          const _CommunityHeader(showBack: true),
-          Expanded(
-            child: ColoredBox(
-              color: AppColors.surface,
-              child: Column(
-                children: [
-                  const _CategoryTabs(),
-                  const _CategoryFilterRow(),
-                  const _GuidePanel(),
-                  Expanded(
-                    child: _FeedList(
-                      key: const Key('community-category-feed'),
-                      feedKey: activeKey,
-                    ),
-                  ),
-                ],
-              ),
+          const Positioned(
+            right: 12,
+            bottom: 8,
+            child: Opacity(
+              opacity: 0.06,
+              child: AppVisual(id: AppVisualId.communityPaw, size: 72),
             ),
+          ),
+          Column(
+            children: [
+              const _CommunityHeader(showBack: true),
+              Expanded(
+                child: ColoredBox(
+                  color: AppColors.surface,
+                  child: Column(
+                    children: [
+                      const _CategoryTabs(),
+                      const _CategoryFilterRow(),
+                      const _GuidePanel(),
+                      Expanded(
+                        child: _FeedList(
+                          key: const Key('community-category-feed'),
+                          feedKey: activeKey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -201,17 +207,17 @@ class _CommunityHeader extends StatelessWidget {
             key: const Key('community-header-actions'),
             mainAxisSize: MainAxisSize.min,
             children: [
-              AppHeaderIconButton(
-                key: const Key('community-notification-button'),
-                icon: Icons.notifications_none_rounded,
-                tooltip: '알림',
-                onTap: () => _showCommunityToast(context, '준비중'),
-              ),
-              const SizedBox(width: 4),
-              AppHeaderIconButton(
+              _CommunityHeaderButton(
                 key: const Key('community-search-button'),
                 icon: Icons.search_rounded,
                 tooltip: '검색',
+                onTap: () => _showCommunityToast(context, '준비중'),
+              ),
+              const SizedBox(width: 4),
+              _CommunityHeaderButton(
+                key: const Key('community-notification-button'),
+                icon: Icons.notifications_none_rounded,
+                tooltip: '알림',
                 onTap: () => _showCommunityToast(context, '준비중'),
               ),
             ],
@@ -254,8 +260,8 @@ class _CategoryCarousel extends StatefulWidget {
 }
 
 class _CategoryCarouselState extends State<_CategoryCarousel> {
-  final ScrollController _controller = ScrollController();
-  bool _isSnapping = false;
+  final PageController _controller = PageController();
+  int _page = 0;
 
   @override
   void dispose() {
@@ -263,66 +269,67 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
     super.dispose();
   }
 
-  Future<void> _snapToNearestPanel() async {
-    if (!_controller.hasClients) return;
-    if (_isSnapping) return;
-
-    final position = _controller.position;
-    final panelWidth = _communityCategoryPanelWidth(context);
-    final nextPanelOffset = (panelWidth + 12).clamp(
-      0.0,
-      position.maxScrollExtent,
-    );
-    final target = position.pixels < nextPanelOffset / 2
-        ? 0.0
-        : nextPanelOffset;
-
-    if ((position.pixels - target).abs() <= 0.5) return;
-
-    _isSnapping = true;
-    try {
-      await position.animateTo(
-        target,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    } finally {
-      _isSnapping = false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       key: const Key('community-category-carousel'),
-      height: 184,
-      child: Listener(
-        onPointerUp: (_) => _snapToNearestPanel(),
-        onPointerCancel: (_) => _snapToNearestPanel(),
-        child: NotificationListener<ScrollEndNotification>(
-          onNotification: (notification) {
-            if (notification.depth != 0) return false;
-            _snapToNearestPanel();
-            return true;
-          },
-          child: ListView(
-            controller: _controller,
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-            children: const [
-              _CategoryPanel(index: 0, entries: _communityPrimaryCategories),
-              _CategoryPanel(index: 1, entries: _communitySecondaryCategories),
-            ],
+      height: 204,
+      child: Column(
+        children: [
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: const {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: PageView(
+                controller: _controller,
+                onPageChanged: (page) => setState(() => _page = page),
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 10, 20, 8),
+                    child: _CategoryPanel(
+                      index: 0,
+                      entries: _communityPrimaryCategories,
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 10, 20, 8),
+                    child: _CategoryPanel(
+                      index: 1,
+                      entries: _communitySecondaryCategories,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              2,
+              (index) => AnimatedContainer(
+                key: Key('community-category-page-dot-$index'),
+                duration: const Duration(milliseconds: 180),
+                width: _page == index ? 18 : 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: _page == index ? _communityTeal : AppColors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-}
-
-double _communityCategoryPanelWidth(BuildContext context) {
-  final viewport = MediaQuery.sizeOf(context).width;
-  return viewport > 390 ? 350.0 : viewport - 32;
 }
 
 class _CategoryPanel extends StatelessWidget {
@@ -333,11 +340,8 @@ class _CategoryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final panelWidth = _communityCategoryPanelWidth(context);
     return Container(
       key: Key('community-category-panel-$index'),
-      width: panelWidth,
-      margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -352,7 +356,7 @@ class _CategoryPanel extends StatelessWidget {
                 for (var column = 0; column < 5; column++) ...[
                   Expanded(
                     child: SizedBox(
-                      height: 63,
+                      height: 72,
                       child: row * 5 + column < entries.length
                           ? _CategoryTile(category: entries[row * 5 + column])
                           : const SizedBox.shrink(),
@@ -378,6 +382,7 @@ class _CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _communityAccentFor(category);
+    final iconSize = MediaQuery.sizeOf(context).width < 360 ? 44.0 : 48.0;
     return InkWell(
       key: Key('community-category-tile-$category'),
       borderRadius: BorderRadius.circular(14),
@@ -391,7 +396,17 @@ class _CategoryTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AppVisual(id: communityVisualId(category), color: accent, size: 21),
+            SizedBox(
+              width: iconSize,
+              height: iconSize,
+              child: Center(
+                child: AppVisual(
+                  id: communityVisualId(category),
+                  color: accent,
+                  size: 21,
+                ),
+              ),
+            ),
             const SizedBox(height: 5),
             AppText(
               kCommunityCategoryLabels[category] ?? category,
@@ -519,6 +534,50 @@ class _GuidePanel extends StatelessWidget {
   }
 }
 
+class _CommunityMainScroll extends ConsumerWidget {
+  const _CommunityMainScroll();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const feedKey = 'popular';
+    final state = ref.watch(communityProvider);
+    final posts = state.postsForFeed(feedKey);
+    return RefreshIndicator(
+      onRefresh: () => ref
+          .read(communityProvider.notifier)
+          .loadFeed(feedKey: feedKey, refresh: true),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) =>
+            _handlePagination(notification, ref, feedKey, state, posts),
+        child: CustomScrollView(
+          key: const Key('community-main-popular-feed'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 672),
+                  child: _CategoryCarousel(),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 672),
+                  child: _CommunitySectionHeader(),
+                ),
+              ),
+            ),
+            ..._feedSlivers(context, ref, feedKey, state, posts, isMain: true),
+            const SliverToBoxAdapter(child: SizedBox(height: 92)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FeedList extends ConsumerWidget {
   final String feedKey;
 
@@ -528,51 +587,210 @@ class _FeedList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(communityProvider);
     final posts = state.postsForFeed(feedKey);
-    final isLoading = state.isLoadingFeed(feedKey);
-    final nextCursor = state.nextCursorForFeed(feedKey);
-
-    if (posts.isEmpty && isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (posts.isEmpty) {
-      return const Center(child: AppText('게시글이 없습니다', color: AppColors.muted));
-    }
-
     return RefreshIndicator(
       onRefresh: () => ref
           .read(communityProvider.notifier)
           .loadFeed(feedKey: feedKey, refresh: true),
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
-          if (notification is ScrollEndNotification &&
-              notification.metrics.extentAfter < 200) {
-            ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
-          }
-          return false;
+          return _handlePagination(notification, ref, feedKey, state, posts);
         },
-        child: ListView.builder(
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 92),
-          itemCount: posts.length + (nextCursor != null ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == posts.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final post = posts[index];
-            return PostCard(
-              post: post,
-              onOpen: () => context.push(communityPostPath(post.id, feedKey)),
-              onLike: () => ref
+          children: _feedBoxChildren(
+            context,
+            ref,
+            feedKey,
+            state,
+            posts,
+            isMain: false,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+bool _handlePagination(
+  ScrollNotification notification,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts,
+) {
+  if (notification.depth != 0 ||
+      notification.metrics.axis != Axis.vertical ||
+      posts.isEmpty ||
+      notification.metrics.extentAfter >= 200 ||
+      state.nextCursorForFeed(feedKey) == null ||
+      state.isLoadingFeed(feedKey)) {
+    return false;
+  }
+  ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
+  return false;
+}
+
+List<Widget> _feedBoxChildren(
+  BuildContext context,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts, {
+  required bool isMain,
+}) {
+  final failure = state.failureForFeed(feedKey);
+  final children = <Widget>[];
+  if (posts.isEmpty && state.isLoadingFeed(feedKey)) {
+    return List.generate(
+      3,
+      (index) => _FeedWidth(child: _FeedSkeleton(index: index)),
+    );
+  }
+  if (posts.isEmpty &&
+      failure?.requestKind == CommunityFeedRequestKind.initial) {
+    return [
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-error'),
+          message: isMain ? '인기글을 불러오지 못했어요' : '게시글을 불러오지 못했어요',
+          retry: () =>
+              ref.read(communityProvider.notifier).loadFeed(feedKey: feedKey),
+        ),
+      ),
+    ];
+  }
+  if (posts.isEmpty) {
+    return [
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-empty'),
+          message: isMain ? '아직 인기글이 없어요' : '이 카테고리에는 아직 게시글이 없어요',
+        ),
+      ),
+    ];
+  }
+  if (failure?.requestKind == CommunityFeedRequestKind.refresh) {
+    children.add(
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-refresh-error'),
+          message: isMain ? '인기글을 새로고침하지 못했어요' : '게시글을 새로고침하지 못했어요',
+          retry: () => ref
+              .read(communityProvider.notifier)
+              .loadFeed(feedKey: feedKey, refresh: true),
+        ),
+      ),
+    );
+  }
+  for (final post in posts.cast<dynamic>()) {
+    children.add(
+      _FeedWidth(
+        child: PostCard(
+          post: post,
+          isLiking: state.isLiking(post.id),
+          onOpen: () => context.push(communityPostPath(post.id, feedKey)),
+          onLike: () async {
+            try {
+              await ref
                   .read(communityProvider.notifier)
-                  .toggleLike(post.id, feedKey: feedKey),
-            );
+                  .toggleLike(post.id, feedKey: feedKey);
+            } catch (_) {
+              if (context.mounted) {
+                _showCommunityToast(context, '좋아요를 반영하지 못했어요');
+              }
+            }
           },
         ),
       ),
     );
   }
+  if (state.isLoadingMoreFeed(feedKey)) {
+    children.add(
+      const Padding(
+        key: Key('community-feed-load-more-progress'),
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  } else if (failure?.requestKind == CommunityFeedRequestKind.loadMore) {
+    children.add(
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-load-more-retry'),
+          message: isMain ? '인기글을 더 불러오지 못했어요' : '게시글을 더 불러오지 못했어요',
+          retry: () =>
+              ref.read(communityProvider.notifier).loadMore(feedKey: feedKey),
+        ),
+      ),
+    );
+  }
+  return children;
+}
+
+List<Widget> _feedSlivers(
+  BuildContext context,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts, {
+  required bool isMain,
+}) => [
+  SliverList(
+    delegate: SliverChildListDelegate(
+      _feedBoxChildren(context, ref, feedKey, state, posts, isMain: isMain),
+    ),
+  ),
+];
+
+class _FeedSkeleton extends StatelessWidget {
+  final int index;
+  const _FeedSkeleton({required this.index});
+  @override
+  Widget build(BuildContext context) => Container(
+    key: Key('community-feed-skeleton-$index'),
+    height: 142,
+    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceSoft,
+      borderRadius: BorderRadius.circular(18),
+    ),
+  );
+}
+
+class _FeedMessage extends StatelessWidget {
+  final String message;
+  final VoidCallback? retry;
+  const _FeedMessage({super.key, required this.message, this.retry});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        AppText(message, color: AppColors.muted, textAlign: TextAlign.center),
+        if (retry != null) ...[
+          const SizedBox(height: 10),
+          TextButton(
+            key: const Key('community-feed-retry'),
+            onPressed: retry,
+            child: const Text('다시 시도'),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _FeedWidth extends StatelessWidget {
+  final Widget child;
+  const _FeedWidth({required this.child});
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 672),
+      child: child,
+    ),
+  );
 }
 
 const List<String> _communityPrimaryCategories = [
@@ -623,4 +841,46 @@ void _showCommunityToast(BuildContext context, String message) {
         duration: const Duration(milliseconds: 1200),
       ),
     );
+}
+
+class _CommunityHeaderButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _CommunityHeaderButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.border),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 20, color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

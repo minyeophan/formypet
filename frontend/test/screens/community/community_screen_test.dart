@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
@@ -41,6 +42,8 @@ void main() {
       find.byKey(const Key('community-category-tile-CARE')),
       findsOneWidget,
     );
+    await tester.drag(_categoryCarouselScrollable(), const Offset(-600, 0));
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const Key('community-category-tile-EVENT')),
       findsOneWidget,
@@ -113,7 +116,11 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: card, matching: find.text('Momo · 2시간 전')),
+      find.descendant(of: card, matching: find.text('Momo')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('2시간 전')),
       findsOneWidget,
     );
     expect(
@@ -197,7 +204,7 @@ void main() {
     final secondPanel = find.byKey(const Key('community-category-panel-1'));
 
     expect(firstPanel, findsOneWidget);
-    expect(secondPanel, findsOneWidget);
+    expect(secondPanel, findsNothing);
     expect(find.byKey(const Key('community-category-panel-2')), findsNothing);
 
     for (final category in [
@@ -235,18 +242,15 @@ void main() {
       ),
       findsNothing,
     );
+    await tester.drag(_categoryCarouselScrollable(), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('community-category-panel-1')), findsOneWidget);
     expect(
-      find.descendant(
-        of: secondPanel,
-        matching: find.byKey(const Key('community-category-tile-NEWS')),
-      ),
+      find.byKey(const Key('community-category-tile-NEWS')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: secondPanel,
-        matching: find.byKey(const Key('community-category-tile-EVENT')),
-      ),
+      find.byKey(const Key('community-category-tile-EVENT')),
       findsOneWidget,
     );
   });
@@ -286,7 +290,32 @@ void main() {
     await tester.drag(scroller, const Offset(-240, 0));
     await tester.pumpAndSettle();
 
-    expect(_categoryScrollPosition(tester).pixels, closeTo(370, 0.5));
+    expect(_categoryScrollPosition(tester).pixels, closeTo(390, 0.5));
+  });
+
+  testWidgets('category carousel accepts mouse drag on web', (tester) async {
+    _setMobileViewport(tester);
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [_post('popular-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    final center = tester.getCenter(_categoryCarouselScrollable());
+    final gesture = await tester.startGesture(
+      center,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(-260, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(_categoryScrollPosition(tester).pixels, closeTo(390, 0.5));
+    expect(
+      find.byKey(const Key('community-category-tile-NEWS')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('news and event category tiles keep their category routes', (
@@ -808,14 +837,14 @@ void _expectCommunityHeaderStyle(WidgetTester tester) {
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
-  expect(tester.getSize(finder), const Size(38, 38));
+  expect(tester.getSize(finder), const Size(44, 44));
 
   final container = tester.widget<Container>(
     find.descendant(of: finder, matching: find.byType(Container)).first,
   );
   final decoration = container.decoration as BoxDecoration;
   expect(decoration.color, AppColors.surface);
-  expect(decoration.borderRadius, BorderRadius.circular(14));
+  expect(decoration.shape, BoxShape.circle);
   expect(decoration.border, Border.all(color: AppColors.border));
 
   final icon = tester.widget<Icon>(
