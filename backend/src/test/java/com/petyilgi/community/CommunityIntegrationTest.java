@@ -91,6 +91,35 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createPostAcceptsTitleWithExactlyThirtyCharacters() throws Exception {
+        String token = registerAndGetToken("post-title-30@example.com", "title30");
+        String title = "a".repeat(30);
+
+        mockMvc.perform(multipartPost(token, Map.of(
+                        "title", title,
+                        "category", "FREE",
+                        "content", "Thirty character title"
+                )))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.title").value(title));
+    }
+
+    @Test
+    void createPostRejectsTitleWithThirtyOneCharacters() throws Exception {
+        String token = registerAndGetToken("post-title-31@example.com", "title31");
+
+        mockMvc.perform(multipartPost(token, Map.of(
+                        "title", "a".repeat(31),
+                        "category", "FREE",
+                        "content", "Too long title"
+                )))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid Input"))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.detail").value("Post title must be 30 characters or fewer."));
+    }
+
+    @Test
     void feedSupportsCategoryAndLatestCursorPagination() throws Exception {
         String token = registerAndGetToken("post-feed@example.com", "feed");
         Long freeId = createPost(token, "자유 글", "FREE", "free");

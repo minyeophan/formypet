@@ -23,6 +23,7 @@ import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_comments_screen.dart';
+import '../screens/community/community_constants.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
 import '../screens/community/mock/community_mock_detail_screen.dart';
@@ -142,8 +143,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/community/category/:category',
+            redirect: (c, s) =>
+                isCommunitySourceKey(s.pathParameters['category'])
+                ? null
+                : '/community',
             builder: (c, s) => CommunityCategoryScreen(
-              initialCategory: s.pathParameters['category']!,
+              initialCategory: normalizeCommunitySourceKey(
+                s.pathParameters['category'],
+              ),
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),

@@ -1,5 +1,20 @@
 # 현재 컨텍스트
 
+## 2026-07-03 커뮤니티 홈·카테고리 HTML V2 재구현
+
+- Home과 동일한 `AppV2Tokens.background(#F9F9FF)`를 Community 홈·카테고리 Scaffold, bespoke header, feed와 상태 영역에 적용했다. 카테고리 header는 공용 `AppBackButton`을 사용하고 direct URL에서는 `/community`로 복귀한다.
+- 홈은 12개 카테고리의 5열·2행 2페이지 grid를 유지하면서 외곽 surface panel을 제거했다. 카테고리는 route 기반 12개 가로 chip, 활성 chip button/selected semantics와 자동 노출, route 변경 시 재접힘되는 4개 항목 guide를 사용한다.
+- 공용 `PostCard`는 Card/elevation/margin 없는 flat row로 변경했다. 좌우 20px·상하 16px padding, 하단 V2 divider, 20px 2줄 제목, 선택적 80px thumbnail, 32px avatar, 분리된 좋아요 동작과 focus outline을 사용하며 본문 preview는 생성하지 않는다. skeleton은 image/text/image 패턴이다.
+- 최신 자동 검증: Flutter 전체 361개 테스트 GREEN, `flutter analyze` No issues, Backend `CommunityIntegrationTest --rerun-tasks` GREEN. in-app browser 제어 도구가 노출되지 않아 Chrome 수동 검증은 남아 있으며, 이 때문에 `SCREEN_V2_STATUS` 완료 표시는 보류했다.
+
+## 2026-07-02 커뮤니티 카테고리 V2·제목 계약
+
+- 새 게시글 제목은 Backend와 Flutter 모두 최대 30자로 제한한다. DB `VARCHAR(120)`과 기존 긴 제목 데이터는 유지한다.
+- 메인·카테고리 공용 `PostCard`는 제목만 최대 2줄로 표시하며, 빈 제목은 `제목 없음`을 사용한다. 본문은 상세·검색에서 유지한다.
+- `/community/category/:category`는 route feed key를 렌더링 기준으로 사용한다. 12개 가로 chip, route 교체, 활성 chip 자동 노출, 접이식 이용 가이드, 단일 sliver scroll과 feed별 상태·pagination을 사용한다.
+- 잘못된 category direct URL은 provider/API 호출 없이 `/community`로 redirect한다.
+- 당시 검증: Backend 전체 테스트 GREEN, Flutter 전체 360개 GREEN, Community·Router·Home 선택 테스트 110개 GREEN, `flutter analyze` No issues.
+
 ## 2026-07-02 커뮤니티 메인 V2 구현
 
 - `/community`를 고정 헤더와 최대 672px 본문, 카테고리 5열 2행 PageView 2페이지, 페이지 표시점, 단일 세로 `CustomScrollView`, 공용 V2 게시글 카드 구조로 전환했다. 검색과 알림은 기존 `준비중` 안내를 유지하며 상세·댓글·글쓰기·라우터·`MainScaffold` 계약은 변경하지 않았다.
