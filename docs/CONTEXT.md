@@ -141,8 +141,8 @@
 ## 5줄 현황 요약
 
 1. 현재 상태: Flutter 마이그레이션 완료. `frontend/`는 React Native → Flutter (Riverpod + go_router)로 전환됐다.
-2. 마지막 확인된 검증: 2026-06-30 프론트 `flutter test` GREEN(339 tests), `flutter analyze` `No issues found!`; 백엔드 전체 `test --rerun-tasks` `BUILD SUCCESSFUL`. 마지막 확인된 웹 빌드는 2026-06-02 성공이다.
-3. 최신 스키마: Flyway `V1`부터 `V19__add_post_comment_replies.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
+2. 마지막 확인된 검증: 2026-07-03 프론트 `flutter test` GREEN(361 tests), `flutter analyze` `No issues found!`; 백엔드 `CommunityIntegrationTest --rerun-tasks` GREEN. 마지막 확인된 웹 빌드는 2026-06-02 성공이다.
+3. 최신 스키마: Flyway `V1`부터 `V20__remove_deprecated_activity_types.sql`까지 존재한다. 기존 마이그레이션은 수정하지 않는다.
 4. 최근 변경 흐름: 로컬 CORS `PATCH`, 로그아웃 시 펫 상태 정리, 커뮤니티 제목·본문 검색과 피드 pagination, Flutter service keyword 전달을 보강했다.
 5. 다음 우선순위: 커뮤니티 검색 UI·알림·카테고리 필터, 댓글·답글 수동 회귀, 기록 direct URL 예외 확인, 루틴 수정 UI 순서로 남은 사용자 동선을 완성한다.
 
@@ -180,7 +180,7 @@
 
 ## 주의사항
 
-- `backend/src/main/resources/db/migration/V1`부터 `V19`까지 기존 Flyway 파일은 수정하지 않는다.
+- `backend/src/main/resources/db/migration/V1`부터 `V20`까지 기존 Flyway 파일은 수정하지 않는다.
 - 새 DB 변경은 다음 번호의 새 마이그레이션으로만 추가한다.
 - 문서 정리만 하는 작업에서는 `backend/`, `frontend/`, `DESIGN.md`를 수정하지 않는다.
 - 기존 dirty worktree 변경은 사용자 또는 이전 작업자의 작업으로 보고 되돌리지 않는다.
@@ -190,11 +190,11 @@
 
 ## 최신 Handover
 
-- Goal: CORS·로그아웃 안정화 작업 A와 커뮤니티 게시글 검색 작업 B를 `develop`에 통합하고 전체 회귀를 검증한다.
-- Done: 로컬 CORS `PATCH` preflight, quick type 로드와 무관한 signed-out 펫 상태 정리, 선택 `keyword` 제목·본문 검색, literal `LIKE` escape, category 조합, `limit + 1` cursor 판정, Flutter service keyword 전달을 통합했다. 백엔드 전체 테스트와 Flutter 339개 테스트·정적 분석이 통과했다.
-- Remaining: 검색 UI, 알림, 카테고리 필터 UI와 댓글·답글 수정/삭제/신고는 후속 범위다. 검색 조건과 cursor를 서버가 결합해 검증하지 않으므로 프론트가 조건 변경 시 cursor를 초기화해야 한다.
+- Goal: V20 고아 detail 회귀 테스트 반영 후 `docs/CONTEXT.md`를 현재 스키마와 검증 상태에 맞게 동기화한다.
+- Done: 폐기된 play·sleep·checkup 기록의 `record_walk`·`record_vet` detail 연쇄 삭제, 고아 행 부재, 정상 walk·vet detail 보존을 `FlywayMigrationTest`에서 검증한다. 선택 테스트 3개와 백엔드 전체 `test --rerun-tasks`가 2026-07-02 통과했고 PR #4가 `develop`에 병합됐다.
+- Remaining: 커뮤니티 검색 UI, 알림, 카테고리 필터 UI와 댓글·답글 수정/삭제/신고는 후속 범위다. 검색 조건과 cursor를 서버가 결합해 검증하지 않으므로 프론트가 조건 변경 시 cursor를 초기화해야 한다.
 - Next step: 프론트 검색 화면 구현 시 `keyword`, `category`, `sort` 변경마다 첫 페이지를 요청하고 400 검색어 길이 오류를 사용자 입력 안내로 연결한다.
-- Warnings: B의 기존 백엔드·문서 커밋은 merge commit `87559e9`에 포함됐고, A 코드·테스트와 B Flutter 5개 파일 및 이 문서 갱신은 아직 working tree 변경이다. 기존 Flyway `V1`~`V19`는 수정하지 않는다.
+- Warnings: 기존 Flyway `V1`~`V20`은 수정하지 않는다. 이번 문서 동기화에서는 애플리케이션 코드, 마이그레이션, 테스트 파일을 변경하지 않았다.
 
 ## 이전 Handover
 
