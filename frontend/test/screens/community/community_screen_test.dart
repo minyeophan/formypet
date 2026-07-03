@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/core/app_v2_tokens.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
-import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,7 +65,7 @@ void main() {
     expect(find.text('준비중'), findsOneWidget);
 
     expect(find.byKey(const Key('community-write-fab')), findsOneWidget);
-    expect(find.text('popular-1'), findsOneWidget);
+    expect(find.text('제목 없음'), findsOneWidget);
   });
 
   testWidgets('main popular feed renders the compact post card layout', (
@@ -113,7 +113,7 @@ void main() {
     );
     expect(
       find.descendant(of: card, matching: find.text('본문 미리보기입니다')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.descendant(of: card, matching: find.text('Momo')),
@@ -142,7 +142,7 @@ void main() {
     expect(find.text('(54)'), findsNothing);
   });
 
-  testWidgets('post card keeps its surface and shows keyboard focus border', (
+  testWidgets('post card is a flat row with V2 divider and 20px padding', (
     tester,
   ) async {
     final post = _post(
@@ -162,29 +162,103 @@ void main() {
     final cardFinder = find.byKey(
       const ValueKey('community-post-card-focus-card-1'),
     );
-    final card = tester.widget<Card>(cardFinder);
-    final inkWell = card.child! as InkWell;
+    expect(
+      find.descendant(of: cardFinder, matching: find.byType(Card)),
+      findsNothing,
+    );
+
+    final row = tester.widget<DecoratedBox>(
+      find
+          .descendant(of: cardFinder, matching: find.byType(DecoratedBox))
+          .first,
+    );
+    final decoration = row.decoration as BoxDecoration;
+    expect(
+      decoration.border,
+      const Border(bottom: BorderSide(color: AppV2Tokens.border)),
+    );
+
+    final padding = tester.widget<Padding>(
+      find.descendant(of: cardFinder, matching: find.byType(Padding)).first,
+    );
+    expect(
+      padding.padding,
+      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+
+    final inkWell = tester.widget<InkWell>(
+      find.descendant(of: cardFinder, matching: find.byType(InkWell)).first,
+    );
 
     expect(inkWell.hoverColor, Colors.transparent);
     expect(inkWell.focusColor, Colors.transparent);
     expect(inkWell.highlightColor, Colors.transparent);
-    expect(inkWell.splashColor, AppColors.text.withValues(alpha: 0.06));
+    expect(inkWell.splashColor, AppV2Tokens.primary.withValues(alpha: 0.10));
     expect(inkWell.onFocusChange, isNotNull);
 
+    final sizeBeforeFocus = tester.getSize(cardFinder);
     inkWell.onFocusChange!(true);
     await tester.pump();
 
-    var shape =
-        tester.widget<Card>(cardFinder).shape! as RoundedRectangleBorder;
-    expect(shape.side.color, AppColors.textSecondary);
-    expect(shape.side.width, 2);
+    final focused = tester.widget<DecoratedBox>(
+      find
+          .descendant(of: cardFinder, matching: find.byType(DecoratedBox))
+          .first,
+    );
+    final focusedDecoration = focused.decoration as BoxDecoration;
+    expect(focusedDecoration.border!.top.width, 2);
+    expect(focusedDecoration.border!.top.color, AppV2Tokens.primary);
+    expect(tester.getSize(cardFinder), sizeBeforeFocus);
 
-    (tester.widget<Card>(cardFinder).child! as InkWell).onFocusChange!(false);
+    tester
+        .widget<InkWell>(
+          find.descendant(of: cardFinder, matching: find.byType(InkWell)).first,
+        )
+        .onFocusChange!(false);
     await tester.pump();
+  });
 
-    shape = tester.widget<Card>(cardFinder).shape! as RoundedRectangleBorder;
-    expect(shape.side.color, AppColors.border);
-    expect(shape.side.width, 1);
+  testWidgets('post thumbnail is exactly 80 square and absent for text rows', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(
+        posts: [
+          _post(
+            'body-1',
+            'CARE',
+            id: 'image-row',
+            title: '한 줄 제목',
+            imageUrls: const ['https://example.com/a.jpg'],
+          ),
+          _post('body-2', 'CARE', id: 'text-row', title: '한 줄 제목'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final imageRow = find.byKey(
+      const ValueKey('community-post-card-image-row'),
+    );
+    final textRow = find.byKey(const ValueKey('community-post-card-text-row'));
+    final thumbnail = find.descendant(
+      of: imageRow,
+      matching: find.byKey(const Key('community-post-thumbnail')),
+    );
+    expect(tester.getSize(thumbnail), const Size(80, 80));
+    expect(
+      find.descendant(
+        of: textRow,
+        matching: find.byKey(const Key('community-post-thumbnail')),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.getSize(textRow).height,
+      lessThan(tester.getSize(imageRow).height),
+    );
   });
 
   testWidgets('main category carousel renders two fixed panels', (
@@ -302,13 +376,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final center = tester.getCenter(_categoryCarouselScrollable());
-    final gesture = await tester.startGesture(
-      center,
-      kind: PointerDeviceKind.mouse,
+    await tester.flingFrom(
+      tester.getCenter(_categoryCarouselScrollable()),
+      const Offset(-260, 0),
+      1000,
+      deviceKind: PointerDeviceKind.mouse,
     );
-    await gesture.moveBy(const Offset(-260, 0));
-    await gesture.up();
     await tester.pumpAndSettle();
 
     expect(_categoryScrollPosition(tester).pixels, closeTo(390, 0.5));
@@ -402,7 +475,7 @@ void main() {
 
       final mainFeed = find.byKey(const Key('community-main-popular-feed'));
       expect(
-        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        find.descendant(of: mainFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
 
@@ -411,7 +484,7 @@ void main() {
 
       final categoryFeed = find.byKey(const Key('community-category-feed'));
       expect(
-        find.descendant(of: categoryFeed, matching: find.text('care-1')),
+        find.descendant(of: categoryFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
 
@@ -419,7 +492,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        find.descendant(of: mainFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
       expect(
@@ -444,7 +517,12 @@ void main() {
       expect(find.byKey(const Key('community-tab-ALL')), findsOneWidget);
       expect(find.byKey(const Key('community-tab-POPULAR')), findsOneWidget);
       expect(find.byKey(const Key('community-tab-CARE')), findsOneWidget);
-      expect(find.text('care-1'), findsOneWidget);
+      expect(find.byKey(const Key('community-tab-EVENT')), findsOneWidget);
+      final activeSemantics = tester.getSemantics(
+        find.byKey(const Key('community-tab-CARE')),
+      );
+      expect(activeSemantics, isSemantics(isButton: true, isSelected: true));
+      expect(find.text('제목 없음'), findsOneWidget);
     },
   );
 
@@ -484,7 +562,7 @@ void main() {
     );
     expect(
       find.descendant(of: card, matching: find.text('제목 없는 글 본문')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.descendant(of: card, matching: find.text('익명집사')),
@@ -496,6 +574,29 @@ void main() {
       find.descendant(of: card, matching: find.byType(CircleAvatar)),
       findsNothing,
     );
+  });
+
+  testWidgets('category guide is collapsed and toggles four rules', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CommunityCategoryScreen(initialCategory: 'CARE'),
+      service: _FakeCommunityService(posts: [_post('care-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsNothing);
+    await tester.tap(find.byKey(const Key('community-guide-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsOneWidget);
+    expect(find.text('건강 상담은 수의사 문의 권장'), findsOneWidget);
+    expect(find.text('상업적 광고·홍보 제한'), findsOneWidget);
+    expect(find.text('사진과 함께 일상 공유 권장'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('community-guide-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsNothing);
   });
 
   testWidgets('category screen header title stays community and left aligned', (
@@ -602,6 +703,19 @@ void main() {
 
     expect(service.createPostCallCount, 1);
     expect(find.text('community-root'), findsOneWidget);
+  });
+
+  testWidgets('write screen enforces a thirty character title limit', (
+    tester,
+  ) async {
+    await _pump(tester, const WriteScreen(), service: _FakeCommunityService());
+    final field = find.byKey(const Key('community-title-field'));
+    final textField = tester.widget<TextField>(field);
+    expect(textField.maxLength, 30);
+    expect(textField.maxLengthEnforcement, MaxLengthEnforcement.enforced);
+
+    await tester.enterText(field, 'a' * 31);
+    expect(tester.widget<TextField>(field).controller!.text, 'a' * 30);
   });
 
   testWidgets('write screen category picker updates the selected board', (
@@ -826,13 +940,15 @@ void _expectCommunityHeaderStyle(WidgetTester tester) {
     find.byKey(const Key('community-header')),
   );
   final decoration = header.decoration as BoxDecoration;
-  expect(decoration.color, AppColors.background);
+  expect(decoration.color, AppV2Tokens.background);
   expect(decoration.border, isNull);
 
-  final title = tester.widget<AppText>(
+  final title = tester.widget<Text>(
     find.byKey(const Key('community-header-title')),
   );
-  expect(title.color, AppColors.text);
+  expect(title.style!.color, AppV2Tokens.text);
+  expect(title.style!.fontFamily, AppV2Tokens.fontFamily);
+  expect(title.style!.fontSize, 24);
 }
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
@@ -843,15 +959,15 @@ void _expectHeaderActionSurface(WidgetTester tester, String key) {
     find.descendant(of: finder, matching: find.byType(Container)).first,
   );
   final decoration = container.decoration as BoxDecoration;
-  expect(decoration.color, AppColors.surface);
+  expect(decoration.color, AppV2Tokens.surface);
   expect(decoration.shape, BoxShape.circle);
-  expect(decoration.border, Border.all(color: AppColors.border));
+  expect(decoration.border, Border.all(color: AppV2Tokens.border));
 
   final icon = tester.widget<Icon>(
     find.descendant(of: finder, matching: find.byType(Icon)).first,
   );
   expect(icon.size, 20);
-  expect(icon.color, AppColors.textSecondary);
+  expect(icon.color, AppV2Tokens.textSecondary);
 }
 
 Future<void> _pump(

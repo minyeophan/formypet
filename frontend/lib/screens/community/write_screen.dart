@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -232,7 +233,8 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                         child: TextField(
                           key: const Key('community-title-field'),
                           controller: _titleCtrl,
-                          maxLength: 120,
+                          maxLength: 30,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           style: const TextStyle(
                             fontSize: 15,
                             color: AppColors.text,

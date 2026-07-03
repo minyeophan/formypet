@@ -1,5 +1,12 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
+## 2026-07-02 Community V2
+
+- 글쓰기 제목은 30자에서 강제 제한되며 제목·본문 필수 검증과 기존 payload 계약을 유지한다.
+- 메인·category 목록 카드는 title-only이며 빈 제목은 `제목 없음`, 긴 기존 제목은 2줄 ellipsis로 표시한다.
+- `/community/category/:category`는 `[O]`이다. route 기반 feed, 12개 가로 chip, 활성 chip 자동 노출, 접이식 이용 가이드, 단일 `CustomScrollView`, pull-to-refresh와 feed별 pagination 상태를 제공한다.
+- 유효 category는 `ALL`, `POPULAR`, `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`이며 잘못된 값은 `/community`로 이동한다.
+
 > 마지막 갱신: 2026-06-30
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 > 화면별 V2 전환 여부와 권장 작업 순서는 [`SCREEN_V2_STATUS.md`](SCREEN_V2_STATUS.md)에서 관리한다.
@@ -43,7 +50,7 @@
 | Community | 상단 알림, 검색 아이콘 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 알림 목록과 검색 화면 없음 |
 | Community | 게시글 카드 | 🔌 연동됨 | 피드 조회, 좋아요, 상세 진입, 첫 이미지 썸네일, 이미지 개수, 투표 badge 표시 |
 | Community | 댓글, 답글 | 🔌 연동됨 | 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회 지원 |
-| Community | 카테고리 화면 `전체⌄`, 이용 가이드 | 🚧 부분 구현 | 표시 전용 UI. 필터 선택과 가이드 화면 없음 |
+| Community | 카테고리 chip, 이용 가이드 | ✅ 구현됨 | route 기반 12개 chip과 활성 chip 자동 노출, 접힘/펼침 가능한 4개 안내 제공 |
 | My | 펫 카드, `펫 추가하기` | ✅ 구현됨 | `/pet/{id}`, `/pets/new`로 이동 |
 | My | 설정, `모두보기`, 프로필 편집 | ✅ 구현됨 | `/my/settings`, `/my/pets`, `/my/profile`로 이동 |
 | My | 약관 및 정책 | ✅ 구현됨 | `/my/policies`, `/my/policies/{policyId}`로 이동 |
@@ -279,7 +286,7 @@
 
 ### 요약
 
-피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. `/community` 메인은 고정 V2 헤더, 2페이지 카테고리 PageView, 단일 세로 스크롤, 요청 종류별 로딩·오류·빈 상태, 공용 PostCard를 사용한다. 카테고리 피드도 같은 헤더·카드·상태 renderer를 사용하지만 기존 탭·표시 전용 필터·가이드는 유지한다. 백엔드는 제목·본문 검색을 지원하지만 검색 UI와 알림은 아직 후속 범위다.
+피드 조회, 글쓰기, 좋아요, 이미지 첨부, 투표 작성 payload, 게시글 상세, 댓글·답글, 투표 참여가 연결돼 있다. `/community` 메인은 Home과 같은 V2 배경, bespoke header, 2페이지 5열 카테고리 PageView, 단일 세로 스크롤, 요청 종류별 로딩·오류·빈 상태, flat PostCard를 사용한다. 카테고리 피드는 route 기반 12개 가로 chip과 접이식 4개 항목 guide, feed별 상태 renderer를 사용한다. 백엔드는 제목·본문 검색을 지원하지만 검색 UI와 알림은 아직 후속 범위다.
 
 ### 현재 프론트 구현
 
@@ -301,7 +308,7 @@
 | 댓글 작성자 프로필 이미지 | 🔌 연동됨 | `authorProfileImageUrl`, 인증 이미지 위젯, `/api/v1/users/{userId}/profile-image` 사용 |
 | 답글 작성·조회 | 🔌 연동됨 | root 댓글의 `replyCount`, preview replies, thread 조회, cursor 기반 답글 추가 조회 및 `parentCommentId` 작성 |
 | 상단 알림, 검색 | 🧭 진입점 없음 | 아이콘은 있으나 `준비중` 토스트만 표시 |
-| 카테고리 선택, 필터, 이용 가이드 | 🚧 부분 구현 | 메인 12개 카테고리 route와 카테고리 탭은 동작. `전체⌄` pill과 가이드 패널은 표시 전용 |
+| 카테고리 선택, 이용 가이드 | ✅ 구현됨 | 메인 12개 category route, route 기반 12개 chip, 활성 chip 자동 노출, 기본 접힘·4개 안내 guide 제공 |
 | 해시태그·팔로우 | ❌ 제외 | MVP 제외 |
 
 ### API 요구사항

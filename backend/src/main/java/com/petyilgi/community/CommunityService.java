@@ -280,8 +280,8 @@ public class CommunityService {
         if (request.content() == null || request.content().isBlank()) {
             throw new IllegalArgumentException("Post content is required.");
         }
-        if (request.title().length() > 120) {
-            throw new IllegalArgumentException("Post title must be 120 characters or fewer.");
+        if (request.title().length() > 30) {
+            throw new IllegalArgumentException("Post title must be 30 characters or fewer.");
         }
         if (files.size() > 3) {
             throw new IllegalArgumentException("A post can include up to 3 images.");

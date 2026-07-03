@@ -1,6 +1,6 @@
 # 화면 V2 전환 현황
 
-> 마지막 갱신: 2026-07-01
+> 마지막 갱신: 2026-07-03
 > 기준 브랜치: `develop`
 > 이 문서는 라우터에 등록된 사용자 화면의 V2 전환 여부, 권장 작업 순서, 화면별 세부 동작 검증 범위를 한곳에서 관리한다.
 
@@ -29,7 +29,7 @@
 | 지갑 | 5 | 0 | 5 |
 | 합계 | 41 | 1 | 40 |
 
-현재 V2 완료 화면은 `/home` 하나다.
+현재 V2 완료 화면은 `/home` 하나다. `/community`와 `/community/category/:category`는 자동 검증을 통과했지만 Chrome 수동 검증 전이라 완료 표시를 보류한다.
 
 ## 3. 권장 작업 순서
 
@@ -63,8 +63,8 @@
 
 | V2 | 경로 | 화면 | 기능 상태 | V2 작업 핵심 | Phase |
 |----|------|------|-----------|--------------|------:|
-| `[O]` | `/community` | 커뮤니티 메인 | V2 완료·검색/알림 준비중 | 고정 헤더, 카테고리 PageView, 새로고침, pagination, 공용 PostCard | 1 |
-| `[X]` | `/community/category/:category` | 카테고리 피드 | 연동·일부 표시 전용 | 카테고리 전환, 필터 초기화, cursor 폐기, 빈 상태 | 1 |
+| `[X]` | `/community` | 커뮤니티 메인 | V2 구현·검색/알림 준비중 | Chrome 반응형·carousel·hover/focus 수동 검증 남음 | 1 |
+| `[X]` | `/community/category/:category` | 카테고리 피드 | V2 구현 | Chrome chip scroll·back·guide·row tap 수동 검증 남음 | 1 |
 | `[X]` | `/community/posts/:postId` | 게시글 상세 | 연동 | 로딩, 없는 글, 이미지, 좋아요, 투표, 댓글 preview, 뒤로가기 | 2 |
 | `[X]` | `/community/posts/:postId/comments` | 댓글·답글 | 연동 | 작성, thread, pagination, 키보드, 중복 제출, 실패 복구 | 2 |
 | `[X]` | `/community/write` | 글쓰기 | 연동·투표 일부 임시 | 이탈 경고, 제목·본문 검증, 이미지, 투표, 등록 진행·실패 | 2 |

@@ -4,16 +4,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/visuals/app_visual_id.dart';
+import '../../core/app_v2_tokens.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/preparing_toast.dart';
 import 'community_constants.dart';
 import 'community_routes.dart';
 import 'post_card.dart';
 
-const Color _communityTeal = Color(0xFF14B8A6);
+const Color _communitySecondary = Color(0xFF6E5E0D);
+const Color _communityError = Color(0xFFBA1A1A);
+
+TextStyle _communityStyle({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+}) => TextStyle(
+  fontFamily: AppV2Tokens.fontFamily,
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+);
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
@@ -35,13 +48,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppV2Tokens.background,
       body: const _CommunityMainBody(),
       floatingActionButton: FloatingActionButton(
         key: const Key('community-write-fab'),
         shape: const CircleBorder(),
-        backgroundColor: _communityTeal,
-        foregroundColor: AppColors.white,
+        backgroundColor: AppV2Tokens.primary,
+        foregroundColor: Colors.white,
         onPressed: () => context.push('/community/write'),
         child: const Icon(Icons.edit),
       ),
@@ -61,36 +74,46 @@ class CommunityCategoryScreen extends ConsumerStatefulWidget {
 
 class _CommunityCategoryScreenState
     extends ConsumerState<CommunityCategoryScreen> {
+  bool _activated = false;
+
+  String get _routeFeedKey => normalizeCommunityFeedKey(widget.initialCategory);
+
+  void _activateRouteFeed() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await ref.read(communityProvider.notifier).setFeedKey(_routeFeedKey);
+      if (mounted) setState(() => _activated = true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(communityProvider.notifier).setFeedKey(widget.initialCategory);
-    });
+    _activateRouteFeed();
   }
 
   @override
   void didUpdateWidget(covariant CommunityCategoryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialCategory != widget.initialCategory) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref.read(communityProvider.notifier).setFeedKey(widget.initialCategory);
-      });
+      _activated = false;
+      _activateRouteFeed();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: const _CommunityCategoryBody(),
+      backgroundColor: AppV2Tokens.background,
+      body: _CommunityCategoryBody(
+        routeFeedKey: _routeFeedKey,
+        activated: _activated,
+      ),
       floatingActionButton: FloatingActionButton(
         key: const Key('community-write-fab'),
         shape: const CircleBorder(),
-        backgroundColor: _communityTeal,
-        foregroundColor: AppColors.white,
+        backgroundColor: AppV2Tokens.primary,
+        foregroundColor: Colors.white,
         onPressed: () => context.push('/community/write'),
         child: const Icon(Icons.edit),
       ),
@@ -115,44 +138,79 @@ class _CommunityMainBody extends StatelessWidget {
 }
 
 class _CommunityCategoryBody extends ConsumerWidget {
-  const _CommunityCategoryBody();
+  final String routeFeedKey;
+  final bool activated;
+
+  const _CommunityCategoryBody({
+    required this.routeFeedKey,
+    required this.activated,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeKey = ref.watch(communityProvider).activeFeedKey;
+    final state = ref.watch(communityProvider);
+    final posts = state.postsForFeed(routeFeedKey);
     return SafeArea(
-      child: Stack(
+      child: Column(
         children: [
-          const Positioned(
-            right: 12,
-            bottom: 8,
-            child: Opacity(
-              opacity: 0.06,
-              child: AppVisual(id: AppVisualId.communityPaw, size: 72),
-            ),
-          ),
-          Column(
-            children: [
-              const _CommunityHeader(showBack: true),
-              Expanded(
-                child: ColoredBox(
-                  color: AppColors.surface,
-                  child: Column(
-                    children: [
-                      const _CategoryTabs(),
-                      const _CategoryFilterRow(),
-                      const _GuidePanel(),
-                      Expanded(
-                        child: _FeedList(
-                          key: const Key('community-category-feed'),
-                          feedKey: activeKey,
-                        ),
+          const _CommunityHeader(showBack: true),
+          Expanded(
+            child: RefreshIndicator(
+              color: AppV2Tokens.primary,
+              onRefresh: () => ref
+                  .read(communityProvider.notifier)
+                  .loadFeed(feedKey: routeFeedKey, refresh: true),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) => _handlePagination(
+                  notification,
+                  ref,
+                  routeFeedKey,
+                  state,
+                  posts,
+                ),
+                child: CustomScrollView(
+                  key: const Key('community-category-feed'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(
+                        child: _CategoryTabs(routeFeedKey: routeFeedKey),
                       ),
-                    ],
-                  ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(
+                        child: _GuidePanel(key: ValueKey(routeFeedKey)),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(
+                        child: _CategorySectionHeader(feedKey: routeFeedKey),
+                      ),
+                    ),
+                    if (!activated && posts.isEmpty)
+                      SliverList(
+                        delegate: SliverChildListDelegate(
+                          List.generate(
+                            3,
+                            (index) =>
+                                _FeedWidth(child: _FeedSkeleton(index: index)),
+                          ),
+                        ),
+                      )
+                    else
+                      ..._feedSlivers(
+                        context,
+                        ref,
+                        routeFeedKey,
+                        state,
+                        posts,
+                        isMain: false,
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 92)),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -170,16 +228,17 @@ class _CommunityHeader extends StatelessWidget {
     return Container(
       key: const Key('community-header'),
       height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(color: AppColors.background),
+      padding: const EdgeInsets.only(left: 20, right: 12),
+      decoration: const BoxDecoration(color: AppV2Tokens.background),
       child: Row(
         children: [
           SizedBox(
             key: const Key('community-header-leading-slot'),
-            width: showBack ? 44 : 0,
+            width: showBack ? 44 : 29,
             height: 44,
             child: showBack
                 ? AppBackButton(
+                    color: AppV2Tokens.text,
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         context.pop();
@@ -188,18 +247,21 @@ class _CommunityHeader extends StatelessWidget {
                       context.go('/community');
                     },
                   )
-                : const SizedBox.shrink(),
+                : const Icon(Icons.pets, size: 25, color: AppV2Tokens.primary),
           ),
-          if (showBack) const SizedBox(width: 8),
+          const SizedBox(width: 4),
           const Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
-              child: AppText(
+              child: Text(
                 '커뮤니티',
                 key: Key('community-header-title'),
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
+                style: TextStyle(
+                  fontFamily: AppV2Tokens.fontFamily,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppV2Tokens.text,
+                ),
               ),
             ),
           ),
@@ -211,14 +273,14 @@ class _CommunityHeader extends StatelessWidget {
                 key: const Key('community-search-button'),
                 icon: Icons.search_rounded,
                 tooltip: '검색',
-                onTap: () => _showCommunityToast(context, '준비중'),
+                onTap: () => showPreparingToast(context),
               ),
               const SizedBox(width: 4),
               _CommunityHeaderButton(
                 key: const Key('community-notification-button'),
                 icon: Icons.notifications_none_rounded,
                 tooltip: '알림',
-                onTap: () => _showCommunityToast(context, '준비중'),
+                onTap: () => showPreparingToast(context),
               ),
             ],
           ),
@@ -233,18 +295,27 @@ class _CommunitySectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 10, 20, 6),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
       child: Row(
         children: [
           Expanded(
-            child: AppText('지금 인기글', fontSize: 16, fontWeight: FontWeight.bold),
+            child: Text(
+              '지금 인기글',
+              style: _communityStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppV2Tokens.text,
+              ),
+            ),
           ),
-          AppText(
+          Text(
             'popular · 전체',
-            fontSize: 11,
-            color: AppColors.muted,
-            fontWeight: FontWeight.w700,
+            style: _communityStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppV2Tokens.textSecondary,
+            ),
           ),
         ],
       ),
@@ -320,7 +391,9 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: _page == index ? _communityTeal : AppColors.border,
+                  color: _page == index
+                      ? AppV2Tokens.primary
+                      : AppV2Tokens.border,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -342,12 +415,7 @@ class _CategoryPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: Key('community-category-panel-$index'),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(18),
-      ),
+      color: Colors.transparent,
       child: Column(
         children: [
           for (var row = 0; row < 2; row++) ...[
@@ -362,7 +430,7 @@ class _CategoryPanel extends StatelessWidget {
                           : const SizedBox.shrink(),
                     ),
                   ),
-                  if (column != 4) const SizedBox(width: 8),
+                  if (column != 4) const SizedBox(width: 4),
                 ],
               ],
             ),
@@ -382,152 +450,300 @@ class _CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _communityAccentFor(category);
-    final iconSize = MediaQuery.sizeOf(context).width < 360 ? 44.0 : 48.0;
     return InkWell(
       key: Key('community-category-tile-$category'),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/community/category/$category'),
       child: Ink(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: iconSize,
-              height: iconSize,
-              child: Center(
-                child: AppVisual(
-                  id: communityVisualId(category),
-                  color: accent,
-                  size: 21,
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppV2Tokens.surfaceSoft,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-            ),
-            const SizedBox(height: 5),
-            AppText(
-              kCommunityCategoryLabels[category] ?? category,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryTabs extends ConsumerWidget {
-  const _CategoryTabs();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeKey = ref.watch(communityProvider).activeFeedKey;
-    return SizedBox(
-      key: const Key('community-category-tabs'),
-      height: 56,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        itemBuilder: (context, index) {
-          final tab = kCommunityFeedTabs[index];
-          final tabKey = tab == 'POPULAR'
-              ? 'popular'
-              : tab == 'ALL'
-              ? 'all'
-              : tab;
-          final isActive = activeKey == tabKey;
-          return InkWell(
-            key: Key('community-tab-$tab'),
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => ref.read(communityProvider.notifier).setFeedKey(tab),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(3, 8, 3, 8),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? AppColors.text : Colors.transparent,
-                    width: 2,
+                child: Center(
+                  child: AppVisual(
+                    id: communityVisualId(category),
+                    color: accent,
+                    size: 21,
                   ),
                 ),
               ),
-              child: AppText(
-                kCommunityCategoryLabels[tab] ?? tab,
-                fontSize: 15,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                color: isActive ? AppColors.text : AppColors.textSecondary,
+              const SizedBox(height: 5),
+              Text(
+                kCommunityCategoryLabels[category] ?? category,
+                style: _communityStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppV2Tokens.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          );
-        },
-        separatorBuilder: (_, index) => const SizedBox(width: 20),
-        itemCount: kCommunityFeedTabs.length,
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _CategoryFilterRow extends StatelessWidget {
-  const _CategoryFilterRow();
+class _CategoryTabs extends StatefulWidget {
+  final String routeFeedKey;
+
+  const _CategoryTabs({required this.routeFeedKey});
+
+  @override
+  State<_CategoryTabs> createState() => _CategoryTabsState();
+}
+
+class _CategoryTabsState extends State<_CategoryTabs> {
+  late final List<GlobalKey> _chipKeys = List.generate(
+    kCommunityFeedTabs.length,
+    (_) => GlobalKey(),
+  );
+
+  void _revealActiveChip() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final index = kCommunityFeedTabs.indexWhere(
+        (tab) => normalizeCommunityFeedKey(tab) == widget.routeFeedKey,
+      );
+      final context = index < 0 ? null : _chipKeys[index].currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 180),
+        );
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _revealActiveChip();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CategoryTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.routeFeedKey != widget.routeFeedKey) _revealActiveChip();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Row(
-        children: [
-          Container(
-            key: const Key('community-filter-pill'),
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const AppText(
-              '전체⌄',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+    return SizedBox(
+      key: const Key('community-category-tabs'),
+      height: 56,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+        child: Row(
+          children: List.generate(kCommunityFeedTabs.length, (index) {
+            final tab = kCommunityFeedTabs[index];
+            final tabKey = tab == 'POPULAR'
+                ? 'popular'
+                : tab == 'ALL'
+                ? 'all'
+                : tab;
+            final isActive = widget.routeFeedKey == tabKey;
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == kCommunityFeedTabs.length - 1 ? 0 : 8,
+              ),
+              child: Semantics(
+                button: true,
+                selected: isActive,
+                child: InkWell(
+                  key: Key('community-tab-$tab'),
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: isActive
+                      ? () {}
+                      : () =>
+                            context.pushReplacement('/community/category/$tab'),
+                  child: Container(
+                    key: _chipKeys[index],
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppV2Tokens.primary
+                          : AppV2Tokens.surfaceSoft,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      kCommunityCategoryLabels[tab] ?? tab,
+                      style: _communityStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isActive
+                            ? Colors.white
+                            : AppV2Tokens.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
       ),
     );
   }
 }
 
-class _GuidePanel extends StatelessWidget {
-  const _GuidePanel();
+class _GuidePanel extends StatefulWidget {
+  const _GuidePanel({super.key});
+
+  @override
+  State<_GuidePanel> createState() => _GuidePanelState();
+}
+
+class _GuidePanelState extends State<_GuidePanel> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: const Key('community-guide-panel'),
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFFAF8),
-        border: Border.all(color: AppColors.border),
+        color: AppV2Tokens.surfaceSoft,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: const [
-          Icon(Icons.info_outline_rounded, size: 18, color: AppColors.muted),
-          SizedBox(width: 8),
-          Expanded(
-            child: AppText(
-              '커뮤니티 이용 가이드',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+      child: Semantics(
+        button: true,
+        expanded: _expanded,
+        child: InkWell(
+          key: const Key('community-guide-toggle'),
+          onTap: () => setState(() => _expanded = !_expanded),
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: AppV2Tokens.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        '커뮤니티 이용 가이드',
+                        style: TextStyle(
+                          fontFamily: AppV2Tokens.fontFamily,
+                          fontSize: 16,
+                          color: AppV2Tokens.text,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const AppDisclosureChevron(size: 20),
+                    ),
+                  ],
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  child: _expanded
+                      ? const Padding(
+                          padding: EdgeInsets.only(top: 10),
+                          child: Column(
+                            children: [
+                              _GuideBullet('서로를 존중하는 따뜻한 언어 사용'),
+                              _GuideBullet('건강 상담은 수의사 문의 권장'),
+                              _GuideBullet('상업적 광고·홍보 제한'),
+                              _GuideBullet('사진과 함께 일상 공유 권장'),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
           ),
-          AppDisclosureChevron(size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuideBullet extends StatelessWidget {
+  final String text;
+  const _GuideBullet(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('•', style: TextStyle(color: AppV2Tokens.textSecondary)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: _communityStyle(
+              fontSize: 14,
+              color: AppV2Tokens.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CategorySectionHeader extends StatelessWidget {
+  final String feedKey;
+  const _CategorySectionHeader({required this.feedKey});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = communitySourceLabel(feedKey);
+    final sort = feedKey == 'popular' ? 'popular' : 'latest';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '최신 게시글',
+              style: _communityStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppV2Tokens.text,
+              ),
+            ),
+          ),
+          Text(
+            '$sort · $label',
+            style: _communityStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppV2Tokens.textSecondary,
+            ),
+          ),
         ],
       ),
     );
@@ -543,6 +759,7 @@ class _CommunityMainScroll extends ConsumerWidget {
     final state = ref.watch(communityProvider);
     final posts = state.postsForFeed(feedKey);
     return RefreshIndicator(
+      color: AppV2Tokens.primary,
       onRefresh: () => ref
           .read(communityProvider.notifier)
           .loadFeed(feedKey: feedKey, refresh: true),
@@ -572,40 +789,6 @@ class _CommunityMainScroll extends ConsumerWidget {
             ..._feedSlivers(context, ref, feedKey, state, posts, isMain: true),
             const SliverToBoxAdapter(child: SizedBox(height: 92)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FeedList extends ConsumerWidget {
-  final String feedKey;
-
-  const _FeedList({super.key, required this.feedKey});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(communityProvider);
-    final posts = state.postsForFeed(feedKey);
-    return RefreshIndicator(
-      onRefresh: () => ref
-          .read(communityProvider.notifier)
-          .loadFeed(feedKey: feedKey, refresh: true),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          return _handlePagination(notification, ref, feedKey, state, posts);
-        },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 92),
-          children: _feedBoxChildren(
-            context,
-            ref,
-            feedKey,
-            state,
-            posts,
-            isMain: false,
-          ),
         ),
       ),
     );
@@ -747,13 +930,82 @@ class _FeedSkeleton extends StatelessWidget {
   final int index;
   const _FeedSkeleton({required this.index});
   @override
+  Widget build(BuildContext context) {
+    final hasImage = index.isEven;
+    return Container(
+      key: Key('community-feed-skeleton-$index'),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SkeletonBar(width: 52, height: 20, radius: 999),
+              const Spacer(),
+              const _SkeletonBar(width: 42, height: 12),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SkeletonBar(height: 20),
+                    SizedBox(height: 7),
+                    _SkeletonBar(width: 150, height: 20),
+                  ],
+                ),
+              ),
+              if (hasImage) ...[
+                const SizedBox(width: 16),
+                const _SkeletonBar(
+                  key: Key('community-skeleton-thumbnail'),
+                  width: 80,
+                  height: 80,
+                  radius: 16,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              _SkeletonBar(width: 32, height: 32, radius: 999),
+              SizedBox(width: 8),
+              _SkeletonBar(width: 72, height: 12),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBar extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+
+  const _SkeletonBar({
+    super.key,
+    this.width,
+    required this.height,
+    this.radius = 6,
+  });
+
+  @override
   Widget build(BuildContext context) => Container(
-    key: Key('community-feed-skeleton-$index'),
-    height: 142,
-    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+    width: width,
+    height: height,
     decoration: BoxDecoration(
-      color: AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(18),
+      color: AppV2Tokens.surfaceSoft,
+      borderRadius: BorderRadius.circular(radius),
     ),
   );
 }
@@ -809,11 +1061,9 @@ const List<String> _communityPrimaryCategories = [
 const List<String> _communitySecondaryCategories = ['NEWS', 'EVENT'];
 
 Color _communityAccentFor(String category) => switch (category) {
-  'POPULAR' || 'FOOD' || 'RESCUE' => const Color(0xFFFF8A65),
-  'CARE' || 'FREE' => const Color(0xFF81C784),
-  'OUTING' || 'QUESTION' || 'NEWS' => const Color(0xFF64B5F6),
-  'SHOW' || 'ADOPTION' || 'EVENT' => const Color(0xFFBA68C8),
-  _ => AppColors.textSecondary,
+  'POPULAR' || 'FOOD' || 'QUESTION' || 'ADOPTION' => _communitySecondary,
+  'RESCUE' => _communityError,
+  _ => AppV2Tokens.textSecondary,
 };
 
 void _showCommunityToast(BuildContext context, String message) {
@@ -863,7 +1113,7 @@ class _CommunityHeaderButton extends StatelessWidget {
       height: 44,
       child: Center(
         child: Material(
-          color: AppColors.surface,
+          color: AppV2Tokens.surface,
           borderRadius: BorderRadius.circular(20),
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
@@ -872,11 +1122,11 @@ class _CommunityHeaderButton extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: Border.all(color: AppColors.border),
+                color: AppV2Tokens.surface,
+                border: Border.all(color: AppV2Tokens.border),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 20, color: AppColors.textSecondary),
+              child: Icon(icon, size: 20, color: AppV2Tokens.textSecondary),
             ),
           ),
         ),
