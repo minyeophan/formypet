@@ -1,5 +1,11 @@
 # 현재 컨텍스트
 
+## 2026-07-04 커뮤니티 게시글 상세 모바일 V2 구현
+
+- `/community/posts/:postId`를 Plus Jakarta Sans, V2 배경·색상·divider, 60px header, 최대 672px 본문, 댓글 launcher 구조로 전환했다. 상세 screen은 게시글·댓글 요청과 오류·mutation 잠금을 담당하고 `community_detail_widgets.dart`가 article·이미지 pager·투표·통계·댓글 preview를 담당한다.
+- 댓글 preview는 root 3개·reply 2개 요청/중복 제거 제한을 사용한다. 이미지 4:3 pager, 투표 pending 보존, 좋아요·댓글 통계, flat 댓글 row, keyboard focus 2px outline을 반영했다. 댓글 전용 route와 Backend 계약은 변경하지 않았다.
+- 검증: Flutter 전체 367개 테스트 GREEN, `flutter analyze` No issues, Backend `CommunityIntegrationTest --rerun-tasks` GREEN, 한글 깨짐 검사·외부 HTML URL 검색·`git diff --check` GREEN. Chrome 수동 검증은 미실행이므로 `docs/SCREEN_V2_STATUS.md`의 상세 route는 `[X]`를 유지한다.
+
 ## 2026-07-03 커뮤니티 홈·카테고리 HTML V2 재구현
 
 - Home과 동일한 `AppV2Tokens.background(#F9F9FF)`를 Community 홈·카테고리 Scaffold, bespoke header, feed와 상태 영역에 적용했다. 카테고리 header는 공용 `AppBackButton`을 사용하고 direct URL에서는 `/community`로 복귀한다.

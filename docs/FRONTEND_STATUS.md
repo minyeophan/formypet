@@ -303,7 +303,7 @@
 | 투표 작성 UI | ✅ 구현됨 | `write_screen.dart`, `PollDraft` 생성 |
 | 피드 투표 표시 | ✅ 구현됨 | `PostCard`는 투표 badge, 상세 화면은 투표 문항·항목·비율 표시 |
 | 투표 참여 | 🔌 연동됨 | `CommunityService.vote()`, `CommunityProvider.vote()`가 투표 API 호출 후 캐시 갱신 |
-| 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`, `/community/posts/:postId/comments`, 상세 preview와 댓글 전용 화면 연결 |
+| 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`는 모바일 V2 article·4:3 이미지 pager·투표·flat 댓글 preview·댓글 launcher 적용, `/community/posts/:postId/comments` 댓글 전용 화면 연결 |
 | 댓글 수 동기화 | 🔌 연동됨 | 댓글 작성 응답의 서버 `commentsCount`로 피드와 상세 캐시 갱신 |
 | 댓글 작성자 프로필 이미지 | 🔌 연동됨 | `authorProfileImageUrl`, 인증 이미지 위젯, `/api/v1/users/{userId}/profile-image` 사용 |
 | 답글 작성·조회 | 🔌 연동됨 | root 댓글의 `replyCount`, preview replies, thread 조회, cursor 기반 답글 추가 조회 및 `parentCommentId` 작성 |
