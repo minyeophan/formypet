@@ -36,13 +36,19 @@ void showCommunityCommentMoreMenu(BuildContext context) {
 class CommunityCommentAvatar extends StatelessWidget {
   final String? url;
   final double size;
+  final Color? fallbackColor;
 
-  const CommunityCommentAvatar({super.key, required this.url, this.size = 32});
+  const CommunityCommentAvatar({
+    super.key,
+    required this.url,
+    this.size = 32,
+    this.fallbackColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     final fallback = Material(
-      color: AppColors.surfaceSoft,
+      color: fallbackColor ?? AppColors.surfaceSoft,
       shape: const CircleBorder(),
       child: SizedBox(
         width: size,

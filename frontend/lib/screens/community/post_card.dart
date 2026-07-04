@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
-import '../../core/date_utils.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'community_constants.dart';
 
-const _communityError = Color(0xFFBA1A1A);
+const _communityError = AppV2Tokens.error;
 
 TextStyle _communityTextStyle({
   double? fontSize,
@@ -51,7 +50,7 @@ class _PostCardState extends State<PostCard> {
     final author = post.authorNickname.trim().isEmpty
         ? '익명집사'
         : post.authorNickname.trim();
-    final relativeTime = _formatPostRelativeTime(post.createdAt);
+    final relativeTime = formatCommunityRelativeTime(post.createdAt);
     final border = _isFocused
         ? Border.all(color: AppV2Tokens.primary, width: 2)
         : const Border(bottom: BorderSide(color: AppV2Tokens.border));
@@ -310,17 +309,4 @@ class _Badge extends StatelessWidget {
       ),
     ),
   );
-}
-
-String? _formatPostRelativeTime(String createdAt) {
-  final trimmed = createdAt.trim();
-  if (trimmed.isEmpty) return null;
-  final created = DateTime.tryParse(trimmed);
-  if (created == null) return null;
-  final diff = DateTime.now().difference(created.toLocal());
-  if (diff.inMinutes < 1) return '방금 전';
-  if (diff.inHours < 1) return '${diff.inMinutes}분 전';
-  if (diff.inDays < 1) return '${diff.inHours}시간 전';
-  if (diff.inDays < 7) return '${diff.inDays}일 전';
-  return formatDateShort(trimmed);
 }

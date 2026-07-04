@@ -9,6 +9,7 @@ abstract final class AppV2Tokens {
   static const text = Color(0xFF151C27);
   static const textSecondary = Color(0xFF3C4A42);
   static const border = Color(0xFFE7EEFE);
+  static const error = Color(0xFFBA1A1A);
   static const gutter = 20.0;
   static const fontFamily = 'PlusJakartaSans';
 }
