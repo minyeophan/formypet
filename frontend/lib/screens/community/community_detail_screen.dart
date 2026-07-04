@@ -1,33 +1,31 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/app_colors.dart';
-import '../../core/visuals/app_visual_id.dart';
+import '../../core/app_v2_tokens.dart';
 import '../../core/keyboard_utils.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_more_button.dart';
-import '../../widgets/app_text.dart';
-import '../../widgets/app_visual.dart';
-import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 import 'community_comment_widgets.dart';
 import 'community_constants.dart';
+import 'community_detail_widgets.dart';
 import 'community_routes.dart';
 
 class CommunityDetailScreen extends ConsumerStatefulWidget {
-  final String postId;
-  final String? sourceKey;
-
   const CommunityDetailScreen({
     super.key,
     required this.postId,
     this.sourceKey,
   });
-
+  final String postId;
+  final String? sourceKey;
   @override
   ConsumerState<CommunityDetailScreen> createState() =>
       _CommunityDetailScreenState();
@@ -36,14 +34,25 @@ class CommunityDetailScreen extends ConsumerStatefulWidget {
 class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   final _scrollController = ScrollController();
   List<PostComment> _comments = const [];
-  bool _loading = true;
-  bool _postLoadFailed = false;
-  bool _liking = false;
+  String? _commentsCursor;
+  Object? _commentsError;
+  bool _unavailable = false;
+  bool _postLoading = true;
+  bool _commentsLoading = true;
+  bool _reloading = false;
+  bool _voting = false;
+  int _postGeneration = 0;
+  int _commentsGeneration = 0;
+
+  bool get _postMutationLocked =>
+      _postLoading ||
+      _voting ||
+      ref.read(communityProvider).isLiking(widget.postId);
 
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_reload());
   }
 
   @override
@@ -52,37 +61,99 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _postLoadFailed = false;
-    });
+  Future<void> _reload() async {
+    if (_reloading) return;
+    _reloading = true;
+    try {
+      await Future.wait<void>([_loadPost(), _loadComments()]);
+    } finally {
+      _reloading = false;
+    }
+  }
 
+  Future<void> _loadPost() async {
+    final generation = ++_postGeneration;
+    if (mounted) {
+      setState(() {
+        _postLoading = true;
+        _unavailable = false;
+      });
+    }
     try {
       await ref.read(communityProvider.notifier).loadPost(widget.postId);
-    } catch (_) {
-      _postLoadFailed = true;
+    } catch (error) {
+      if (!mounted || generation != _postGeneration) return;
+      final status = error is DioException ? error.response?.statusCode : null;
+      setState(() {
+        if (status == 400 || status == 404) {
+          _unavailable = true;
+        }
+      });
+      if (ref.read(communityProvider).postsById[widget.postId] != null &&
+          status != 400 &&
+          status != 404) {
+        _snack('게시글을 불러오지 못했습니다');
+      }
+    } finally {
+      if (mounted && generation == _postGeneration) {
+        setState(() => _postLoading = false);
+      }
     }
+  }
 
+  Future<void> _loadComments() async {
+    final generation = ++_commentsGeneration;
+    if (mounted) {
+      setState(() {
+        _commentsLoading = true;
+        _commentsError = null;
+      });
+    }
     try {
       final feed = await ref
           .read(communityServiceProvider)
-          .getComments(widget.postId, limit: 5, replyLimit: 3);
-      _comments = feed.items.take(5).toList();
-    } catch (_) {
-      if (_comments.isEmpty) _comments = const [];
+          .getComments(widget.postId, limit: 3, replyLimit: 2);
+      if (!mounted || generation != _commentsGeneration) return;
+      final roots = <String, PostComment>{};
+      for (final item in feed.items) {
+        if (roots.length == 3 && !roots.containsKey(item.id)) continue;
+        final replies = <String, PostComment>{
+          for (final reply in item.replies) reply.id: reply,
+        }.values.take(2).toList();
+        roots[item.id] = item.copyWith(replies: replies);
+      }
+      setState(() {
+        _comments = roots.values.toList();
+        _commentsCursor = feed.nextCursor;
+      });
+    } catch (error) {
+      if (!mounted || generation != _commentsGeneration) return;
+      setState(() => _commentsError = error);
+    } finally {
+      if (mounted && generation == _commentsGeneration) {
+        setState(() => _commentsLoading = false);
+      }
     }
-
-    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _toggleLike(Post post) async {
-    if (_liking) return;
-    setState(() => _liking = true);
+    if (_postMutationLocked) return;
     try {
       await ref.read(communityProvider.notifier).toggleLike(post.id);
+    } catch (_) {
+      if (mounted) _snack('좋아요를 처리하지 못했습니다');
+    }
+  }
+
+  Future<void> _vote(String optionId) async {
+    if (_postMutationLocked) return;
+    setState(() => _voting = true);
+    try {
+      await ref.read(communityProvider.notifier).vote(widget.postId, optionId);
+    } catch (_) {
+      if (mounted) _snack('투표를 처리하지 못했습니다');
     } finally {
-      if (mounted) setState(() => _liking = false);
+      if (mounted) setState(() => _voting = false);
     }
   }
 
@@ -102,75 +173,128 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
         replyToCommentId: replyToCommentId,
       ),
     );
-    if (mounted) await _load();
+    if (mounted) await _reload();
   }
+
+  void _snack(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
-    final post = ref.watch(communityProvider).postsById[widget.postId];
+    final state = ref.watch(communityProvider);
+    final post = state.postsById[widget.postId];
     final currentUserId = ref.watch(
-      authProvider.select((state) => state.profile?.id),
+      authProvider.select((value) => value.profile?.id),
     );
-    final title = _headerTitle(post);
-
+    final visible = post != null && !_unavailable;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppV2Tokens.background,
       body: SafeArea(
         child: Column(
           children: [
             _DetailHeader(
-              title: title,
+              title: _headerTitle(post),
               onBack: _goBack,
-              onMore: post == null ? null : _showPostMoreMenu,
+              onMore: visible ? _showPostMoreMenu : null,
             ),
-            Expanded(
-              child: _loading && post == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : post == null && _postLoadFailed
-                  ? const Center(child: AppText('게시글을 찾을 수 없습니다'))
-                  : post == null
-                  ? const Center(child: AppText('게시글을 찾을 수 없습니다'))
-                  : _DetailBody(
-                      controller: _scrollController,
-                      post: post,
-                      comments: _comments.take(5).toList(),
-                      currentUserId: currentUserId,
-                      onVote: (optionId) => ref
-                          .read(communityProvider.notifier)
-                          .vote(post.id, optionId),
-                      onCommentMore: () =>
-                          showCommunityCommentMoreMenu(context),
-                      onFirstComment: () => _openComments(focus: true),
-                      onMoreComments: () => _openComments(),
-                      onReply: (rootId) =>
-                          _openComments(replyToCommentId: rootId, focus: true),
-                      onThread: (rootId) => _openComments(threadId: rootId),
-                    ),
-            ),
+            Expanded(child: _buildBody(post, currentUserId)),
           ],
         ),
       ),
-      bottomNavigationBar: post == null
-          ? null
-          : _DetailBottomActionBar(
+      bottomNavigationBar: visible
+          ? _CommentLauncher(onPressed: () => _openComments(focus: true))
+          : null,
+    );
+  }
+
+  Widget _buildBody(Post? post, String? currentUserId) {
+    if (_unavailable) return _MessageState(message: '게시글을 찾을 수 없습니다');
+    if (post == null && _postLoading) return const CommunityDetailSkeleton();
+    if (post == null) {
+      return _MessageState(
+        message: '게시글을 불러오지 못했습니다',
+        actionLabel: '재시도',
+        onAction: _reload,
+      );
+    }
+    final loadedUnique = _comments.fold<int>(
+      0,
+      (sum, root) => sum + 1 + root.replies.map((e) => e.id).toSet().length,
+    );
+    final responseTotal = _comments.fold<int>(
+      0,
+      (sum, root) => sum + 1 + root.replyCount,
+    );
+    final total = [
+      post.commentsCount,
+      responseTotal,
+      loadedUnique,
+    ].reduce((a, b) => a > b ? a : b);
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 672),
+        child: ListView(
+          key: const Key('community-detail-scroll'),
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          children: [
+            CommunityDetailArticle(
               post: post,
-              liking: _liking,
-              onTop: () => _scrollController.animateTo(
-                0,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-              ),
               onLike: () => _toggleLike(post),
-              onComment: () => _openComments(focus: true),
+              likeEnabled: !_postMutationLocked,
+              onVote: _vote,
+              voteBusy: _voting,
+              commentsCount: total,
             ),
+            if (_commentsLoading && _comments.isEmpty)
+              const CommunityCommentSkeleton()
+            else
+              CommunityCommentPreview(
+                post: post,
+                comments: _comments,
+                currentUserId: currentUserId,
+                total: total,
+                hasMore: _commentsCursor != null,
+                onMore: () => _openComments(),
+                onReply: (id) =>
+                    _openComments(focus: true, replyToCommentId: id),
+                onThread: (id) => _openComments(threadId: id),
+                onManage: () => showCommunityCommentMoreMenu(context),
+              ),
+            if (_commentsError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '댓글을 불러오지 못했습니다',
+                        style: communityV2Style(
+                          size: 13,
+                          color: AppV2Tokens.error,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadComments,
+                      child: const Text('재시도'),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
   String _headerTitle(Post? post) {
-    final sourceLabel = communitySourceLabel(widget.sourceKey);
-    if (sourceLabel.isNotEmpty) return sourceLabel;
-    final postLabel = communitySourceLabel(post?.category);
-    return postLabel.isNotEmpty ? postLabel : '게시글';
+    final source = communitySourceLabel(widget.sourceKey);
+    if (source.isNotEmpty) return source;
+    final category = communitySourceLabel(post?.category);
+    return category.isNotEmpty ? category : '게시글';
   }
 
   void _goBack() {
@@ -182,365 +306,143 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     }
   }
 
-  void _showPostMoreMenu() {
-    showAppActionSheet(
-      context,
-      title: '더보기 메뉴',
-      actions: [
-        AppActionSheetItem(
-          label: '신고하기',
-          onTap: () => showPreparingToast(context),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onBack;
-  final VoidCallback? onMore;
-
-  const _DetailHeader({required this.title, required this.onBack, this.onMore});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 56,
-    child: Row(
-      children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: IconButton(
-            key: const Key('community-detail-back'),
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          ),
-        ),
-        Expanded(
-          child: AppText(
-            title,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            textAlign: TextAlign.center,
-          ),
-        ),
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: Center(
-            child: onMore == null
-                ? const SizedBox(width: 38, height: 38)
-                : AppMoreButton.surface(
-                    key: const Key('community-detail-more-button'),
-                    onPressed: onMore,
-                  ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _DetailBody extends StatelessWidget {
-  final ScrollController controller;
-  final Post post;
-  final List<PostComment> comments;
-  final String? currentUserId;
-  final Future<Post> Function(String optionId) onVote;
-  final VoidCallback onCommentMore;
-  final VoidCallback onFirstComment;
-  final VoidCallback onMoreComments;
-  final ValueChanged<String> onReply;
-  final ValueChanged<String> onThread;
-
-  const _DetailBody({
-    required this.controller,
-    required this.post,
-    required this.comments,
-    required this.currentUserId,
-    required this.onVote,
-    required this.onCommentMore,
-    required this.onFirstComment,
-    required this.onMoreComments,
-    required this.onReply,
-    required this.onThread,
-  });
-
-  @override
-  Widget build(BuildContext context) => ListView(
-    key: const Key('community-detail-scroll'),
-    controller: controller,
-    padding: const EdgeInsets.fromLTRB(20, 8, 20, 108),
-    children: [
-      Row(
-        key: const Key('community-detail-author'),
-        children: [
-          CommunityCommentAvatar(
-            key: const Key('community-detail-author-avatar'),
-            url: post.authorProfileImageUrl,
-            size: 36,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: AppText(post.authorNickname, fontWeight: FontWeight.bold),
-          ),
-        ],
+  void _showPostMoreMenu() => showAppActionSheet(
+    context,
+    title: '더보기 메뉴',
+    actions: [
+      AppActionSheetItem(
+        label: '신고하기',
+        onTap: () => showPreparingToast(context),
       ),
-      const SizedBox(height: 8),
-      const Divider(key: Key('community-detail-author-divider'), height: 1),
-      const SizedBox(height: 16),
-      AppText(
-        post.title?.trim().isNotEmpty == true
-            ? post.title!.trim()
-            : post.content,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-      ),
-      const SizedBox(height: 8),
-      if (post.title?.trim().isNotEmpty == true)
-        AppText(post.content, fontSize: 15, color: AppColors.textSecondary),
-      if (post.imageUrls.isNotEmpty) ...[
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 220,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: post.imageUrls.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (_, index) => ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: AuthenticatedNetworkImage(
-                url: post.imageUrls[index],
-                width: 220,
-                height: 220,
-                fit: BoxFit.cover,
-                fallback: const ColoredBox(color: AppColors.surfaceSoft),
-              ),
-            ),
-          ),
-        ),
-      ],
-      if (post.poll != null) ...[
-        const SizedBox(height: 20),
-        _PollCard(poll: post.poll!, onVote: onVote),
-      ],
-      const SizedBox(height: 24),
-      const Divider(key: Key('community-detail-content-divider'), height: 1),
-      const SizedBox(height: 16),
-      if (comments.isEmpty)
-        _FirstCommentButton(onPressed: onFirstComment)
-      else ...[
-        for (var i = 0; i < comments.length; i++) ...[
-          CommunityCommentTile(
-            key: i == 0
-                ? const Key('community-detail-first-comment')
-                : Key('community-detail-comment-${comments[i].id}'),
-            comment: comments[i],
-            canManage: canManageCommunityComment(
-              currentUserId: currentUserId,
-              post: post,
-              comment: comments[i],
-            ),
-            onMore: onCommentMore,
-            onReply: () => onReply(comments[i].id),
-          ),
-          for (final reply in comments[i].replies)
-            CommunityCommentTile(
-              comment: reply,
-              isReply: true,
-              canManage: canManageCommunityComment(
-                currentUserId: currentUserId,
-                post: post,
-                comment: reply,
-              ),
-              onMore: onCommentMore,
-            ),
-          if (comments[i].replyCount >
-              comments[i].replies.map((e) => e.id).toSet().length)
-            Padding(
-              padding: const EdgeInsets.only(left: 36),
-              child: TextButton(
-                key: Key('community-detail-more-replies-${comments[i].id}'),
-                onPressed: () => onThread(comments[i].id),
-                child: AppText(
-                  '답글 ${comments[i].replyCount - comments[i].replies.map((e) => e.id).toSet().length}개 더보기',
-                  fontSize: 12,
-                ),
-              ),
-            ),
-        ],
-        if (post.commentsCount > comments.length)
-          TextButton(
-            key: const Key('community-detail-more-comments'),
-            onPressed: onMoreComments,
-            child: AppText(
-              '댓글 ${post.commentsCount}개 더보기',
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-      ],
     ],
   );
 }
 
-class _FirstCommentButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _FirstCommentButton({required this.onPressed});
-
+class _DetailHeader extends StatelessWidget {
+  const _DetailHeader({required this.title, required this.onBack, this.onMore});
+  final String title;
+  final VoidCallback onBack;
+  final VoidCallback? onMore;
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      side: const BorderSide(color: AppColors.border),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: InkWell(
-      key: const Key('community-detail-first-comment'),
-      borderRadius: BorderRadius.circular(16),
-      onTap: onPressed,
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        child: Center(
-          child: AppText(
-            '첫 댓글쓰기',
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
+  Widget build(BuildContext context) => SizedBox(
+    height: 60,
+    child: Padding(
+      padding: const EdgeInsets.only(left: 20, right: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(
+              key: const Key('community-detail-back'),
+              onPressed: onBack,
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppV2Tokens.text,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: communityV2Style(size: 24, weight: FontWeight.w700),
+            ),
+          ),
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: onMore == null
+                ? null
+                : AppMoreButton.plain(
+                    key: const Key('community-detail-more-button'),
+                    onPressed: onMore,
+                    plainColor: AppV2Tokens.textSecondary,
+                    plainSplashColor: AppV2Tokens.primarySoft,
+                  ),
+          ),
+        ],
       ),
     ),
   );
 }
 
-class _PollCard extends StatelessWidget {
-  final PostPoll poll;
-  final Future<Post> Function(String optionId) onVote;
-
-  const _PollCard({required this.poll, required this.onVote});
-
+class _CommentLauncher extends StatefulWidget {
+  const _CommentLauncher({required this.onPressed});
+  final VoidCallback onPressed;
   @override
-  Widget build(BuildContext context) {
-    final total = poll.options.fold(
-      0,
-      (sum, option) => sum + option.votesCount,
-    );
-    return Material(
-      key: const Key('community-detail-poll'),
-      color: AppColors.surface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppText(poll.question, fontWeight: FontWeight.bold),
-            const SizedBox(height: 10),
-            for (final option in poll.options)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: OutlinedButton(
-                  key: Key('community-poll-option-${option.id}'),
-                  onPressed: () => onVote(option.id),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: AppText(option.text, color: AppColors.text),
-                      ),
-                      AppText(
-                        '${total == 0 ? 0 : (option.votesCount * 100 / total).round()}%',
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<_CommentLauncher> createState() => _CommentLauncherState();
 }
 
-class _DetailBottomActionBar extends StatelessWidget {
-  final Post post;
-  final bool liking;
-  final VoidCallback onTop;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
-
-  const _DetailBottomActionBar({
-    required this.post,
-    required this.liking,
-    required this.onTop,
-    required this.onLike,
-    required this.onComment,
-  });
+class _CommentLauncherState extends State<_CommentLauncher> {
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) => SafeArea(
     top: false,
     child: Material(
-      color: AppColors.surface,
-      elevation: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Divider(
-            key: Key('community-detail-bottom-divider'),
-            height: 1,
-            color: AppColors.border,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      color: AppV2Tokens.background,
+      child: Container(
+        key: const Key('community-detail-launcher-shell'),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppV2Tokens.border)),
+        ),
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        child: Container(
+          key: _focused ? const Key('community-detail-launcher-focus') : null,
+          decoration: _focused
+              ? BoxDecoration(
+                  border: Border.all(color: AppV2Tokens.primary, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                )
+              : null,
+          child: InkWell(
+            key: const Key('community-detail-comment-launcher'),
+            onTap: widget.onPressed,
+            onFocusChange: (focused) => setState(() => _focused = focused),
+            splashColor: AppV2Tokens.primarySoft,
             child: Row(
               children: [
-                IconButton(
-                  key: const Key('community-detail-top-button'),
-                  tooltip: '맨 위로',
-                  onPressed: onTop,
-                  icon: const AppVisual(
-                    id: AppVisualId.communityTop,
-                    size: 21,
-                    semanticLabel: '맨 위로',
+                Expanded(
+                  child: Text(
+                    '소중한 댓글을 남겨주세요',
+                    style: communityV2Style(
+                      size: 14,
+                      color: AppV2Tokens.textSecondary,
+                    ),
                   ),
                 ),
-                const Spacer(),
-                TextButton.icon(
-                  key: const Key('community-detail-bottom-like'),
-                  onPressed: liking ? null : onLike,
-                  icon: Icon(
-                    post.liked ? Icons.favorite : Icons.favorite_border,
-                    size: 20,
-                    color: post.liked ? Colors.red : AppColors.textSecondary,
-                  ),
-                  label: AppText('${post.likesCount}', fontSize: 13),
-                ),
-                const SizedBox(width: 6),
-                TextButton.icon(
-                  key: const Key('community-detail-bottom-comment'),
-                  onPressed: onComment,
-                  icon: const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
-                  label: AppText('${post.commentsCount}', fontSize: 13),
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 20,
+                  color: AppV2Tokens.textSecondary,
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
+    ),
+  );
+}
+
+class _MessageState extends StatelessWidget {
+  const _MessageState({required this.message, this.actionLabel, this.onAction});
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(message, style: communityV2Style(size: 15)),
+        if (onAction != null)
+          TextButton(onPressed: onAction, child: Text(actionLabel!)),
+      ],
     ),
   );
 }

@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
-import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/core/app_v2_tokens.dart';
 import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/models/user_profile.dart';
@@ -46,6 +46,116 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('uses the V2 header and comment launcher', (tester) async {
+    await _pumpDetail(tester);
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, AppV2Tokens.background);
+    expect(
+      find.byKey(const Key('community-detail-comment-launcher')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('community-detail-top-button')), findsNothing);
+    expect(find.text('소중한 댓글을 남겨주세요'), findsOneWidget);
+  });
+
+  testWidgets('comment launcher shows a two pixel outline on keyboard focus', (
+    tester,
+  ) async {
+    await _pumpDetail(tester);
+
+    for (var i = 0; i < 12; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      if (find
+          .byKey(const Key('community-detail-launcher-focus'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+    }
+
+    final focus = tester.widget<Container>(
+      find.byKey(const Key('community-detail-launcher-focus')),
+    );
+    final decoration = focus.decoration as BoxDecoration;
+    expect(decoration.border!.top.width, 2);
+    expect(decoration.border!.top.color, AppV2Tokens.primary);
+  });
+
+  testWidgets('like statistic shows a two pixel outline on keyboard focus', (
+    tester,
+  ) async {
+    await _pumpDetail(tester);
+
+    await _tabUntilFound(tester, const Key('community-detail-like-focus'));
+
+    final focus = tester.widget<Container>(
+      find.byKey(const Key('community-detail-like-focus')),
+    );
+    final decoration = focus.decoration as BoxDecoration;
+    expect(decoration.border!.top.width, 2);
+    expect(decoration.border!.top.color, AppV2Tokens.primary);
+  });
+
+  testWidgets('reply link shows a two pixel outline on keyboard focus', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      comments: [_comment(id: 'one', userId: 'user-1')],
+    );
+
+    await _tabUntilFound(
+      tester,
+      const Key('community-comment-reply-one-focus'),
+    );
+
+    final focus = tester.widget<Container>(
+      find.byKey(const Key('community-comment-reply-one-focus')),
+    );
+    final decoration = focus.decoration as BoxDecoration;
+    expect(decoration.border!.top.width, 2);
+    expect(decoration.border!.top.color, AppV2Tokens.primary);
+  });
+
+  testWidgets('requests a three-root two-reply preview', (tester) async {
+    final service = _FakeCommunityService(
+      post: _post(userId: 'user-1'),
+      comments: const [],
+    );
+    await _pumpDetail(tester, service: service);
+
+    expect(service.lastCommentsLimit, 3);
+    expect(service.lastReplyLimit, 2);
+  });
+
+  testWidgets(
+    'renders empty title and author fallbacks while preserving body',
+    (tester) async {
+      await _pumpDetail(
+        tester,
+        post: Post(
+          id: 'post-1',
+          userId: 'user-1',
+          authorNickname: '',
+          title: ' ',
+          content: '본문은 항상 표시',
+          category: 'FREE',
+          likesCount: 0,
+          liked: false,
+          commentsCount: 0,
+          imageUrls: const [],
+          createdAt: '2026-06-24T00:00:00',
+        ),
+      );
+
+      expect(find.text('익명집사'), findsOneWidget);
+      expect(find.text('제목 없음'), findsOneWidget);
+      expect(find.text('본문은 항상 표시'), findsOneWidget);
+    },
+  );
 
   testWidgets('opens post more menu', (tester) async {
     await _pumpDetail(tester);
@@ -117,33 +227,33 @@ void main() {
     expect(find.text('댓글 1'), findsNothing);
   });
 
-  testWidgets('shows top divider on bottom action bar', (tester) async {
+  testWidgets('shows top divider on comment launcher', (tester) async {
     await _pumpDetail(
       tester,
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
 
-    final divider = tester.widget<Divider>(
-      find.byKey(const Key('community-detail-bottom-divider')),
+    final launcher = tester.widget<Container>(
+      find.byKey(const Key('community-detail-launcher-shell')),
     );
-    expect(divider.height, 1);
-    expect(divider.color, AppColors.border);
+    final decoration = launcher.decoration as BoxDecoration;
+    expect(decoration.border!.top.color, AppV2Tokens.border);
   });
 
-  testWidgets('renders comments as bordered cards', (tester) async {
+  testWidgets('renders comments as flat rows', (tester) async {
     await _pumpDetail(
       tester,
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
 
-    final card = tester.widget<Card>(
-      find.byKey(const Key('community-root-one')),
+    expect(find.byKey(const Key('community-root-one')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('community-root-one')),
+        matching: find.byType(Card),
+      ),
+      findsNothing,
     );
-    expect(card.color, AppColors.surface);
-    expect(card.elevation, 0);
-    final shape = card.shape as RoundedRectangleBorder;
-    expect(shape.side.color, AppColors.border);
-    expect(shape.borderRadius, BorderRadius.circular(16));
   });
 
   testWidgets('renders authenticated network image for comment avatar url', (
@@ -183,7 +293,7 @@ void main() {
     );
   });
 
-  testWidgets('renders three replies and the remaining reply count', (
+  testWidgets('renders two replies and the remaining reply count', (
     tester,
   ) async {
     await _pumpDetail(
@@ -203,16 +313,9 @@ void main() {
     );
 
     expect(find.byKey(const Key('community-reply-reply-1')), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('community-reply-reply-3')),
-      180,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('community-detail-scroll')),
-        matching: find.byType(Scrollable),
-      ),
-    );
-    expect(find.byKey(const Key('community-reply-reply-3')), findsOneWidget);
-    expect(find.text('답글 2개 더보기'), findsOneWidget);
+    expect(find.byKey(const Key('community-reply-reply-2')), findsOneWidget);
+    expect(find.byKey(const Key('community-reply-reply-3')), findsNothing);
+    expect(find.text('답글 3개 더보기'), findsOneWidget);
   });
 
   testWidgets('delete action shows preparing toast', (tester) async {
@@ -233,16 +336,27 @@ void main() {
   });
 }
 
+Future<void> _tabUntilFound(WidgetTester tester, Key key) async {
+  for (var i = 0; i < 16; i++) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    if (find.byKey(key).evaluate().isNotEmpty) return;
+  }
+}
+
 Future<void> _pumpDetail(
   WidgetTester tester, {
   String currentUserId = 'user-1',
   Post? post,
   List<PostComment>? comments,
+  _FakeCommunityService? service,
 }) async {
-  final service = _FakeCommunityService(
-    post: post ?? _post(userId: 'user-1'),
-    comments: comments ?? const [],
-  );
+  final resolvedService =
+      service ??
+      _FakeCommunityService(
+        post: post ?? _post(userId: 'user-1'),
+        comments: comments ?? const [],
+      );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -259,7 +373,7 @@ Future<void> _pumpDetail(
             ),
           ),
         ),
-        communityServiceProvider.overrideWithValue(service),
+        communityServiceProvider.overrideWithValue(resolvedService),
       ],
       child: const MaterialApp(home: CommunityDetailScreen(postId: 'post-1')),
     ),
@@ -304,6 +418,8 @@ PostComment _comment({
 class _FakeCommunityService extends CommunityService {
   final Post post;
   final List<PostComment> comments;
+  int? lastCommentsLimit;
+  int? lastReplyLimit;
 
   _FakeCommunityService({required this.post, required this.comments});
 
@@ -325,7 +441,11 @@ class _FakeCommunityService extends CommunityService {
     String? cursor,
     int limit = 20,
     int replyLimit = 20,
-  }) async => PostCommentFeed(items: comments);
+  }) async {
+    lastCommentsLimit = limit;
+    lastReplyLimit = replyLimit;
+    return PostCommentFeed(items: comments);
+  }
 }
 
 class _CannedAdapter implements HttpClientAdapter {
