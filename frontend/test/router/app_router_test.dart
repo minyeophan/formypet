@@ -17,8 +17,6 @@ import 'package:frontend/screens/community/community_comments_screen.dart';
 import 'package:frontend/screens/community/community_routes.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
-import 'package:frontend/screens/community/mock/community_mock_detail_screen.dart';
-import 'package:frontend/screens/community/mock/community_mock_feed_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
@@ -69,49 +67,6 @@ void main() {
 
     expect(find.byType(AuthScreen), findsOneWidget);
   });
-
-  testWidgets('public community mock bypasses auth and onboarding redirects', (
-    tester,
-  ) async {
-    for (final entry in [
-      (
-        authState: const AuthState(isLoading: false, isAuthenticated: false),
-        petState: _petState(isLoading: false, hasOnboarded: false),
-      ),
-      (
-        authState: const AuthState(isLoading: false, isAuthenticated: true),
-        petState: _petState(isLoading: false, hasOnboarded: false),
-      ),
-    ]) {
-      await _pumpRouter(
-        tester,
-        initialLocation: '/community/mock',
-        authState: entry.authState,
-        petState: entry.petState,
-      );
-
-      expect(find.byType(CommunityMockFeedScreen), findsOneWidget);
-      final navigation = tester.widget<BottomNavigationBar>(
-        find.byType(BottomNavigationBar),
-      );
-      expect(navigation.currentIndex, 1);
-    }
-  });
-
-  testWidgets(
-    'public community mock detail bypasses auth and hides bottom navigation',
-    (tester) async {
-      await _pumpRouter(
-        tester,
-        initialLocation: '/community/mock/posts/story-1',
-        authState: const AuthState(isLoading: false, isAuthenticated: false),
-        petState: _petState(isLoading: false, hasOnboarded: false),
-      );
-
-      expect(find.byType(CommunityMockDetailScreen), findsOneWidget);
-      expect(find.byType(BottomNavigationBar), findsNothing);
-    },
-  );
 
   testWidgets(
     'actual community detail is authenticated and hides bottom navigation',
