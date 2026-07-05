@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-05 Community 개발용 mock 제거
+
+- 개발 전용 `/community/mock`, `/community/mock/posts/:postId` 라우트와 인증·온보딩 우회 조건을 제거했다. 삭제된 URL에는 호환 리다이렉트나 별도 오류 화면 계약을 추가하지 않았다.
+- `frontend/lib/screens/community/mock/` 구현 5개와 전용 widget 테스트를 삭제하고, router 테스트에서 mock 공개 경로 검증만 제거했다. 실제 Community 목록·상세·댓글·글쓰기 라우트와 인증 계약은 유지한다.
+- `docs/SCREEN_V2_STATUS.md`에서 mock 화면 2개를 제외해 Community 화면은 5개, 전체 화면은 39개로 갱신했다. `/community`와 카테고리 화면은 Chrome 수동 검증 전이므로 `[X]`를 유지한다.
+- 변경 후 router·Community 목록·상세 선택 테스트 85개와 Flutter 전체 테스트 354개가 통과했고, `flutter analyze`는 `No issues found!`로 종료했다.
+
 ## 2026-07-04 커뮤니티 게시글 상세 모바일 V2 구현
 
 - `/community/posts/:postId`를 Plus Jakarta Sans, V2 배경·색상·divider, 60px header, 최대 672px 본문, 댓글 launcher 구조로 전환했다. 상세 screen은 게시글·댓글 요청과 오류·mutation 잠금을 담당하고 `community_detail_widgets.dart`가 article·이미지 pager·투표·통계·댓글 preview를 담당한다.
@@ -196,11 +203,11 @@
 
 ## 최신 Handover
 
-- Goal: V20 고아 detail 회귀 테스트 반영 후 `docs/CONTEXT.md`를 현재 스키마와 검증 상태에 맞게 동기화한다.
-- Done: 폐기된 play·sleep·checkup 기록의 `record_walk`·`record_vet` detail 연쇄 삭제, 고아 행 부재, 정상 walk·vet detail 보존을 `FlywayMigrationTest`에서 검증한다. 선택 테스트 3개와 백엔드 전체 `test --rerun-tasks`가 2026-07-02 통과했고 PR #4가 `develop`에 병합됐다.
-- Remaining: 커뮤니티 검색 UI, 알림, 카테고리 필터 UI와 댓글·답글 수정/삭제/신고는 후속 범위다. 검색 조건과 cursor를 서버가 결합해 검증하지 않으므로 프론트가 조건 변경 시 cursor를 초기화해야 한다.
-- Next step: 프론트 검색 화면 구현 시 `keyword`, `category`, `sort` 변경마다 첫 페이지를 요청하고 400 검색어 길이 오류를 사용자 입력 안내로 연결한다.
-- Warnings: 기존 Flyway `V1`~`V20`은 수정하지 않는다. 이번 문서 동기화에서는 애플리케이션 코드, 마이그레이션, 테스트 파일을 변경하지 않았다.
+- Goal: 운영 동선과 분리된 Community 개발용 mock 화면·라우트·테스트를 제거하고 화면 현황 문서를 실제 라우터와 맞춘다.
+- Done: `/community/mock` 계열 라우트, 인증·온보딩 우회 조건, mock 구현 5개와 전용 테스트를 제거했다. 실제 Community router·목록·상세 선택 테스트 85개와 Flutter 전체 테스트 354개가 통과했고 `flutter analyze`도 오류 없이 종료했다. `SCREEN_V2_STATUS` 집계는 Community 5개·전체 39개로 갱신했다.
+- Remaining: 실제 Community 상세의 이미지·투표·댓글 상태 보강과 Chrome 반응형 수동 검증은 별도 후속 작업이다. 검색 UI, 알림과 댓글·답글 수정·삭제·신고도 이번 정리 범위에 포함하지 않았다.
+- Next step: Community 상세·댓글 화면의 실제 데이터 기반 상태별 widget 테스트 범위를 점검하고, Chrome에서 320·360·412px 반응형과 키보드·스크롤 동작을 수동 검증한다.
+- Warnings: 삭제된 mock URL에는 호환 리다이렉트를 추가하지 않았다. `docs/CONTEXT.md`의 과거 `community_mock_screen_test.dart` 검증 기록은 당시 상태를 설명하는 역사 기록이므로 유지한다.
 
 ## 이전 Handover
 

@@ -26,8 +26,6 @@ import '../screens/community/community_comments_screen.dart';
 import '../screens/community/community_constants.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
-import '../screens/community/mock/community_mock_detail_screen.dart';
-import '../screens/community/mock/community_mock_feed_screen.dart';
 import '../screens/community/write_screen.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
@@ -52,12 +50,6 @@ class _RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final path = state.uri.path;
-    if (path == '/community/mock' ||
-        path.startsWith('/community/mock/posts/')) {
-      return null;
-    }
-
     final authState = _ref.read(authProvider);
     final petState = _ref.read(petProvider);
 
@@ -103,11 +95,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             const OnboardingScreen(mode: PetEntryMode.additionalPet),
       ),
       GoRoute(
-        path: '/community/mock/posts/:postId',
-        builder: (c, s) =>
-            CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
-      ),
-      GoRoute(
         path: '/community/posts/:postId/comments',
         builder: (c, s) {
           final replyTo = s.uri.queryParameters['replyTo'];
@@ -136,10 +123,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
-          ),
-          GoRoute(
-            path: '/community/mock',
-            builder: (c, s) => const CommunityMockFeedScreen(),
           ),
           GoRoute(
             path: '/community/category/:category',
