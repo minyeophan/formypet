@@ -18,8 +18,6 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Time;
@@ -383,16 +381,6 @@ public class WalletExpenseService {
             return time.toLocalTime();
         }
         return LocalTime.parse(value.toString());
-    }
-
-    private LocalDate normalizeDate(Object value) {
-        if (value instanceof LocalDate localDate) {
-            return localDate;
-        }
-        if (value instanceof Date date) {
-            return date.toLocalDate();
-        }
-        return LocalDate.parse(value.toString());
     }
 
     private record PetRow(Long id, Long userId, boolean deleted) {

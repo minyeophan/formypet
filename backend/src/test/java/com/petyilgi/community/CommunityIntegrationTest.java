@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,6 +38,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Autowired CommunityService communityService;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String POSTS_URL = "/api/v1/posts";
@@ -499,6 +502,18 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"   \"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void nullCommentRequestIsRejectedBeforeParentAccess() throws Exception {
+        String email = "null-comment-request@example.com";
+        String token = registerAndGetToken(email, "nullrequest");
+        Long postId = createPost(token, "null request", "FREE", "comment validation");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> communityService.createComment(email, postId, null));
+        assertEquals("Comment content must be between 1 and 1000 characters.", exception.getMessage());
     }
 
     @Test

@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-06 Java ACTIONABLE 진단 정리
+
+- fresh Problems 기준선은 Workspace 347개, Backend Java 347개(main 38, test 309), ACTIONABLE 6개, BLOCKER 0개였다. `CommunityService.createComment()` 경고는 null request가 기존 content 검증에서 먼저 거부되어 실제 NPE가 발생하는 버그가 아니라 JDT의 제어 흐름 추론 한계였다.
+- direct service null request characterization test를 production 변경 전에 추가해 기존 `IllegalArgumentException`과 오류 문구를 고정했다. 이후 `createComment()`의 null 검증만 별도 분기하고, `WalletExpenseService`의 미사용 import·private method와 `MediaIntegrationTest`의 미사용 import를 제거했다.
+- Java indexing 완료 후 after-2와 after-3 snapshot은 341개(main 35, test 306), ACTIONABLE 0개, BLOCKER 0개로 동일했다. 위치를 제외한 multiset 비교에서도 기존 ACTIONABLE 6개가 사라진 것 외에 신규 진단은 없었다.
+- Community characterization test는 구현 전후 통과했고 Community·Wallet·Media 선택 테스트와 최종 `compileJava compileTestJava test --rerun-tasks --warning-mode all`이 `BUILD SUCCESSFUL`로 종료했다. 감사 산출물은 `C:\tmp\paa-java-actionable-fix-fa6e3c4-20260706-100236`에 있다.
+
 ## 2026-07-05 Community 개발용 mock 제거
 
 - 개발 전용 `/community/mock`, `/community/mock/posts/:postId` 라우트와 인증·온보딩 우회 조건을 제거했다. 삭제된 URL에는 호환 리다이렉트나 별도 오류 화면 계약을 추가하지 않았다.
@@ -203,11 +210,11 @@
 
 ## 최신 Handover
 
-- Goal: 운영 동선과 분리된 Community 개발용 mock 화면·라우트·테스트를 제거하고 화면 현황 문서를 실제 라우터와 맞춘다.
-- Done: `/community/mock` 계열 라우트, 인증·온보딩 우회 조건, mock 구현 5개와 전용 테스트를 제거했다. 실제 Community router·목록·상세 선택 테스트 85개와 Flutter 전체 테스트 354개가 통과했고 `flutter analyze`도 오류 없이 종료했다. `SCREEN_V2_STATUS` 집계는 Community 5개·전체 39개로 갱신했다.
-- Remaining: 실제 Community 상세의 이미지·투표·댓글 상태 보강과 Chrome 반응형 수동 검증은 별도 후속 작업이다. 검색 UI, 알림과 댓글·답글 수정·삭제·신고도 이번 정리 범위에 포함하지 않았다.
-- Next step: Community 상세·댓글 화면의 실제 데이터 기반 상태별 widget 테스트 범위를 점검하고, Chrome에서 320·360·412px 반응형과 키보드·스크롤 동작을 수동 검증한다.
-- Warnings: 삭제된 mock URL에는 호환 리다이렉트를 추가하지 않았다. `docs/CONTEXT.md`의 과거 `community_mock_screen_test.dart` 검증 기록은 당시 상태를 설명하는 역사 기록이므로 유지한다.
+- Goal: Java Problems 감사에서 확인한 ACTIONABLE 6개를 기존 동작과 API 계약을 유지하면서 제거한다.
+- Done: production 변경 전에 direct service null request characterization test를 추가해 기존 예외 계약을 확인했다. `CommunityService.createComment()`의 null 분기만 명시하고 Wallet·Media 미사용 코드를 제거했다. 안정된 Java snapshot은 347개에서 341개로 감소했고 ACTIONABLE 6개는 0개, BLOCKER는 0개다. 선택 테스트와 backend 전체 compile/test가 통과했다.
+- Remaining: 남은 Java 진단 341개는 Spring 외부 `@NonNull` 계약과 프로젝트 annotation 정책 차이, Testcontainers lifecycle Hint 등 NON_BLOCKING 항목이다. 이번 작업에서는 suppression·cast·`Objects.requireNonNull`로 개별 보정하지 않았다.
+- Next step: Java null annotation 정책을 별도 설계해 package 기본 계약 도입 여부와 JDT·javac·Spring 호환 범위를 작은 실험으로 검증한다.
+- Warnings: `.vscode/settings.json`이 `.worktrees`를 Java import에서 제외하므로 Problems 검증이 필요한 Java 작업은 기본 workspace에서 별도 feature branch로 수행해야 한다. 감사 근거는 `C:\tmp\paa-java-actionable-fix-fa6e3c4-20260706-100236`에 보존한다.
 
 ## 이전 Handover
 
