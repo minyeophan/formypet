@@ -47,6 +47,14 @@ Spring Framework 6.2.1과 Eclipse JDT가 인식하는 null 계약을 작은 범�
 - fresh baseline과 최종 snapshot 2회는 모두 Java 338개(main 32, test 306)였고 신규 ACTIONABLE·BLOCKER는 없었다.
 - 다음 단계는 별도 PR에서 `auth.client` package annotation을 재적용하고 `OAuthSignupService` 잠재 NPE 2개가 재발하지 않는지 확인하는 것이다.
 
+## 재적용 결과
+
+- consumer 정리 후 `auth.client`의 `@NonNullApi`와 실제 nullable 경계를 다시 적용했다.
+- fresh baseline은 Java 338개(main 32, test 306), 최종 안정 snapshot 2회는 340개(main 33, test 307)였다.
+- 신규 진단은 `AuthService`, `RestClientKakaoUserClient`, `AuthIntegrationTest`의 `16778128` NON_BLOCKING 각 1개이고, request factory의 동일 코드 경고 1개는 제거됐다.
+- `OAuthSignupService` 잠재 NPE 2개는 재발하지 않았고 신규 ACTIONABLE·BLOCKER는 없다. compile, 선택 테스트와 backend 전체 테스트가 통과했다.
+- 이 결과는 `auth.client`에 한정하며 다른 package는 별도 설계와 snapshot 검증 없이 확대하지 않는다.
+
 ## 비범위
 
 - 남은 Java 진단 일괄 수정

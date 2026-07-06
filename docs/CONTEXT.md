@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-06 auth.client Spring null annotation 재적용
+
+- `com.petyilgi.auth.client`에 Spring `@NonNullApi`를 적용하고 `KakaoUserInfo.email`·`nickname`, `RestClientKakaoUserClient`의 실제 nullable 입출력 경계만 `@Nullable`로 선언했다. test package, 다른 main package, dependency와 JDT 설정은 변경하지 않았다.
+- fresh baseline은 Java 338개(main 32, test 306), 최종 안정 snapshot 2회는 340개(main 33, test 307)로 일치했다. 신규 3개와 제거 1개는 모두 `16778128` NON_BLOCKING 경계 진단이며, `OAuthSignupService` 잠재 NPE 2개는 재발하지 않았다.
+- 신규 진단은 `AuthService`의 access token 전달, `RestClientKakaoUserClient`의 빈 map 반환, `AuthIntegrationTest`의 JSON content 전달 경계에서 각각 1개다. 기존 request factory 경고 1개는 제거됐다. suppression, cast와 `Objects.requireNonNull`은 추가하지 않았다.
+- 변경 전 선택 테스트, Java compile, 변경 후 선택 테스트와 backend 전체 테스트가 모두 통과했다. 감사 산출물은 `C:\tmp\paa-auth-client-null-annotations-8dea4a8-20260706-154846`에 있다.
+
 ## 2026-07-06 OAuth nullable 소비자 정리
 
 - `OAuthSignupService`가 nullable인 Kakao email·nickname accessor를 조건식에서 반복 호출하지 않고 지역 변수에 한 번만 저장하도록 정리했다. verified, null, blank, 기존 email 중복 검사 순서와 내부 email·기본 nickname fallback은 유지했다.
@@ -224,11 +231,11 @@
 
 ## 최신 Handover
 
-- Goal: Spring null 파일럿에서 드러난 `OAuthSignupService` nullable accessor 소비를 기존 인증 동작을 유지하면서 정리한다.
-- Done: email·nickname accessor를 지역 변수에 한 번만 저장하고 null·blank·unverified·중복 email fallback을 통합 테스트로 고정했다. 최종 Java snapshot 2회는 338개로 동일하고 신규 ACTIONABLE·BLOCKER가 없으며 backend 전체 compile/test가 통과했다.
-- Remaining: `auth.client`의 `@NonNullApi`와 실제 nullable 경계는 아직 원복된 상태다. package 파일럿을 다시 적용해 소비자 경고와 나머지 NON_BLOCKING 변화를 재검증해야 한다.
-- Next step: 별도 PR에서 `auth.client` Spring null annotation 파일럿을 재적용하고 안정된 Problems snapshot을 비교한다.
-- Warnings: 다음 파일럿은 총 진단 감소가 아니라 `OAuthSignupService` 잠재 NPE 2개가 재발하지 않고 신규 ACTIONABLE·BLOCKER가 없는지가 합격 기준이다. `.worktrees`는 Java import에서 제외된다.
+- Goal: `auth.client`에 Spring 6.2 null 계약을 재적용하고 consumer 정리 후 JDT 진단 품질을 검증한다.
+- Done: package 기본 non-null 계약과 실제 nullable 경계를 선언했다. 최종 snapshot 2회는 Java 340개로 동일하며 신규 ACTIONABLE·BLOCKER와 `OAuthSignupService` 잠재 NPE는 없다. 선택·전체 backend compile/test가 통과했다.
+- Remaining: 기존 및 신규 `16778128` NON_BLOCKING 진단은 package별 null 계약이 없는 경계에 남아 있다. 이번 작업에서는 다른 package로 확대하거나 개별 보정하지 않았다.
+- Next step: `auth.domain`의 `User`·`RefreshToken` factory 반환 계약을 작은 별도 파일럿으로 설계하고 `AuthService` repository 경고 개선 여부를 검증한다.
+- Warnings: Problems 총수는 338개에서 340개로 늘었지만 신규 3개·제거 1개가 모두 NON_BLOCKING이다. suppression·cast로 숫자를 줄이지 말고 package 단위로 순차 검증해야 하며 `.worktrees`는 Java import에서 제외된다.
 
 ## 이전 Handover
 

@@ -2,6 +2,7 @@ package com.petyilgi.auth.client;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -46,7 +47,7 @@ public class RestClientKakaoUserClient implements KakaoUserClient {
         }
     }
 
-    private KakaoUserInfo parse(Map<?, ?> body) {
+    private KakaoUserInfo parse(@Nullable Map<?, ?> body) {
         if (body == null || body.get("id") == null) {
             throw new BadCredentialsException("Invalid Kakao user response");
         }
@@ -62,14 +63,15 @@ public class RestClientKakaoUserClient implements KakaoUserClient {
         return new KakaoUserInfo(id, email, emailVerified, nickname);
     }
 
-    private Map<?, ?> asMap(Object value) {
+    private Map<?, ?> asMap(@Nullable Object value) {
         if (value instanceof Map<?, ?> map) {
             return map;
         }
         return Map.of();
     }
 
-    private String asString(Object value) {
+    @Nullable
+    private String asString(@Nullable Object value) {
         return value instanceof String string && !string.isBlank() ? string : null;
     }
 
