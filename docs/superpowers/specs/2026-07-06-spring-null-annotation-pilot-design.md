@@ -40,9 +40,16 @@ Spring Framework 6.2.1과 Eclipse JDT가 인식하는 null 계약을 작은 범�
 - 독립적으로 개선된 `JwtAuthFilter`의 Spring `@NonNull` 교체만 유지했다. 최종 snapshot 2회는 Java 338개(main 32, test 306)로 일치했고 신규 ACTIONABLE·BLOCKER는 없었다.
 - 선택 테스트, Java compile, backend 전체 테스트가 모두 통과했다.
 
+## 후속 소비자 정리 결과
+
+- `OAuthSignupService`의 nullable email·nickname accessor를 각각 지역 변수에 한 번만 저장하도록 정리했다. null·blank·unverified·중복 email fallback 동작은 변경하지 않았다.
+- 통합 테스트에 정상 nickname 보존과 null·unverified·blank profile 시나리오를 고정했다. 반복 요청 설정은 공용 helper로 모아 테스트 추가로 JDT 진단이 늘지 않게 했다.
+- fresh baseline과 최종 snapshot 2회는 모두 Java 338개(main 32, test 306)였고 신규 ACTIONABLE·BLOCKER는 없었다.
+- 다음 단계는 별도 PR에서 `auth.client` package annotation을 재적용하고 `OAuthSignupService` 잠재 NPE 2개가 재발하지 않는지 확인하는 것이다.
+
 ## 비범위
 
-- 남은 341개 진단 일괄 수정
+- 남은 Java 진단 일괄 수정
 - JSpecify 또는 NullAway 도입
 - Spring Boot·Spring Framework 업그레이드
 - API·DB·Flyway·frontend 변경
