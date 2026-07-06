@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.lang.NonNull;
 
 import java.time.LocalDateTime;
 
@@ -30,6 +31,7 @@ public class RefreshToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @NonNull
     public static RefreshToken create(User user, String token, LocalDateTime expiresAt) {
         RefreshToken rt = new RefreshToken();
         rt.user      = user;

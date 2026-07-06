@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-06 auth.domain factory 반환 null 계약
+
+- `User.create()`·`createOAuth()`, `RefreshToken.create()`, `OAuthAccount.create()` 반환에만 Spring `@NonNull`을 적용했다. JPA ID와 `profileMediaId`의 실제 nullable 상태를 보존하기 위해 package `@NonNullApi`와 field·parameter 계약은 추가하지 않았다.
+- fresh baseline은 Java 340개(main 33, test 307), 최종 안정 snapshot 2회는 336개(main 29, test 307)로 일치했다. `AuthService`와 `OAuthSignupService`의 factory 반환 경고 4개가 제거됐고 신규 진단은 없다.
+- 변경 전 `AuthIntegrationTest`, Java compile, 변경 후 `AuthIntegrationTest`와 backend 전체 테스트가 모두 통과했다. suppression, cast, `Objects.requireNonNull`, JDT 설정과 dependency는 변경하지 않았다.
+- 감사 산출물은 `C:\tmp\paa-auth-domain-factory-null-23f9123-20260706-161649`에 있다.
+
 ## 2026-07-06 auth.client Spring null annotation 재적용
 
 - `com.petyilgi.auth.client`에 Spring `@NonNullApi`를 적용하고 `KakaoUserInfo.email`·`nickname`, `RestClientKakaoUserClient`의 실제 nullable 입출력 경계만 `@Nullable`로 선언했다. test package, 다른 main package, dependency와 JDT 설정은 변경하지 않았다.
@@ -231,11 +238,11 @@
 
 ## 최신 Handover
 
-- Goal: `auth.client`에 Spring 6.2 null 계약을 재적용하고 consumer 정리 후 JDT 진단 품질을 검증한다.
-- Done: package 기본 non-null 계약과 실제 nullable 경계를 선언했다. 최종 snapshot 2회는 Java 340개로 동일하며 신규 ACTIONABLE·BLOCKER와 `OAuthSignupService` 잠재 NPE는 없다. 선택·전체 backend compile/test가 통과했다.
-- Remaining: 기존 및 신규 `16778128` NON_BLOCKING 진단은 package별 null 계약이 없는 경계에 남아 있다. 이번 작업에서는 다른 package로 확대하거나 개별 보정하지 않았다.
-- Next step: `auth.domain`의 `User`·`RefreshToken` factory 반환 계약을 작은 별도 파일럿으로 설계하고 `AuthService` repository 경고 개선 여부를 검증한다.
-- Warnings: Problems 총수는 338개에서 340개로 늘었지만 신규 3개·제거 1개가 모두 NON_BLOCKING이다. suppression·cast로 숫자를 줄이지 말고 package 단위로 순차 검증해야 하며 `.worktrees`는 Java import에서 제외된다.
+- Goal: auth domain factory의 실제 non-null 반환 계약을 작은 method-level 파일럿으로 검증한다.
+- Done: 세 entity의 factory 반환 4곳에 Spring `@NonNull`을 적용했다. Java snapshot은 340개에서 336개로 감소했고 대상 경고 4개만 제거됐으며 신규 진단은 없다. 선택·전체 backend compile/test가 통과했다.
+- Remaining: Java 진단 336개(main 29, test 307)가 남아 있다. 이번 작업에서는 다른 entity method, field, parameter와 package 기본 계약으로 확대하지 않았다.
+- Next step: 남은 main Java 진단 29개를 최신 snapshot에서 다시 분류하고 다음 단일 package 또는 경계 파일럿을 선택한다.
+- Warnings: JPA ID와 `profileMediaId`는 실제 nullable이므로 `auth.domain`에 `@NonNullApi`를 적용하면 계약이 부정확해질 수 있다. `.worktrees`는 Java import에서 제외되며 suppression·cast로 진단을 숨기지 않는다.
 
 ## 이전 Handover
 

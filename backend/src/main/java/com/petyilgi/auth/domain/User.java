@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.lang.NonNull;
 
 import java.time.LocalDateTime;
 
@@ -38,6 +39,7 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @NonNull
     public static User create(String email, String passwordHash, String nickname) {
         User user = new User();
         user.email        = email;
@@ -49,6 +51,7 @@ public class User {
         return user;
     }
 
+    @NonNull
     public static User createOAuth(String email, String passwordHash, String nickname, String registrationSource) {
         User user = new User();
         user.email = email;
