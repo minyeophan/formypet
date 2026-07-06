@@ -197,7 +197,10 @@ public class CommunityService {
     public PostCommentResponse createComment(String email, Long postId, PostCommentCreateRequest request) {
         User user = findUser(email);
         ensurePostExists(postId);
-        String content = request == null || request.content() == null ? "" : request.content().trim();
+        if (request == null) {
+            throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
+        }
+        String content = request.content() == null ? "" : request.content().trim();
         if (content.isEmpty() || content.length() > 1000) {
             throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
         }
