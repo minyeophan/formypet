@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-06 Spring 6.2 null annotation 파일럿
+
+- 최신 `develop`의 Java Problems baseline은 341개(main 35, test 306)였다. `JwtAuthFilter`의 `jakarta.annotation.Nonnull`을 Spring `@NonNull`로 교체한 결과 override 경고 3개가 제거됐고, 안정화 snapshot 2회가 338개(main 32, test 306)로 일치했다. 신규 ACTIONABLE·BLOCKER는 없다.
+- `com.petyilgi.auth.client`에 `@NonNullApi`와 실제 nullable 경계를 적용한 중간 파일럿은 안정화 snapshot에서 343개로 증가했다. `KakaoUserInfo.email()`·`nickname()`의 nullable 계약이 `OAuthSignupService`의 반복 accessor 호출에서 잠재 NPE 2개를 새로 드러냈으므로 롤백 기준에 따라 package 적용을 원복했다.
+- package 단위 null 계약 확대는 중단했다. 후속 작업에서는 `OAuthSignupService` 소비자 코드를 별도 PR로 정리한 뒤 `auth.client` 파일럿을 다시 검토한다. suppression, JDT 설정, dependency, test package는 변경하지 않았다.
+- 변경 전후 auth 선택 테스트와 최종 `compileJava compileTestJava test --rerun-tasks --warning-mode all`이 모두 `BUILD SUCCESSFUL`이었다. 감사 산출물은 `C:\tmp\paa-spring-null-pilot-5d7d884-20260706-103928`에 있다.
+
 ## 2026-07-06 Java ACTIONABLE 진단 정리
 
 - fresh Problems 기준선은 Workspace 347개, Backend Java 347개(main 38, test 309), ACTIONABLE 6개, BLOCKER 0개였다. `CommunityService.createComment()` 경고는 null request가 기존 content 검증에서 먼저 거부되어 실제 NPE가 발생하는 버그가 아니라 JDT의 제어 흐름 추론 한계였다.
