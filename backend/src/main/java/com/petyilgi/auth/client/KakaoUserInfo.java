@@ -1,9 +1,11 @@
 package com.petyilgi.auth.client;
 
+import org.springframework.lang.Nullable;
+
 public record KakaoUserInfo(
         String id,
-        String email,
+        @Nullable String email,
         boolean emailVerified,
-        String nickname
+        @Nullable String nickname
 ) {
 }
