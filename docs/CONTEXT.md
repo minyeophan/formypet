@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-06 OAuth nullable 소비자 정리
+
+- `OAuthSignupService`가 nullable인 Kakao email·nickname accessor를 조건식에서 반복 호출하지 않고 지역 변수에 한 번만 저장하도록 정리했다. verified, null, blank, 기존 email 중복 검사 순서와 내부 email·기본 nickname fallback은 유지했다.
+- `AuthIntegrationTest`에서 정상 nickname 보존, verified null profile, non-null unverified email, blank profile, 기존 email 중복 동작을 고정했다. 새 시나리오의 반복 MockMvc 설정은 공용 helper로 모아 JDT NON_BLOCKING 진단이 증가하지 않게 했다.
+- fresh baseline과 최종 안정 snapshot 2회는 모두 Java 338개(main 32, test 306)였고 path·code·severity·message multiset 차이와 신규 ACTIONABLE·BLOCKER는 없다.
+- 변경 전·characterization 보강 후·production 변경 후 선택 테스트와 최종 `compileJava compileTestJava test --rerun-tasks --warning-mode all`이 모두 통과했다. 감사 산출물은 `C:\tmp\paa-oauth-nullable-consumer-a84e62c-20260706-152121`에 있다.
+
 ## 2026-07-06 Spring 6.2 null annotation 파일럿
 
 - 최신 `develop`의 Java Problems baseline은 341개(main 35, test 306)였다. `JwtAuthFilter`의 `jakarta.annotation.Nonnull`을 Spring `@NonNull`로 교체한 결과 override 경고 3개가 제거됐고, 안정화 snapshot 2회가 338개(main 32, test 306)로 일치했다. 신규 ACTIONABLE·BLOCKER는 없다.
@@ -217,11 +224,11 @@
 
 ## 최신 Handover
 
-- Goal: Java Problems 감사에서 확인한 ACTIONABLE 6개를 기존 동작과 API 계약을 유지하면서 제거한다.
-- Done: production 변경 전에 direct service null request characterization test를 추가해 기존 예외 계약을 확인했다. `CommunityService.createComment()`의 null 분기만 명시하고 Wallet·Media 미사용 코드를 제거했다. 안정된 Java snapshot은 347개에서 341개로 감소했고 ACTIONABLE 6개는 0개, BLOCKER는 0개다. 선택 테스트와 backend 전체 compile/test가 통과했다.
-- Remaining: 남은 Java 진단 341개는 Spring 외부 `@NonNull` 계약과 프로젝트 annotation 정책 차이, Testcontainers lifecycle Hint 등 NON_BLOCKING 항목이다. 이번 작업에서는 suppression·cast·`Objects.requireNonNull`로 개별 보정하지 않았다.
-- Next step: Java null annotation 정책을 별도 설계해 package 기본 계약 도입 여부와 JDT·javac·Spring 호환 범위를 작은 실험으로 검증한다.
-- Warnings: `.vscode/settings.json`이 `.worktrees`를 Java import에서 제외하므로 Problems 검증이 필요한 Java 작업은 기본 workspace에서 별도 feature branch로 수행해야 한다. 감사 근거는 `C:\tmp\paa-java-actionable-fix-fa6e3c4-20260706-100236`에 보존한다.
+- Goal: Spring null 파일럿에서 드러난 `OAuthSignupService` nullable accessor 소비를 기존 인증 동작을 유지하면서 정리한다.
+- Done: email·nickname accessor를 지역 변수에 한 번만 저장하고 null·blank·unverified·중복 email fallback을 통합 테스트로 고정했다. 최종 Java snapshot 2회는 338개로 동일하고 신규 ACTIONABLE·BLOCKER가 없으며 backend 전체 compile/test가 통과했다.
+- Remaining: `auth.client`의 `@NonNullApi`와 실제 nullable 경계는 아직 원복된 상태다. package 파일럿을 다시 적용해 소비자 경고와 나머지 NON_BLOCKING 변화를 재검증해야 한다.
+- Next step: 별도 PR에서 `auth.client` Spring null annotation 파일럿을 재적용하고 안정된 Problems snapshot을 비교한다.
+- Warnings: 다음 파일럿은 총 진단 감소가 아니라 `OAuthSignupService` 잠재 NPE 2개가 재발하지 않고 신규 ACTIONABLE·BLOCKER가 없는지가 합격 기준이다. `.worktrees`는 Java import에서 제외된다.
 
 ## 이전 Handover
 

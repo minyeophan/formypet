@@ -38,19 +38,21 @@ public class OAuthSignupService {
     }
 
     private String resolveEmail(KakaoUserInfo kakaoUser) {
+        String email = kakaoUser.email();
         if (kakaoUser.emailVerified()
-                && kakaoUser.email() != null
-                && !kakaoUser.email().isBlank()
-                && !userRepository.existsByEmail(kakaoUser.email())) {
-            return kakaoUser.email();
+                && email != null
+                && !email.isBlank()
+                && !userRepository.existsByEmail(email)) {
+            return email;
         }
         return "kakao_" + kakaoUser.id() + "@oauth.kakao.local";
     }
 
     private String resolveNickname(KakaoUserInfo kakaoUser) {
-        if (kakaoUser.nickname() == null || kakaoUser.nickname().isBlank()) {
+        String nickname = kakaoUser.nickname();
+        if (nickname == null || nickname.isBlank()) {
             return "Kakao User";
         }
-        return kakaoUser.nickname();
+        return nickname;
     }
 }

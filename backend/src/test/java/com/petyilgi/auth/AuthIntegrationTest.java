@@ -48,6 +48,14 @@ class AuthIntegrationTest extends IntegrationTestSupport {
         userRepository.deleteAll();
     }
 
+    private void performKakaoLogin(KakaoUserInfo kakaoUser) throws Exception {
+        when(kakaoUserClient.fetchUser("kakao-token")).thenReturn(kakaoUser);
+        mockMvc.perform(post(KAKAO_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "kakao-token"))))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void registerSuccessReturnsTokens() throws Exception {
         var body = Map.of(
@@ -184,6 +192,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
 
         var user = userRepository.findByEmail("kakao@example.com").orElseThrow();
         assertThat(user.getRegistrationSource()).isEqualTo("KAKAO");
+        assertThat(user.getNickname()).isEqualTo("kakao-user");
         assertThat(oauthAccountRepository.findByProviderAndProviderUserId("KAKAO", "1001"))
                 .isPresent()
                 .get()
@@ -236,17 +245,29 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void kakaoLoginUsesInternalEmailWhenKakaoEmailIsMissingOrUnverified() throws Exception {
-        when(kakaoUserClient.fetchUser("kakao-token"))
-                .thenReturn(new KakaoUserInfo("1004", null, false, null));
-
-        mockMvc.perform(post(KAKAO_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "kakao-token"))))
-                .andExpect(status().isOk());
+    void kakaoLoginUsesFallbacksWhenKakaoProfileFieldsAreMissing() throws Exception {
+        performKakaoLogin(new KakaoUserInfo("1004", null, true, null));
 
         var user = userRepository.findByEmail("kakao_1004@oauth.kakao.local").orElseThrow();
         assertThat(user.getRegistrationSource()).isEqualTo("KAKAO");
+        assertThat(user.getNickname()).isEqualTo("Kakao User");
+    }
+
+    @Test
+    void kakaoLoginUsesInternalEmailWhenKakaoEmailIsUnverified() throws Exception {
+        performKakaoLogin(new KakaoUserInfo("1006", "unverified@example.com", false, "unverified-user"));
+
+        assertThat(userRepository.findByEmail("unverified@example.com")).isEmpty();
+        var user = userRepository.findByEmail("kakao_1006@oauth.kakao.local").orElseThrow();
+        assertThat(user.getNickname()).isEqualTo("unverified-user");
+    }
+
+    @Test
+    void kakaoLoginUsesFallbacksWhenKakaoProfileFieldsAreBlank() throws Exception {
+        performKakaoLogin(new KakaoUserInfo("1007", "   ", true, "   "));
+
+        var user = userRepository.findByEmail("kakao_1007@oauth.kakao.local").orElseThrow();
+        assertThat(user.getNickname()).isEqualTo("Kakao User");
     }
 
     @Test
