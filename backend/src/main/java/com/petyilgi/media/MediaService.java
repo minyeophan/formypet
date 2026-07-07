@@ -280,6 +280,9 @@ public class MediaService {
     }
 
     private Pet findOwnedPet(User user, Long petId) {
+        if (petId == null) {
+            throw new IllegalArgumentException("Pet id must not be null.");
+        }
         return petRepository.findById(petId)
                 .filter(pet -> pet.isOwnedBy(user.getId()))
                 .orElseThrow(() -> new AccessDeniedException("Cannot access this pet."));

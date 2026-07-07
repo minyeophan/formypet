@@ -52,6 +52,14 @@
 - 잔여 분류는 CONTRACT_CANDIDATE 5개, EXTERNAL_BOUNDARY 21개이며 BLOCKER·ACTIONABLE·UNKNOWN은 0개다.
 - Java compile, storage·media·profile 선택 테스트와 backend 전체 테스트가 통과했다.
 
+## 잔여 계약 후보 처리 결과
+
+- `KakaoLoginRequest.accessToken`에 `@NotBlank`와 함께 Spring `@NonNull`을 선언했다. Java 진단은 333개에서 332개로 감소했고 `AuthService` 경고 1개만 제거됐다.
+- `MediaService`, `PetService`, `ActivityRecordService`, `RoutineService`의 `findOwnedPet()`에서 기존 사용자 조회 순서를 유지한 채 repository 호출 직전에 null pet ID를 거부하도록 했다.
+- pet ID guard 적용 후 Java 진단은 332개에서 328개(main 21, test 307)로 감소했고 repository 경계 경고 4개만 제거됐다.
+- 두 단계 모두 신규·이동 진단은 없었고 Java compile과 관련 선택 테스트가 통과했다.
+- 초기 CONTRACT_CANDIDATE 8개는 모두 처리됐다. 잔여 main 21개는 EXTERNAL_BOUNDARY이며 BLOCKER·ACTIONABLE·UNKNOWN은 0개다.
+
 ## 변경 제한
 
 - 초기 감사 단계에서는 코드를 변경하지 않았고, 후속 파일럿은 `LoadedMedia`, `LocalMediaStorage`와 전용 단위 테스트로 제한했다. migration, frontend, dependency와 JDT 설정은 변경하지 않았다.

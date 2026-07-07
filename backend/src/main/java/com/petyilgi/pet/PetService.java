@@ -79,6 +79,9 @@ public class PetService {
 
     private Pet findOwnedPet(String email, Long petId) {
         User user = findUserByEmail(email);
+        if (petId == null) {
+            throw new IllegalArgumentException("Pet id must not be null.");
+        }
         return petRepository.findById(petId)
                 .filter(p -> p.isOwnedBy(user.getId()))
                 .orElseThrow(() -> new AccessDeniedException("해당 펫에 접근할 권한이 없습니다."));
