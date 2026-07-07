@@ -329,6 +329,9 @@ public class ActivityRecordService {
     private Pet findOwnedPet(String email, Long petId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다."));
+        if (petId == null) {
+            throw new IllegalArgumentException("Pet id must not be null.");
+        }
         return petRepository.findById(petId)
                 .filter(pet -> pet.isOwnedBy(user.getId()))
                 .orElseThrow(() -> new AccessDeniedException("해당 펫에 접근할 권한이 없습니다."));

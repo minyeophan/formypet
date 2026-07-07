@@ -1,5 +1,12 @@
 # 현재 컨텍스트
 
+## 2026-07-07 main Java 프로젝트 계약 후보 정리
+
+- `KakaoLoginRequest.accessToken`에 Spring `@NonNull`을 추가해 `AuthService` 경고 1개를 제거했다. Java Problems는 333개에서 332개로 감소했고 신규·이동 진단은 없으며 Java compile과 `AuthIntegrationTest`가 통과했다.
+- `MediaService`, `PetService`, `ActivityRecordService`, `RoutineService`의 `findOwnedPet()`가 기존 사용자 조회 순서를 유지하면서 null pet ID를 repository 호출 전에 거부하도록 했다. Problems는 332개에서 328개(main 21, test 307)로 감소했고 대상 경고 4개만 제거됐다.
+- pet ID 변경 후 Java compile과 media·pet·record·routine 통합 테스트가 통과했다. 감사에서 분류한 CONTRACT_CANDIDATE 8개는 모두 처리됐고 main에는 EXTERNAL_BOUNDARY 21개만 남았다.
+- 감사 산출물은 `C:\tmp\paa-auth-request-null-contract-fde1bdf-20260707-122611`, 전체 분류는 `docs/superpowers/specs/2026-07-06-java-main-diagnostics-audit.md`에 있다.
+
 ## 2026-07-06 LoadedMedia contentType null 계약
 
 - main 진단 감사의 최우선 후보였던 `LoadedMedia.contentType` record component에 Spring `@NonNull`을 적용하고 `LocalMediaStorage.load()`가 null content type을 파일 접근 전에 `IllegalArgumentException`으로 거부하도록 했다.
@@ -252,11 +259,11 @@
 
 ## 최신 Handover
 
-- Goal: main 진단 감사의 `LoadedMedia.contentType` 계약 후보를 실제 null guard와 단일 record annotation으로 검증한다.
-- Done: null 입력 RED 테스트를 먼저 확인하고 storage guard와 component `@NonNull`을 적용했다. Java snapshot은 336개에서 333개로 감소했고 controller 경고 3개만 제거됐으며 신규 진단은 없다. 선택·전체 backend 테스트가 통과했다.
-- Remaining: Java 진단은 333개(main 26, test 307)다. main에는 CONTRACT_CANDIDATE 5개와 EXTERNAL_BOUNDARY 21개가 남아 있다.
-- Next step: 남은 후보 중 `KakaoLoginRequest.accessToken` 1개는 validation 전 객체 상태를, `petId` 4개는 전체 호출 체인을 먼저 설계한 뒤 진행 여부를 결정한다.
-- Warnings: 외부 경계 21개는 숫자만 줄이기 위해 수정하지 않는다. private helper만 annotation해 경고를 호출자로 이동시키지 말아야 하며 `.worktrees`는 Java import에서 제외된다.
+- Goal: main 진단 감사에서 확인한 프로젝트 계약 후보 5개를 경고 이동 없이 정리한다.
+- Done: Kakao access token 정적 계약 1개와 네 service의 null pet ID guard를 적용했다. Java snapshot은 333개에서 328개로 감소했고 대상 경고 5개만 제거됐으며 신규 진단은 없다. 관련 compile·선택 테스트가 통과했다.
+- Remaining: Java 진단은 328개(main 21, test 307)이며 main 21개는 모두 EXTERNAL_BOUNDARY다. 프로젝트 CONTRACT_CANDIDATE는 0개다.
+- Next step: main 외부 경계를 억지로 수정하지 않고 test Java 진단 307개의 대표 패턴과 실제 위험을 별도 감사한다.
+- Warnings: JDK·Spring·JDBC annotation 차이를 suppression·cast·`Objects.requireNonNull`로 숨기지 않는다. `.worktrees`는 Java import에서 제외된다.
 
 ## 이전 Handover
 

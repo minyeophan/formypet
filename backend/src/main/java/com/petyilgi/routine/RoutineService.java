@@ -259,6 +259,9 @@ public class RoutineService {
     private Pet findOwnedPet(String email, Long petId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
+        if (petId == null) {
+            throw new IllegalArgumentException("Pet id must not be null.");
+        }
         return petRepository.findById(petId)
                 .filter(pet -> pet.isOwnedBy(user.getId()))
                 .orElseThrow(() -> new AccessDeniedException("No access to this pet."));
