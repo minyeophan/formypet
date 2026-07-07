@@ -35,6 +35,9 @@ public class LocalMediaStorage implements MediaStorage {
 
     @Override
     public LoadedMedia load(String storageKey, String contentType) throws IOException {
+        if (contentType == null) {
+            throw new IllegalArgumentException("Content type must not be null.");
+        }
         Path target = root.resolve(storageKey).normalize();
         if (!target.startsWith(root.normalize())) {
             throw new IllegalArgumentException("Invalid media path.");

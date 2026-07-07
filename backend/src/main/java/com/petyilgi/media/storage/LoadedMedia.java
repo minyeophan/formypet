@@ -1,4 +1,6 @@
 package com.petyilgi.media.storage;
 
-public record LoadedMedia(byte[] bytes, String contentType) {
+import org.springframework.lang.NonNull;
+
+public record LoadedMedia(byte[] bytes, @NonNull String contentType) {
 }
