@@ -1,5 +1,19 @@
 # 현재 컨텍스트
 
+## 2026-07-06 LoadedMedia contentType null 계약
+
+- main 진단 감사의 최우선 후보였던 `LoadedMedia.contentType` record component에 Spring `@NonNull`을 적용하고 `LocalMediaStorage.load()`가 null content type을 파일 접근 전에 `IllegalArgumentException`으로 거부하도록 했다.
+- null 입력이 기존에는 `NoSuchFileException`까지 진행되는 RED를 확인한 뒤 guard 적용으로 GREEN을 확인했다. storage·media·profile 선택 테스트와 backend 전체 compile/test가 통과했다.
+- Java Problems는 336개(main 29, test 307)에서 최종 안정 snapshot 2회 333개(main 26, test 307)로 감소했다. controller 경고 3개만 제거됐고 신규 진단과 storage·constructor·test로의 경고 이동은 없다.
+- 감사와 파일럿 산출물은 `C:\tmp\paa-java-main-diagnostics-audit-b1e6857-20260706-164131`, 분류 보고서는 `docs/superpowers/specs/2026-07-06-java-main-diagnostics-audit.md`에 있다.
+
+## 2026-07-06 main Java 진단 29개 정밀 감사
+
+- commit `b1e6857`의 fresh Problems는 Workspace·Java 336개(main 29, test 307)이며 이전 안정 snapshot과 완전히 일치했다. 필수 JSON 필드 누락과 중복·누락 진단은 없다.
+- main 29개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 8, EXTERNAL_BOUNDARY 21, UNKNOWN 0으로 분류했다. 외부 경계는 JDK·Spring·JDBC generic 또는 null annotation 차이이며 cast·suppression·`Objects.requireNonNull`로 보정하지 않는다.
+- 다음 우선 후보는 DB `content_type NOT NULL`과 storage load 경로로 근거가 명확한 `LoadedMedia.contentType` 계약이다. controller 3곳의 String 경계를 단일 record annotation으로 개선할 수 있는지 별도 snapshot으로 검증한다.
+- production·test 코드는 수정하지 않았고 감사 보고서는 `docs/superpowers/specs/2026-07-06-java-main-diagnostics-audit.md`, 원본 산출물은 `C:\tmp\paa-java-main-diagnostics-audit-b1e6857-20260706-164131`에 있다.
+
 ## 2026-07-06 auth.domain factory 반환 null 계약
 
 - `User.create()`·`createOAuth()`, `RefreshToken.create()`, `OAuthAccount.create()` 반환에만 Spring `@NonNull`을 적용했다. JPA ID와 `profileMediaId`의 실제 nullable 상태를 보존하기 위해 package `@NonNullApi`와 field·parameter 계약은 추가하지 않았다.
@@ -238,11 +252,11 @@
 
 ## 최신 Handover
 
-- Goal: auth domain factory의 실제 non-null 반환 계약을 작은 method-level 파일럿으로 검증한다.
-- Done: 세 entity의 factory 반환 4곳에 Spring `@NonNull`을 적용했다. Java snapshot은 340개에서 336개로 감소했고 대상 경고 4개만 제거됐으며 신규 진단은 없다. 선택·전체 backend compile/test가 통과했다.
-- Remaining: Java 진단 336개(main 29, test 307)가 남아 있다. 이번 작업에서는 다른 entity method, field, parameter와 package 기본 계약으로 확대하지 않았다.
-- Next step: 남은 main Java 진단 29개를 최신 snapshot에서 다시 분류하고 다음 단일 package 또는 경계 파일럿을 선택한다.
-- Warnings: JPA ID와 `profileMediaId`는 실제 nullable이므로 `auth.domain`에 `@NonNullApi`를 적용하면 계약이 부정확해질 수 있다. `.worktrees`는 Java import에서 제외되며 suppression·cast로 진단을 숨기지 않는다.
+- Goal: main 진단 감사의 `LoadedMedia.contentType` 계약 후보를 실제 null guard와 단일 record annotation으로 검증한다.
+- Done: null 입력 RED 테스트를 먼저 확인하고 storage guard와 component `@NonNull`을 적용했다. Java snapshot은 336개에서 333개로 감소했고 controller 경고 3개만 제거됐으며 신규 진단은 없다. 선택·전체 backend 테스트가 통과했다.
+- Remaining: Java 진단은 333개(main 26, test 307)다. main에는 CONTRACT_CANDIDATE 5개와 EXTERNAL_BOUNDARY 21개가 남아 있다.
+- Next step: 남은 후보 중 `KakaoLoginRequest.accessToken` 1개는 validation 전 객체 상태를, `petId` 4개는 전체 호출 체인을 먼저 설계한 뒤 진행 여부를 결정한다.
+- Warnings: 외부 경계 21개는 숫자만 줄이기 위해 수정하지 않는다. private helper만 annotation해 경고를 호출자로 이동시키지 말아야 하며 `.worktrees`는 Java import에서 제외된다.
 
 ## 이전 Handover
 
