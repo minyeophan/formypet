@@ -15,6 +15,13 @@
 - `AI_WORKFLOW.md`, `AI_MISTAKES.md`는 AI 보조 개발을 사용할 때 작업 범위와 검증 절차를 일관되게 유지하기 위한 내부 운영 문서다.
 - `AGENTS.md`는 저장소 루트에서 AI 작업자가 세션 시작 시 읽는 라우터 역할을 한다.
 
+## 백엔드 로드맵 문서
+
+- `backend-roadmap/02_DOMAIN_DECISIONS.md`~`04_API_CONTRACT.md`: 도메인·ERD·API 계약
+- `backend-roadmap/05_MIGRATION_PLAN.md`~`07_BACKEND_TEST_PLAN.md`: migration·구현·테스트 계획
+- `backend-roadmap/08_BACKEND_IMPLEMENTATION_TASKS.md`~`10_DEAD_CODE_CLEANUP_PLAN.md`: 남은 구현·프론트 연결·cleanup 작업
+- `backend-roadmap/11_VERIFICATION_PLAN.md`: 전체 검증 기준
+
 ## 검증 스크립트
 
 한글 UI 텍스트와 Markdown 문서의 인코딩 회귀를 막기 위해 루트의 `scripts/check-korean-mojibake.ps1`를 사용한다.
