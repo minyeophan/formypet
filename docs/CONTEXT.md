@@ -3,12 +3,16 @@
 ## 현재 상태
 
 - 프론트엔드는 Flutter, Riverpod, go_router 기준이며 백엔드는 Java 21, Spring Boot, MySQL, Flyway 기준이다.
-- Flyway migration은 `V1`부터 `V20__remove_deprecated_activity_types.sql`까지 존재한다. 기존 migration은 수정하지 않는다.
+- Flyway migration은 `V1`부터 `V21__add_comment_management.sql`까지 존재한다. 기존 migration은 수정하지 않는다.
 - 사용자 기능은 인증, 펫, 기록, 루틴·일정, 커뮤니티, 미디어, 지갑·지출까지 backend와 Flutter에 연결돼 있다.
 - 화면 V2 진행 상태는 `docs/SCREEN_V2_STATUS.md`, 프론트 API 연결 상태는 `docs/FRONTEND_STATUS.md`를 기준으로 한다.
 - backend 후속 계약과 구현 계획은 `docs/backend-roadmap/02_DOMAIN_DECISIONS.md`~`11_VERIFICATION_PLAN.md`를 기준으로 한다.
 
 ## 최근 완료 작업
+
+- 커뮤니티 댓글 수정·soft delete·신고 접수 backend를 구현했다. 댓글 작성자는 수정할 수 있고 댓글 또는 게시글 작성자는 삭제할 수 있으며, 삭제 root의 활성 답글은 tombstone 아래 유지된다.
+- 신고는 5개 사유와 선택 상세를 저장하고 `OTHER` 상세 필수, 자기 신고 금지, 사용자별 중복 신고 금지를 적용한다. 신고 시 댓글 내용 snapshot을 함께 보존한다.
+- Flutter의 tombstone 표시와 수정·삭제·신고 메뉴 연결은 별도 후속 작업이며 계약은 `docs/FRONTEND_STATUS.md`에 기록했다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
 - 여러 통합 테스트 클래스가 공유하는 MySQL container의 생성·시작 책임을 package-private `SharedMySqlContainer`로 분리했다. `IntegrationTestSupport`는 datasource property 연결만 담당한다.
@@ -52,8 +56,8 @@
 
 ## 최신 Handover
 
-- Goal: 중복·완료·노후 문서를 정리하고 실제 작업자가 읽어야 할 기준 문서만 남긴다.
-- Done: 확실한 삭제 후보와 사용자가 승인한 완료 설계·상태판·Git workflow·HTML mockup을 제거했다. 유효한 roadmap 링크와 Git 규칙을 각각 README와 AGENTS로 통합하고 Context를 현재 상태 중심으로 축소했다.
-- Remaining: `FRONTEND_WIDGET_MAP.md`와 backend roadmap 02~11은 유지한다. 추가 문서 삭제는 현재 코드·계약과 대조한 별도 검토가 필요하다.
-- Next step: 제품 기능 backlog로 복귀한다.
-- Warnings: 기존 backend singleton 변경은 이번 문서 정리 범위가 아니며 건드리지 않았다.
+- Goal: 커뮤니티 댓글 수정·삭제·신고 접수 backend 계약을 구현한다.
+- Done: V21 schema, 수정·soft delete·tombstone 조회, 신고 snapshot·중복·자기 신고 검증과 통합 테스트를 추가했다.
+- Remaining: Flutter nullable tombstone 모델과 수정·삭제·신고 UI/API 연결, 실제 기기 수동 회귀가 남아 있다.
+- Next step: backend 전체 검증 결과를 기준으로 Flutter 연동을 별도 TDD 작업으로 진행한다.
+- Warnings: 삭제 댓글의 작성자·내용 필드는 null이다. 기존 Flutter 모델을 그대로 두면 tombstone이 올바르게 표시되지 않는다.

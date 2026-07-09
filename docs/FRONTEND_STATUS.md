@@ -1,5 +1,12 @@
 # 프론트엔드 구현 현황 및 백엔드 Sync 체크
 
+## 2026-07-08 댓글 수정·삭제·신고 백엔드 계약
+
+- 백엔드는 댓글 작성자 수정 `PATCH /api/v1/posts/{postId}/comments/{commentId}`를 제공한다. body는 `content` 1~1000자이며 응답에 `updatedAt`, `deleted`가 추가됐다.
+- 댓글 작성자 또는 게시글 작성자는 `DELETE /api/v1/posts/{postId}/comments/{commentId}`로 soft delete할 수 있다. 활성 답글이 남은 삭제 root는 `deleted: true`와 null 작성자·내용을 가진 tombstone으로 조회되고, 활성 답글이 없으면 목록과 thread에서 제외된다.
+- `POST /api/v1/posts/{postId}/comments/{commentId}/reports`는 `SPAM`, `ABUSE`, `INAPPROPRIATE`, `PRIVACY`, `OTHER`를 받는다. `OTHER`는 `detail`이 필수이며 자기 댓글 신고는 400, 중복 신고는 409다.
+- Flutter 후속 작업은 nullable tombstone 모델·표시, 수정/삭제 메뉴 연결, 신고 사유 입력과 400/409 오류 표시다. 이번 backend 작업에서는 Flutter 코드를 변경하지 않는다.
+
 ## 2026-07-02 Community V2
 
 - 글쓰기 제목은 30자에서 강제 제한되며 제목·본문 필수 검증과 기존 payload 계약을 유지한다.
