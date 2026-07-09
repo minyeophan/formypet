@@ -7,9 +7,13 @@ import com.petyilgi.community.dto.PostCreateRequest;
 import com.petyilgi.community.dto.PostCommentCreateRequest;
 import com.petyilgi.community.dto.PostCommentFeedResponse;
 import com.petyilgi.community.dto.PostCommentResponse;
+import com.petyilgi.community.dto.PostCommentReportRequest;
+import com.petyilgi.community.dto.PostCommentReportResponse;
+import com.petyilgi.community.dto.PostCommentUpdateRequest;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -82,6 +86,31 @@ public class CommunityController {
                                                           @PathVariable Long postId,
                                                           @RequestBody PostCommentCreateRequest request) {
         return ApiResponse.of(communityService.createComment(email, postId, request));
+    }
+
+    @PatchMapping("/{postId}/comments/{commentId}")
+    public ApiResponse<PostCommentResponse> updateComment(@AuthenticationPrincipal String email,
+                                                          @PathVariable Long postId,
+                                                          @PathVariable Long commentId,
+                                                          @Valid @RequestBody PostCommentUpdateRequest request) {
+        return ApiResponse.of(communityService.updateComment(email, postId, commentId, request));
+    }
+
+    @DeleteMapping("/{postId}/comments/{commentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteComment(@AuthenticationPrincipal String email,
+                              @PathVariable Long postId,
+                              @PathVariable Long commentId) {
+        communityService.deleteComment(email, postId, commentId);
+    }
+
+    @PostMapping("/{postId}/comments/{commentId}/reports")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<PostCommentReportResponse> reportComment(@AuthenticationPrincipal String email,
+                                                                 @PathVariable Long postId,
+                                                                 @PathVariable Long commentId,
+                                                                 @Valid @RequestBody PostCommentReportRequest request) {
+        return ApiResponse.of(communityService.reportComment(email, postId, commentId, request));
     }
 
     @PostMapping("/{postId}/like")

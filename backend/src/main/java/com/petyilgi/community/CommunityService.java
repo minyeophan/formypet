@@ -6,13 +6,19 @@ import com.petyilgi.community.dto.PostCreateRequest;
 import com.petyilgi.community.dto.PostCommentCreateRequest;
 import com.petyilgi.community.dto.PostCommentFeedResponse;
 import com.petyilgi.community.dto.PostCommentResponse;
+import com.petyilgi.community.dto.PostCommentUpdateRequest;
+import com.petyilgi.community.dto.PostCommentReportRequest;
+import com.petyilgi.community.dto.PostCommentReportResponse;
+import com.petyilgi.community.dto.PostCommentReportReason;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
 import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
 import com.petyilgi.common.exception.ApiException;
+import com.petyilgi.common.exception.ForbiddenException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -127,11 +133,15 @@ public class CommunityService {
         List<Object> params = new ArrayList<>(List.of(postId));
         StringBuilder sql = new StringBuilder("""
                 SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
-                       pc.content, pc.created_at,
-                       (SELECT COUNT(*) FROM post_comments child WHERE child.parent_comment_id = pc.id) AS reply_count
+                       pc.content, pc.created_at, pc.updated_at, pc.deleted_at,
+                       (SELECT COUNT(*) FROM post_comments child
+                        WHERE child.parent_comment_id = pc.id AND child.deleted_at IS NULL) AS reply_count
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
                 WHERE pc.post_id = ? AND pc.parent_comment_id IS NULL
+                  AND (pc.deleted_at IS NULL OR EXISTS (
+                      SELECT 1 FROM post_comments child
+                      WHERE child.parent_comment_id = pc.id AND child.deleted_at IS NULL))
                 """);
         if (cursor != null && !cursor.isBlank()) {
             sql.append(" AND pc.id < ?");
@@ -155,6 +165,9 @@ public class CommunityService {
         findUser(email);
         ensurePostExists(postId);
         Map<String, Object> row = requireComment(postId, commentId);
+        if (row.get("deleted_at") != null && ((Number) row.get("reply_count")).intValue() == 0) {
+            throw commentNotFound();
+        }
         if (row.get("parent_comment_id") != null) throw invalidCommentParent();
         int commentsCount = commentsCount(postId);
         List<PostCommentResponse> replies = loadReplies(List.of(row), validateReplyLimit(replyLimit), commentsCount)
@@ -167,16 +180,19 @@ public class CommunityService {
         findUser(email);
         ensurePostExists(postId);
         Map<String, Object> parent = requireComment(postId, commentId);
+        if (parent.get("deleted_at") != null && ((Number) parent.get("reply_count")).intValue() == 0) {
+            throw commentNotFound();
+        }
         if (parent.get("parent_comment_id") != null) throw invalidCommentParent();
         int pageSize = Math.max(1, Math.min(limit, 20));
         int commentsCount = commentsCount(postId);
         List<Object> params = new ArrayList<>(List.of(postId, commentId));
         StringBuilder sql = new StringBuilder("""
                 SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
-                       pc.content, pc.created_at, 0 AS reply_count
+                       pc.content, pc.created_at, pc.updated_at, pc.deleted_at, 0 AS reply_count
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
-                WHERE pc.post_id = ? AND pc.parent_comment_id = ?
+                WHERE pc.post_id = ? AND pc.parent_comment_id = ? AND pc.deleted_at IS NULL
                 """);
         if (cursor != null && !cursor.isBlank()) {
             sql.append(" AND pc.id < ?");
@@ -207,7 +223,11 @@ public class CommunityService {
         Long parentCommentId = request.parentCommentId();
         if (parentCommentId != null) {
             Map<String, Object> parent = requireCommentAnyPost(parentCommentId);
-            if (!postId.equals(((Number) parent.get("post_id")).longValue()) || parent.get("parent_comment_id") != null) {
+            if (parent.get("deleted_at") != null) {
+                throw commentNotFound();
+            }
+            if (!postId.equals(((Number) parent.get("post_id")).longValue())
+                    || parent.get("parent_comment_id") != null) {
                 throw invalidCommentParent();
             }
         }
@@ -227,6 +247,92 @@ public class CommunityService {
         jdbcTemplate.update("UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?", postId);
         Long commentId = Objects.requireNonNull(keyHolder.getKey()).longValue();
         return findCommentResponse(commentId, commentsCount(postId));
+    }
+
+    @Transactional
+    public PostCommentResponse updateComment(String email, Long postId, Long commentId,
+                                             PostCommentUpdateRequest request) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        Map<String, Object> comment = requireActiveComment(postId, commentId);
+        if (!user.getId().equals(((Number) comment.get("user_id")).longValue())) {
+            throw new ForbiddenException(
+                    "Forbidden comment.", "COMMENT_FORBIDDEN");
+        }
+        String content = request.content().trim();
+        LocalDateTime updatedAt = LocalDateTime.now();
+        int updated = jdbcTemplate.update("""
+                UPDATE post_comments
+                SET content = ?, updated_at = ?
+                WHERE id = ? AND post_id = ? AND deleted_at IS NULL
+                """, content, updatedAt, commentId, postId);
+        if (updated != 1) {
+            throw commentNotFound();
+        }
+        return findCommentResponse(commentId, commentsCount(postId));
+    }
+
+    @Transactional
+    public void deleteComment(String email, Long postId, Long commentId) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        Map<String, Object> comment = requireActiveComment(postId, commentId);
+        Long postAuthorId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
+        Long commentAuthorId = ((Number) comment.get("user_id")).longValue();
+        if (!user.getId().equals(commentAuthorId) && !user.getId().equals(postAuthorId)) {
+            throw new ForbiddenException(
+                    "Forbidden comment.", "COMMENT_FORBIDDEN");
+        }
+        int updated = jdbcTemplate.update("""
+                UPDATE post_comments SET deleted_at = ?
+                WHERE id = ? AND post_id = ? AND deleted_at IS NULL
+                """, LocalDateTime.now(), commentId, postId);
+        if (updated != 1) throw commentNotFound();
+        jdbcTemplate.update("""
+                UPDATE posts SET comments_count = GREATEST(comments_count - 1, 0) WHERE id = ?
+                """, postId);
+    }
+
+    @Transactional
+    public PostCommentReportResponse reportComment(String email, Long postId, Long commentId,
+                                                    PostCommentReportRequest request) {
+        User reporter = findUser(email);
+        ensurePostExists(postId);
+        Map<String, Object> comment = requireActiveComment(postId, commentId);
+        if (reporter.getId().equals(((Number) comment.get("user_id")).longValue())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "self-comment-report", "Invalid Comment Report",
+                    "You cannot report your own comment.", "SELF_COMMENT_REPORT");
+        }
+        String detail = request.detail() == null ? null : request.detail().trim();
+        if (request.reason() == PostCommentReportReason.OTHER && (detail == null || detail.isEmpty())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "comment-report-detail-required",
+                    "Invalid Comment Report", "Detail is required for OTHER reports.",
+                    "COMMENT_REPORT_DETAIL_REQUIRED");
+        }
+        LocalDateTime createdAt = LocalDateTime.now();
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        try {
+            jdbcTemplate.update(connection -> {
+                PreparedStatement ps = connection.prepareStatement("""
+                        INSERT INTO post_comment_reports
+                            (comment_id, reporter_user_id, reason, detail, content_snapshot, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, Statement.RETURN_GENERATED_KEYS);
+                ps.setLong(1, commentId);
+                ps.setLong(2, reporter.getId());
+                ps.setString(3, request.reason().name());
+                ps.setString(4, detail);
+                ps.setString(5, (String) comment.get("content"));
+                ps.setObject(6, createdAt);
+                return ps;
+            }, keyHolder);
+        } catch (DuplicateKeyException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "duplicate-comment-report", "Duplicate Comment Report",
+                    "You have already reported this comment.", "DUPLICATE_COMMENT_REPORT");
+        }
+        Long reportId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        return new PostCommentReportResponse(reportId, commentId, request.reason(), detail, createdAt);
     }
 
     @Transactional
@@ -380,7 +486,7 @@ public class CommunityService {
     private PostCommentResponse findCommentResponse(Long commentId, int commentsCount) {
         Map<String, Object> row = jdbcTemplate.queryForMap("""
                 SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname, u.profile_media_id,
-                       pc.content, pc.created_at, 0 AS reply_count
+                       pc.content, pc.created_at, pc.updated_at, pc.deleted_at, 0 AS reply_count
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
                 WHERE pc.id = ?
@@ -389,6 +495,9 @@ public class CommunityService {
     }
 
     private PostCommentResponse leafCommentResponse(Map<String, Object> row, int commentsCount) {
+        if (row.get("deleted_at") != null) {
+            return tombstoneCommentResponse(row, commentsCount, List.of());
+        }
         return new PostCommentResponse(
                 ((Number) row.get("id")).longValue(),
                 ((Number) row.get("user_id")).longValue(),
@@ -396,6 +505,8 @@ public class CommunityService {
                 commentAuthorProfileImageUrl(row),
                 (String) row.get("content"),
                 normalizeDateTime(row.get("created_at")),
+                normalizeDateTime(row.get("updated_at")),
+                row.get("deleted_at") != null,
                 commentsCount,
                 row.get("parent_comment_id") == null ? null : ((Number) row.get("parent_comment_id")).longValue(),
                 0,
@@ -406,13 +517,27 @@ public class CommunityService {
 
     private PostCommentResponse rootCommentResponse(Map<String, Object> row, int commentsCount,
                                                      List<PostCommentResponse> replies) {
+        if (row.get("deleted_at") != null) {
+            return tombstoneCommentResponse(row, commentsCount, replies);
+        }
         int replyCount = ((Number) row.get("reply_count")).intValue();
         String nextCursor = replyCount > replies.size() && !replies.isEmpty()
                 ? replies.getFirst().id().toString() : null;
         return new PostCommentResponse(idOf(row), ((Number) row.get("user_id")).longValue(),
                 (String) row.get("author_nickname"), commentAuthorProfileImageUrl(row),
-                (String) row.get("content"), normalizeDateTime(row.get("created_at")), commentsCount,
+                (String) row.get("content"), normalizeDateTime(row.get("created_at")),
+                normalizeDateTime(row.get("updated_at")), row.get("deleted_at") != null, commentsCount,
                 null, replyCount, replies, nextCursor);
+    }
+
+    private PostCommentResponse tombstoneCommentResponse(Map<String, Object> row, int commentsCount,
+                                                          List<PostCommentResponse> replies) {
+        int replyCount = ((Number) row.get("reply_count")).intValue();
+        String nextCursor = replyCount > replies.size() && !replies.isEmpty()
+                ? replies.getFirst().id().toString() : null;
+        return new PostCommentResponse(idOf(row), null, null, null, null,
+                normalizeDateTime(row.get("created_at")), normalizeDateTime(row.get("updated_at")), true,
+                commentsCount, null, replyCount, replies, nextCursor);
     }
 
     private String commentAuthorProfileImageUrl(Map<String, Object> row) {
@@ -530,14 +655,15 @@ public class CommunityService {
         params.add(replyLimit);
         String sql = """
                 SELECT ranked.id, ranked.user_id, ranked.parent_comment_id, ranked.author_nickname,
-                       ranked.profile_media_id, ranked.content, ranked.created_at, 0 AS reply_count
+                       ranked.profile_media_id, ranked.content, ranked.created_at, ranked.updated_at,
+                       ranked.deleted_at, 0 AS reply_count
                 FROM (
                     SELECT pc.id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname,
-                           u.profile_media_id, pc.content, pc.created_at,
+                           u.profile_media_id, pc.content, pc.created_at, pc.updated_at, pc.deleted_at,
                            ROW_NUMBER() OVER (PARTITION BY pc.parent_comment_id ORDER BY pc.id DESC) AS rn
                     FROM post_comments pc
                     JOIN users u ON u.id = pc.user_id
-                    WHERE pc.parent_comment_id IN (%s)
+                    WHERE pc.parent_comment_id IN (%s) AND pc.deleted_at IS NULL
                 ) ranked
                 WHERE ranked.rn <= ?
                 ORDER BY ranked.parent_comment_id, ranked.id ASC
@@ -556,11 +682,20 @@ public class CommunityService {
         return row;
     }
 
+    private Map<String, Object> requireActiveComment(Long postId, Long commentId) {
+        Map<String, Object> row = requireCommentAnyPost(commentId);
+        if (!postId.equals(((Number) row.get("post_id")).longValue()) || row.get("deleted_at") != null) {
+            throw commentNotFound();
+        }
+        return row;
+    }
+
     private Map<String, Object> requireCommentAnyPost(Long commentId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT pc.id, pc.post_id, pc.user_id, pc.parent_comment_id, u.nickname AS author_nickname,
-                       u.profile_media_id, pc.content, pc.created_at,
-                       (SELECT COUNT(*) FROM post_comments child WHERE child.parent_comment_id = pc.id) AS reply_count
+                       u.profile_media_id, pc.content, pc.created_at, pc.updated_at, pc.deleted_at,
+                       (SELECT COUNT(*) FROM post_comments child
+                        WHERE child.parent_comment_id = pc.id AND child.deleted_at IS NULL) AS reply_count
                 FROM post_comments pc
                 JOIN users u ON u.id = pc.user_id
                 WHERE pc.id = ?
@@ -570,6 +705,11 @@ public class CommunityService {
                     "Comment not found.", "COMMENT_NOT_FOUND");
         }
         return rows.getFirst();
+    }
+
+    private ApiException commentNotFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, "comment-not-found", "Comment Not Found",
+                "Comment not found.", "COMMENT_NOT_FOUND");
     }
 
     private ApiException invalidCommentParent() {
@@ -638,6 +778,9 @@ public class CommunityService {
     }
 
     private LocalDateTime normalizeDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
         if (value instanceof LocalDateTime localDateTime) {
             return localDateTime;
         }
