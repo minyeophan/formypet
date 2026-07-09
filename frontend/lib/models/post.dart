@@ -131,6 +131,8 @@ class PostComment {
   final String? authorProfileImageUrl;
   final String content;
   final String createdAt;
+  final String? updatedAt;
+  final bool deleted;
   final int commentsCount;
   final String? parentCommentId;
   final int replyCount;
@@ -144,6 +146,8 @@ class PostComment {
     this.authorProfileImageUrl,
     required this.content,
     required this.createdAt,
+    this.updatedAt,
+    this.deleted = false,
     required this.commentsCount,
     this.parentCommentId,
     this.replyCount = 0,
@@ -153,11 +157,13 @@ class PostComment {
 
   factory PostComment.fromJson(Map<String, dynamic> j) => PostComment(
     id: j['id'].toString(),
-    userId: j['userId'].toString(),
+    userId: j['userId']?.toString() ?? '',
     authorNickname: j['authorNickname'] as String? ?? '',
     authorProfileImageUrl: j['authorProfileImageUrl'] as String?,
     content: j['content'] as String? ?? '',
     createdAt: j['createdAt'] as String? ?? '',
+    updatedAt: j['updatedAt'] as String?,
+    deleted: j['deleted'] as bool? ?? false,
     commentsCount: j['commentsCount'] as int? ?? 0,
     parentCommentId: j['parentCommentId']?.toString(),
     replyCount: j['replyCount'] as int? ?? 0,
@@ -180,6 +186,8 @@ class PostComment {
     authorProfileImageUrl: authorProfileImageUrl,
     content: content,
     createdAt: createdAt,
+    updatedAt: updatedAt,
+    deleted: deleted,
     commentsCount: commentsCount ?? this.commentsCount,
     parentCommentId: parentCommentId,
     replyCount: replyCount ?? this.replyCount,

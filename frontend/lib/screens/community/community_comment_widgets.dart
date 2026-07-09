@@ -16,6 +16,7 @@ bool canManageCommunityComment({
   required PostComment comment,
 }) {
   return currentUserId != null &&
+      !comment.deleted &&
       (post.userId == currentUserId || comment.userId == currentUserId);
 }
 
@@ -105,7 +106,9 @@ class CommunityCommentTile extends StatelessWidget {
     ),
     child: Padding(
       padding: const EdgeInsets.all(12),
-      child: Column(
+      child: comment.deleted
+          ? const AppText('삭제된 댓글입니다', fontSize: 14)
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(

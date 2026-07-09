@@ -508,7 +508,23 @@ class _FlatComment extends StatelessWidget {
   final VoidCallback? onReply;
   final bool reply;
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    if (comment.deleted) {
+      return Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          '삭제된 댓글입니다',
+          style: communityV2Style(
+            size: 14,
+            color: AppV2Tokens.textSecondary,
+          ).copyWith(fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+    return Container(
     decoration: const BoxDecoration(
       border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
     ),
@@ -559,6 +575,7 @@ class _FlatComment extends StatelessWidget {
       ],
     ),
   );
+  }
 }
 
 class _LinkButton extends StatelessWidget {

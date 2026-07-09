@@ -218,14 +218,19 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
         onAction: _reload,
       );
     }
-    final loadedUnique = _comments.fold<int>(
-      0,
-      (sum, root) => sum + 1 + root.replies.map((e) => e.id).toSet().length,
-    );
-    final responseTotal = _comments.fold<int>(
-      0,
-      (sum, root) => sum + 1 + root.replyCount,
-    );
+    final loadedUnique = _comments.fold<int>(0, (sum, root) {
+      final rootCount = root.deleted ? 0 : 1;
+      final repliesCount = root.replies
+          .where((reply) => !reply.deleted)
+          .map((reply) => reply.id)
+          .toSet()
+          .length;
+      return sum + rootCount + repliesCount;
+    });
+    final responseTotal = _comments.fold<int>(0, (sum, root) {
+      final rootCount = root.deleted ? 0 : 1;
+      return sum + rootCount + root.replyCount;
+    });
     final total = [
       post.commentsCount,
       responseTotal,

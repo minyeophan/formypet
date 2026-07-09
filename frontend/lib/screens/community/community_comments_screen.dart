@@ -181,7 +181,7 @@ class _CommunityCommentsScreenState
     }
     if (!mounted || generation != _generation) return;
     _resolvingTarget = false;
-    if (widget.initialReplyToCommentId != null) {
+    if (widget.initialReplyToCommentId != null && !root.deleted) {
       _replyToCommentId = root.id;
     }
     _displayedCount = _calculateCount(null);
@@ -195,7 +195,9 @@ class _CommunityCommentsScreenState
           duration: const Duration(milliseconds: 220),
         );
       }
-      if (widget.initialReplyToCommentId != null) _focusNode.requestFocus();
+      if (widget.initialReplyToCommentId != null && !root.deleted) {
+        _focusNode.requestFocus();
+      }
     });
   }
 
@@ -262,6 +264,10 @@ class _CommunityCommentsScreenState
     final content = _controller.text.trim();
     if (content.isEmpty || _submitting || _resolvingTarget) return;
     final replyTarget = _replyToCommentId;
+    if (replyTarget != null && _rootById(replyTarget)?.deleted == true) {
+      setState(() => _replyToCommentId = null);
+      return;
+    }
     setState(() => _submitting = true);
     try {
       final comment = await ref
@@ -336,7 +342,9 @@ class _CommunityCommentsScreenState
                   !_resolvingTarget &&
                   !_submitting,
               submitting: _submitting,
-              replyTo: replyRoot?.authorNickname,
+              replyTo: replyRoot?.deleted == true
+                  ? null
+                  : replyRoot?.authorNickname,
               onCancelReply: () => setState(() => _replyToCommentId = null),
               onSubmit: _submit,
             )
@@ -435,6 +443,7 @@ class _CommunityCommentsScreenState
     Post? post,
     String? currentUserId,
   ) {
+    if (comment.deleted) return;
     final kind = currentUserId != null && comment.userId == currentUserId
         ? CommunityCommentMenuKind.commentOwner
         : currentUserId != null && post?.userId == currentUserId
@@ -444,6 +453,7 @@ class _CommunityCommentsScreenState
   }
 
   void _startReply(PostComment root) {
+    if (root.deleted) return;
     setState(() => _replyToCommentId = root.id);
     _focusNode.requestFocus();
   }
@@ -467,10 +477,15 @@ class _CommunityCommentsScreenState
     );
   }
 
-  int _loadedCommentCount() => _comments.fold<int>(
-    0,
-    (count, root) => count + 1 + root.replies.map((e) => e.id).toSet().length,
-  );
+  int _loadedCommentCount() => _comments.fold<int>(0, (count, root) {
+    final rootCount = root.deleted ? 0 : 1;
+    final repliesCount = root.replies
+        .where((reply) => !reply.deleted)
+        .map((reply) => reply.id)
+        .toSet()
+        .length;
+    return count + rootCount + repliesCount;
+  });
 
   bool _containsComment(String id) => _comments.any(
     (root) => root.id == id || root.replies.any((reply) => reply.id == id),

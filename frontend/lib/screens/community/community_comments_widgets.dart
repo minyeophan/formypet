@@ -213,7 +213,29 @@ class _CommentRow extends StatelessWidget {
   final VoidCallback? onReply;
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) {
+    if (comment.deleted) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: avatarSize, height: avatarSize),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '삭제된 댓글입니다',
+              style: TextStyle(
+                fontFamily: AppV2Tokens.fontFamily,
+                color: AppV2Tokens.textSecondary,
+                fontSize: bodySize,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       CommunityCommentAvatar(
@@ -281,7 +303,8 @@ class _CommentRow extends StatelessWidget {
         ),
       ),
     ],
-  );
+    );
+  }
 }
 
 class _CommentMoreButton extends StatefulWidget {
