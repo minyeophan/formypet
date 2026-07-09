@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -514,6 +516,108 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 IllegalArgumentException.class,
                 () -> communityService.createComment(email, postId, null));
         assertEquals("Comment content must be between 1 and 1000 characters.", exception.getMessage());
+    }
+
+    @Test
+    void commentAuthorCanEditComment() throws Exception {
+        String token = registerAndGetToken("comment-edit@example.com", "editor");
+        Long postId = createPost(token, "수정 글", "FREE", "body");
+        Long commentId = createComment(token, postId, "before", null);
+
+        mockMvc.perform(patch(POSTS_URL + "/" + postId + "/comments/" + commentId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"  after  \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value("after"))
+                .andExpect(jsonPath("$.data.updatedAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.deleted").value(false));
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].content").value("after"));
+    }
+
+    @Test
+    void postAuthorCanSoftDeleteRootWhileRepliesRemainVisible() throws Exception {
+        String postAuthorToken = registerAndGetToken("post-author-delete@example.com", "postauthor");
+        String commentAuthorToken = registerAndGetToken("comment-author-delete@example.com", "commentauthor");
+        Long postId = createPost(postAuthorToken, "삭제 글", "FREE", "body");
+        Long rootId = createComment(commentAuthorToken, postId, "root content", null);
+        Long replyId = createComment(postAuthorToken, postId, "active reply", rootId);
+
+        mockMvc.perform(delete(POSTS_URL + "/" + postId + "/comments/" + rootId)
+                        .header("Authorization", "Bearer " + postAuthorToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + postAuthorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].id").value(rootId))
+                .andExpect(jsonPath("$.data.items[0].deleted").value(true))
+                .andExpect(jsonPath("$.data.items[0].userId").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].content").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].replyCount").value(1))
+                .andExpect(jsonPath("$.data.items[0].replies[0].id").value(replyId))
+                .andExpect(jsonPath("$.data.items[0].commentsCount").value(1));
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + postAuthorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "content", "new reply", "parentCommentId", rootId))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_NOT_FOUND"));
+
+        mockMvc.perform(delete(POSTS_URL + "/" + postId + "/comments/" + replyId)
+                        .header("Authorization", "Bearer " + postAuthorToken))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments")
+                        .header("Authorization", "Bearer " + postAuthorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+        mockMvc.perform(get(POSTS_URL + "/" + postId + "/comments/" + rootId)
+                        .header("Authorization", "Bearer " + postAuthorToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_NOT_FOUND"));
+    }
+
+    @Test
+    void commentReportStoresSnapshotAndRejectsDuplicateAndSelfReport() throws Exception {
+        String authorToken = registerAndGetToken("report-author@example.com", "reportauthor");
+        String reporterToken = registerAndGetToken("reporter@example.com", "reporter");
+        Long postId = createPost(authorToken, "신고 글", "FREE", "body");
+        Long commentId = createComment(authorToken, postId, "reported snapshot", null);
+
+        String reportBody = "{\"reason\":\"SPAM\",\"detail\":\"반복 광고\"}";
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.reason").value("SPAM"));
+
+        assertEquals("reported snapshot", jdbcTemplate.queryForObject(
+                "SELECT content_snapshot FROM post_comment_reports WHERE comment_id = ?", String.class, commentId));
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportBody))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"ABUSE\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"OTHER\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
