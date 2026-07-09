@@ -132,4 +132,25 @@ void main() {
 
     expect(comment.authorProfileImageUrl, '/api/v1/users/1/profile-image');
   });
+
+  test('PostComment.fromJson parses deleted tombstone safely', () {
+    final comment = PostComment.fromJson({
+      'id': 9,
+      'userId': null,
+      'authorNickname': null,
+      'authorProfileImageUrl': null,
+      'content': null,
+      'createdAt': '2026-07-08T00:00:00',
+      'updatedAt': '2026-07-08T01:00:00',
+      'deleted': true,
+      'commentsCount': 1,
+    });
+
+    expect(comment.userId, '');
+    expect(comment.authorNickname, '');
+    expect(comment.content, '');
+    expect(comment.updatedAt, '2026-07-08T01:00:00');
+    expect(comment.deleted, isTrue);
+    expect(comment.copyWith().deleted, isTrue);
+  });
 }

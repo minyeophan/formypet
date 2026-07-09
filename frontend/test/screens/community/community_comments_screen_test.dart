@@ -112,7 +112,7 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('community-reply-cancel')));
     await tester.pump();
-    expect(find.text('댓글을 입력하세요...'), findsOneWidget);
+    expect(find.text('댓글을 해주세요'), findsOneWidget);
   });
 
   testWidgets('comment owner menu contains edit and delete only', (
@@ -126,9 +126,56 @@ void main() {
     expect(find.text('삭제하기'), findsOneWidget);
     expect(find.text('신고하기'), findsNothing);
   });
+
+  testWidgets('renders deleted root as tombstone without actions', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeService(
+        comments: [
+          _comment(
+            '1',
+            deleted: true,
+            replies: [_comment('2', userId: 'reply-owner')],
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
+    expect(find.byKey(const Key('community-comment-reply-1')), findsNothing);
+    expect(find.byKey(const Key('community-reply-2')), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-2')), findsOneWidget);
+    expect(find.text('댓글 (1)'), findsOneWidget);
+  });
+
+  testWidgets('does not enter reply mode for deleted initial reply target', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeService(comments: [_comment('1', deleted: true)]),
+      initialThreadId: '1',
+      initialReplyToCommentId: '1',
+    );
+
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(
+      find.byKey(const Key('community-reply-composer-target')),
+      findsNothing,
+    );
+    expect(find.text('댓글을 해주세요'), findsOneWidget);
+  });
 }
 
-Future<void> _pump(WidgetTester tester, _FakeService service) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _FakeService service, {
+  String? initialThreadId,
+  String? initialReplyToCommentId,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -147,7 +194,13 @@ Future<void> _pump(WidgetTester tester, _FakeService service) async {
         ),
         communityServiceProvider.overrideWithValue(service),
       ],
-      child: const MaterialApp(home: CommunityCommentsScreen(postId: 'post-1')),
+      child: MaterialApp(
+        home: CommunityCommentsScreen(
+          postId: 'post-1',
+          initialThreadId: initialThreadId,
+          initialReplyToCommentId: initialReplyToCommentId,
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -172,6 +225,7 @@ PostComment _comment(
   String userId = 'other',
   String author = '댓글러',
   List<PostComment> replies = const [],
+  bool deleted = false,
 }) => PostComment(
   id: id,
   userId: userId,
@@ -181,6 +235,7 @@ PostComment _comment(
   commentsCount: 0,
   replies: replies,
   replyCount: replies.length,
+  deleted: deleted,
 );
 
 DioException _dioError(int status) => DioException(

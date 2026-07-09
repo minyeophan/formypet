@@ -334,6 +334,35 @@ void main() {
 
     expect(find.text('준비중'), findsOneWidget);
   });
+
+  testWidgets('renders deleted preview root as tombstone without actions', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      post: _post(userId: 'post-owner', commentsCount: 0),
+      comments: [
+        _comment(
+          id: 'root',
+          userId: '',
+          deleted: true,
+          replies: [
+            _comment(
+              id: 'reply',
+              userId: 'reply-owner',
+              parentCommentId: 'root',
+            ),
+          ],
+        ),
+      ],
+    );
+
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-root')), findsNothing);
+    expect(find.byKey(const Key('community-comment-reply-root')), findsNothing);
+    expect(find.byKey(const Key('community-reply-reply')), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+  });
 }
 
 Future<void> _tabUntilFound(WidgetTester tester, Key key) async {
@@ -381,7 +410,7 @@ Future<void> _pumpDetail(
   await tester.pumpAndSettle();
 }
 
-Post _post({required String userId}) => Post(
+Post _post({required String userId, int commentsCount = 1}) => Post(
   id: 'post-1',
   userId: userId,
   authorNickname: 'Momo',
@@ -390,7 +419,7 @@ Post _post({required String userId}) => Post(
   category: 'FREE',
   likesCount: 0,
   liked: false,
-  commentsCount: 1,
+  commentsCount: commentsCount,
   imageUrls: const [],
   createdAt: '2026-06-24T00:00:00',
 );
@@ -402,6 +431,7 @@ PostComment _comment({
   String? parentCommentId,
   int replyCount = 0,
   List<PostComment> replies = const [],
+  bool deleted = false,
 }) => PostComment(
   id: id,
   userId: userId,
@@ -413,6 +443,7 @@ PostComment _comment({
   parentCommentId: parentCommentId,
   replyCount: replyCount,
   replies: replies,
+  deleted: deleted,
 );
 
 class _FakeCommunityService extends CommunityService {

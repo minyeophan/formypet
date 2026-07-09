@@ -271,6 +271,36 @@ void main() {
     expect(requests[2].data, {'content': 'reply', 'parentCommentId': 'root-1'});
   });
 
+  test('comments parse deleted tombstone contract', () async {
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      return _jsonResponse(options, 200, {
+        'data': {
+          'items': [
+            {
+              'id': 9,
+              'userId': null,
+              'authorNickname': null,
+              'authorProfileImageUrl': null,
+              'content': null,
+              'createdAt': '2026-07-08T00:00:00',
+              'updatedAt': '2026-07-08T01:00:00',
+              'deleted': true,
+              'commentsCount': 1,
+            },
+          ],
+          'nextCursor': null,
+        },
+      });
+    });
+
+    final comments = await CommunityService().getComments('post-1');
+
+    expect(comments.items.single.deleted, isTrue);
+    expect(comments.items.single.userId, '');
+    expect(comments.items.single.content, '');
+    expect(comments.items.single.updatedAt, '2026-07-08T01:00:00');
+  });
+
   test('thread and reply pagination use dedicated endpoints', () async {
     final requests = <RequestOptions>[];
     dio.httpClientAdapter = _CannedAdapter((options) {
