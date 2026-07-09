@@ -284,11 +284,26 @@ CREATE TABLE IF NOT EXISTS post_comments (
     parent_comment_id BIGINT NULL,
     content    VARCHAR(1000) NOT NULL,
     created_at DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6)   NULL,
+    deleted_at DATETIME(6)   NULL,
     CONSTRAINT fk_post_comment_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
     CONSTRAINT fk_post_comment_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_post_comment_parent FOREIGN KEY (parent_comment_id) REFERENCES post_comments (id) ON DELETE CASCADE,
     INDEX idx_post_comment_cursor (post_id, id DESC),
-    INDEX idx_post_comment_thread_cursor (post_id, parent_comment_id, id DESC)
+    INDEX idx_post_comments_active_thread (post_id, parent_comment_id, deleted_at, id DESC)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS post_comment_reports (
+    id               BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    comment_id       BIGINT        NOT NULL,
+    reporter_user_id BIGINT        NOT NULL,
+    reason           VARCHAR(30)   NOT NULL,
+    detail           VARCHAR(500)  NULL,
+    content_snapshot VARCHAR(1000) NOT NULL,
+    created_at       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_post_comment_report_comment FOREIGN KEY (comment_id) REFERENCES post_comments (id) ON DELETE CASCADE,
+    CONSTRAINT fk_post_comment_report_user FOREIGN KEY (reporter_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT uk_post_comment_reporter UNIQUE (comment_id, reporter_user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS media_resources (

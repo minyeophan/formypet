@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("20", flyway.info().current().getVersion().getVersion());
+        assertEquals("21", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -45,6 +45,21 @@ class FlywayMigrationTest {
                     WHERE table_schema = DATABASE()
                       AND table_name = 'media_cleanup_queue'
                     """));
+            assertCommentManagementSchema(connection);
+        }
+    }
+
+    @Test
+    void addsCommentManagementSchemaFromV20() throws Exception {
+        Flyway flyway = flyway("20");
+        flyway.migrate();
+
+        flyway = flyway(null);
+        flyway.migrate();
+
+        assertEquals("21", flyway.info().current().getVersion().getVersion());
+        try (Connection connection = connection()) {
+            assertCommentManagementSchema(connection);
         }
     }
 
@@ -107,6 +122,38 @@ class FlywayMigrationTest {
 
     private Connection connection() throws Exception {
         return DriverManager.getConnection(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
+    }
+
+    private void assertCommentManagementSchema(Connection connection) throws Exception {
+        assertEquals(2, count(connection, """
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'post_comments'
+                  AND column_name IN ('updated_at', 'deleted_at')
+                """));
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'post_comment_reports'
+                """));
+        assertEquals(4, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'post_comments'
+                  AND index_name = 'idx_post_comments_active_thread'
+                """));
+        assertEquals(0, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'post_comments'
+                  AND index_name = 'idx_post_comments_thread_cursor'
+                """));
+        assertEquals(2, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'post_comment_reports'
+                  AND index_name = 'uk_post_comment_reporter'
+                """));
     }
 
     private void insertRemovalFixtures(Connection connection) throws Exception {
