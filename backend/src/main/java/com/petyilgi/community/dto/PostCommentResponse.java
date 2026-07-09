@@ -10,6 +10,8 @@ public record PostCommentResponse(
         String authorProfileImageUrl,
         String content,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        boolean deleted,
         int commentsCount,
         Long parentCommentId,
         int replyCount,
