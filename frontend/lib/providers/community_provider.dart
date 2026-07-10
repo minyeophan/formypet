@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -226,6 +228,22 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       _replacePost(post.copyWith(commentsCount: comment.commentsCount));
     }
     return comment;
+  }
+
+  Future<PostComment> updateComment(
+    String postId,
+    String commentId,
+    String content,
+  ) {
+    return _svc.updateComment(postId, commentId, content);
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _svc.deleteComment(postId, commentId);
+    final post = state.postsById[postId];
+    if (post != null) {
+      _replacePost(post.copyWith(commentsCount: max(0, post.commentsCount - 1)));
+    }
   }
 
   Future<Post> createPost({

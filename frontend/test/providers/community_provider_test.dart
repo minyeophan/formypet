@@ -86,9 +86,58 @@ void main() {
     expect(notifier.state.isLiking('one'), isFalse);
     expect(notifier.state.postsById['one']!.liked, isFalse);
   });
+
+  test('comment update preserves cached post count', () async {
+    final service = _ControlledService();
+    final notifier = CommunityNotifier(service);
+    service.requests.removeAt(0).complete(
+      PostFeed(items: [_post('one', commentsCount: 2)], nextCursor: null),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final update = notifier.updateComment('one', 'c1', ' updated ');
+    expect(service.commentUpdates.single, ('one', 'c1', ' updated '));
+    service.commentUpdateResponses.single.complete(
+      const PostComment(
+        id: 'c1',
+        userId: 'user',
+        authorNickname: '집사',
+        content: 'updated',
+        createdAt: '2026-07-02T00:00:00Z',
+        commentsCount: 2,
+      ),
+    );
+
+    final updated = await update;
+
+    expect(updated.content, 'updated');
+    expect(notifier.state.postsById['one']!.commentsCount, 2);
+  });
+
+  test('comment delete decrements cached post count without going below zero', () async {
+    final service = _ControlledService();
+    final notifier = CommunityNotifier(service);
+    service.requests.removeAt(0).complete(
+      PostFeed(items: [_post('one', commentsCount: 1)], nextCursor: null),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final first = notifier.deleteComment('one', 'c1');
+    expect(service.commentDeletes.single, ('one', 'c1'));
+    service.commentDeleteResponses.single.complete();
+    await first;
+
+    expect(notifier.state.postsById['one']!.commentsCount, 0);
+
+    final second = notifier.deleteComment('one', 'c2');
+    service.commentDeleteResponses.last.complete();
+    await second;
+
+    expect(notifier.state.postsById['one']!.commentsCount, 0);
+  });
 }
 
-Post _post(String id) => Post(
+Post _post(String id, {int commentsCount = 0}) => Post(
   id: id,
   userId: 'user',
   authorNickname: '집사',
@@ -96,7 +145,7 @@ Post _post(String id) => Post(
   category: 'FREE',
   likesCount: 0,
   liked: false,
-  commentsCount: 0,
+  commentsCount: commentsCount,
   imageUrls: const [],
   createdAt: '2026-07-02T00:00:00Z',
 );
@@ -104,6 +153,11 @@ Post _post(String id) => Post(
 class _ControlledService extends CommunityService {
   final List<Completer<PostFeed>> requests = [];
   final List<Completer<Map<String, dynamic>>> likeRequests = [];
+  final List<(String postId, String commentId, String content)> commentUpdates =
+      [];
+  final List<Completer<PostComment>> commentUpdateResponses = [];
+  final List<(String postId, String commentId)> commentDeletes = [];
+  final List<Completer<void>> commentDeleteResponses = [];
 
   @override
   Future<PostFeed> getFeed({
@@ -122,6 +176,26 @@ class _ControlledService extends CommunityService {
   Future<Map<String, dynamic>> toggleLike(String postId) {
     final completer = Completer<Map<String, dynamic>>();
     likeRequests.add(completer);
+    return completer.future;
+  }
+
+  @override
+  Future<PostComment> updateComment(
+    String postId,
+    String commentId,
+    String content,
+  ) {
+    final completer = Completer<PostComment>();
+    commentUpdates.add((postId, commentId, content));
+    commentUpdateResponses.add(completer);
+    return completer.future;
+  }
+
+  @override
+  Future<void> deleteComment(String postId, String commentId) {
+    final completer = Completer<void>();
+    commentDeletes.add((postId, commentId));
+    commentDeleteResponses.add(completer);
     return completer.future;
   }
 }
