@@ -5,7 +5,7 @@
 - 백엔드는 댓글 작성자 수정 `PATCH /api/v1/posts/{postId}/comments/{commentId}`를 제공한다. body는 `content` 1~1000자이며 응답에 `updatedAt`, `deleted`가 추가됐다.
 - 댓글 작성자 또는 게시글 작성자는 `DELETE /api/v1/posts/{postId}/comments/{commentId}`로 soft delete할 수 있다. 활성 답글이 남은 삭제 root는 `deleted: true`와 null 작성자·내용을 가진 tombstone으로 조회되고, 활성 답글이 없으면 목록과 thread에서 제외된다.
 - `POST /api/v1/posts/{postId}/comments/{commentId}/reports`는 `SPAM`, `ABUSE`, `INAPPROPRIATE`, `PRIVACY`, `OTHER`를 받는다. `OTHER`는 `detail`이 필수이며 자기 댓글 신고는 400, 중복 신고는 409다.
-- Flutter 후속 작업은 nullable tombstone 모델·표시, 수정/삭제 메뉴 연결, 신고 사유 입력과 400/409 오류 표시다. 이번 backend 작업에서는 Flutter 코드를 변경하지 않는다.
+- Flutter는 nullable tombstone 표시와 댓글 수정·삭제 메뉴/API 연결까지 반영했다. 신고 사유 입력과 400/409 오류 표시는 후속 범위다.
 
 ## 2026-07-02 Community V2
 
@@ -56,7 +56,7 @@
 | Home | 오늘의 인기글 | 🔌 연동됨 | popular feed 상위 3개 조회, 로딩·빈 결과·오류·재시도 지원, 상세 route 연결 |
 | Community | 상단 알림, 검색 아이콘 | 🧭 진입점 없음 | `준비중` 토스트만 표시. 알림 목록과 검색 화면 없음 |
 | Community | 게시글 카드 | 🔌 연동됨 | 피드 조회, 좋아요, 상세 진입, 첫 이미지 썸네일, 이미지 개수, 투표 badge 표시 |
-| Community | 댓글, 답글 | 🔌 연동됨 | 댓글 전용 화면에서 댓글·답글 작성, thread 진입, 답글 추가 조회 지원 |
+| Community | 댓글, 답글 | 🔌 연동됨 | 댓글 전용 화면에서 댓글·답글 작성·수정·삭제, thread 진입, 답글 추가 조회 지원 |
 | Community | 카테고리 chip, 이용 가이드 | ✅ 구현됨 | route 기반 12개 chip과 활성 chip 자동 노출, 접힘/펼침 가능한 4개 안내 제공 |
 | My | 펫 카드, `펫 추가하기` | ✅ 구현됨 | `/pet/{id}`, `/pets/new`로 이동 |
 | My | 설정, `모두보기`, 프로필 편집 | ✅ 구현됨 | `/my/settings`, `/my/pets`, `/my/profile`로 이동 |
@@ -311,9 +311,10 @@
 | 피드 투표 표시 | ✅ 구현됨 | `PostCard`는 투표 badge, 상세 화면은 투표 문항·항목·비율 표시 |
 | 투표 참여 | 🔌 연동됨 | `CommunityService.vote()`, `CommunityProvider.vote()`가 투표 API 호출 후 캐시 갱신 |
 | 게시글 상세, 댓글 진입 | 🔌 연동됨 | `/community/posts/:postId`는 모바일 V2 article·4:3 이미지 pager·투표·flat 댓글 preview·댓글 launcher 적용, `/community/posts/:postId/comments` 댓글 전용 화면 연결 |
-| 댓글 수 동기화 | 🔌 연동됨 | 댓글 작성 응답의 서버 `commentsCount`로 피드와 상세 캐시 갱신 |
+| 댓글 수 동기화 | 🔌 연동됨 | 댓글 작성 응답의 서버 `commentsCount`와 삭제 성공 시 로컬 감소로 피드와 상세 캐시 갱신 |
 | 댓글 작성자 프로필 이미지 | 🔌 연동됨 | `authorProfileImageUrl`, 인증 이미지 위젯, `/api/v1/users/{userId}/profile-image` 사용 |
 | 답글 작성·조회 | 🔌 연동됨 | root 댓글의 `replyCount`, preview replies, thread 조회, cursor 기반 답글 추가 조회 및 `parentCommentId` 작성 |
+| 댓글 수정·삭제 | 🔌 연동됨 | 작성자는 수정·삭제, 게시글 작성자는 삭제 가능. 삭제 root의 활성 답글은 tombstone 아래 유지하고 활성 답글이 없으면 제거 |
 | 상단 알림, 검색 | 🧭 진입점 없음 | 아이콘은 있으나 `준비중` 토스트만 표시 |
 | 카테고리 선택, 이용 가이드 | ✅ 구현됨 | 메인 12개 category route, route 기반 12개 chip, 활성 chip 자동 노출, 기본 접힘·4개 안내 guide 제공 |
 | 해시태그·팔로우 | ❌ 제외 | MVP 제외 |
@@ -335,6 +336,8 @@
 | 답글 목록 | `GET /api/v1/posts/{postId}/comments/{commentId}/replies?cursor=&limit=20` |
 | 댓글 작성 | `POST /api/v1/posts/{postId}/comments`, `{ "content": "...", "parentCommentId": null }` |
 | 답글 작성 | 댓글 작성 API에 root 댓글의 `parentCommentId` 전달. 중첩 답글은 허용하지 않음 |
+| 댓글 수정 | `PATCH /api/v1/posts/{postId}/comments/{commentId}` |
+| 댓글 삭제 | `DELETE /api/v1/posts/{postId}/comments/{commentId}` |
 
 `keyword`는 선택값이며 생략·빈 문자열·공백은 일반 피드로 처리한다. 값이 있으면 trim 후 Unicode code point 기준 2~20자여야 하고, 제목 또는 본문에 literal 포함되는 게시글을 찾는다. `category`와는 AND로 조합한다. 프론트는 `keyword`, `category`, `sort` 중 하나라도 바뀌면 기존 cursor를 폐기하고 첫 페이지부터 요청해야 한다.
 
@@ -368,7 +371,7 @@
 - 이미지 최대 개수는 백엔드 계약과 맞춰야 한다. 기존 문서 기준은 최대 3장이나, 현재 프론트 입력 제한과 재확인 필요.
 - 투표 `question`을 별도 입력받을지, 현재 임시값 `투표`를 허용할지 결정 필요.
 - 카테고리 enum은 현재 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다.
-- 댓글은 root 댓글과 한 단계 답글을 지원한다. 답글의 답글은 허용하지 않으며 댓글·답글 수정, 실제 삭제, 신고는 후속 범위다.
+- 댓글은 root 댓글과 한 단계 답글을 지원한다. 답글의 답글은 허용하지 않는다. 댓글·답글 신고는 후속 범위다.
 
 ---
 
@@ -449,7 +452,7 @@ interface CommunityComment {
 | 기록 | 타입별 생성, 목록→상세→수정·삭제와 날짜 이동은 수동 확인 완료. 급식 사진, 잘못된 recordId 직접 접근, 배변 옵션 카드 웹 잔상 재현 여부는 회귀 확인 |
 | 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI 추가 후 해당 흐름 확인 |
 | 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가/상세/수정/삭제 UI와 API 저장 흐름 |
-| 커뮤니티 | 피드, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글·답글 작성과 pagination, 투표 참여를 수동 확인. 검색/알림/카테고리 필터 연결 후 해당 흐름 확인 |
+| 커뮤니티 | 피드, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글·답글 작성·수정·삭제와 pagination, 투표 참여를 수동 확인. 검색/알림/카테고리 필터, 댓글 신고 연결 후 해당 흐름 확인 |
 
 ---
 

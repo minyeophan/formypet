@@ -12,7 +12,7 @@
 
 - 커뮤니티 댓글 수정·soft delete·신고 접수 backend를 구현했다. 댓글 작성자는 수정할 수 있고 댓글 또는 게시글 작성자는 삭제할 수 있으며, 삭제 root의 활성 답글은 tombstone 아래 유지된다.
 - 신고는 5개 사유와 선택 상세를 저장하고 `OTHER` 상세 필수, 자기 신고 금지, 사용자별 중복 신고 금지를 적용한다. 신고 시 댓글 내용 snapshot을 함께 보존한다.
-- Flutter의 tombstone 표시와 수정·삭제·신고 메뉴 연결은 별도 후속 작업이며 계약은 `docs/FRONTEND_STATUS.md`에 기록했다.
+- Flutter의 tombstone 표시와 댓글 수정·삭제 메뉴/API 연결을 반영했다. 신고 사유 입력과 400/409 오류 표시는 별도 후속 작업이다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
 - 여러 통합 테스트 클래스가 공유하는 MySQL container의 생성·시작 책임을 package-private `SharedMySqlContainer`로 분리했다. `IntegrationTestSupport`는 datasource property 연결만 담당한다.
@@ -32,11 +32,11 @@
 - MySQL singleton 테스트와 rollback 기반 `PetIntegrationTest`, 명시적 cleanup 기반 `AuthIntegrationTest` 조합이 통과했다.
 - 변경 후 Java Problems 안정 snapshot 2회는 328개(main 21, test 307)로 일치했다. 기존 lifecycle warning 1개만 `IntegrationTestSupport`에서 `SharedMySqlContainer`로 이동했다.
 - snapshot 산출물은 `C:\tmp\paa-shared-mysql-container-0f9ab5d-20260708`, test 진단 감사는 `docs/superpowers/specs/2026-07-07-java-test-diagnostics-audit.md`에 있다.
-- 최근 기록된 Flutter 전체 검증은 2026-07-05 `flutter test` 354개 통과와 `flutter analyze` `No issues found!`다.
+- 최근 기록된 Flutter 전체 검증은 2026-07-05 `flutter test` 354개 통과와 `flutter analyze` `No issues found!`다. 2026-07-09 댓글 수정·삭제 관련 targeted 테스트와 사용자 터미널 `flutter analyze`가 통과했다.
 
 ## 다음 행동
 
-- 현재 제품 기능 backlog로 복귀한다. 우선순위는 커뮤니티 검색 UI·알림·카테고리 필터, 댓글·답글 수동 회귀, 기록 direct URL 예외, 루틴 수정 UI다.
+- 현재 제품 기능 backlog로 복귀한다. 우선순위는 댓글 신고 UI, 커뮤니티 검색 UI·알림·카테고리 필터, 댓글·답글 수동 회귀, 기록 direct URL 예외, 루틴 수정 UI다.
 - backend roadmap 작업을 재개할 때는 08번 구현 작업, 09번 프론트 연결, 10번 dead code cleanup의 미완료 체크부터 현재 코드와 대조한다.
 - Flutter UI 작업은 `DESIGN.md`와 `docs/SCREEN_V2_STATUS.md`, backend 작업은 `docs/BACKEND_RULES.md`와 `docs/FRONTEND_STATUS.md`를 먼저 읽는다.
 
@@ -56,8 +56,8 @@
 
 ## 최신 Handover
 
-- Goal: 커뮤니티 댓글 수정·삭제·신고 접수 backend 계약을 구현한다.
-- Done: V21 schema, 수정·soft delete·tombstone 조회, 신고 snapshot·중복·자기 신고 검증과 통합 테스트를 추가했다.
-- Remaining: Flutter nullable tombstone 모델과 수정·삭제·신고 UI/API 연결, 실제 기기 수동 회귀가 남아 있다.
-- Next step: backend 전체 검증 결과를 기준으로 Flutter 연동을 별도 TDD 작업으로 진행한다.
-- Warnings: 삭제 댓글의 작성자·내용 필드는 null이다. 기존 Flutter 모델을 그대로 두면 tombstone이 올바르게 표시되지 않는다.
+- Goal: 커뮤니티 댓글 수정·삭제 Flutter UI/API를 backend 계약에 연결한다.
+- Done: 댓글 nullable tombstone 모델 보강, 댓글 작성자 수정, 댓글/게시글 작성자 삭제, 삭제 root tombstone 유지와 reply 제거 로컬 반영, 관련 service/provider/widget 테스트를 추가했다.
+- Remaining: 댓글 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀가 남아 있다.
+- Next step: 댓글 신고 UI를 별도 TDD 작업으로 진행하거나, 현재 변경분을 커밋한다.
+- Warnings: 삭제 root는 활성 답글이 남을 때만 tombstone으로 유지한다. 신고 메뉴는 아직 준비중 토스트로 남아 있다.
