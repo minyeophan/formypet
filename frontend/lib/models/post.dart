@@ -174,6 +174,12 @@ class PostComment {
   );
 
   PostComment copyWith({
+    String? userId,
+    String? authorNickname,
+    String? authorProfileImageUrl,
+    String? content,
+    String? updatedAt,
+    bool? deleted,
     int? commentsCount,
     int? replyCount,
     List<PostComment>? replies,
@@ -181,13 +187,13 @@ class PostComment {
     bool clearRepliesNextCursor = false,
   }) => PostComment(
     id: id,
-    userId: userId,
-    authorNickname: authorNickname,
-    authorProfileImageUrl: authorProfileImageUrl,
-    content: content,
+    userId: userId ?? this.userId,
+    authorNickname: authorNickname ?? this.authorNickname,
+    authorProfileImageUrl: authorProfileImageUrl ?? this.authorProfileImageUrl,
+    content: content ?? this.content,
     createdAt: createdAt,
-    updatedAt: updatedAt,
-    deleted: deleted,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
     commentsCount: commentsCount ?? this.commentsCount,
     parentCommentId: parentCommentId,
     replyCount: replyCount ?? this.replyCount,

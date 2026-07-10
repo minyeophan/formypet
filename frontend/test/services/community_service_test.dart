@@ -301,6 +301,39 @@ void main() {
     expect(comments.items.single.updatedAt, '2026-07-08T01:00:00');
   });
 
+  test('update and delete comment use management endpoints', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      if (options.method == 'DELETE') {
+        return _jsonResponse(options, 204, {'data': null});
+      }
+      return _jsonResponse(options, 200, {
+        'data': {
+          'id': 9,
+          'userId': 1,
+          'authorNickname': 'author',
+          'content': 'updated',
+          'createdAt': '2026-07-08T00:00:00',
+          'updatedAt': '2026-07-08T01:00:00',
+          'commentsCount': 1,
+        },
+      });
+    });
+
+    final service = CommunityService();
+    final updated = await service.updateComment('post-1', '9', ' updated ');
+    await service.deleteComment('post-1', '9');
+
+    expect(updated.content, 'updated');
+    expect(updated.updatedAt, '2026-07-08T01:00:00');
+    expect(requests[0].method, 'PATCH');
+    expect(requests[0].path, '/api/v1/posts/post-1/comments/9');
+    expect(requests[0].data, {'content': 'updated'});
+    expect(requests[1].method, 'DELETE');
+    expect(requests[1].path, '/api/v1/posts/post-1/comments/9');
+  });
+
   test('thread and reply pagination use dedicated endpoints', () async {
     final requests = <RequestOptions>[];
     dio.httpClientAdapter = _CannedAdapter((options) {

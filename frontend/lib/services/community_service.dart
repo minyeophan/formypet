@@ -155,6 +155,22 @@ class CommunityService {
     return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
+  Future<PostComment> updateComment(
+    String postId,
+    String commentId,
+    String content,
+  ) async {
+    final res = await dio.patch(
+      '/api/v1/posts/$postId/comments/$commentId',
+      data: {'content': content.trim()},
+    );
+    return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await dio.delete('/api/v1/posts/$postId/comments/$commentId');
+  }
+
   String _filenameFor(XFile file, int index) {
     if (file.name.isNotEmpty) return file.name;
     final path = file.path.replaceAll('\\', '/');
