@@ -404,24 +404,36 @@ class _FocusActionState extends State<_FocusAction> {
 
 enum CommunityCommentMenuKind { commentOwner, postOwner, viewer }
 
-Future<void> showCommunityCommentsV2Menu(
+enum CommunityCommentMenuAction { edit, delete, report, block }
+
+Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
   BuildContext context, {
   required CommunityCommentMenuKind kind,
 }) async {
   final actions = switch (kind) {
     CommunityCommentMenuKind.commentOwner => const [
-      ('수정하기', Icons.edit_outlined, false),
-      ('삭제하기', Icons.delete_outline_rounded, true),
+      (CommunityCommentMenuAction.edit, '수정하기', Icons.edit_outlined, false),
+      (
+        CommunityCommentMenuAction.delete,
+        '삭제하기',
+        Icons.delete_outline_rounded,
+        true,
+      ),
     ],
     CommunityCommentMenuKind.postOwner => const [
-      ('삭제하기', Icons.delete_outline_rounded, true),
+      (
+        CommunityCommentMenuAction.delete,
+        '삭제하기',
+        Icons.delete_outline_rounded,
+        true,
+      ),
     ],
     CommunityCommentMenuKind.viewer => const [
-      ('신고하기', Icons.report_outlined, false),
-      ('사용자 차단', Icons.block_rounded, false),
+      (CommunityCommentMenuAction.report, '신고하기', Icons.report_outlined, false),
+      (CommunityCommentMenuAction.block, '사용자 차단', Icons.block_rounded, false),
     ],
   };
-  final selected = await showModalBottomSheet<bool>(
+  return showModalBottomSheet<CommunityCommentMenuAction>(
     context: context,
     backgroundColor: AppV2Tokens.background,
     showDragHandle: true,
@@ -436,24 +448,74 @@ Future<void> showCommunityCommentsV2Menu(
               ListTile(
                 minTileHeight: 52,
                 leading: Icon(
-                  action.$2,
-                  color: action.$3 ? AppV2Tokens.error : AppV2Tokens.text,
+                  action.$3,
+                  color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
                 ),
                 title: Text(
-                  action.$1,
+                  action.$2,
                   style: TextStyle(
-                    color: action.$3 ? AppV2Tokens.error : AppV2Tokens.text,
+                    color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
                     fontFamily: AppV2Tokens.fontFamily,
                   ),
                 ),
-                onTap: () => Navigator.pop(sheetContext, true),
+                onTap: () => Navigator.pop(sheetContext, action.$1),
               ),
           ],
         ),
       ),
     ),
   );
-  if (selected == true && context.mounted) showPreparingToast(context);
+}
+
+Future<bool?> showCommunityCommentDeleteConfirmationSheet(
+  BuildContext context,
+) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    backgroundColor: AppV2Tokens.background,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '댓글을 삭제할까요?',
+              style: TextStyle(
+                color: AppV2Tokens.text,
+                fontFamily: AppV2Tokens.fontFamily,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '삭제한 댓글은 다시 되돌릴 수 없어요.',
+              style: TextStyle(
+                color: AppV2Tokens.textSecondary,
+                fontFamily: AppV2Tokens.fontFamily,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              key: const Key('community-comment-delete-confirm'),
+              onPressed: () => Navigator.pop(sheetContext, true),
+              style: FilledButton.styleFrom(backgroundColor: AppV2Tokens.error),
+              child: const Text('삭제'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext, false),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class CommunityCommentsStatus extends StatelessWidget {
@@ -547,6 +609,7 @@ class CommunityCommentsComposer extends StatelessWidget {
     required this.onSubmit,
     required this.onCancelReply,
     this.replyTo,
+    this.editing = false,
   });
 
   final TextEditingController controller;
@@ -557,10 +620,12 @@ class CommunityCommentsComposer extends StatelessWidget {
   final VoidCallback onSubmit;
   final VoidCallback onCancelReply;
   final String? replyTo;
+  final bool editing;
 
   @override
   Widget build(BuildContext context) {
     final author = replyTo == null ? null : communityCommentAuthor(replyTo!);
+    final hasMode = editing || author != null;
     return SafeArea(
       top: false,
       child: AnimatedPadding(
@@ -579,7 +644,7 @@ class CommunityCommentsComposer extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (author != null)
+              if (hasMode)
                 SizedBox(
                   key: const Key('community-reply-composer-target'),
                   height: 44,
@@ -587,7 +652,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '$author님에게 답글',
+                          editing ? '댓글 수정 중' : '$author님에게 답글',
                           style: const TextStyle(
                             fontFamily: AppV2Tokens.fontFamily,
                             color: AppV2Tokens.textSecondary,
@@ -600,7 +665,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                         key: const Key('community-reply-cancel'),
                         onPressed: onCancelReply,
                         icon: const Icon(Icons.close_rounded, size: 18),
-                        tooltip: '답글 취소',
+                        tooltip: editing ? '수정 취소' : '답글 취소',
                       ),
                     ],
                   ),
@@ -640,7 +705,9 @@ class CommunityCommentsComposer extends StatelessWidget {
                       ),
                       decoration: InputDecoration(
                         hintText: author == null
-                            ? '댓글을 해주세요'
+                            ? editing
+                                  ? '수정할 댓글을 입력하세요'
+                                  : '댓글을 해주세요'
                             : '$author님에게 답글 하기',
                         filled: true,
                         fillColor: AppV2Tokens.surfaceSoft,

@@ -168,6 +168,97 @@ void main() {
     );
     expect(find.text('댓글을 해주세요'), findsOneWidget);
   });
+
+  testWidgets('comment owner can edit root comment', (tester) async {
+    final service = _FakeService(comments: [_comment('1', userId: 'me')]);
+    await _pump(tester, service);
+
+    await tester.tap(find.byKey(const Key('community-comment-more-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('수정하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('댓글 수정 중'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('community-comments-input')))
+          .controller
+          ?.text,
+      '댓글 1',
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('community-comments-input')),
+      '수정 댓글',
+    );
+    service.updatedComment = _comment('1', userId: 'me', content: '수정 댓글');
+    await tester.tap(find.byKey(const Key('community-comments-submit')));
+    await tester.pumpAndSettle();
+
+    expect(service.updateRequests, [('post-1', '1', '수정 댓글')]);
+    expect(find.text('수정 댓글'), findsOneWidget);
+    expect(find.text('댓글 수정 중'), findsNothing);
+  });
+
+  testWidgets('deleting root with replies keeps tombstone and reply', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      comments: [
+        _comment('1', userId: 'me', replies: [_comment('2', userId: 'other')]),
+      ],
+    );
+    await _pump(tester, service);
+
+    await tester.tap(find.byKey(const Key('community-comment-more-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('삭제하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-comment-delete-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(service.deleteRequests, [('post-1', '1')]);
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(find.byKey(const Key('community-reply-2')), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
+    expect(find.text('댓글 (1)'), findsOneWidget);
+  });
+
+  testWidgets('deleting reply removes it and decrements count', (tester) async {
+    final service = _FakeService(
+      comments: [
+        _comment('1', replies: [_comment('2', userId: 'me')]),
+      ],
+    );
+    await _pump(tester, service);
+
+    await tester.tap(find.byKey(const Key('community-comment-more-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('삭제하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-comment-delete-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(service.deleteRequests, [('post-1', '2')]);
+    expect(find.byKey(const Key('community-reply-2')), findsNothing);
+    expect(find.text('댓글 (1)'), findsOneWidget);
+  });
+
+  testWidgets('post owner sees delete only for another user comment', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeService(comments: [_comment('1', userId: 'other')]),
+      currentUserId: 'post-owner',
+    );
+
+    await tester.tap(find.byKey(const Key('community-comment-more-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('삭제하기'), findsOneWidget);
+    expect(find.text('수정하기'), findsNothing);
+  });
 }
 
 Future<void> _pump(
@@ -175,18 +266,19 @@ Future<void> _pump(
   _FakeService service, {
   String? initialThreadId,
   String? initialReplyToCommentId,
+  String currentUserId = 'me',
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         authProvider.overrideWith(
           (ref) => AuthNotifier.test(
-            const AuthState(
+            AuthState(
               isLoading: false,
               isAuthenticated: true,
               profile: UserProfile(
-                id: 'me',
-                email: 'me@example.test',
+                id: currentUserId,
+                email: '$currentUserId@example.test',
                 nickname: '나',
               ),
             ),
@@ -224,15 +316,17 @@ PostComment _comment(
   String id, {
   String userId = 'other',
   String author = '댓글러',
+  String? content,
+  int? commentsCount,
   List<PostComment> replies = const [],
   bool deleted = false,
 }) => PostComment(
   id: id,
   userId: userId,
   authorNickname: author,
-  content: '댓글 $id',
+  content: content ?? '댓글 $id',
   createdAt: '2026-07-08T00:00:00Z',
-  commentsCount: 0,
+  commentsCount: commentsCount ?? (deleted ? replies.length : 1 + replies.length),
   replies: replies,
   replyCount: replies.length,
   deleted: deleted,
@@ -253,6 +347,12 @@ class _FakeService extends CommunityService {
   final Object? commentsError;
   int? commentsLimit;
   int? replyLimit;
+  final List<(String postId, String commentId, String content)> updateRequests =
+      [];
+  final List<(String postId, String commentId)> deleteRequests = [];
+  PostComment? updatedComment;
+  Object? updateError;
+  Object? deleteError;
 
   @override
   Future<PostFeed> getFeed({
@@ -277,5 +377,22 @@ class _FakeService extends CommunityService {
     this.replyLimit = replyLimit;
     if (commentsError != null) throw commentsError!;
     return PostCommentFeed(items: comments);
+  }
+
+  @override
+  Future<PostComment> updateComment(
+    String postId,
+    String commentId,
+    String content,
+  ) async {
+    updateRequests.add((postId, commentId, content));
+    if (updateError != null) throw updateError!;
+    return updatedComment ?? _comment(commentId, content: content);
+  }
+
+  @override
+  Future<void> deleteComment(String postId, String commentId) async {
+    deleteRequests.add((postId, commentId));
+    if (deleteError != null) throw deleteError!;
   }
 }

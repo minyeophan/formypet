@@ -45,6 +45,8 @@ class _CommunityCommentsScreenState
   List<PostComment> _comments = const [];
   String? _nextCursor;
   String? _replyToCommentId;
+  String? _editingCommentId;
+  final Set<String> _mutatingCommentIds = {};
   bool _initialLoading = true;
   bool _reloadLocked = false;
   bool _loadingMore = false;
@@ -263,6 +265,11 @@ class _CommunityCommentsScreenState
   Future<void> _submit() async {
     final content = _controller.text.trim();
     if (content.isEmpty || _submitting || _resolvingTarget) return;
+    final editingCommentId = _editingCommentId;
+    if (editingCommentId != null) {
+      await _submitEdit(editingCommentId, content);
+      return;
+    }
     final replyTarget = _replyToCommentId;
     if (replyTarget != null && _rootById(replyTarget)?.deleted == true) {
       setState(() => _replyToCommentId = null);
@@ -301,6 +308,34 @@ class _CommunityCommentsScreenState
       if (!mounted) return;
       setState(() => _submitting = false);
       _showError('댓글을 등록하지 못했습니다');
+    }
+  }
+
+  Future<void> _submitEdit(String commentId, String content) async {
+    if (_mutatingCommentIds.contains(commentId)) return;
+    setState(() {
+      _submitting = true;
+      _mutatingCommentIds.add(commentId);
+    });
+    try {
+      final updated = await ref
+          .read(communityProvider.notifier)
+          .updateComment(widget.postId, commentId, content);
+      if (!mounted) return;
+      setState(() {
+        _comments = _replaceComment(_comments, updated);
+        _resetComposer();
+        _submitting = false;
+        _mutatingCommentIds.remove(commentId);
+      });
+      _focusNode.requestFocus();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _mutatingCommentIds.remove(commentId);
+      });
+      _showError('댓글을 수정하지 못했습니다');
     }
   }
 
@@ -345,7 +380,8 @@ class _CommunityCommentsScreenState
               replyTo: replyRoot?.deleted == true
                   ? null
                   : replyRoot?.authorNickname,
-              onCancelReply: () => setState(() => _replyToCommentId = null),
+              editing: _editingCommentId != null,
+              onCancelReply: () => setState(_resetComposer),
               onSubmit: _submit,
             )
           : null,
@@ -438,24 +474,90 @@ class _CommunityCommentsScreenState
     );
   }
 
-  void _showCommentMenu(
+  Future<void> _showCommentMenu(
     PostComment comment,
     Post? post,
     String? currentUserId,
-  ) {
+  ) async {
     if (comment.deleted) return;
+    if (_mutatingCommentIds.contains(comment.id)) return;
     final kind = currentUserId != null && comment.userId == currentUserId
         ? CommunityCommentMenuKind.commentOwner
         : currentUserId != null && post?.userId == currentUserId
         ? CommunityCommentMenuKind.postOwner
         : CommunityCommentMenuKind.viewer;
-    showCommunityCommentsV2Menu(context, kind: kind);
+    final action = await showCommunityCommentsV2Menu(context, kind: kind);
+    if (!mounted || action == null) return;
+    switch (action) {
+      case CommunityCommentMenuAction.edit:
+        _startEdit(comment);
+        break;
+      case CommunityCommentMenuAction.delete:
+        await _confirmAndDelete(comment);
+        break;
+      case CommunityCommentMenuAction.report:
+      case CommunityCommentMenuAction.block:
+        showPreparingToast(context);
+        break;
+    }
   }
 
   void _startReply(PostComment root) {
     if (root.deleted) return;
-    setState(() => _replyToCommentId = root.id);
+    setState(() {
+      _editingCommentId = null;
+      _replyToCommentId = root.id;
+      _controller.clear();
+    });
     _focusNode.requestFocus();
+  }
+
+  void _startEdit(PostComment comment) {
+    setState(() {
+      _replyToCommentId = null;
+      _editingCommentId = comment.id;
+      _controller.text = comment.content;
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _confirmAndDelete(PostComment comment) async {
+    final confirmed = await showCommunityCommentDeleteConfirmationSheet(context);
+    if (!mounted || confirmed != true) return;
+    await _deleteComment(comment);
+  }
+
+  Future<void> _deleteComment(PostComment comment) async {
+    if (_mutatingCommentIds.contains(comment.id)) return;
+    setState(() => _mutatingCommentIds.add(comment.id));
+    try {
+      await ref
+          .read(communityProvider.notifier)
+          .deleteComment(widget.postId, comment.id);
+      if (!mounted) return;
+      setState(() {
+        _comments = _deleteCommentLocally(_comments, comment);
+        _comments = _withCommentCounts(_comments, max(0, _displayedCount - 1));
+        _displayedCount = max(0, _displayedCount - 1);
+        if (_replyToCommentId == comment.id || _editingCommentId == comment.id) {
+          _resetComposer();
+        }
+        _mutatingCommentIds.remove(comment.id);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _mutatingCommentIds.remove(comment.id));
+      _showError('댓글을 삭제하지 못했습니다');
+    }
+  }
+
+  void _resetComposer() {
+    _replyToCommentId = null;
+    _editingCommentId = null;
+    _controller.clear();
   }
 
   PostComment? _rootById(String id) {
@@ -490,6 +592,123 @@ class _CommunityCommentsScreenState
   bool _containsComment(String id) => _comments.any(
     (root) => root.id == id || root.replies.any((reply) => reply.id == id),
   );
+
+  List<PostComment> _replaceComment(
+    List<PostComment> comments,
+    PostComment updated,
+  ) {
+    return comments.map((root) {
+      if (root.id == updated.id) {
+        return _mergeCommentScalars(root, updated);
+      }
+      return root.copyWith(
+        replies: root.replies
+            .map(
+              (reply) => reply.id == updated.id
+                  ? _mergeCommentScalars(reply, updated)
+                  : reply,
+            )
+            .toList(),
+      );
+    }).toList();
+  }
+
+  PostComment _mergeCommentScalars(
+    PostComment current,
+    PostComment updated,
+  ) {
+    return current.copyWith(
+      content: updated.content,
+      updatedAt: updated.updatedAt,
+      deleted: updated.deleted,
+      commentsCount: updated.commentsCount,
+    );
+  }
+
+  List<PostComment> _deleteCommentLocally(
+    List<PostComment> comments,
+    PostComment target,
+  ) {
+    final parentRootId =
+        target.parentCommentId ?? _parentRootId(comments, target);
+    if (parentRootId != null) {
+      return comments
+          .map((root) {
+            if (root.id != parentRootId) return root;
+            final replies = root.replies
+                .where((reply) => reply.id != target.id)
+                .toList();
+            final next = root.copyWith(
+              replies: replies,
+              replyCount: max(0, root.replyCount - 1),
+            );
+            if (next.deleted &&
+                replies.where((reply) => !reply.deleted).isEmpty &&
+                next.repliesNextCursor == null) {
+              return null;
+            }
+            return next;
+          })
+          .whereType<PostComment>()
+          .toList();
+    }
+
+    return comments
+        .map((root) {
+          if (root.id != target.id) return root;
+          final hasActiveLoadedReplies = root.replies.any(
+            (reply) => !reply.deleted,
+          );
+          final shouldKeepTombstone =
+              hasActiveLoadedReplies ||
+              root.replyCount > 0 ||
+              root.repliesNextCursor != null;
+          if (!shouldKeepTombstone) return null;
+          return _tombstoneRoot(root);
+        })
+        .whereType<PostComment>()
+        .toList();
+  }
+
+  String? _parentRootId(List<PostComment> comments, PostComment target) {
+    for (final root in comments) {
+      if (root.replies.any((reply) => reply.id == target.id)) return root.id;
+    }
+    return null;
+  }
+
+  PostComment _tombstoneRoot(PostComment root) {
+    return PostComment(
+      id: root.id,
+      userId: '',
+      authorNickname: '',
+      content: '',
+      createdAt: root.createdAt,
+      updatedAt: root.updatedAt,
+      deleted: true,
+      commentsCount: max(0, _displayedCount - 1),
+      parentCommentId: root.parentCommentId,
+      replyCount: root.replyCount,
+      replies: root.replies,
+      repliesNextCursor: root.repliesNextCursor,
+    );
+  }
+
+  List<PostComment> _withCommentCounts(
+    List<PostComment> comments,
+    int commentsCount,
+  ) {
+    return comments
+        .map(
+          (root) => root.copyWith(
+            commentsCount: commentsCount,
+            replies: root.replies
+                .map((reply) => reply.copyWith(commentsCount: commentsCount))
+                .toList(),
+          ),
+        )
+        .toList();
+  }
 
   List<PostComment> _mergeRoots(
     List<PostComment> current,
