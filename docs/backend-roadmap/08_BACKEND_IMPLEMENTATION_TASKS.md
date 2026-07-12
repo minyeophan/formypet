@@ -1,6 +1,6 @@
 # 08. 백엔드 구현 작업
 
-> 상태: 확정 초안  
+> 상태: 구현 완료, 현재 코드 대조 완료
 > 기준 문서: `05_MIGRATION_PLAN.md`, `06_BACKEND_IMPLEMENTATION_PLAN.md`, `07_BACKEND_TEST_PLAN.md`  
 > 선행 단계: `05_MIGRATION_PLAN.md`, `06_BACKEND_IMPLEMENTATION_PLAN.md`, `07_BACKEND_TEST_PLAN.md`  
 > 다음 단계: `09_FRONTEND_INTEGRATION_PLAN.md`  
@@ -9,6 +9,15 @@
 ## 목적
 
 지갑 지출 1차 백엔드 구현을 테스트 우선 순서로 분해한다. 이 문서는 실제 구현자가 `wallet_expenses` migration, test schema, 통합 테스트, DTO, service, controller, 공통 예외 처리를 어떤 순서로 만들지 정한다.
+
+## 현재 코드 대조: 2026-07-12
+
+- `WalletExpenseIntegrationTest`, `V16__create_wallet_expenses.sql`, `init-test.sql`, wallet DTO, controller, service, 공통 예외 기반이 현재 코드에 존재한다.
+- 운영 migration과 test schema의 `wallet_expenses` column, FK, index, `created_at`/`updated_at` 기본값은 일치한다.
+- 지갑 지출 API는 생성, 목록, 요약, 단건, 전체 수정, 삭제 endpoint를 제공한다.
+- 오류 계약은 pet not found/forbidden/deleted, expense not found, invalid cursor/date range/input, validation failed, unauthorized를 통합 테스트로 검증한다.
+- 2026-07-12 `.\gradlew test --rerun-tasks`와 `WalletExpenseIntegrationTest` 강제 재실행이 통과했다.
+- 이 문서의 아래 체크리스트는 구현 순서 기록으로 남긴다. 신규 작업자는 같은 구현을 반복하지 말고, 남은 backend 계약 구멍이 있으면 작은 targeted 테스트로 먼저 고정한다.
 
 ## 구현 범위
 

@@ -1,6 +1,6 @@
 # 10. 죽은 코드 제거 계획
 
-> 상태: 확정 초안  
+> 상태: 대부분 정리 완료, legacy redirect 보류
 > 기준 문서: `02_DOMAIN_DECISIONS.md`, `04_API_CONTRACT.md`, `09_FRONTEND_INTEGRATION_PLAN.md`  
 > 선행 단계: `09_FRONTEND_INTEGRATION_PLAN.md` 완료 및 프론트 wallet API 전환 검증 통과  
 > 다음 단계: `11_VERIFICATION_PLAN.md`  
@@ -9,6 +9,14 @@
 ## 목적
 
 지갑 지출이 신규 `/api/v1/pets/{petId}/wallet/expenses` API와 `WalletExpense` 모델로 전환된 뒤, 기록 도메인에 남은 지출 저장 흔적과 레거시 route를 안전하게 제거한다. 이 단계는 새 기능을 만들지 않고, 이미 대체된 코드의 사용처를 검색해 삭제 또는 보류를 판단한다.
+
+## 현재 코드 대조: 2026-07-12
+
+- wallet 화면과 테스트에서 `ActivityRecord(typeId: 'expense')`, `typeId == 'expense'`, `toRecordBody()`, `PetNotifier.addRecord/updateRecord/deleteRecord` 지갑 호출은 검색되지 않는다.
+- wallet helper는 `wallet_expense_utils.dart` 이름을 사용하고, wallet 화면들이 해당 helper를 import한다.
+- `/wallet/expenses/:expenseId`와 edit route는 `expenseId` 기준으로 존재한다.
+- `/records/expense/new` redirect와 router 테스트 기대는 아직 남아 있다. 이 redirect는 현재 사용자 진입 호환용 legacy 경로로 보류한다.
+- 따라서 지금 당장 삭제할 backend 항목은 없고, 프론트 cleanup은 UI 작업 재개 또는 legacy URL 제거 결정이 있을 때만 진행한다.
 
 ## 시작 조건
 

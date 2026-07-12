@@ -15,6 +15,7 @@
 - Flutter의 tombstone 표시와 댓글 수정·삭제 메뉴/API 연결을 반영했다. 신고 사유 입력과 400/409 오류 표시는 별도 후속 작업이다.
 - 커뮤니티 댓글 신고 backend 계약 테스트를 보강했다. 신고 상세 trim 저장·응답, 상세 500자 초과 validation, 삭제된 댓글 신고 거부를 통합 테스트로 고정했다.
 - 지갑 지출 backend invalid input 계약 테스트를 보강했다. `limit=51`, 잘못된 날짜 query, 지원하지 않는 category 요청이 `INVALID_INPUT`으로 응답하는지 확인한다.
+- backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 대부분 정리됐으며 `/records/expense/new` legacy redirect만 보류로 남겼다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
 - 여러 통합 테스트 클래스가 공유하는 MySQL container의 생성·시작 책임을 package-private `SharedMySqlContainer`로 분리했다. `IntegrationTestSupport`는 datasource property 연결만 담당한다.
@@ -61,8 +62,8 @@
 
 ## 최신 Handover
 
-- Goal: UI 작업을 보류하고 backend 계약·검증 backlog를 정리한다.
-- Done: 커뮤니티 댓글 신고 backend 계약 테스트와 지갑 지출 invalid input 계약 테스트를 보강했다. backend 전체 `test --rerun-tasks`가 통과했고, 변경분은 커밋된 상태다.
-- Remaining: UI 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀는 보류다. backend roadmap 08~10의 미완료 체크는 현재 코드와 다시 대조할 수 있다.
-- Next step: backend backlog를 계속 진행한다면 wallet/커뮤니티의 남은 계약 구멍을 작은 targeted 테스트로 먼저 고정한다. UI를 재개할 때만 `DESIGN.md`와 화면 상태 문서를 읽는다.
+- Goal: UI 작업을 보류하고 backend 계약·검증 backlog와 roadmap 상태를 정리한다.
+- Done: 커뮤니티 댓글 신고 backend 계약 테스트와 지갑 지출 invalid input 계약 테스트를 보강했다. backend 전체 `test --rerun-tasks`가 통과했고, 테스트 변경분은 커밋된 상태다. backend roadmap 08~10에는 현재 코드 대조 결과를 추가했다.
+- Remaining: UI 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀는 보류다. `/records/expense/new` legacy redirect 제거는 UI cleanup 재개 또는 제거 결정 전까지 보류다.
+- Next step: backend backlog를 계속 진행한다면 wallet/커뮤니티의 남은 계약 구멍을 작은 targeted 테스트로 먼저 고정한다. 문서 변경을 마무리하려면 roadmap/CONTEXT 변경분을 검토 후 별도 커밋한다.
 - Warnings: 삭제 root는 활성 답글이 남을 때만 tombstone으로 유지한다. UI 보류 중에는 `frontend/`와 `DESIGN.md`를 건드리지 않는다.

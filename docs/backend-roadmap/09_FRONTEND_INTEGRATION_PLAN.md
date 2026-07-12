@@ -1,6 +1,6 @@
 # 09. 프론트 연결 계획
 
-> 상태: 확정 초안  
+> 상태: 프론트 전환 완료, 현재 코드 대조 완료
 > 기준 문서: `04_API_CONTRACT.md`, `08_BACKEND_IMPLEMENTATION_TASKS.md`, `docs/FRONTEND_STATUS.md`  
 > 선행 단계: `08_BACKEND_IMPLEMENTATION_TASKS.md` 백엔드 구현과 검증 통과  
 > 다음 단계: `10_DEAD_CODE_CLEANUP_PLAN.md`  
@@ -9,6 +9,15 @@
 ## 목적
 
 백엔드 지갑 지출 API가 검증된 뒤 Flutter 지갑 화면을 `ActivityRecord.typeId == "expense"` 기반 임시 흐름에서 신규 `/api/v1/pets/{petId}/wallet/expenses` API 기반 흐름으로 전환한다. 1차 범위는 반려동물별 지출 생성, 목록, 요약, 단건, 수정, 삭제 연결이며 영수증 사진, 다둥이 통합 지갑, 레거시 route 제거는 제외한다.
+
+## 현재 코드 대조: 2026-07-12
+
+- `WalletExpense` 모델, service, provider, provider/service 테스트가 현재 코드에 존재한다.
+- `/wallet/expenses/:expenseId`, `/wallet/expenses/:expenseId/edit` route가 `expenseId` parameter를 사용한다.
+- 지갑 목록, 리포트, 생성, 상세, 수정, 삭제 화면은 `WalletExpenseProvider`와 wallet expense service를 기준으로 동작한다.
+- `docs/FRONTEND_STATUS.md`는 지갑 목록/요약/생성/상세/수정/삭제가 wallet expense API에 연동된 상태로 기록돼 있다.
+- `/records/expense/new` redirect 제거와 레거시 흔적 정리는 10번 cleanup의 판단 대상으로 남긴다.
+- 사용자가 현재 UI 작업을 보류했으므로, 이 문서는 완료된 전환 상태 기록으로 유지하고 새 UI 변경은 별도 요청 전까지 진행하지 않는다.
 
 ## 시작 조건
 
