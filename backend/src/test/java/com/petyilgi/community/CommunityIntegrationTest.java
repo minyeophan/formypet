@@ -621,6 +621,58 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void commentReportTrimsDetailAndRejectsTooLongDetail() throws Exception {
+        String authorToken = registerAndGetToken("report-detail-author@example.com", "reportdetailauthor");
+        String reporterToken = registerAndGetToken("report-detail-reporter@example.com", "reportdetailreporter");
+        Long postId = createPost(authorToken, "report detail post", "FREE", "body");
+        Long commentId = createComment(authorToken, postId, "detail target", null);
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"OTHER\",\"detail\":\"  custom reason  \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.detail").value("custom reason"));
+
+        String storedDetail = jdbcTemplate.queryForObject(
+                "SELECT detail FROM post_comment_reports WHERE comment_id = ?",
+                String.class,
+                commentId);
+        assertEquals("custom reason", storedDetail);
+
+        String secondReporterToken = registerAndGetToken("report-detail-long@example.com", "reportdetaillong");
+        Long secondCommentId = createComment(authorToken, postId, "long detail target", null);
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + secondCommentId + "/reports")
+                        .header("Authorization", "Bearer " + secondReporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "reason", "SPAM",
+                                "detail", "x".repeat(501)))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors.detail").isNotEmpty());
+    }
+
+    @Test
+    void deletedCommentCannotBeReported() throws Exception {
+        String authorToken = registerAndGetToken("report-deleted-author@example.com", "reportdeletedauthor");
+        String reporterToken = registerAndGetToken("report-deleted-reporter@example.com", "reportdeletedreporter");
+        Long postId = createPost(authorToken, "report deleted post", "FREE", "body");
+        Long commentId = createComment(authorToken, postId, "deleted report target", null);
+
+        mockMvc.perform(delete(POSTS_URL + "/" + postId + "/comments/" + commentId)
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"SPAM\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_NOT_FOUND"));
+    }
+
+    @Test
     void repliesAreLimitedPagedAndCannotBeNested() throws Exception {
         String token = registerAndGetToken("reply@example.com", "reply-user");
         Long postId = createPost(token, "reply post", "FREE", "body");

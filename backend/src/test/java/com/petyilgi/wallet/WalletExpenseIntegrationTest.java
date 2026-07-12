@@ -321,6 +321,18 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
 
+        mockMvc.perform(get(expensesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .param("limit", "51"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+
+        mockMvc.perform(get(expensesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .param("from", "not-a-date"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+
         mockMvc.perform(post(expensesUrl(petId))
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -351,6 +363,20 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
                                   "amount": 1000,
                                   "currency": "USD",
                                   "category": "food"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+
+        mockMvc.perform(post(expensesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expenseDate": "2026-06-12",
+                                  "amount": 1000,
+                                  "currency": "KRW",
+                                  "category": "unknown"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
