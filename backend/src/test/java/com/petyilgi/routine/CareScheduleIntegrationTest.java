@@ -121,6 +121,27 @@ class CareScheduleIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void allDayScheduleClearsTimesAndBlankOptionalText() throws Exception {
+        String token = registerAndGetToken("care-all-day@example.com", "allday");
+        Long petId = createPet(token, "Mochi");
+
+        mockMvc.perform(post(schedulesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(scheduleBody(
+                                "hospital", "  Checkup  ", "2026-07-01", "09:05",
+                                "2026-07-01", "10:30", true, "   ", "   ", "  none  "))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.title").value("Checkup"))
+                .andExpect(jsonPath("$.data.startTime").doesNotExist())
+                .andExpect(jsonPath("$.data.endTime").doesNotExist())
+                .andExpect(jsonPath("$.data.allDay").value(true))
+                .andExpect(jsonPath("$.data.place").doesNotExist())
+                .andExpect(jsonPath("$.data.memo").doesNotExist())
+                .andExpect(jsonPath("$.data.reminder").value("none"));
+    }
+
+    @Test
     void petAndScheduleErrorsReturnExpectedCodes() throws Exception {
         String token = registerAndGetToken("care-errors@example.com", "errors");
         String otherToken = registerAndGetToken("care-errors-other@example.com", "other");
