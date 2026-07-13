@@ -1,6 +1,6 @@
 # 10. 죽은 코드 제거 계획
 
-> 상태: 대부분 정리 완료, legacy redirect 보류
+> 상태: 정리 완료
 > 기준 문서: `02_DOMAIN_DECISIONS.md`, `04_API_CONTRACT.md`, `09_FRONTEND_INTEGRATION_PLAN.md`  
 > 선행 단계: `09_FRONTEND_INTEGRATION_PLAN.md` 완료 및 프론트 wallet API 전환 검증 통과  
 > 다음 단계: `11_VERIFICATION_PLAN.md`  
@@ -15,16 +15,16 @@
 - wallet 화면과 테스트에서 `ActivityRecord(typeId: 'expense')`, `typeId == 'expense'`, `toRecordBody()`, `PetNotifier.addRecord/updateRecord/deleteRecord` 지갑 호출은 검색되지 않는다.
 - wallet helper는 `wallet_expense_utils.dart` 이름을 사용하고, wallet 화면들이 해당 helper를 import한다.
 - `/wallet/expenses/:expenseId`와 edit route는 `expenseId` 기준으로 존재한다.
-- `/records/expense/new`는 `frontend/lib/router/app_router.dart`의 `typeId == 'expense'` redirect, router 테스트, 문서에서만 확인된다. 현재 화면 버튼과 지갑 저장 흐름은 `/wallet/expenses/new`를 사용한다.
-- `/records/expense/new` redirect는 직접 URL·과거 링크 호환용 legacy 경로로 유지한다. 제거하려면 프론트 라우터와 router 테스트를 함께 수정해야 하므로 UI 작업 재개 또는 명시적인 legacy URL 제거 결정 전까지 보류한다.
-- 따라서 지금 당장 삭제할 backend 항목은 없고, 프론트 cleanup은 UI 작업 재개 또는 legacy URL 제거 결정이 있을 때만 진행한다.
+- `/records/expense/new`의 `typeId == 'expense'` redirect는 제거했다. 현재 화면 버튼과 지갑 저장 흐름은 `/wallet/expenses/new`를 사용한다.
+- `/records/expense/new` 직접 접근은 더 이상 지갑 생성 화면으로 보내지 않으며, 미지원 기록 입력 route와 같은 정책으로 `/records`로 돌아간다.
+- 따라서 이번 cleanup에서 남은 backend 항목과 legacy 지갑 route 항목은 없다.
 
 ## 시작 조건
 
 - 09번 프론트 전환이 끝나 있고 wallet service/provider/screen/router 테스트가 통과한다.
 - `/wallet`, `/wallet/report`, `/wallet/expenses/new`, `/wallet/expenses/{expenseId}`, `/wallet/expenses/{expenseId}/edit`가 신규 wallet provider로 동작한다.
 - 지출 저장/수정 payload에 `typeId`, `detail`, `ActivityRecord` 전용 키가 남아 있지 않다.
-- `/records/expense/new`는 legacy redirect로만 남아 있으며 새 지출 저장 진입점으로 직접 쓰지 않는다.
+- `/records/expense/new` legacy redirect는 제거됐으며 새 지출 저장 진입점으로 쓰지 않는다.
 
 ## 입력 문서
 
@@ -47,7 +47,7 @@
 
 | 후보 | 처리 | 조건 | 검증 |
 |------|------|------|------|
-| `/records/expense/new` route | 삭제 | `/wallet/expenses/new` 저장 경로가 검증되고 외부 링크/테스트가 redirect를 기대하지 않음 | router 테스트에서 `/records/expense/new` 기대 제거 |
+| `/records/expense/new` route | 삭제 완료 | `/wallet/expenses/new` 저장 경로가 검증되고 외부 링크/테스트가 redirect를 기대하지 않음 | router 테스트에서 `/records/expense/new` 기대 제거 |
 | `ExpenseFormData.toRecordBody()` | 삭제 | add/edit 저장 경로가 `toWalletExpenseBody()` 또는 동등 mapper만 사용 | `rg "toRecordBody\\(" frontend/lib frontend/test` 결과가 지갑 외 기록 경로만 남거나 빈 결과 |
 | `ActivityRecord.typeId == "expense"` 지갑 필터 | 삭제 | wallet/report가 `WalletExpense` 목록과 summary만 사용 | `rg "typeId == ['\\\"]expense" frontend/lib frontend/test` 빈 결과 |
 | `expense_record_utils.dart` | rename 또는 삭제 | 내부 타입이 `WalletExpense`로 바뀌고 파일명만 레거시 의미를 가짐 | import 경로와 테스트 fixture가 `wallet_expense_utils.dart` 기준으로 통과 |
@@ -77,8 +77,8 @@ rg -n 'expense_record_utils|expenseRecords\(|totalExpenseLabel\(|expenseTitle\('
 
 ### 1. Route cleanup
 
-- [ ] `frontend/lib/router/app_router.dart`에서 `/records/expense/new` redirect를 제거한다.
-- [ ] `frontend/test/router/app_router_test.dart`에서 legacy redirect 기대를 제거하고 `/wallet/expenses/new` 직접 진입 기대만 남긴다.
+- [x] `frontend/lib/router/app_router.dart`에서 `/records/expense/new` redirect를 제거한다.
+- [x] `frontend/test/router/app_router_test.dart`에서 legacy redirect 기대를 제거하고 `/wallet/expenses/new` 직접 진입 기대만 남긴다.
 - [ ] `/wallet/expenses/:expenseId`와 `/wallet/expenses/:expenseId/edit` 기대가 유지되는지 확인한다.
 
 검증:
@@ -90,9 +90,9 @@ flutter test test/router/app_router_test.dart
 
 ### 2. Form legacy mapper cleanup
 
-- [ ] `ExpenseFormData.toRecordBody()` 사용처를 검색한다.
-- [ ] 지갑 저장/수정에서 더 이상 쓰지 않으면 method를 삭제한다.
-- [ ] 테스트에서 `typeId`, `detail` payload 기대를 제거하고 wallet request body 기대만 남긴다.
+- [x] `ExpenseFormData.toRecordBody()` 사용처를 검색한다.
+- [x] 지갑 저장/수정에서 더 이상 쓰지 않으면 method를 삭제한다.
+- [x] 테스트에서 `typeId`, `detail` payload 기대를 제거하고 wallet request body 기대만 남긴다.
 
 검증:
 
@@ -104,9 +104,9 @@ rg -n 'toRecordBody\(' lib test
 
 ### 3. Wallet ActivityRecord fixture cleanup
 
-- [ ] wallet 화면 테스트의 `ActivityRecord(typeId: 'expense')` fixture를 `WalletExpense` fixture로 바꾼다.
-- [ ] `ExpenseWalletScreen`, `ExpenseReportScreen`, `ExpenseDetailScreen`, `ExpenseEditScreen` 테스트가 `WalletExpense` 기준으로 기대값을 검증하게 한다.
-- [ ] `PetNotifier.records` 기반 지갑 테스트 double을 제거한다.
+- [x] wallet 화면 테스트의 `ActivityRecord(typeId: 'expense')` fixture를 `WalletExpense` fixture로 바꾼다.
+- [x] `ExpenseWalletScreen`, `ExpenseReportScreen`, `ExpenseDetailScreen`, `ExpenseEditScreen` 테스트가 `WalletExpense` 기준으로 기대값을 검증하게 한다.
+- [x] `PetNotifier.records` 기반 지갑 테스트 double을 제거한다.
 
 검증:
 
@@ -118,9 +118,9 @@ rg -n 'ActivityRecord\(' test/screens/wallet
 
 ### 4. Helper rename/delete
 
-- [ ] `expense_record_utils.dart`가 `ActivityRecord`를 더 이상 받지 않으면 `wallet_expense_utils.dart`로 rename한다.
-- [ ] 함수 이름도 `expenseRecords`처럼 기록 모델을 암시하는 이름이면 `walletExpenseTitle`, `walletExpenseAmountLabel`처럼 지갑 모델 기준으로 바꾼다.
-- [ ] import를 모두 새 파일명으로 바꾼다.
+- [x] `expense_record_utils.dart`가 `ActivityRecord`를 더 이상 받지 않으면 `wallet_expense_utils.dart`로 rename한다.
+- [x] 함수 이름도 `expenseRecords`처럼 기록 모델을 암시하는 이름이면 `walletExpenseTitle`, `walletExpenseAmountLabel`처럼 지갑 모델 기준으로 바꾼다.
+- [x] import를 모두 새 파일명으로 바꾼다.
 
 검증:
 
@@ -132,9 +132,9 @@ rg -n 'expense_record_utils|expenseRecords\(' lib test
 
 ### 5. FRONTEND_STATUS 정리
 
-- [ ] `docs/FRONTEND_STATUS.md`의 Wallet 항목에서 `ActivityRecord.typeId == "expense"` 기반 설명을 제거한다.
-- [ ] `/records/expense/new` redirect를 제거했다면 해당 legacy 진입점 설명도 제거한다.
-- [ ] 영수증 사진, 다둥이 통합 지갑, 비용 항목 추가가 아직 범위 밖이면 별도 미구현/보류 항목으로 남긴다.
+- [x] `docs/FRONTEND_STATUS.md`의 Wallet 항목에서 `ActivityRecord.typeId == "expense"` 기반 설명을 제거한다.
+- [x] `/records/expense/new` redirect를 제거했으므로 해당 legacy 진입점 설명도 제거한다.
+- [x] 영수증 사진, 다둥이 통합 지갑, 비용 항목 추가가 아직 범위 밖이면 별도 미구현/보류 항목으로 남긴다.
 
 검증:
 

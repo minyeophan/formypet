@@ -17,7 +17,7 @@
 - 커뮤니티 게시글 category, 투표 question, 이미지 개수 정책을 정리했다. category는 서버 allowlist를 적용해 허용되지 않은 값은 `INVALID_INPUT`으로 거부한다. 투표 question은 1차 임시값 `투표` 허용, 이미지 개수는 UI 작업 재개 시 프론트 3장 제한으로 맞춘다.
 - 지갑 지출 backend invalid input 계약 테스트를 보강했다. `limit=51`, 잘못된 날짜 query, 지원하지 않는 category 요청이 `INVALID_INPUT`으로 응답하는지 확인한다.
 - 루틴 backend invalid input 계약 테스트를 보강했다. `times`에 `HH:mm` 범위를 벗어난 값이 들어오면 생성·수정 저장 전에 `INVALID_INPUT`으로 거부한다.
-- backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 대부분 정리됐으며 `/records/expense/new` legacy redirect만 보류로 남겼다.
+- backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 `/records/expense/new` legacy redirect 제거까지 정리했다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
 - 2026-07-13 사용자 IDE 관측 Java Problems는 349개다. 이는 2026-07-08 안정 snapshot 328개보다 높지만, 확인된 신규 루틴 변경분은 `RoutineService.java`에 Problems가 없고 `RoutineIntegrationTest.java`의 MockMvc/Jackson/Spring test null annotation 경계만 보였다.
@@ -72,6 +72,6 @@
 
 - Goal: UI 작업을 보류하고 backend 계약·검증 backlog와 roadmap 상태를 정리한다.
 - Done: 커뮤니티 댓글 신고 backend 계약 테스트와 지갑 지출 invalid input 계약 테스트를 보강했다. backend 전체 `test --rerun-tasks`가 통과했고, 테스트 변경분은 커밋된 상태다. backend roadmap 08~10에는 현재 코드 대조 결과를 추가했다.
-- Remaining: UI 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀는 보류다. `/records/expense/new` legacy redirect 제거는 UI cleanup 재개 또는 제거 결정 전까지 보류다.
+- Remaining: UI 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀는 보류다.
 - Next step: 테스트를 새로 늘리기보다 제품 backlog와 cleanup 판단을 우선한다. 문서 변경을 마무리하려면 roadmap/CONTEXT 변경분을 검토 후 별도 커밋한다.
 - Warnings: 삭제 root는 활성 답글이 남을 때만 tombstone으로 유지한다. UI 보류 중에는 `frontend/`와 `DESIGN.md`를 건드리지 않는다.

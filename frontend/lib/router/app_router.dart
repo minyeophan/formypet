@@ -227,9 +227,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/records/:typeId/new',
         redirect: (c, s) {
           final typeId = s.pathParameters['typeId']!;
-          if (typeId == 'expense') {
-            return '/wallet/expenses/new';
-          }
           if (isCategoryRecordInputSupported(typeId)) {
             return null;
           }

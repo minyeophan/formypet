@@ -126,7 +126,7 @@
 | `[X]` | `/wallet/expenses/:expenseId` | 지출 상세 | 연동 | 로딩, 없는 ID, 수정·삭제 진입, 뒤로가기 | 8 |
 | `[X]` | `/wallet/expenses/:expenseId/edit` | 지출 수정·삭제 | 연동 | 초기값, 변경 감지, 이탈 경고, 저장, 삭제 확인 | 8 |
 
-`/records/expense/new`은 별도 화면이 아니라 `/wallet/expenses/new`로 이동한다.
+`/records/expense/new` legacy redirect는 제거됐다. 지출 생성은 `/wallet/expenses/new`로 직접 진입한다.
 
 ## 5. 공통 V2 컴포넌트 정리 방향
 

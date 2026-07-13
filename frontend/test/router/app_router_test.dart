@@ -335,25 +335,6 @@ void main() {
     expect(find.text('사료 종류'), findsOneWidget);
   });
 
-  testWidgets('/records/expense/new redirects to wallet expense add', (
-    tester,
-  ) async {
-    final pet = _pet('1');
-    await _pumpRouter(
-      tester,
-      initialLocation: '/records/expense/new',
-      authState: const AuthState(isLoading: false, isAuthenticated: true),
-      petState: _petState(
-        isLoading: false,
-        hasOnboarded: true,
-        pets: [pet],
-        activePetId: pet.id,
-      ),
-    );
-
-    expect(find.byType(ExpenseAddScreen), findsOneWidget);
-  });
-
   testWidgets('unsupported record form routes redirect to records main', (
     tester,
   ) async {
@@ -374,7 +355,7 @@ void main() {
     expect(find.byType(RecordsScreen), findsOneWidget);
     _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
 
-    for (final typeId in ['play', 'sleep']) {
+    for (final typeId in ['expense', 'play', 'sleep']) {
       await _pumpRouter(
         tester,
         initialLocation: '/records/$typeId/new?date=2026-05-09',

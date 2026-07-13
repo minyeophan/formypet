@@ -82,7 +82,7 @@ lib/
 - **화면별 fallback 책임**: 공용 헤더는 라우팅 정책을 알지 못한다. 각 화면은 `pop()`을 우선하고 direct URL fallback을 직접 정한다. 기록 메인·성장·루틴·지갑은 `/home`, 전체 기록은 `/records`, 지출 리포트와 비용 추가는 `/wallet`, 기록 입력은 `/records`, 펫 상세는 `/my`, 정상 펫 수정은 상세 화면, 없는 펫 수정과 추가 등록은 `/my`, 커뮤니티 카테고리·글쓰기 취소·글쓰기 등록 성공·게시글 상세 direct URL fallback은 `/community`로 돌아간다.
 - **기록 입력 패널**: `RecordTypeGrid`에서 진입하는 `MealRecordScreen`, `RecordCategoryFormScreen`의 날짜/시간/숫자 입력은 `widgets/record_inputs/`를 사용한다. `water`, `diary`도 `RecordCategoryFormScreen` 전체 화면 route를 사용한다. 날짜/시간은 `showRecordDatePickerSheet`, `showRecordTimePickerSheet` wheel bottom sheet로 열고, 숫자는 `RecordNumberInput`의 read-only field와 커스텀 숫자 패널을 사용한다. 화면 파일에는 wheel index 계산, 숫자 키 배열, sheet layout을 직접 두지 않는다.
 - **legacy 기록 위젯 경계**: `screens/home/quick_record_row.dart`, `recent_records_card.dart`, `today_routine_card.dart`, `screens/records/activity_tab.dart`, `health_tab.dart`, `growth_tab.dart`, `widgets/record_modal.dart`, `record_detail_form.dart`는 현재 Home과 라우터의 진입점이 아니다. 활동 기록 타입은 9개만 지원하며 제거된 `play`, `sleep`, `checkup`, `bath`, `groom`의 입력 분기는 보유하지 않는다.
-- **지출 UI 경계**: 홈 `지갑`은 `/wallet`로 이동한다. `/wallet`, `/wallet/report`, `/wallet/expenses/new`, `/wallet/expenses/:expenseId`, `/wallet/expenses/:expenseId/edit`는 wallet expense API와 연결된다. 레거시 `/records/expense/new`는 비용 추가 route로 redirect한다.
+- **지출 UI 경계**: 홈 `지갑`은 `/wallet`로 이동한다. `/wallet`, `/wallet/report`, `/wallet/expenses/new`, `/wallet/expenses/:expenseId`, `/wallet/expenses/:expenseId/edit`는 wallet expense API와 연결된다. 레거시 `/records/expense/new` redirect는 제거됐다.
 - **루틴·일정 UI 경계**: `/routine`은 월간 캘린더와 서버 일정 목록을 제공한다. 루틴 생성·삭제·완료 체크는 routine API, 일정 생성·목록·상세·수정·삭제는 care schedule API를 사용한다. 반복 날짜와 일정 범위 보정은 `routine_calendar_values.dart`, `routine_schedule_values.dart`의 pure helper를 사용한다.
 - **기록 입력 스타일 경계**: 기록 입력 패널의 surface, radius, header height, keypad spacing 같은 모양 값은 `RecordInputStyle`에서 관리한다. 저장 API, payload, schema는 입력 패널 변경과 분리한다.
 - **Riverpod StateNotifier**: 전역 상태는 `StateNotifierProvider`로 관리. `ref.watch`로 UI 구독, `ref.read`로 액션 호출.
@@ -104,10 +104,10 @@ GoRouter
 ├── /records/all    → AllRecordsScreen
 ├── /records/growth → GrowthRecordsScreen
 ├── /records/meal/new → MealRecordScreen
-├── /records/expense/new → ExpenseAddScreen
 ├── /records/:typeId/new → RecordCategoryFormScreen
 ├── /wallet         → ExpenseWalletScreen
 ├── /wallet/report  → ExpenseReportScreen
+├── /wallet/expenses/new → ExpenseAddScreen
 ├── /routine        → RoutineScreen
 ├── /routine/new    → RoutineCreateScreen
 ├── /routine/schedule/new → RoutineScheduleCreateScreen

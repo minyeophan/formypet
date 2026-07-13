@@ -220,7 +220,6 @@
 | 지갑 요약 | 🔌 연동됨 | `screens/wallet/expense_wallet_screen.dart`, wallet expense provider/service 상태 집계 |
 | 지출 리포트 | ✅ 구현됨 | `/wallet/report`, 카테고리 합계와 지출 목록 표시 |
 | 비용 추가 화면 | 🔌 연동됨 | `/wallet/expenses/new`, 금액/카테고리/기본 정보/메모 UI와 저장 API 연결 |
-| 레거시 비용 추가 URL | ✅ 구현됨 | `/records/expense/new`는 기록 입력이 아니라 `/wallet/expenses/new`로 redirect |
 | 지출 저장 | 🔌 연동됨 | `WalletExpenseProvider.createExpense()`가 wallet expense 생성 API 호출 |
 | 비용 항목 추가, 사진 첨부 | 🚧 부분 구현 | 비용 추가 화면에 표시되지만 현재는 눌리지 않는 정적 UI |
 
