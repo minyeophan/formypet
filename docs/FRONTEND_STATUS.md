@@ -372,7 +372,7 @@
 - 게시글 제목/본문/게시판은 프론트와 백엔드 모두 필수로 처리한다. 제목은 프론트 `maxLength: 30`, 백엔드 30자 이하 검증이 적용된다.
 - 이미지 최대 개수는 백엔드가 3장으로 거부하지만, 현재 프론트 글쓰기 화면은 선택 결과를 5장까지 보관한다. 프론트 제한을 3장으로 맞추는 후속 작업이 필요하다.
 - 투표 `question`을 별도 입력받을지, 현재 임시값 `투표`를 허용할지 결정 필요.
-- 카테고리는 프론트에서 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다. 백엔드는 현재 category를 대문자로 저장하며 allowlist 검증은 하지 않는다.
+- 카테고리는 프론트에서 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다. 서버도 같은 allowlist로 제한하고, 허용되지 않은 category는 `INVALID_INPUT`으로 거부하는 방향으로 맞춘다. 현재 백엔드는 category를 대문자로 저장하지만 allowlist 검증은 아직 하지 않는다.
 - 댓글은 root 댓글과 한 단계 답글을 지원한다. 답글의 답글은 허용하지 않는다. 댓글·답글 신고는 후속 범위다.
 
 ---

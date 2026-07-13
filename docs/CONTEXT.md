@@ -14,6 +14,7 @@
 - 신고는 5개 사유와 선택 상세를 저장하고 `OTHER` 상세 필수, 자기 신고 금지, 사용자별 중복 신고 금지를 적용한다. 신고 시 댓글 내용 snapshot을 함께 보존한다.
 - Flutter의 tombstone 표시와 댓글 수정·삭제 메뉴/API 연결을 반영했다. 신고 사유 입력과 400/409 오류 표시는 별도 후속 작업이다.
 - 커뮤니티 댓글 신고 backend 계약 테스트를 보강했다. 신고 상세 trim 저장·응답, 상세 500자 초과 validation, 삭제된 댓글 신고 거부를 통합 테스트로 고정했다.
+- 커뮤니티 게시글 category 정책을 문서로 정리했다. 프론트의 10개 카테고리를 서버 allowlist로 맞추고, 허용되지 않은 category는 `INVALID_INPUT`으로 거부하는 방향이며 구현은 후속이다.
 - 지갑 지출 backend invalid input 계약 테스트를 보강했다. `limit=51`, 잘못된 날짜 query, 지원하지 않는 category 요청이 `INVALID_INPUT`으로 응답하는지 확인한다.
 - 루틴 backend invalid input 계약 테스트를 보강했다. `times`에 `HH:mm` 범위를 벗어난 값이 들어오면 생성·수정 저장 전에 `INVALID_INPUT`으로 거부한다.
 - backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 대부분 정리됐으며 `/records/expense/new` legacy redirect만 보류로 남겼다.
