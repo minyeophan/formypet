@@ -180,6 +180,17 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void missingRecordReturnsNotFoundCode() throws Exception {
+        String token = registerAndGetToken("missing-record@example.com", "missing-record");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(get(recordsUrl(petId) + "/999999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("ACTIVITY_RECORD_NOT_FOUND"));
+    }
+
+    @Test
     void getOtherUsersPetRecordReturns403() throws Exception {
         String ownerToken = registerAndGetToken("record-detail-owner@example.com", "owner");
         String otherToken = registerAndGetToken("record-detail-other@example.com", "other");

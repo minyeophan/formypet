@@ -3,6 +3,7 @@ package com.petyilgi.record;
 import com.petyilgi.auth.domain.User;
 import com.petyilgi.auth.repository.UserRepository;
 import com.petyilgi.common.exception.InvalidInputException;
+import com.petyilgi.common.exception.NotFoundException;
 import com.petyilgi.media.storage.MediaStorage;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
@@ -183,7 +184,7 @@ public class ActivityRecordService {
                 WHERE id = ? AND pet_id = ?
                 """, recordId, petId);
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException("활동 기록을 찾을 수 없습니다.");
+            throw new NotFoundException("Activity record not found.", "ACTIVITY_RECORD_NOT_FOUND");
         }
         return rows.getFirst();
     }
