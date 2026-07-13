@@ -18,6 +18,8 @@
 - backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 대부분 정리됐으며 `/records/expense/new` legacy redirect만 보류로 남겼다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
+- 2026-07-13 사용자 IDE 관측 Java Problems는 349개다. 이는 2026-07-08 안정 snapshot 328개보다 높지만, 확인된 신규 루틴 변경분은 `RoutineService.java`에 Problems가 없고 `RoutineIntegrationTest.java`의 MockMvc/Jackson/Spring test null annotation 경계만 보였다.
+- Problems 숫자는 다음 정식 snapshot 전까지 임시 관측값으로 본다. 새 BLOCKER/ACTIONABLE 여부는 Problems 항목의 파일·메시지를 기준으로 별도 분류한다.
 - 여러 통합 테스트 클래스가 공유하는 MySQL container의 생성·시작 책임을 package-private `SharedMySqlContainer`로 분리했다. `IntegrationTestSupport`는 datasource property 연결만 담당한다.
 - JVM 안에서 동일한 실행 중 container instance가 반환되는지 테스트로 고정하고, singleton 예외와 `maxParallelForks = 1`, 기본 `forkEvery = 0`, Ryuk cleanup 정책을 `docs/BACKEND_RULES.md`에 기록했다.
 - 완료된 작업 계획, 중복 포인터, 오래된 상태판, devlog 초안과 참조되지 않는 HTML mockup을 정리했다. 유효한 Git 규칙은 `AGENTS.md`, backend roadmap 링크는 `docs/README.md`에 통합했다.
@@ -35,7 +37,8 @@
 - 2026-07-12 backend 전체 `.\gradlew test --rerun-tasks`가 `BUILD SUCCESSFUL`로 통과했다.
 - 2026-07-12 댓글 신고 targeted 테스트 3개와 `WalletExpenseIntegrationTest` 전체 강제 재실행이 통과했다.
 - MySQL singleton 테스트와 rollback 기반 `PetIntegrationTest`, 명시적 cleanup 기반 `AuthIntegrationTest` 조합이 통과했다.
-- 변경 후 Java Problems 안정 snapshot 2회는 328개(main 21, test 307)로 일치했다. 기존 lifecycle warning 1개만 `IntegrationTestSupport`에서 `SharedMySqlContainer`로 이동했다.
+- 2026-07-08 변경 후 Java Problems 안정 snapshot 2회는 328개(main 21, test 307)로 일치했다. 기존 lifecycle warning 1개만 `IntegrationTestSupport`에서 `SharedMySqlContainer`로 이동했다.
+- 2026-07-13 사용자 IDE 관측 Problems는 349개다. 이 숫자는 정식 fresh snapshot 2회로 검증된 값이 아니며, 루틴 반복 규칙 변경에서 확인된 항목은 기존 `TEST_FRAMEWORK_BOUNDARY` 유형이었다.
 - snapshot 산출물은 `C:\tmp\paa-shared-mysql-container-0f9ab5d-20260708`, test 진단 감사는 `docs/superpowers/specs/2026-07-07-java-test-diagnostics-audit.md`에 있다.
 - 최근 기록된 Flutter 전체 검증은 2026-07-05 `flutter test` 354개 통과와 `flutter analyze` `No issues found!`다. 2026-07-09 댓글 수정·삭제 관련 targeted 테스트와 사용자 터미널 `flutter analyze`가 통과했다.
 
