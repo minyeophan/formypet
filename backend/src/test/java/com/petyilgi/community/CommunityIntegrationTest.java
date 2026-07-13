@@ -59,7 +59,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
 
         mockMvc.perform(multipartPost(token, Map.of(
                         "title", "첫 산책 후기",
-                        "category", "TRAVEL",
+                        "category", "OUTING",
                         "content", "First community post",
                         "poll", Map.of(
                                 "question", "다음 산책지는?",
@@ -69,7 +69,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.title").value("첫 산책 후기"))
-                .andExpect(jsonPath("$.data.category").value("TRAVEL"))
+                .andExpect(jsonPath("$.data.category").value("OUTING"))
                 .andExpect(jsonPath("$.data.content").value("First community post"))
                 .andExpect(jsonPath("$.data.likesCount").value(0))
                 .andExpect(jsonPath("$.data.commentsCount").value(0))
@@ -128,7 +128,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     void feedSupportsCategoryAndLatestCursorPagination() throws Exception {
         String token = registerAndGetToken("post-feed@example.com", "feed");
         Long freeId = createPost(token, "자유 글", "FREE", "free");
-        Long trainingId = createPost(token, "훈련 글", "TRAINING", "training");
+        Long careId = createPost(token, "케어 글", "CARE", "care");
         Long newestFreeId = createPost(token, "새 자유 글", "FREE", "newest free");
 
         MvcResult firstPage = mockMvc.perform(get(POSTS_URL)
@@ -159,12 +159,12 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
 
         mockMvc.perform(get(POSTS_URL)
                         .header("Authorization", "Bearer " + token)
-                        .param("category", "TRAINING")
+                        .param("category", "CARE")
                         .param("sort", "latest")
                         .param("limit", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items", hasSize(1)))
-                .andExpect(jsonPath("$.data.items[0].id").value(trainingId));
+                .andExpect(jsonPath("$.data.items[0].id").value(careId));
     }
 
     @Test
@@ -229,7 +229,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
         Long titleMatchId = createPost(token, "강아지 산책", "FREE", "오늘 공원에 다녀왔어요");
         Long contentMatchId = createPost(token, "주말 이야기", "FREE", "강아지와 함께 쉬었어요");
         createPost(token, "고양이 이야기", "FREE", "창가에서 쉬었어요");
-        createPost(token, "강아지 훈련", "TRAINING", "기다려 연습");
+        createPost(token, "강아지 케어", "CARE", "기다려 연습");
 
         mockMvc.perform(get(POSTS_URL)
                         .header("Authorization", "Bearer " + token)

@@ -17,6 +17,7 @@ import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
 import com.petyilgi.common.exception.ApiException;
 import com.petyilgi.common.exception.ForbiddenException;
+import com.petyilgi.common.exception.InvalidInputException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -39,6 +40,10 @@ import java.util.*;
 public class CommunityService {
 
     private static final Set<String> SORTS = Set.of("latest", "popular");
+    private static final Set<String> CATEGORIES = Set.of(
+            "CARE", "FOOD", "OUTING", "SHOW", "QUESTION",
+            "FREE", "ADOPTION", "RESCUE", "NEWS", "EVENT"
+    );
 
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
@@ -769,7 +774,11 @@ public class CommunityService {
     }
 
     private String normalizeCategory(String category) {
-        return category.toUpperCase(Locale.ROOT);
+        String normalized = category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
+        if (!CATEGORIES.contains(normalized)) {
+            throw InvalidInputException.invalidInput();
+        }
+        return normalized;
     }
 
     private User findUser(String email) {
