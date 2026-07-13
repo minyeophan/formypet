@@ -43,6 +43,8 @@ public class RoutineService {
         Pet pet = findOwnedPet(email, petId);
         validateActivityType(request.typeId());
         validateRepeatType(request.repeatType());
+        validateRepeatRule(request.repeatType(), request.days(), request.monthlyInterval(),
+                request.startDate(), request.endDate());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
@@ -97,6 +99,13 @@ public class RoutineService {
         validateActivityType(typeId);
         String repeatType = request.repeatType() != null ? request.repeatType() : (String) current.get("repeat_type");
         validateRepeatType(repeatType);
+        List<Integer> days = request.days() != null ? request.days() : parseIntegerList(current.get("days"));
+        Integer monthlyInterval = request.monthlyInterval() != null
+                ? request.monthlyInterval()
+                : ((Number) current.get("monthly_interval")).intValue();
+        LocalDate startDate = request.startDate() != null ? request.startDate() : normalizeDate(current.get("start_date"));
+        LocalDate endDate = request.endDate() != null ? request.endDate() : normalizeDate(current.get("end_date"));
+        validateRepeatRule(repeatType, days, monthlyInterval, startDate, endDate);
 
         jdbcTemplate.update("""
                 UPDATE routines
@@ -108,10 +117,10 @@ public class RoutineService {
                 request.label() != null ? request.label() : current.get("label"),
                 typeId,
                 repeatType,
-                toJson(request.days() != null ? request.days() : parseIntegerList(current.get("days"))),
-                request.monthlyInterval() != null ? request.monthlyInterval() : ((Number) current.get("monthly_interval")).intValue(),
-                request.startDate() != null ? request.startDate() : normalizeDate(current.get("start_date")),
-                request.endDate() != null ? request.endDate() : normalizeDate(current.get("end_date")),
+                toJson(days),
+                monthlyInterval,
+                startDate,
+                endDate,
                 toJson(request.times() != null ? request.times() : parseStringList(current.get("times"))),
                 request.active() != null ? request.active() : toBoolean(current.get("is_active")),
                 request.notificationEnabled() != null ? request.notificationEnabled() : toBoolean(current.get("notification_enabled")),
@@ -270,6 +279,29 @@ public class RoutineService {
     private void validateRepeatType(String repeatType) {
         if (!SUPPORTED_REPEAT_TYPES.contains(repeatType)) {
             throw new IllegalArgumentException("Unsupported routine repeat type.");
+        }
+    }
+
+    private void validateRepeatRule(String repeatType, List<Integer> days, Integer monthlyInterval,
+                                    LocalDate startDate, LocalDate endDate) {
+        if (startDate == null) {
+            throw InvalidInputException.invalidInput();
+        }
+        if (endDate != null && endDate.isBefore(startDate)) {
+            throw InvalidInputException.invalidInput();
+        }
+        if ("weekly".equals(repeatType) || "biweekly".equals(repeatType)) {
+            if (days == null || days.isEmpty()) {
+                throw InvalidInputException.invalidInput();
+            }
+            for (Integer day : days) {
+                if (day == null || day < 0 || day > 6) {
+                    throw InvalidInputException.invalidInput();
+                }
+            }
+        }
+        if ("monthly".equals(repeatType) && monthlyInterval != null && monthlyInterval < 1) {
+            throw InvalidInputException.invalidInput();
         }
     }
 

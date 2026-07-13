@@ -160,6 +160,27 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createRoutineRejectsInvalidRepeatRules() throws Exception {
+        String token = registerAndGetToken("invalid-repeat-routine@example.com", "invalid-repeat");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "label": "Weekly",
+                                  "typeId": "meal",
+                                  "repeatType": "weekly",
+                                  "days": [],
+                                  "startDate": "2026-05-09"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
     void markCompletionChangesStatus() throws Exception {
         String token = registerAndGetToken("completion-routine@example.com", "completion");
         Long petId = createPet(token, "Dubu");
