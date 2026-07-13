@@ -14,7 +14,7 @@
 - `/community/category/:category`는 `[O]`이다. route 기반 feed, 12개 가로 chip, 활성 chip 자동 노출, 접이식 이용 가이드, 단일 `CustomScrollView`, pull-to-refresh와 feed별 pagination 상태를 제공한다.
 - 유효 category는 `ALL`, `POPULAR`, `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`이며 잘못된 값은 `/community`로 이동한다.
 
-> 마지막 갱신: 2026-06-30
+> 마지막 갱신: 2026-07-13
 > 이 문서는 **현재 사용자 접근 가능한 프론트 UI와 서비스/provider 구현 기준** 현황 문서다. 확정 API 계약서가 아니며, 백엔드 계약 확정 전 확인이 필요한 항목은 `Backend sync needed`에 남긴다. 앱 코드나 백엔드 코드가 바뀌면 관련 섹션만 갱신한다.
 > 화면별 V2 전환 여부와 권장 작업 순서는 [`SCREEN_V2_STATUS.md`](SCREEN_V2_STATUS.md)에서 관리한다.
 
@@ -230,8 +230,8 @@
 - 전체 화면 폼 기준 현재 detail: `meal(foodType, servedAmount, consumedPercent, product?, brand?, feedingMethod?)`, `water(amount)`, `walk(distance)`, `poop(poopShape, poopColor)`, `weight(weight)`, `vet(vetClinicName, vetVisitReason, vetTreatment)`, `medicine(medicineName, dosage)`, `diary`/`etc`는 detail 없이 `note`만 사용.
 - `water` 단위는 UI에서 `ml` 고정값으로 표시하고, 백엔드에는 `amount`만 저장한다.
 - 제거된 기록 타입(`play`, `sleep`, `checkup`, `bath`, `groom`)은 다시 열지 않는다. `expense`는 기록 타입이 아닌 지갑 전용 도메인으로 유지한다.
-- 목록 API에서 날짜/타입/limit 필터를 서버 쿼리로 제공할지, 현재처럼 클라이언트 필터를 유지할지 확인 필요.
-- 기록 생성 후 미디어 업로드 실패 시 프론트는 생성된 기록 삭제로 rollback을 시도한다. 백엔드 트랜잭션/정리 정책 확인 필요.
+- 목록 API는 `date`, `typeId`, `limit` 서버 쿼리를 지원한다. 현재 `PetProvider`의 기본 로드는 전체 기록을 받아오고 `/records` 메인은 선택 날짜를 클라이언트에서 필터링한다. 성장 기록 조회처럼 특정 용도에서는 `typeId` 쿼리를 직접 사용할 수 있다.
+- 기록 생성 후 미디어 업로드 실패 시 프론트는 생성된 기록을 `DELETE /records/{recordId}`로 rollback한다. 백엔드는 기록 삭제 시 연결된 `media_resources`를 FK cascade로 정리하고, 조회한 storage key는 커밋 후 best-effort로 삭제한다.
 
 ---
 
@@ -281,9 +281,10 @@
 
 - `today` 응답 형태는 현재 프론트가 `{ routines: [{ routine, completion }], summary }`를 기대한다.
 - 루틴 CRUD 후 프론트는 오늘 루틴을 best-effort로 재조회한다. 후속 조회 실패는 저장 실패로 취급하지 않는다.
-- 완료 상태 enum과 날짜 기준 timezone 정책 확인 필요.
+- 완료 상태 enum은 `PENDING`, `COMPLETED`, `SKIPPED`이며 프론트 `CompletionStatus`와 매핑된다. 날짜는 `yyyy-MM-dd` `LocalDate` 문자열로 주고받는다.
+- `today` 기본 날짜는 백엔드 서버의 `LocalDate.now()` 기준이다. 사용자 기기 local date 기준이 필요하면 별도 timezone 정책을 정해야 한다.
 - 서버 요청 검증 중 주간·격주 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, `endDate >= startDate`, `times`의 `HH:mm` 형식은 백엔드에서 `INVALID_INPUT`으로 처리한다.
-- 서버 요청 검증 추가 확인 필요: `label` 길이.
+- 루틴 `label`은 DB에서 `VARCHAR(100)`이지만 API-level 최대 길이 검증은 아직 명시되어 있지 않다. 400 응답 계약이 필요하면 별도 백로그로 둔다.
 - 월간 범위 일정 API가 추가되면 프론트 반복 계산 중복 제거를 검토한다.
 - 일정 응답은 `CareSchedule` 모델 기준이며 `startTime`, `endTime`은 `HH:mm` 문자열 또는 `null`이다. `allDay=true`이면 time 필드는 `null`로 처리한다.
 - 푸시 알림은 현재 범위 밖이다.
@@ -368,10 +369,10 @@
 
 ### Backend sync needed
 
-- 게시글 제목/본문/게시판은 프론트에서 필수 입력으로 처리한다. 백엔드 검증 정책과 에러 메시지 확인 필요.
-- 이미지 최대 개수는 백엔드 계약과 맞춰야 한다. 기존 문서 기준은 최대 3장이나, 현재 프론트 입력 제한과 재확인 필요.
+- 게시글 제목/본문/게시판은 프론트와 백엔드 모두 필수로 처리한다. 제목은 프론트 `maxLength: 30`, 백엔드 30자 이하 검증이 적용된다.
+- 이미지 최대 개수는 백엔드가 3장으로 거부하지만, 현재 프론트 글쓰기 화면은 선택 결과를 5장까지 보관한다. 프론트 제한을 3장으로 맞추는 후속 작업이 필요하다.
 - 투표 `question`을 별도 입력받을지, 현재 임시값 `투표`를 허용할지 결정 필요.
-- 카테고리 enum은 현재 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다.
+- 카테고리는 프론트에서 `CARE`, `FOOD`, `OUTING`, `SHOW`, `QUESTION`, `FREE`, `ADOPTION`, `RESCUE`, `NEWS`, `EVENT`를 사용한다. 백엔드는 현재 category를 대문자로 저장하며 allowlist 검증은 하지 않는다.
 - 댓글은 root 댓글과 한 단계 답글을 지원한다. 답글의 답글은 허용하지 않는다. 댓글·답글 신고는 후속 범위다.
 
 ---
