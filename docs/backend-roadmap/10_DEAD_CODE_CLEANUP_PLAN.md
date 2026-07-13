@@ -10,12 +10,13 @@
 
 지갑 지출이 신규 `/api/v1/pets/{petId}/wallet/expenses` API와 `WalletExpense` 모델로 전환된 뒤, 기록 도메인에 남은 지출 저장 흔적과 레거시 route를 안전하게 제거한다. 이 단계는 새 기능을 만들지 않고, 이미 대체된 코드의 사용처를 검색해 삭제 또는 보류를 판단한다.
 
-## 현재 코드 대조: 2026-07-12
+## 현재 코드 대조: 2026-07-13
 
 - wallet 화면과 테스트에서 `ActivityRecord(typeId: 'expense')`, `typeId == 'expense'`, `toRecordBody()`, `PetNotifier.addRecord/updateRecord/deleteRecord` 지갑 호출은 검색되지 않는다.
 - wallet helper는 `wallet_expense_utils.dart` 이름을 사용하고, wallet 화면들이 해당 helper를 import한다.
 - `/wallet/expenses/:expenseId`와 edit route는 `expenseId` 기준으로 존재한다.
-- `/records/expense/new` redirect와 router 테스트 기대는 아직 남아 있다. 이 redirect는 현재 사용자 진입 호환용 legacy 경로로 보류한다.
+- `/records/expense/new`는 `frontend/lib/router/app_router.dart`의 `typeId == 'expense'` redirect, router 테스트, 문서에서만 확인된다. 현재 화면 버튼과 지갑 저장 흐름은 `/wallet/expenses/new`를 사용한다.
+- `/records/expense/new` redirect는 직접 URL·과거 링크 호환용 legacy 경로로 유지한다. 제거하려면 프론트 라우터와 router 테스트를 함께 수정해야 하므로 UI 작업 재개 또는 명시적인 legacy URL 제거 결정 전까지 보류한다.
 - 따라서 지금 당장 삭제할 backend 항목은 없고, 프론트 cleanup은 UI 작업 재개 또는 legacy URL 제거 결정이 있을 때만 진행한다.
 
 ## 시작 조건

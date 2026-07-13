@@ -1,6 +1,6 @@
 # 11. 전체 검증 계획
 
-> 상태: 확정 초안  
+> 상태: 검증 계획 확정, cleanup 보류 판단 반영
 > 기준 문서: `08_BACKEND_IMPLEMENTATION_TASKS.md`, `09_FRONTEND_INTEGRATION_PLAN.md`, `10_DEAD_CODE_CLEANUP_PLAN.md`  
 > 선행 단계: `08_BACKEND_IMPLEMENTATION_TASKS.md`, `09_FRONTEND_INTEGRATION_PLAN.md`, `10_DEAD_CODE_CLEANUP_PLAN.md`  
 > 다음 단계: 완료 보고 또는 Handover 갱신  
@@ -8,13 +8,13 @@
 
 ## 목적
 
-지갑 지출 1차 백엔드 구현, Flutter 지갑 API 전환, 레거시 지갑 cleanup이 끝난 뒤 같은 기준으로 최종 검증한다. 이 문서는 구현자가 마지막에 어떤 명령을 어떤 순서로 실행하고, 실패를 어떻게 분류하며, 최종 보고에 무엇을 남겨야 하는지 고정한다.
+지갑 지출 1차 백엔드 구현, Flutter 지갑 API 전환, 레거시 지갑 cleanup 판단 뒤 같은 기준으로 최종 검증한다. 이 문서는 구현자가 마지막에 어떤 명령을 어떤 순서로 실행하고, 실패를 어떻게 분류하며, 최종 보고에 무엇을 남겨야 하는지 고정한다.
 
 ## 적용 범위
 
 - 백엔드: `wallet_expenses` migration, `init-test.sql`, `WalletExpenseIntegrationTest`, wallet controller/service/dto/error 처리.
 - 프론트: `WalletExpense` 모델/service/provider, wallet add/detail/edit/list/report 화면, router `expenseId`, `ApiException.errorCode`.
-- cleanup: `/records/expense/new` redirect 제거 여부, `ActivityRecord.typeId == "expense"` 지갑 의존 제거, `expense_record_utils.dart` rename/delete 판단.
+- cleanup: `/records/expense/new` redirect 유지/제거 판단, `ActivityRecord.typeId == "expense"` 지갑 의존 제거, `expense_record_utils.dart` rename/delete 판단.
 - 문서: `docs/FRONTEND_STATUS.md`, roadmap 문서, Handover.
 
 ## 검증 순서
@@ -129,7 +129,7 @@ flutter build web
 
 ## 5. Cleanup 검증
 
-10번 cleanup을 수행한 뒤 지갑 레거시 역참조 검색을 실행한다.
+10번 cleanup 판단을 수행한 뒤 지갑 레거시 역참조 검색을 실행한다.
 
 ```powershell
 cd frontend
@@ -144,7 +144,7 @@ rg -n 'expense_record_utils|expenseRecords\(|totalExpenseLabel\(|expenseTitle\('
 - 지갑 화면과 지갑 테스트에는 `ActivityRecord(typeId: 'expense')` fixture가 남지 않는다.
 - `ExpenseFormData.toRecordBody()`가 지갑 저장/수정 경로에서 호출되지 않는다.
 - `/wallet/expenses/:recordId` route가 남지 않는다.
-- `/records/expense/new`가 제거되었다면 router 테스트도 redirect 기대를 제거한다.
+- `/records/expense/new`를 호환용으로 유지한다면 router redirect와 테스트 기대가 남아도 된다. 제거를 명시적으로 결정했다면 router 테스트도 redirect 기대를 제거한다.
 - `bath`/`groom`은 지갑 cleanup 대상이 아니므로 이 검색 결과만으로 삭제하지 않는다.
 
 검색 결과가 남아도 되는 경우:

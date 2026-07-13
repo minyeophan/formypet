@@ -47,6 +47,7 @@
 ## 다음 행동
 
 - 현재 제품 기능 backlog로 복귀한다. 사용자가 UI 작업은 아직 진행하지 않기로 했으므로 우선은 backend 계약·검증 backlog와 문서 정리를 먼저 본다.
+- VS Code Java Problems가 테스트 추가마다 늘 수 있으므로 새 통합 테스트 보강은 실제 버그, main/service 변경, 명시적 계약 변경이 있을 때만 진행한다.
 - UI 작업을 재개할 때 후보는 댓글 신고 UI, 커뮤니티 검색 UI·알림·카테고리 필터, 기록 direct URL 예외, 루틴 수정 UI다.
 - backend roadmap 작업을 재개할 때는 08번 구현 작업, 09번 프론트 연결, 10번 dead code cleanup의 미완료 체크부터 현재 코드와 대조한다.
 - Flutter UI 작업은 `DESIGN.md`와 `docs/SCREEN_V2_STATUS.md`, backend 작업은 `docs/BACKEND_RULES.md`와 `docs/FRONTEND_STATUS.md`를 먼저 읽는다.
@@ -70,5 +71,5 @@
 - Goal: UI 작업을 보류하고 backend 계약·검증 backlog와 roadmap 상태를 정리한다.
 - Done: 커뮤니티 댓글 신고 backend 계약 테스트와 지갑 지출 invalid input 계약 테스트를 보강했다. backend 전체 `test --rerun-tasks`가 통과했고, 테스트 변경분은 커밋된 상태다. backend roadmap 08~10에는 현재 코드 대조 결과를 추가했다.
 - Remaining: UI 신고 사유 입력과 400/409 오류 표시, 실제 기기 수동 회귀는 보류다. `/records/expense/new` legacy redirect 제거는 UI cleanup 재개 또는 제거 결정 전까지 보류다.
-- Next step: backend backlog를 계속 진행한다면 wallet/커뮤니티의 남은 계약 구멍을 작은 targeted 테스트로 먼저 고정한다. 문서 변경을 마무리하려면 roadmap/CONTEXT 변경분을 검토 후 별도 커밋한다.
+- Next step: 테스트를 새로 늘리기보다 제품 backlog와 cleanup 판단을 우선한다. 문서 변경을 마무리하려면 roadmap/CONTEXT 변경분을 검토 후 별도 커밋한다.
 - Warnings: 삭제 root는 활성 답글이 남을 때만 tombstone으로 유지한다. UI 보류 중에는 `frontend/`와 `DESIGN.md`를 건드리지 않는다.
