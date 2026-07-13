@@ -15,6 +15,7 @@
 - Flutter의 tombstone 표시와 댓글 수정·삭제 메뉴/API 연결을 반영했다. 신고 사유 입력과 400/409 오류 표시는 별도 후속 작업이다.
 - 커뮤니티 댓글 신고 backend 계약 테스트를 보강했다. 신고 상세 trim 저장·응답, 상세 500자 초과 validation, 삭제된 댓글 신고 거부를 통합 테스트로 고정했다.
 - 지갑 지출 backend invalid input 계약 테스트를 보강했다. `limit=51`, 잘못된 날짜 query, 지원하지 않는 category 요청이 `INVALID_INPUT`으로 응답하는지 확인한다.
+- 루틴 backend invalid input 계약 테스트를 보강했다. `times`에 `HH:mm` 범위를 벗어난 값이 들어오면 생성·수정 저장 전에 `INVALID_INPUT`으로 거부한다.
 - backend roadmap 08~10을 현재 코드와 대조했다. 08 백엔드 구현과 09 프론트 전환은 완료 상태로 기록하고, 10 cleanup은 대부분 정리됐으며 `/records/expense/new` legacy redirect만 보류로 남겼다.
 
 - test Java 진단 307개를 BLOCKER 0, ACTIONABLE 0, CONTRACT_CANDIDATE 49, TEST_FRAMEWORK_BOUNDARY 256, MANAGED_LIFECYCLE 1, LIFECYCLE_POLICY_CANDIDATE 1, UNKNOWN 0으로 분류했다.
@@ -36,6 +37,7 @@
 - 2026-07-08 backend 전체 `test --rerun-tasks`가 `BUILD SUCCESSFUL`로 통과했다.
 - 2026-07-12 backend 전체 `.\gradlew test --rerun-tasks`가 `BUILD SUCCESSFUL`로 통과했다.
 - 2026-07-12 댓글 신고 targeted 테스트 3개와 `WalletExpenseIntegrationTest` 전체 강제 재실행이 통과했다.
+- 2026-07-13 `RoutineIntegrationTest.createRoutineRejectsInvalidTimesFormat`와 `RoutineIntegrationTest` 전체 targeted 실행이 `BUILD SUCCESSFUL`로 통과했다.
 - MySQL singleton 테스트와 rollback 기반 `PetIntegrationTest`, 명시적 cleanup 기반 `AuthIntegrationTest` 조합이 통과했다.
 - 2026-07-08 변경 후 Java Problems 안정 snapshot 2회는 328개(main 21, test 307)로 일치했다. 기존 lifecycle warning 1개만 `IntegrationTestSupport`에서 `SharedMySqlContainer`로 이동했다.
 - 2026-07-13 사용자 IDE 관측 Problems는 349개다. 이 숫자는 정식 fresh snapshot 2회로 검증된 값이 아니며, 루틴 반복 규칙 변경에서 확인된 항목은 기존 `TEST_FRAMEWORK_BOUNDARY` 유형이었다.

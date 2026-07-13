@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class RoutineService {
 
     private static final Set<String> SUPPORTED_REPEAT_TYPES = Set.of("daily", "weekly", "biweekly", "monthly");
     private static final Set<String> SUPPORTED_COMPLETION_STATUS = Set.of("PENDING", "COMPLETED", "SKIPPED");
+    private static final Pattern TIME_PATTERN = Pattern.compile("([01]\\d|2[0-3]):[0-5]\\d");
 
     private final JdbcTemplate jdbcTemplate;
     private final PetRepository petRepository;
@@ -45,6 +47,7 @@ public class RoutineService {
         validateRepeatType(request.repeatType());
         validateRepeatRule(request.repeatType(), request.days(), request.monthlyInterval(),
                 request.startDate(), request.endDate());
+        validateTimes(request.times());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
@@ -106,6 +109,8 @@ public class RoutineService {
         LocalDate startDate = request.startDate() != null ? request.startDate() : normalizeDate(current.get("start_date"));
         LocalDate endDate = request.endDate() != null ? request.endDate() : normalizeDate(current.get("end_date"));
         validateRepeatRule(repeatType, days, monthlyInterval, startDate, endDate);
+        List<String> times = request.times() != null ? request.times() : parseStringList(current.get("times"));
+        validateTimes(times);
 
         jdbcTemplate.update("""
                 UPDATE routines
@@ -121,7 +126,7 @@ public class RoutineService {
                 monthlyInterval,
                 startDate,
                 endDate,
-                toJson(request.times() != null ? request.times() : parseStringList(current.get("times"))),
+                toJson(times),
                 request.active() != null ? request.active() : toBoolean(current.get("is_active")),
                 request.notificationEnabled() != null ? request.notificationEnabled() : toBoolean(current.get("notification_enabled")),
                 request.note() != null ? request.note() : current.get("note"),
@@ -302,6 +307,17 @@ public class RoutineService {
         }
         if ("monthly".equals(repeatType) && monthlyInterval != null && monthlyInterval < 1) {
             throw InvalidInputException.invalidInput();
+        }
+    }
+
+    private void validateTimes(List<String> times) {
+        if (times == null) {
+            return;
+        }
+        for (String time : times) {
+            if (time == null || !TIME_PATTERN.matcher(time).matches()) {
+                throw InvalidInputException.invalidInput();
+            }
         }
     }
 

@@ -282,8 +282,8 @@
 - `today` 응답 형태는 현재 프론트가 `{ routines: [{ routine, completion }], summary }`를 기대한다.
 - 루틴 CRUD 후 프론트는 오늘 루틴을 best-effort로 재조회한다. 후속 조회 실패는 저장 실패로 취급하지 않는다.
 - 완료 상태 enum과 날짜 기준 timezone 정책 확인 필요.
-- 서버 요청 검증 중 주간·격주 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, `endDate >= startDate`는 백엔드에서 `INVALID_INPUT`으로 처리한다.
-- 서버 요청 검증 추가 확인 필요: `label` 길이, `times` 형식.
+- 서버 요청 검증 중 주간·격주 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, `endDate >= startDate`, `times`의 `HH:mm` 형식은 백엔드에서 `INVALID_INPUT`으로 처리한다.
+- 서버 요청 검증 추가 확인 필요: `label` 길이.
 - 월간 범위 일정 API가 추가되면 프론트 반복 계산 중복 제거를 검토한다.
 - 일정 응답은 `CareSchedule` 모델 기준이며 `startTime`, `endTime`은 `HH:mm` 문자열 또는 `null`이다. `allDay=true`이면 time 필드는 `null`로 처리한다.
 - 푸시 알림은 현재 범위 밖이다.
