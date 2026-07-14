@@ -556,7 +556,7 @@ void main() {
 
     await notifier.loadForAuthenticatedUser();
 
-    const expected = ['meal', 'bath', 'unknown', 'meal', 'groom'];
+    const expected = ['meal', 'unknown', 'meal'];
     expect(notifier.state.quickTypeIds, expected);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getStringList('quickTypeIds'), expected);
@@ -590,7 +590,7 @@ void main() {
 
     expect(
       notifier.state.quickTypeIds,
-      const ['bath', 'unknown', 'bath', 'groom'],
+      const ['unknown'],
     );
   });
 
@@ -620,7 +620,7 @@ void main() {
       'groom',
     ]);
 
-    const expected = ['meal', 'unknown', 'meal', 'bath', 'groom'];
+    const expected = ['meal', 'unknown', 'meal'];
     expect(notifier.state.quickTypeIds, expected);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getStringList('quickTypeIds'), expected);

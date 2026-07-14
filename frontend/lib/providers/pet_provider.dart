@@ -12,7 +12,7 @@ import '../services/routine_service.dart';
 import '../services/care_schedule_service.dart';
 import '../core/record_utils.dart';
 
-const _deprecatedQuickTypeIds = {'play', 'sleep', 'checkup'};
+const _deprecatedQuickTypeIds = {'play', 'sleep', 'checkup', 'bath', 'groom'};
 
 List<String> _removeDeprecatedQuickTypeIds(List<String> ids) =>
     ids.where((id) => !_deprecatedQuickTypeIds.contains(id)).toList();

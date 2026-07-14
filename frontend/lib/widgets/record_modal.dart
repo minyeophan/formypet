@@ -143,7 +143,7 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
 
-    // backend doesn't support diary/groom
+    // Ignore stale quick-record entries that are no longer supported.
     if (!kSupportedTypeIds.contains(widget.typeId)) {
       Navigator.pop(context);
       return;

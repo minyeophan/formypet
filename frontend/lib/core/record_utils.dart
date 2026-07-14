@@ -23,8 +23,6 @@ const List<RecordType> kQuickTypes = [
   RecordType(id: 'medicine', label: '투약', visualId: AppVisualId.recordMedicine),
   RecordType(id: 'weight', label: '체중', visualId: AppVisualId.recordWeight),
   RecordType(id: 'vet', label: '병원', visualId: AppVisualId.recordVet),
-  RecordType(id: 'bath', label: '목욕', visualId: AppVisualId.recordBath),
-  RecordType(id: 'groom', label: '미용', visualId: AppVisualId.recordGroom),
 ];
 
 const Map<String, String> kRecordTypeFallbackLabels = {
@@ -74,8 +72,6 @@ const Map<String, List<String>> kDetailKeysByType = {
   'medicine': ['medicineName', 'dosage', 'unit'],
   'weight': ['value', 'unit'],
   'vet': ['clinicName', 'diagnosis', 'vetCost', 'clinicLng', 'clinicLat'],
-  'bath': ['shampoo'],
-  'groom': ['groomType'],
 };
 
 // Strip null/empty detail fields before API send

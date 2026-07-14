@@ -3,7 +3,7 @@ import 'package:frontend/core/record_utils.dart';
 
 void main() {
   test('deprecated record types are absent from supported and quick types', () {
-    const deprecated = {'play', 'sleep', 'checkup'};
+    const deprecated = {'play', 'sleep', 'checkup', 'bath', 'groom'};
 
     expect(kQuickTypes.map((type) => type.id), isNot(contains(anyOf(deprecated))));
     expect(kSupportedTypeIds, isNot(contains(anyOf(deprecated))));
