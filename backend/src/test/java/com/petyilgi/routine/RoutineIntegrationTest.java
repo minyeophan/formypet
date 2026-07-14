@@ -214,6 +214,38 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createRoutineRejectsLabelLongerThanThirtyCharacters() throws Exception {
+        String token = registerAndGetToken("long-routine-label@example.com", "long-label");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "label", "a".repeat(31),
+                                "typeId", "meal",
+                                "repeatType", "daily",
+                                "startDate", "2026-05-09"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void updateRoutineRejectsLabelLongerThanThirtyCharacters() throws Exception {
+        String token = registerAndGetToken("update-long-routine-label@example.com", "update-long-label");
+        Long petId = createPet(token, "Maro");
+        Long routineId = createRoutine(token, petId, "Meal", "meal");
+
+        mockMvc.perform(put(routinesUrl(petId) + "/" + routineId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("label", "a".repeat(31)))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
     void markCompletionChangesStatus() throws Exception {
         String token = registerAndGetToken("completion-routine@example.com", "completion");
         Long petId = createPet(token, "Dubu");

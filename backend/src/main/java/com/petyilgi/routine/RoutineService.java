@@ -33,6 +33,7 @@ public class RoutineService {
 
     private static final Set<String> SUPPORTED_REPEAT_TYPES = Set.of("daily", "weekly", "biweekly", "monthly");
     private static final Set<String> SUPPORTED_COMPLETION_STATUS = Set.of("PENDING", "COMPLETED", "SKIPPED");
+    private static final int MAX_LABEL_LENGTH = 30;
     private static final Pattern TIME_PATTERN = Pattern.compile("([01]\\d|2[0-3]):[0-5]\\d");
 
     private final JdbcTemplate jdbcTemplate;
@@ -43,6 +44,7 @@ public class RoutineService {
     @Transactional
     public RoutineResponse create(String email, Long petId, RoutineCreateRequest request) {
         Pet pet = findOwnedPet(email, petId);
+        validateLabel(request.label());
         validateActivityType(request.typeId());
         validateRepeatType(request.repeatType());
         validateRepeatRule(request.repeatType(), request.days(), request.monthlyInterval(),
@@ -98,6 +100,8 @@ public class RoutineService {
     public RoutineResponse update(String email, Long petId, Long routineId, RoutineUpdateRequest request) {
         Pet pet = findOwnedPet(email, petId);
         Map<String, Object> current = findRoutineRow(pet.getId(), routineId);
+        String label = request.label() != null ? request.label() : (String) current.get("label");
+        validateLabel(label);
         String typeId = request.typeId() != null ? request.typeId() : (String) current.get("type_id");
         validateActivityType(typeId);
         String repeatType = request.repeatType() != null ? request.repeatType() : (String) current.get("repeat_type");
@@ -116,10 +120,10 @@ public class RoutineService {
                 UPDATE routines
                 SET label = ?, type_id = ?, repeat_type = ?, days = ?, monthly_interval = ?,
                     start_date = ?, end_date = ?, times = ?, is_active = ?,
-                    notification_enabled = ?, note = ?, detail = ?, updated_at = ?
+                notification_enabled = ?, note = ?, detail = ?, updated_at = ?
                 WHERE id = ? AND pet_id = ?
                 """,
-                request.label() != null ? request.label() : current.get("label"),
+                label,
                 typeId,
                 repeatType,
                 toJson(days),
@@ -284,6 +288,13 @@ public class RoutineService {
     private void validateRepeatType(String repeatType) {
         if (!SUPPORTED_REPEAT_TYPES.contains(repeatType)) {
             throw new IllegalArgumentException("Unsupported routine repeat type.");
+        }
+    }
+
+    private void validateLabel(String label) {
+        if (label == null || label.isBlank()
+                || label.codePointCount(0, label.length()) > MAX_LABEL_LENGTH) {
+            throw InvalidInputException.invalidInput();
         }
     }
 

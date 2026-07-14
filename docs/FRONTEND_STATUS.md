@@ -283,7 +283,7 @@
 - 완료 상태 enum은 `PENDING`, `COMPLETED`, `SKIPPED`이며 프론트 `CompletionStatus`와 매핑된다. 날짜는 `yyyy-MM-dd` `LocalDate` 문자열로 주고받는다.
 - `today` 기본 날짜는 백엔드 서버의 `LocalDate.now()` 기준이다. 사용자 기기 local date 기준이 필요하면 별도 timezone 정책을 정해야 한다.
 - 서버 요청 검증 중 주간·격주 요일 최소 1개와 `0..6`, `monthlyInterval >= 1`, `endDate >= startDate`, `times`의 `HH:mm` 형식은 백엔드에서 `INVALID_INPUT`으로 처리한다.
-- 루틴 `label`은 DB에서 `VARCHAR(100)`이지만 API-level 최대 길이 검증은 아직 명시되어 있지 않다. 400 응답 계약이 필요하면 별도 백로그로 둔다.
+- 루틴 `label`은 루틴 이름이며 백엔드가 1~30자로 제한하고, 초과 값은 `INVALID_INPUT`으로 거부한다. `note`는 선택 메모다.
 - 월간 범위 일정 API가 추가되면 프론트 반복 계산 중복 제거를 검토한다.
 - 일정 응답은 `CareSchedule` 모델 기준이며 `startTime`, `endTime`은 `HH:mm` 문자열 또는 `null`이다. `allDay=true`이면 time 필드는 `null`로 처리한다.
 - 푸시 알림은 현재 범위 밖이다.
