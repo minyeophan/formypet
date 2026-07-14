@@ -535,16 +535,13 @@ void main() {
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
   });
 
-  test('stored quick types remove only deprecated values and persist migration', () async {
+  test('stored quick types remove only removed values and persist migration', () async {
     SharedPreferences.setMockInitialValues({
       'quickTypeIds': [
         'meal',
-        'play',
         'bath',
         'unknown',
-        'sleep',
         'meal',
-        'checkup',
         'groom',
       ],
     });
@@ -562,7 +559,7 @@ void main() {
     expect(prefs.getStringList('quickTypeIds'), expected);
   });
 
-  test('test quick type loader removes only deprecated values before state update', () async {
+  test('test quick type loader removes only removed values before state update', () async {
     final notifier = PetNotifier.testWithServices(
       PetState(
         isLoading: true,
@@ -576,12 +573,9 @@ void main() {
         quickTypeIds: const [],
       ),
       quickTypeIdsLoader: () async => const [
-        'play',
         'bath',
         'unknown',
-        'sleep',
         'bath',
-        'checkup',
         'groom',
       ],
     );
@@ -594,7 +588,7 @@ void main() {
     );
   });
 
-  test('setQuickTypeIds removes only deprecated values before saving', () async {
+  test('setQuickTypeIds removes only removed values before saving', () async {
     final notifier = PetNotifier.test(
       PetState(
         isLoading: false,
@@ -611,11 +605,8 @@ void main() {
 
     await notifier.setQuickTypeIds(const [
       'meal',
-      'play',
       'unknown',
-      'sleep',
       'meal',
-      'checkup',
       'bath',
       'groom',
     ]);

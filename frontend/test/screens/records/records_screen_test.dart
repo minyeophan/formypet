@@ -34,7 +34,6 @@ void main() {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
     expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
-    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     for (final label in _recordTypeLabels) {
       expect(find.text(label), findsWidgets);
     }
@@ -67,7 +66,6 @@ void main() {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
     expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
-    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

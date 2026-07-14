@@ -301,35 +301,31 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void createDeprecatedRecordTypesReturnsInvalidInput() throws Exception {
-        String token = registerAndGetToken("deprecated-create@example.com", "deprecated-create");
+    void createUnsupportedRecordTypeReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("unsupported-create@example.com", "unsupported-create");
         Long petId = createPet(token, "Coco");
 
-        for (String typeId : List.of("play", "sleep", "checkup")) {
-            mockMvc.perform(post(recordsUrl(petId))
-                            .header("Authorization", "Bearer " + token)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of(
-                                    "typeId", typeId,
-                                    "date", "2026-05-09"
-                            ))))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
-        }
+        mockMvc.perform(post(recordsUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "typeId", "unsupported-type",
+                                "date", "2026-05-09"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
     }
 
     @Test
-    void filterByDeprecatedRecordTypesReturnsInvalidInput() throws Exception {
-        String token = registerAndGetToken("deprecated-filter@example.com", "deprecated-filter");
+    void filterByUnsupportedRecordTypeReturnsInvalidInput() throws Exception {
+        String token = registerAndGetToken("unsupported-filter@example.com", "unsupported-filter");
         Long petId = createPet(token, "Coco");
 
-        for (String typeId : List.of("play", "sleep", "checkup")) {
-            mockMvc.perform(get(recordsUrl(petId))
-                            .header("Authorization", "Bearer " + token)
-                            .param("typeId", typeId))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
-        }
+        mockMvc.perform(get(recordsUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .param("typeId", "unsupported-type"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
     }
 
     @Test

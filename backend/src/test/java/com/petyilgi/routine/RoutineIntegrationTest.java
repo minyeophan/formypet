@@ -137,7 +137,7 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "label", "Unknown",
-                                "typeId", "play",
+                                "typeId", "unsupported-type",
                                 "repeatType", "daily",
                                 "startDate", "2026-05-09"
                         ))))
@@ -154,7 +154,7 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(put(routinesUrl(petId) + "/" + routineId)
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("typeId", "play"))))
+                        .content(objectMapper.writeValueAsString(Map.of("typeId", "unsupported-type"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
     }

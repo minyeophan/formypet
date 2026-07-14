@@ -64,7 +64,7 @@ class FlywayMigrationTest {
     }
 
     @Test
-    void removesOnlyDeprecatedActivityDataAndQueuesItsMedia() throws Exception {
+    void removesOnlyLegacyActivityDataAndQueuesItsMedia() throws Exception {
         Flyway flyway = flyway("19");
         flyway.migrate();
 
