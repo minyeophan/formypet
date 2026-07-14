@@ -68,7 +68,7 @@
 | Records | 기록 목록 row | 🔌 연동됨 | 목록 row → 상세 → 수정 화면으로 이동하며 수정 화면에서 저장·삭제 API 호출 |
 | Wallet | 지갑, 지출 리포트, 비용 추가 | 🔌 연동됨 | 지갑 목록/요약/생성/상세/수정/삭제 UI와 provider/service가 wallet expense API를 호출 |
 | Routine | 루틴 생성, 완료 체크, 삭제 | 🔌 연동됨 | API 호출 연결 |
-| Routine | 루틴 수정 | 🧭 진입점 없음 | service/provider는 있으나 수정 화면 진입 없음 |
+| Routine | 루틴 수정 | 🧭 보류 | service/provider는 유지하되 수정 화면 진입은 현재 범위 밖 |
 | Routine | 일정 목록, 일정 추가 | 🔌 연동됨 | 목록/상세/생성/수정/삭제는 care schedule API와 provider 상태에 연결. 지도 검색은 `준비중` 토스트 유지 |
 
 ---
@@ -247,7 +247,7 @@
 | 루틴 목록 | 🔌 연동됨 | `services/routine_service.dart`, `providers/pet_provider.dart` |
 | 루틴 생성 | 🔌 연동됨 | `/routine/new`, 백엔드 필수 `label`을 포함해 `PetNotifier.addRoutine()` 호출 |
 | 루틴 수정 service | 🔌 연동됨 | `RoutineService.updateRoutine()`, `PetNotifier.updateRoutine()` |
-| 루틴 수정 UI | 🧭 진입점 없음 | 수정 화면이나 목록 액션 없음 |
+| 루틴 수정 UI | 🧭 보류 | 수정 화면이나 목록 액션 없음. 현재 UI 작업 범위 밖 |
 | 루틴 삭제 | 🔌 연동됨 | `routine/routine_screen.dart` |
 | 오늘 루틴 | 🔌 연동됨 | `RoutineService.getTodayRoutines()` |
 | 완료 체크 | 🔌 연동됨 | completion API 호출 |
@@ -451,7 +451,7 @@ interface CommunityComment {
 | 인증 | 회원가입, 로그인, 카카오 로그인, 토큰 갱신. 로그아웃은 UI 진입점 추가 후 재진입 확인 |
 | 펫 | 온보딩, 펫 추가/수정/삭제, 프로필 사진 |
 | 기록 | 타입별 생성, 목록→상세→수정·삭제와 날짜 이동은 수동 확인 완료. 급식 사진, 잘못된 recordId 직접 접근, 배변 옵션 카드 웹 잔상 재현 여부는 회귀 확인 |
-| 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI 추가 후 해당 흐름 확인 |
+| 루틴 | 생성/삭제, 오늘 루틴, 완료 체크, 일정 CRUD. 루틴 수정 UI는 현재 범위 밖으로 보류 |
 | 지갑 | 홈 지갑 진입, 지갑 요약, 리포트, 비용 추가/상세/수정/삭제 UI와 API 저장 흐름 |
 | 커뮤니티 | 피드, 글쓰기, 이미지 첨부, 좋아요, 상세, 댓글·답글 작성·수정·삭제와 pagination, 투표 참여를 수동 확인. 검색/알림/카테고리 필터, 댓글 신고 연결 후 해당 흐름 확인 |
 

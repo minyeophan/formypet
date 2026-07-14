@@ -50,7 +50,7 @@
 
 - 현재 제품 기능 backlog로 복귀한다. 사용자가 UI 작업은 아직 진행하지 않기로 했으므로 우선은 backend 계약·검증 backlog와 문서 정리를 먼저 본다.
 - VS Code Java Problems가 테스트 추가마다 늘 수 있으므로 새 통합 테스트 보강은 실제 버그, main/service 변경, 명시적 계약 변경이 있을 때만 진행한다.
-- UI 작업을 재개할 때 후보는 댓글 신고 UI, 커뮤니티 검색 UI·알림·카테고리 필터, 기록 direct URL 예외, 루틴 수정 UI다.
+- UI 작업을 재개할 때 후보는 댓글 신고 UI, 커뮤니티 검색 UI·알림·카테고리 필터, 기록 direct URL 예외다. 루틴 수정 UI는 service/provider만 유지하고 현재 범위에서는 보류한다.
 - backend roadmap 작업을 재개할 때는 08번 구현 작업, 09번 프론트 연결, 10번 dead code cleanup의 미완료 체크부터 현재 코드와 대조한다.
 - Flutter UI 작업은 `DESIGN.md`와 `docs/SCREEN_V2_STATUS.md`, backend 작업은 `docs/BACKEND_RULES.md`와 `docs/FRONTEND_STATUS.md`를 먼저 읽는다.
 

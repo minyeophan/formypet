@@ -23,7 +23,7 @@
 | 사용자 프로필 | 있음 | `users.profile_media_id`, `media_resources` | 있음 | 조회/로그아웃 흐름에서 사용, 프로필 저장 UI는 약함 | 일부 연결 | `GET/PATCH /users/me`, 프로필 이미지 업로드 구현. |
 | 펫 | 있음 | `pets`, `media_resources` | 있음 | 호출 중 | 유지 | 등록, 목록, 수정, 소프트삭제, 프로필 사진 구현. |
 | 기록 | 있음 | `activity_records`, 타입별 detail 테이블 | 있음 | 호출 중 | 유지 | 9개 현재 타입만 허용하며 제거 타입은 400으로 거부한다. |
-| 루틴 | 있음 | `routines`, `routine_completions` | 있음 | 생성/삭제/오늘 루틴/완료 체크 연결 | 일부 연결 | 수정 API는 있으나 주요 수정 UI 진입이 약함. |
+| 루틴 | 있음 | `routines`, `routine_completions` | 있음 | 생성/삭제/오늘 루틴/완료 체크 연결 | 일부 연결 | 수정 API/service/provider는 유지하되 수정 UI 진입은 현재 범위에서 보류. |
 | 커뮤니티 | 있음 | `posts`, `post_likes`, `post_media`, `post_polls`, `post_poll_options`, `post_poll_votes`, `post_comments` | 있음 | 피드/글쓰기/좋아요/상세/투표/댓글·답글 연결 | 일부 연결 | 백엔드 제목·본문 검색은 구현됐고 검색 UI·알림·카테고리 필터와 댓글 수정·삭제·신고는 후속 범위. |
 | 미디어 | 있음 | `media_resources`, `media_cleanup_queue`, `post_media` | 있음 | 호출 중 | 유지 | 프로필·기록·커뮤니티 미디어와 인증/공개 조회 경로를 제공한다. |
 | 지갑/지출 | 있음 | `wallet_expenses` | 있음 | 생성/목록/요약/상세/수정/삭제 연결 | 일부 연결 | 항목·사진 첨부는 후속 범위. |
@@ -249,7 +249,7 @@
 |------|------|------|-----------|
 | `/records/expense/new` | 제거된 레거시 route | 더 이상 `/wallet/expenses/new`로 redirect하지 않음 | `/wallet/expenses/new` 직접 진입 유지 |
 | `bath`, `groom` | 제거 완료 | 프론트 quick/detail 잔재 제거, 백엔드 미지원 | 새 기록 타입으로 다시 열지 않음 |
-| 루틴 수정 | 일부 연결 | 백엔드/service/provider 있음, 주요 수정 UI 진입 약함 | UI 연결 또는 보류 문서화 |
+| 루틴 수정 | 보류 | 백엔드/service/provider 있음, 수정 UI 진입 없음 | 현재 UI 범위 밖으로 보류 |
 
 ## 다음 문서 작업 제안
 
