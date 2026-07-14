@@ -1,6 +1,6 @@
 # 11. 전체 검증 계획
 
-> 상태: 검증 계획 확정, cleanup 보류 판단 반영
+> 상태: 검증 계획 확정, 최근 cleanup 검증 반영
 > 기준 문서: `08_BACKEND_IMPLEMENTATION_TASKS.md`, `09_FRONTEND_INTEGRATION_PLAN.md`, `10_DEAD_CODE_CLEANUP_PLAN.md`  
 > 선행 단계: `08_BACKEND_IMPLEMENTATION_TASKS.md`, `09_FRONTEND_INTEGRATION_PLAN.md`, `10_DEAD_CODE_CLEANUP_PLAN.md`  
 > 다음 단계: 완료 보고 또는 Handover 갱신  
@@ -14,7 +14,7 @@
 
 - 백엔드: `wallet_expenses` migration, `init-test.sql`, `WalletExpenseIntegrationTest`, wallet controller/service/dto/error 처리.
 - 프론트: `WalletExpense` 모델/service/provider, wallet add/detail/edit/list/report 화면, router `expenseId`, `ApiException.errorCode`.
-- cleanup: `/records/expense/new` redirect 유지/제거 판단, `ActivityRecord.typeId == "expense"` 지갑 의존 제거, `expense_record_utils.dart` rename/delete 판단.
+- cleanup: `/records/expense/new` redirect 제거, `ActivityRecord.typeId == "expense"` 지갑 의존 제거, `expense_record_utils.dart` rename/delete 완료, 제거된 기록 타입은 과거 migration 검증만 유지.
 - 문서: `docs/FRONTEND_STATUS.md`, roadmap 문서, Handover.
 
 ## 검증 순서
@@ -108,7 +108,7 @@ flutter test test/router/app_router_test.dart
 - add/edit/delete 화면은 `PetNotifier.addRecord/updateRecord/deleteRecord`가 아니라 wallet provider를 호출한다.
 - wallet/report 화면은 `ActivityRecord` fixture 없이 렌더링된다.
 - router는 `/wallet/expenses/:expenseId`와 `/wallet/expenses/:expenseId/edit`를 사용한다.
-- 09번 단계에서는 `/records/expense/new -> /wallet/expenses/new` redirect가 유지된다.
+- `/records/expense/new` legacy redirect는 제거됐고, 지갑 생성은 `/wallet/expenses/new` 직접 진입만 유지한다.
 
 ## 4. 프론트 전체 검증
 
@@ -144,8 +144,8 @@ rg -n 'expense_record_utils|expenseRecords\(|totalExpenseLabel\(|expenseTitle\('
 - 지갑 화면과 지갑 테스트에는 `ActivityRecord(typeId: 'expense')` fixture가 남지 않는다.
 - `ExpenseFormData.toRecordBody()`가 지갑 저장/수정 경로에서 호출되지 않는다.
 - `/wallet/expenses/:recordId` route가 남지 않는다.
-- `/records/expense/new`를 호환용으로 유지한다면 router redirect와 테스트 기대가 남아도 된다. 제거를 명시적으로 결정했다면 router 테스트도 redirect 기대를 제거한다.
-- `bath`/`groom`은 지갑 cleanup 대상이 아니므로 이 검색 결과만으로 삭제하지 않는다.
+- `/records/expense/new`는 호환용으로 유지하지 않는다. router 테스트도 redirect 기대를 제거한 상태를 기준으로 한다.
+- `bath`/`groom` quick/detail 잔재는 제거 완료 상태다. 관련 검색 결과가 남으면 wallet/care schedule의 `grooming`처럼 다른 도메인 값인지 먼저 구분한다.
 
 검색 결과가 남아도 되는 경우:
 
@@ -153,7 +153,7 @@ rg -n 'expense_record_utils|expenseRecords\(|totalExpenseLabel\(|expenseTitle\('
 |------|-----------|
 | 일반 기록 도메인의 `ActivityRecord` | 허용 |
 | 일반 기록 route의 `recordId` | 허용 |
-| 지갑과 무관한 `bath`/`groom` | 이번 단계에서는 보류 |
+| 지갑과 무관한 `grooming`, 병원 방문 사유 `checkup` | 기록 타입이 아닌 다른 도메인 값이므로 허용 |
 | `docs/backend-roadmap`의 과거 상태 설명 | 구현 완료 뒤 현재 상태 문서라면 정리, 역사 설명이면 허용 |
 
 ## 6. 문서 검증

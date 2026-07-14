@@ -3,14 +3,14 @@
 > 상태: 정리 완료
 > 기준 문서: `02_DOMAIN_DECISIONS.md`, `04_API_CONTRACT.md`, `09_FRONTEND_INTEGRATION_PLAN.md`  
 > 선행 단계: `09_FRONTEND_INTEGRATION_PLAN.md` 완료 및 프론트 wallet API 전환 검증 통과  
-> 다음 단계: `11_VERIFICATION_PLAN.md`  
+> 다음 단계: 완료 보고 또는 Handover 갱신
 > 변경 가능 여부: 대체 기능 연결 완료 뒤 실제 검색 결과에 따라 수정 가능
 
 ## 목적
 
 지갑 지출이 신규 `/api/v1/pets/{petId}/wallet/expenses` API와 `WalletExpense` 모델로 전환된 뒤, 기록 도메인에 남은 지출 저장 흔적과 레거시 route를 안전하게 제거한다. 이 단계는 새 기능을 만들지 않고, 이미 대체된 코드의 사용처를 검색해 삭제 또는 보류를 판단한다.
 
-## 현재 코드 대조: 2026-07-13
+## 현재 코드 대조: 2026-07-14
 
 - wallet 화면과 테스트에서 `ActivityRecord(typeId: 'expense')`, `typeId == 'expense'`, `toRecordBody()`, `PetNotifier.addRecord/updateRecord/deleteRecord` 지갑 호출은 검색되지 않는다.
 - wallet helper는 `wallet_expense_utils.dart` 이름을 사용하고, wallet 화면들이 해당 helper를 import한다.
@@ -40,7 +40,7 @@
 - 대체 기능 연결 전에는 삭제하지 않는다.
 - 사용처 검색 없이 파일이나 route를 삭제하지 않는다.
 - 테스트를 삭제하거나 기대값을 약화해서 통과시키지 않는다.
-- 지갑 지출과 무관한 `bath`, `groom`, `mock`, `준비중` 정리는 이번 단계에서 하지 않는다.
+- 지갑 지출과 무관한 `bath`, `groom` 기록 타입 잔재는 후속 cleanup에서 제거 완료했다. `mock`, `준비중` 정리는 제품 UI 후속 범위로 유지한다.
 - backend migration, backend API, DB schema는 이 단계에서 수정하지 않는다.
 
 ## 제거 후보
@@ -155,6 +155,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojib
 git diff --check
 git status --short frontend docs
 ```
+
+최근 추가 검증:
+
+- `flutter test test/core/record_utils_test.dart test/providers/pet_provider_test.dart test/router/app_router_test.dart test/screens/records/records_screen_test.dart`
+- `flutter analyze --no-fatal-infos`
+- `.\gradlew test --tests com.petyilgi.record.ActivityRecordIntegrationTest --tests com.petyilgi.routine.RoutineIntegrationTest --tests com.petyilgi.support.FlywayMigrationTest`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-korean-mojibake.ps1`
+- `git diff --check`
 
 ## 중단 기준
 
