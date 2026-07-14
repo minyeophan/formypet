@@ -170,7 +170,7 @@
 | `record_water` | 기록 | 음수 detail | 유지 |
 | `record_medicine` | 기록 | 복약 detail | 유지 |
 | `record_poop` | 기록 | 배변 detail | 유지 |
-| `record_walk` | 기록 | 산책 detail, 현재 sleep/play duration도 재사용 | 계약 애매 |
+| `record_walk` | 기록 | 산책 detail | 유지 |
 | `record_weight` | 기록 | 체중 detail | 유지 |
 | `record_vet` | 기록 | 병원/검진 detail | 유지 |
 | `routines` | 루틴 | 반복 루틴 정의 | 유지 |
@@ -201,9 +201,6 @@
 | `vet` | 예 | `record_vet` | 예 | 유지 | 병원 입력. |
 | `diary` | 예 | detail 없음, `note`만 | 예 | 유지 | `V12` 추가. |
 | `etc` | 예 | detail 없음, `note`만 | 예 | 유지 | `V13` 추가. |
-| `sleep` | 예 | `record_walk.duration` 재사용 | 주요 진입 없음 | 백엔드만 있음 | 타입 유지 여부 결정 필요. |
-| `play` | 예 | `record_walk.duration` 재사용 | 주요 진입 없음 | 백엔드만 있음 | 타입 유지 여부 결정 필요. |
-| `checkup` | 예 | `record_vet` 재사용 | 현재 기록 그리드에서 숨김 | 백엔드만 있음 | `vet`과 통합할지 결정 필요. |
 | `expense` | 아니오 | 없음 | wallet UI가 저장 시도 | 계약 애매 | 지갑 전용 도메인으로 분리 권장. |
 | `bath` | 아니오 | 없음 | 제거됨 | 제거 완료 | 백엔드 미지원. 프론트 quick/detail 잔재 제거 완료. |
 | `groom` | 아니오 | 없음 | 제거됨 | 제거 완료 | 백엔드 미지원. 프론트 quick/detail 잔재 제거 완료. |
@@ -223,7 +220,7 @@
 | `MediaIntegrationTest` | 미디어 | pet/record media, record 응답 media URL, record 삭제 후 파일 정리, webp content type, private/public 접근, 용량/확장자 검증 |
 | `MediaStorageFailureIntegrationTest` | 미디어 | 저장 실패 시 DB row 미삽입 |
 | `MediaCleanupRunnerTest` | 미디어 | 파일 삭제 성공 뒤 queue 삭제, 저장소 실패 시 queue 보존 |
-| `DeprecatedActivityTypesMigrationTest` | Flyway | V16 데이터에서 V17 적용 후 레거시 기록·루틴·미디어 DB 행 제거와 queue 확인 |
+| `FlywayMigrationTest` 레거시 기록 fixture | Flyway | V20 적용 후 과거 기록·루틴·미디어 DB 행 제거와 queue 확인 |
 | `OpenApiIntegrationTest` | 문서 | Springdoc API 문서 렌더링 |
 | `SpatialQueryIntegrationTest` | 공간 테스트 | MySQL spatial distance, SRID, 반경 검색 |
 
@@ -251,15 +248,13 @@
 | 항목 | 구분 | 근거 | 권장 처리 |
 |------|------|------|-----------|
 | `/records/expense/new` | 제거된 레거시 route | 더 이상 `/wallet/expenses/new`로 redirect하지 않음 | `/wallet/expenses/new` 직접 진입 유지 |
-| `sleep`, `play` 기록 타입 | 백엔드만 있음 | 백엔드는 지원하나 현재 주요 기록 그리드 진입 없음 | 유지/숨김/제거 정책 결정 |
-| `checkup` 기록 타입 | 백엔드만 있음 | 백엔드는 `record_vet` 재사용, 프론트 기록 그리드에서 숨김 | `vet`과 통합 여부 결정 |
 | `bath`, `groom` | 제거 완료 | 프론트 quick/detail 잔재 제거, 백엔드 미지원 | 새 기록 타입으로 다시 열지 않음 |
 | 루틴 수정 | 일부 연결 | 백엔드/service/provider 있음, 주요 수정 UI 진입 약함 | UI 연결 또는 보류 문서화 |
 
 ## 다음 문서 작업 제안
 
 1. `docs/BACKEND_DOMAIN_DECISIONS.md`
-   - `sleep/play/checkup` 처리 정책을 결정한다. `bath/groom`은 제거 완료 상태로 유지한다.
+   - 제거된 기록 타입은 다시 제품 타입으로 열지 않고, 과거 migration 검증만 유지한다.
 2. `docs/TARGET_ERD.md`
    - 현재 ERD와 별도로 목표 ERD를 작성한다.
    - 현재 지갑·일정·댓글 답글 구조를 기준 ERD와 동기화한다.

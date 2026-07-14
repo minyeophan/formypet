@@ -158,7 +158,7 @@
 
 현재 사용자 동선은 `/records` 메인과 타입별 전체 화면 입력을 중심으로 한다. `/records?date=YYYY-MM-DD`와 입력 화면의 `date` query를 지원하며, 메인에서 선택한 날짜를 입력 화면의 고정 날짜로 사용한다. 기록 목록 row는 `/records/:recordId` 상세로 이동하고, 상세의 수정 버튼은 `/records/:recordId/edit`로 이동한다. 수정 화면에서 저장과 삭제 API를 호출한다. 이전 빠른 기록 bottom sheet와 이전 탭 위젯 파일은 남아 있으나 현재 Home과 라우터에서 호출하지 않는다.
 
-활동 기록 타입은 `meal`, `water`, `poop`, `walk`, `medicine`, `weight`, `vet`, `diary`, `etc` 9개만 유지한다. `/records/:typeId/new`으로 `play`, `sleep`, `checkup`, `bath`, `groom`에 직접 접근하면 `/records`로 redirect한다. 일정·지갑의 `grooming`과 병원 방문 사유 `checkup`은 이 정책의 대상이 아니다.
+활동 기록 타입은 `meal`, `water`, `poop`, `walk`, `medicine`, `weight`, `vet`, `diary`, `etc` 9개만 유지한다. `/records/:typeId/new`으로 지원 목록 밖 typeId에 직접 접근하면 `/records`로 redirect한다. 일정·지갑의 `grooming`과 병원 방문 사유 `checkup`은 이 정책의 대상이 아니다.
 
 ### 현재 프론트 구현
 
@@ -228,7 +228,7 @@
 - `ActivityRecord.detail` 키는 프론트 입력 필드 기준이며, 백엔드 개발 시 재정렬 필요.
 - 전체 화면 폼 기준 현재 detail: `meal(foodType, servedAmount, consumedPercent, product?, brand?, feedingMethod?)`, `water(amount)`, `walk(distance)`, `poop(poopShape, poopColor)`, `weight(weight)`, `vet(vetClinicName, vetVisitReason, vetTreatment)`, `medicine(medicineName, dosage)`, `diary`/`etc`는 detail 없이 `note`만 사용.
 - `water` 단위는 UI에서 `ml` 고정값으로 표시하고, 백엔드에는 `amount`만 저장한다.
-- 제거된 기록 타입(`play`, `sleep`, `checkup`, `bath`, `groom`)은 다시 열지 않는다. `expense`는 기록 타입이 아닌 지갑 전용 도메인으로 유지한다.
+- 지원 목록 밖 기록 타입은 다시 열지 않는다. `expense`는 기록 타입이 아닌 지갑 전용 도메인으로 유지한다.
 - 목록 API는 `date`, `typeId`, `limit` 서버 쿼리를 지원한다. 현재 `PetProvider`의 기본 로드는 전체 기록을 받아오고 `/records` 메인은 선택 날짜를 클라이언트에서 필터링한다. 성장 기록 조회처럼 특정 용도에서는 `typeId` 쿼리를 직접 사용할 수 있다.
 - 기록 생성 후 미디어 업로드 실패 시 프론트는 생성된 기록을 `DELETE /records/{recordId}`로 rollback한다. 백엔드는 기록 삭제 시 연결된 `media_resources`를 FK cascade로 정리하고, 조회한 storage key는 커밋 후 best-effort로 삭제한다.
 
