@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("21", flyway.info().current().getVersion().getVersion());
+        assertEquals("22", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -46,6 +46,7 @@ class FlywayMigrationTest {
                       AND table_name = 'media_cleanup_queue'
                     """));
             assertCommentManagementSchema(connection);
+            assertNotificationsSchema(connection);
         }
     }
 
@@ -57,9 +58,10 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("21", flyway.info().current().getVersion().getVersion());
+        assertEquals("22", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
+            assertNotificationsSchema(connection);
         }
     }
 
@@ -153,6 +155,41 @@ class FlywayMigrationTest {
                 WHERE table_schema = DATABASE()
                   AND table_name = 'post_comment_reports'
                   AND index_name = 'uk_post_comment_reporter'
+                """));
+    }
+
+    private void assertNotificationsSchema(Connection connection) throws Exception {
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'notifications'
+                """));
+        assertEquals(11, count(connection, """
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'notifications'
+                  AND column_name IN (
+                      'id', 'recipient_user_id', 'actor_user_id', 'actor_nickname',
+                      'type', 'post_id', 'comment_id', 'title', 'body', 'read_at', 'created_at'
+                  )
+                """));
+        assertEquals(2, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'notifications'
+                  AND index_name = 'idx_notifications_recipient_cursor'
+                """));
+        assertEquals(2, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'notifications'
+                  AND index_name = 'idx_notifications_recipient_created'
+                """));
+        assertEquals(2, count(connection, """
+                SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'notifications'
+                  AND index_name = 'idx_notifications_unread'
                 """));
     }
 

@@ -376,3 +376,18 @@ ALTER TABLE users
     ADD CONSTRAINT fk_user_profile_media
         FOREIGN KEY (profile_media_id) REFERENCES media_resources (id)
         ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id BIGINT NOT NULL, actor_user_id BIGINT NOT NULL,
+    actor_nickname VARCHAR(50) NOT NULL, type VARCHAR(20) NOT NULL,
+    post_id BIGINT NOT NULL, comment_id BIGINT NULL,
+    title VARCHAR(120) NOT NULL, body VARCHAR(500) NOT NULL,
+    read_at DATETIME(6) NULL, created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
+    INDEX idx_notifications_recipient_cursor (recipient_user_id, id DESC),
+    INDEX idx_notifications_unread (recipient_user_id, read_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

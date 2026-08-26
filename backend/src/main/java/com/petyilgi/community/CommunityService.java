@@ -15,6 +15,8 @@ import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
 import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
+import com.petyilgi.notification.NotificationService;
+import com.petyilgi.notification.NotificationType;
 import com.petyilgi.common.exception.ApiException;
 import com.petyilgi.common.exception.ForbiddenException;
 import com.petyilgi.common.exception.InvalidInputException;
@@ -48,6 +50,7 @@ public class CommunityService {
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
     private final MediaService mediaService;
+    private final NotificationService notificationService;
 
     @Transactional
     public PostResponse create(String email, PostCreateRequest request, List<MultipartFile> files) {
@@ -251,6 +254,11 @@ public class CommunityService {
         }, keyHolder);
         jdbcTemplate.update("UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?", postId);
         Long commentId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        Long recipient = parentCommentId == null
+                ? jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId)
+                : ((Number) requireCommentAnyPost(parentCommentId).get("user_id")).longValue();
+        notificationService.create(recipient, user.getId(), user.getNickname(),
+                parentCommentId == null ? NotificationType.COMMENT : NotificationType.REPLY, postId, commentId);
         return findCommentResponse(commentId, commentsCount(postId));
     }
 
@@ -357,6 +365,8 @@ public class CommunityService {
                 VALUES (?, ?, ?)
                 """, user.getId(), postId, LocalDateTime.now());
         jdbcTemplate.update("UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?", postId);
+        Long recipient = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
+        notificationService.create(recipient, user.getId(), user.getNickname(), NotificationType.POST_LIKE, postId, null);
         return PostLikeResponse.of(postId, true, likesCount(postId));
     }
 
@@ -373,6 +383,8 @@ public class CommunityService {
                     VALUES (?, ?, ?, ?, ?)
                     """, pollId, user.getId(), optionId, LocalDateTime.now(), LocalDateTime.now());
             jdbcTemplate.update("UPDATE post_poll_options SET votes_count = votes_count + 1 WHERE id = ?", optionId);
+            Long recipient = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
+            notificationService.create(recipient, user.getId(), user.getNickname(), NotificationType.POLL_VOTE, postId, null);
         } else if (!previousOptionId.equals(optionId)) {
             jdbcTemplate.update("""
                     UPDATE post_poll_votes SET option_id = ?, updated_at = ? WHERE poll_id = ? AND user_id = ?

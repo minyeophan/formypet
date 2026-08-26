@@ -1,0 +1,20 @@
+CREATE TABLE notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id BIGINT NOT NULL,
+    actor_user_id BIGINT NOT NULL,
+    actor_nickname VARCHAR(50) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    post_id BIGINT NOT NULL,
+    comment_id BIGINT NULL,
+    title VARCHAR(120) NOT NULL,
+    body VARCHAR(500) NOT NULL,
+    read_at DATETIME(6) NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_notification_recipient FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notification_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notification_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_notification_comment FOREIGN KEY (comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
+    INDEX idx_notifications_recipient_cursor (recipient_user_id, id DESC),
+    INDEX idx_notifications_recipient_created (recipient_user_id, created_at),
+    INDEX idx_notifications_unread (recipient_user_id, read_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
