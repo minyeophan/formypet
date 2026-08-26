@@ -4,9 +4,9 @@ Java 21 / Spring Boot 백엔드 작업을 시작할 때만 이 문서를 읽는�
 
 ## 백엔드 시작 순서
 
-1. `docs/CONTEXT.md`에서 현재 상태, 마지막 검증, 다음 행동을 확인한다.
+1. `docs/BACKEND_STATUS.md`에서 현재 백엔드 상태와 검증 명령을 확인한다.
 2. `docs/AI_MISTAKES.md`에서 반복 실수와 필수 검증을 확인한다.
-3. `docs/FRONTEND_STATUS.md`에서 프론트가 요구하는 API 계약을 확인한다.
+3. `docs/FRONTEND_STATUS.md`에서 프론트가 요구하는 API 연동 상태를 확인한다.
 4. 현재 변경 범위를 `git status --short backend docs scripts`로 확인한다.
 5. 테스트 또는 재현 조건을 먼저 만든 뒤 구현한다.
 
