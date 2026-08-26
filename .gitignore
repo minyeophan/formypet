@@ -10,6 +10,7 @@ ui-reference/
 scripts/
 CHANGES.md
 docs/superpowers/plans/
+docs/superpowers/specs/
 docs/devlog-drafts/
 
 # backend build/runtime artifacts
@@ -19,6 +20,7 @@ backend/storage/
 backend/hs_err_pid*.log
 backend/replay_pid*.log
 hs_err_pid*.log
+.idea/
 
 # frontend local runtime artifacts
 frontend/.env
