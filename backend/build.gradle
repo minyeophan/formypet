@@ -49,16 +49,16 @@ dependencies {
     // ── Test ──────────────────────────────────────────────
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:mysql'
-    testImplementation 'com.github.docker-java:docker-java-core:3.4.0'
-    testImplementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.0'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'com.github.docker-java:docker-java-core:3.7.0'
+    testImplementation 'com.github.docker-java:docker-java-transport-httpclient5:3.7.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 dependencyManagement {
     imports {
-        mavenBom "org.testcontainers:testcontainers-bom:1.20.4"
+        mavenBom "org.testcontainers:testcontainers-bom:2.0.5"
     }
 }
 

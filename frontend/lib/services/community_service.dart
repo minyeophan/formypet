@@ -171,6 +171,21 @@ class CommunityService {
     await dio.delete('/api/v1/posts/$postId/comments/$commentId');
   }
 
+  Future<void> reportComment(
+    String postId,
+    String commentId,
+    String reason, {
+    String? detail,
+  }) async {
+    await dio.post(
+      '/api/v1/posts/$postId/comments/$commentId/reports',
+      data: {
+        'reason': reason,
+        if (detail != null && detail.trim().isNotEmpty) 'detail': detail.trim(),
+      },
+    );
+  }
+
   String _filenameFor(XFile file, int index) {
     if (file.name.isNotEmpty) return file.name;
     final path = file.path.replaceAll('\\', '/');

@@ -168,6 +168,25 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void feedNormalizesCategoryAndRejectsUnknownCategory() throws Exception {
+        String token = registerAndGetToken("post-feed-category-validation@example.com", "categoryvalidation");
+        Long freeId = createPost(token, "category validation", "FREE", "body");
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("category", "  free  "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].id").value(freeId));
+
+        mockMvc.perform(get(POSTS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .param("category", "UNKNOWN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
     void feedSupportsPopularCursorPagination() throws Exception {
         String ownerToken = registerAndGetToken("post-popular-owner@example.com", "owner");
         String likerOneToken = registerAndGetToken("post-popular-one@example.com", "one");
@@ -651,6 +670,33 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.fieldErrors.detail").isNotEmpty());
+    }
+
+    @Test
+    void commentReportAcceptsEveryReasonAndRejectsUnknownReason() throws Exception {
+        String authorToken = registerAndGetToken("report-reasons-author@example.com", "reportreasonsauthor");
+        String reporterToken = registerAndGetToken("report-reasons-reporter@example.com", "reportreasonsreporter");
+        Long postId = createPost(authorToken, "report reasons post", "FREE", "body");
+
+        for (String reason : List.of("SPAM", "ABUSE", "INAPPROPRIATE", "PRIVACY", "OTHER")) {
+            Long commentId = createComment(authorToken, postId, "reason target " + reason, null);
+            Map<String, Object> body = reason.equals("OTHER")
+                    ? Map.of("reason", reason, "detail", "other detail")
+                    : Map.of("reason", reason);
+            mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + commentId + "/reports")
+                            .header("Authorization", "Bearer " + reporterToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(body)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.data.reason").value(reason));
+        }
+
+        Long invalidCommentId = createComment(authorToken, postId, "invalid reason target", null);
+        mockMvc.perform(post(POSTS_URL + "/" + postId + "/comments/" + invalidCommentId + "/reports")
+                        .header("Authorization", "Bearer " + reporterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"INVALID\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
