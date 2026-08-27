@@ -8,6 +8,7 @@ import com.petyilgi.common.exception.InvalidInputException;
 import com.petyilgi.pet.domain.Pet;
 import com.petyilgi.pet.repository.PetRepository;
 import com.petyilgi.routine.dto.*;
+import com.petyilgi.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -40,6 +41,7 @@ public class RoutineService {
     private final PetRepository petRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public RoutineResponse create(String email, Long petId, RoutineCreateRequest request) {
@@ -100,6 +102,7 @@ public class RoutineService {
     public RoutineResponse update(String email, Long petId, Long routineId, RoutineUpdateRequest request) {
         Pet pet = findOwnedPet(email, petId);
         Map<String, Object> current = findRoutineRow(pet.getId(), routineId);
+        notificationService.deletePendingReminders("ROUTINE", routineId);
         String label = request.label() != null ? request.label() : (String) current.get("label");
         validateLabel(label);
         String typeId = request.typeId() != null ? request.typeId() : (String) current.get("type_id");
@@ -189,6 +192,7 @@ public class RoutineService {
     public void delete(String email, Long petId, Long routineId) {
         Pet pet = findOwnedPet(email, petId);
         findRoutineRow(pet.getId(), routineId);
+        notificationService.deletePendingReminders("ROUTINE", routineId);
         jdbcTemplate.update("DELETE FROM routines WHERE id = ? AND pet_id = ?", routineId, pet.getId());
     }
 

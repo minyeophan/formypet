@@ -32,6 +32,11 @@ spring:
     baseline-on-migrate: false
 
 app:
+  notification:
+    interval-ms: 60000
+    lookback-minutes: 1
+    timezone: Asia/Seoul
+    scheduler-enabled: true
   jwt:
     secret: "${JWT_SECRET:petyilgi-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
     access-token-expiration: 1800000    # 30분 (ms)

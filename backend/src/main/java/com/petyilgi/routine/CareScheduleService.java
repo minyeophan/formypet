@@ -5,6 +5,7 @@ import com.petyilgi.common.exception.InvalidInputException;
 import com.petyilgi.common.exception.NotFoundException;
 import com.petyilgi.routine.dto.CareScheduleRequest;
 import com.petyilgi.routine.dto.CareScheduleResponse;
+import com.petyilgi.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -29,6 +30,7 @@ public class CareScheduleService {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final JdbcTemplate jdbcTemplate;
+    private final NotificationService notificationService;
 
     @Transactional
     public CareScheduleResponse create(String email, Long petId, CareScheduleRequest request) {
@@ -84,6 +86,7 @@ public class CareScheduleService {
     @Transactional
     public CareScheduleResponse update(String email, Long petId, Long scheduleId, CareScheduleRequest request) {
         PetRow pet = findVisibleOwnedPet(email, petId);
+        notificationService.deletePendingReminders("CARE_SCHEDULE", scheduleId);
         findResponse(pet.id(), scheduleId);
         ValidatedRequest validated = validate(request);
         jdbcTemplate.update("""
@@ -111,6 +114,7 @@ public class CareScheduleService {
     @Transactional
     public void delete(String email, Long petId, Long scheduleId) {
         PetRow pet = findVisibleOwnedPet(email, petId);
+        notificationService.deletePendingReminders("CARE_SCHEDULE", scheduleId);
         findResponse(pet.id(), scheduleId);
         jdbcTemplate.update("DELETE FROM care_schedules WHERE id = ? AND pet_id = ?", scheduleId, pet.id());
     }
