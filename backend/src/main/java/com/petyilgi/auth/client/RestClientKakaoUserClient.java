@@ -42,6 +42,8 @@ public class RestClientKakaoUserClient implements KakaoUserClient {
             return parse(body);
         } catch (RestClientResponseException ex) {
             throw new BadCredentialsException("Invalid Kakao token", ex);
+        } catch (BadCredentialsException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new BadCredentialsException("카카오 서비스가 일시적으로 불안정합니다.", ex);
         }
