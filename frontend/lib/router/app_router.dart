@@ -37,6 +37,7 @@ import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
 import '../screens/my/my_support_center_screen.dart';
+import '../screens/notification/notification_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 // RouterNotifier listens to auth/pet providers and triggers router refresh.
@@ -137,6 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
+          GoRoute(path: '/notifications', builder: (c, s) => const NotificationScreen()),
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
