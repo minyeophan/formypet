@@ -73,7 +73,7 @@ class RecordService {
 
     try {
       await _uploadMedia(petId, record.id, files);
-      return getRecord(petId, record.id);
+      return await getRecord(petId, record.id);
     } catch (e) {
       // Rollback: delete the record if media upload fails
       await deleteRecord(petId, record.id);
@@ -91,7 +91,7 @@ class RecordService {
 
     try {
       await _uploadMediaBytes(petId, record.id, files);
-      return getRecord(petId, record.id);
+      return await getRecord(petId, record.id);
     } catch (e) {
       await deleteRecord(petId, record.id);
       rethrow;
