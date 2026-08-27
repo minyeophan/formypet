@@ -25,6 +25,26 @@ class OpenApiIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.components.schemas.PostCommentReportRequest").exists())
                 .andExpect(jsonPath("$.components.schemas.PostCommentReportResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.PostCommentReportRequest.properties.reason").exists())
-                .andExpect(jsonPath("$.components.schemas.PostCommentReportRequest.properties.detail").exists());
+                .andExpect(jsonPath("$.components.schemas.PostCommentReportRequest.properties.detail").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/notifications/settings'].patch").exists())
+                .andExpect(jsonPath("$.components.schemas.NotificationSettingsRequest.properties.enabled").exists())
+                .andExpect(jsonPath("$.components.schemas.NotificationSettingsResponse.properties.enabled").exists())
+                .andExpect(jsonPath("$.components.schemas.RoutineCreateRequest.properties.notificationEnabled").exists())
+                .andExpect(jsonPath("$.components.schemas.RoutineUpdateRequest.properties.notificationEnabled").exists())
+                .andExpect(jsonPath("$.components.schemas.CareScheduleRequest.properties.reminder").exists())
+                .andExpect(jsonPath("$.components.schemas.CareScheduleRequest.properties.reminder.enum").isArray())
+                .andExpect(jsonPath("$.components.schemas.NotificationResponse.properties.actorUserId").exists())
+                .andExpect(jsonPath("$.components.schemas.NotificationResponse.properties.postId").exists())
+                .andExpect(jsonPath("$.components.schemas.NotificationResponse.properties.commentId").exists())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/notifications/settings'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/public/media/{mediaId}'].get.security").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['400']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['401']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['403']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['404']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist());
     }
 }

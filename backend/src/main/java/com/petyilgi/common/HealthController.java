@@ -14,6 +14,7 @@ public class HealthController {
 
     @Operation(summary = "Health Check",
                description = "Virtual Thread 동작 및 서버 상태 확인")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "서버 정상")
     @GetMapping("/health")
     public ApiResponse<String> health() {
         String threadInfo = Thread.currentThread().isVirtual()

@@ -2,6 +2,7 @@ package com.petyilgi.routine.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CareScheduleResponse(
         Long id,
@@ -15,7 +16,7 @@ public record CareScheduleResponse(
         boolean allDay,
         String place,
         String memo,
-        String reminder,
+        @Schema(description = "알림 시점") String reminder,
         LocalDateTime createdAt
 ) {
     public static CareScheduleResponse of(Long id, Long petId, String categoryId, String title,

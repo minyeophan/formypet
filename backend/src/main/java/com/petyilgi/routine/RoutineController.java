@@ -11,15 +11,22 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/api/v1/pets/{petId}/routines")
 @RequiredArgsConstructor
+@Tag(name = "Routines", description = "루틴 및 완료 기록 API")
+@SecurityRequirement(name = "bearerAuth")
 public class RoutineController {
 
     private final RoutineService routineService;
 
     @PostMapping
+    @Operation(summary = "루틴 생성")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "루틴 생성 성공")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<RoutineResponse> create(@AuthenticationPrincipal String email,
                                                @PathVariable Long petId,
@@ -28,12 +35,16 @@ public class RoutineController {
     }
 
     @GetMapping
+    @Operation(summary = "루틴 목록 조회")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "루틴 목록 조회 성공")
     public ApiResponse<List<RoutineResponse>> list(@AuthenticationPrincipal String email,
                                                    @PathVariable Long petId) {
         return ApiResponse.of(routineService.list(email, petId));
     }
 
     @GetMapping("/today")
+    @Operation(summary = "오늘의 루틴 조회")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "오늘의 루틴 조회 성공")
     public ApiResponse<TodayRoutineResponse> today(@AuthenticationPrincipal String email,
                                                    @PathVariable Long petId,
                                                    @RequestParam(required = false)
@@ -42,6 +53,8 @@ public class RoutineController {
     }
 
     @PutMapping("/{routineId}")
+    @Operation(summary = "루틴 수정")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "루틴 수정 성공")
     public ApiResponse<RoutineResponse> update(@AuthenticationPrincipal String email,
                                                @PathVariable Long petId,
                                                @PathVariable Long routineId,
@@ -50,6 +63,8 @@ public class RoutineController {
     }
 
     @PatchMapping("/{routineId}/completions/{date}")
+    @Operation(summary = "루틴 완료 상태 변경")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "완료 상태 변경 성공")
     public ApiResponse<RoutineCompletionResponse> markCompletion(@AuthenticationPrincipal String email,
                                                                  @PathVariable Long petId,
                                                                  @PathVariable Long routineId,
@@ -60,6 +75,8 @@ public class RoutineController {
     }
 
     @DeleteMapping("/{routineId}")
+    @Operation(summary = "루틴 삭제")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "루틴 삭제 성공")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal String email,
                        @PathVariable Long petId,
