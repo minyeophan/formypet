@@ -21,9 +21,12 @@ backend/hs_err_pid*.log
 backend/replay_pid*.log
 hs_err_pid*.log
 .idea/
+node_modules/
 
 # frontend local runtime artifacts
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
 frontend/*.log
 frontend/*.err.log
 frontend/devtools_options.yaml
