@@ -11,11 +11,12 @@ import java.net.URI;
 
 /**
  * Docker Desktop 4.40+ on Windows: named pipe/TCP proxy returns Status 400 for API 1.32 default.
- * This strategy forces API 1.47 over tcp://127.0.0.1:2375 (requires Docker Desktop TCP enabled).
+ * This strategy uses Docker Desktop's active Linux named pipe and avoids requiring
+ * the insecure TCP daemon exposed on port 2375.
  */
 public class LocalDockerClientStrategy extends DockerClientProviderStrategy {
 
-    private static final String DOCKER_HOST = "tcp://127.0.0.1:2375";
+    private static final String DOCKER_HOST = "npipe:////./pipe/dockerDesktopLinuxEngine";
     private static final String API_VERSION = "1.47";
 
     @Override

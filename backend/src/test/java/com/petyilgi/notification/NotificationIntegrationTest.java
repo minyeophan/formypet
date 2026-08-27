@@ -16,10 +16,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -116,6 +118,46 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void readsAndUpdatesUserNotificationSettings() throws Exception {
+        String token = register("notification-settings@example.com", "settings");
+
+        mockMvc.perform(get("/api/v1/notifications/settings")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(true));
+
+        mockMvc.perform(patch("/api/v1/notifications/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enabled").value(false));
+
+        mockMvc.perform(get("/api/v1/notifications/settings")
+                        .header("Authorization", bearer(token)))
+                .andExpect(jsonPath("$.data.enabled").value(false));
+    }
+
+    @Test
+    void rejectsMissingOrNullNotificationSetting() throws Exception {
+        String token = register("notification-settings-invalid@example.com", "settings-invalid");
+        mockMvc.perform(patch("/api/v1/notifications/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch("/api/v1/notifications/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":null}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void notificationSettingsRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/notifications/settings"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createsNotificationForTheFirstPollVoteOnly() throws Exception {
         String ownerToken = register("notification-poll-owner@example.com", "poll-owner");
         String voterToken = register("notification-poll-voter@example.com", "poll-voter");
@@ -157,6 +199,59 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items", hasSize(1)))
                 .andExpect(jsonPath("$.data.items[0].title").value("recent"));
+    }
+
+    @Test
+    void reminderInsertIsIdempotentButAllowsDifferentRecipients() throws Exception {
+        register("reminder-owner@example.com", "owner");
+        register("reminder-other@example.com", "other");
+        Long owner = userId("reminder-owner@example.com");
+        Long other = userId("reminder-other@example.com");
+        LocalDateTime scheduled = LocalDateTime.now().plusMinutes(10).truncatedTo(ChronoUnit.MICROS);
+
+        notificationService.createReminder(owner, NotificationType.ROUTINE_REMINDER,
+                "ROUTINE", 77L, scheduled, "루틴 알림", "물 마실 시간입니다.");
+        notificationService.createReminder(owner, NotificationType.ROUTINE_REMINDER,
+                "ROUTINE", 77L, scheduled, "루틴 알림", "물 마실 시간입니다.");
+        notificationService.createReminder(other, NotificationType.ROUTINE_REMINDER,
+                "ROUTINE", 77L, scheduled, "루틴 알림", "물 마실 시간입니다.");
+
+        assertEquals(2, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE source_type='ROUTINE' AND source_id=77", Integer.class));
+    }
+
+    @Test
+    void deletingPendingRemindersKeepsReadAndPastReminders() throws Exception {
+        register("reminder-cleanup@example.com", "cleanup");
+        Long userId = userId("reminder-cleanup@example.com");
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
+                "CARE_SCHEDULE", 88L, now.plusMinutes(30), "future", "future");
+        notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
+                "CARE_SCHEDULE", 88L, now.minusMinutes(30), "past", "past");
+        notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
+                "CARE_SCHEDULE", 88L, now.plusMinutes(60), "read", "read");
+        jdbcTemplate.update("UPDATE notifications SET read_at=? WHERE title='read'", now);
+
+        assertEquals(1, notificationService.deletePendingReminders("CARE_SCHEDULE", 88L));
+        assertEquals(2, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE source_type='CARE_SCHEDULE' AND source_id=88", Integer.class));
+    }
+
+    @Test
+    void reminderWithNullSocialFieldsIsReturnedByNotificationFeed() throws Exception {
+        String token = register("reminder-feed@example.com", "feed");
+        Long userId = userId("reminder-feed@example.com");
+        notificationService.createReminder(userId, NotificationType.ROUTINE_REMINDER,
+                "ROUTINE", 99L, LocalDateTime.now(), "루틴 알림", "초코님의 물 먹기 시간입니다.");
+
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].actorUserId").value(nullValue()))
+                .andExpect(jsonPath("$.data.items[0].postId").value(nullValue()))
+                .andExpect(jsonPath("$.data.items[0].sourceType").value("ROUTINE"))
+                .andExpect(jsonPath("$.data.items[0].sourceId").value(99));
     }
 
     private String register(String email, String nickname) throws Exception {

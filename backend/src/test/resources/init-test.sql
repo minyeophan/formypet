@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255)   NOT NULL UNIQUE,
     password_hash VARCHAR(255)   NOT NULL,
     nickname      VARCHAR(50)    NOT NULL,
+    notification_enabled BOOLEAN  NOT NULL DEFAULT TRUE,
     registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
     profile_media_id BIGINT      NULL,
     created_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -379,9 +380,10 @@ ALTER TABLE users
 
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    recipient_user_id BIGINT NOT NULL, actor_user_id BIGINT NOT NULL,
-    actor_nickname VARCHAR(50) NOT NULL, type VARCHAR(20) NOT NULL,
-    post_id BIGINT NOT NULL, comment_id BIGINT NULL,
+    recipient_user_id BIGINT NOT NULL, actor_user_id BIGINT NULL,
+    actor_nickname VARCHAR(50) NULL, type VARCHAR(40) NOT NULL,
+    post_id BIGINT NULL, comment_id BIGINT NULL,
+    source_type VARCHAR(30) NULL, source_id BIGINT NULL, scheduled_for DATETIME(6) NULL,
     title VARCHAR(120) NOT NULL, body VARCHAR(500) NOT NULL,
     read_at DATETIME(6) NULL, created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -389,5 +391,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
     INDEX idx_notifications_recipient_cursor (recipient_user_id, id DESC),
-    INDEX idx_notifications_unread (recipient_user_id, read_at)
+    INDEX idx_notifications_unread (recipient_user_id, read_at),
+    UNIQUE KEY uq_notification_reminder (recipient_user_id, source_type, source_id, scheduled_for, type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

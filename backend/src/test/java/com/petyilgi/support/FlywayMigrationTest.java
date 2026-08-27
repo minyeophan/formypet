@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("22", flyway.info().current().getVersion().getVersion());
+        assertEquals("24", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -47,6 +47,7 @@ class FlywayMigrationTest {
                     """));
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'notification_enabled'"));
         }
     }
 
@@ -58,7 +59,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("22", flyway.info().current().getVersion().getVersion());
+        assertEquals("24", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);
@@ -164,13 +165,14 @@ class FlywayMigrationTest {
                 WHERE table_schema = DATABASE()
                   AND table_name = 'notifications'
                 """));
-        assertEquals(11, count(connection, """
+        assertEquals(14, count(connection, """
                 SELECT COUNT(*) FROM information_schema.columns
                 WHERE table_schema = DATABASE()
                   AND table_name = 'notifications'
                   AND column_name IN (
                       'id', 'recipient_user_id', 'actor_user_id', 'actor_nickname',
-                      'type', 'post_id', 'comment_id', 'title', 'body', 'read_at', 'created_at'
+                      'type', 'post_id', 'comment_id', 'source_type', 'source_id', 'scheduled_for',
+                      'title', 'body', 'read_at', 'created_at'
                   )
                 """));
         assertEquals(2, count(connection, """

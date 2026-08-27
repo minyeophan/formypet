@@ -103,4 +103,14 @@ class RestClientKakaoUserClientTest {
                 .hasMessageContaining("카카오 서비스가 일시적으로 불안정합니다.");
         server.verify();
     }
+
+    @Test
+    void fetchUserPreservesInvalidResponseAsBadCredentials() {
+        server.expect(once(), requestTo("https://kapi.kakao.com/v2/user/me"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.fetchUser("access-token"))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage("Invalid Kakao user response");
+    }
 }
