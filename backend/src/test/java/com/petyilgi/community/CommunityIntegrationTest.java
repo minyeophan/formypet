@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -838,6 +839,65 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.items", hasSize(1)))
                 .andExpect(jsonPath("$.data.items[0].id").value(thirdId))
                 .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    @Test
+    void postAuthorCanUpdateAndDeletePost() throws Exception {
+        String token = registerAndGetToken("post-update-author@example.com", "postupdateauthor");
+        Long postId = createPost(token, "before", "FREE", "before body");
+
+        mockMvc.perform(put(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "after", "category", "CARE", "content", "after body"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("after"))
+                .andExpect(jsonPath("$.data.category").value("CARE"));
+
+        mockMvc.perform(delete(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anotherUserCannotUpdateOrDeletePost() throws Exception {
+        String authorToken = registerAndGetToken("post-owner@example.com", "postowner");
+        String otherToken = registerAndGetToken("post-other@example.com", "postother");
+        Long postId = createPost(authorToken, "owned", "FREE", "body");
+
+        mockMvc.perform(put(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "blocked", "category", "FREE", "content", "blocked"))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRejectsBlankAndOverlongPostTitle() throws Exception {
+        String token = registerAndGetToken("post-validation@example.com", "postvalidation");
+        Long postId = createPost(token, "valid", "FREE", "body");
+
+        mockMvc.perform(put(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", " ", "category", "FREE", "content", "body"))))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put(POSTS_URL + "/" + postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "1234567890123456789012345678901",
+                                "category", "FREE", "content", "body"))))
+                .andExpect(status().isBadRequest());
     }
 
     private Long createPost(String token, String title, String category, String content) throws Exception {

@@ -135,6 +135,26 @@ void main() {
 
     expect(notifier.state.postsById['one']!.commentsCount, 0);
   });
+
+  test('post update replaces cache and delete removes it from feeds', () async {
+    final service = _ControlledService();
+    final notifier = CommunityNotifier(service);
+    service.requests.removeAt(0).complete(
+      PostFeed(items: [_post('one')], nextCursor: null),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final update = notifier.updatePost('one', title: 'updated', content: 'body', category: 'FREE');
+    service.postUpdateResponse.complete(_post('one'));
+    await update;
+    expect(notifier.state.postsById.containsKey('one'), isTrue);
+
+    final deletion = notifier.deletePost('one');
+    service.postDeleteResponse.complete();
+    await deletion;
+    expect(notifier.state.postsById.containsKey('one'), isFalse);
+    expect(notifier.state.postsForFeed('popular'), isEmpty);
+  });
 }
 
 Post _post(String id, {int commentsCount = 0}) => Post(
@@ -158,6 +178,8 @@ class _ControlledService extends CommunityService {
   final List<Completer<PostComment>> commentUpdateResponses = [];
   final List<(String postId, String commentId)> commentDeletes = [];
   final List<Completer<void>> commentDeleteResponses = [];
+  final postUpdateResponse = Completer<Post>();
+  final postDeleteResponse = Completer<void>();
 
   @override
   Future<PostFeed> getFeed({
@@ -198,4 +220,10 @@ class _ControlledService extends CommunityService {
     commentDeleteResponses.add(completer);
     return completer.future;
   }
+
+  @override
+  Future<Post> updatePost(String postId, {required String title, required String content, required String category, String? petSpecies}) => postUpdateResponse.future;
+
+  @override
+  Future<void> deletePost(String postId) => postDeleteResponse.future;
 }
