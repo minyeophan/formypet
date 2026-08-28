@@ -8,12 +8,14 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/community_provider.dart';
+import '../../models/post.dart';
 import '../../services/community_service.dart';
 import '../../widgets/app_text.dart';
 import 'community_constants.dart';
 
 class WriteScreen extends ConsumerStatefulWidget {
-  const WriteScreen({super.key});
+  const WriteScreen({super.key, this.editingPost});
+  final Post? editingPost;
 
   @override
   ConsumerState<WriteScreen> createState() => _WriteScreenState();
@@ -29,6 +31,17 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
   bool _showPoll = false;
   bool _isLoading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final post = widget.editingPost;
+    if (post != null) {
+      _titleCtrl.text = post.title ?? '';
+      _contentCtrl.text = post.content;
+      _category = post.category;
+    }
+  }
 
   @override
   void dispose() {
@@ -68,15 +81,16 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
       _error = null;
     });
     try {
-      await ref
-          .read(communityProvider.notifier)
-          .createPost(
-            content: _contentCtrl.text.trim(),
-            title: title,
-            category: _category,
-            files: _files,
-            poll: _buildPollDraft(),
-          );
+      final notifier = ref.read(communityProvider.notifier);
+      if (widget.editingPost == null) {
+        await notifier.createPost(
+          content: _contentCtrl.text.trim(), title: title, category: _category,
+          files: _files, poll: _buildPollDraft(),
+        );
+      } else {
+        await notifier.updatePost(widget.editingPost!.id, title: title,
+            content: _contentCtrl.text.trim(), category: _category);
+      }
       if (mounted) await _goBackToCommunity();
     } catch (e) {
       setState(() => _error = e.toString());

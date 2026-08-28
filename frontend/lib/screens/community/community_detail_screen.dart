@@ -315,12 +315,46 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     context,
     title: '더보기 메뉴',
     actions: [
+      if (ref.read(authProvider).profile?.id == ref.read(communityProvider).postsById[widget.postId]?.userId)
+        AppActionSheetItem(
+          key: const Key('community-post-edit'),
+          label: '게시글 수정',
+          onTap: () => context.push('/community/write', extra: ref.read(communityProvider).postsById[widget.postId]),
+        ),
+      if (ref.read(authProvider).profile?.id == ref.read(communityProvider).postsById[widget.postId]?.userId)
+        AppActionSheetItem(
+          key: const Key('community-post-delete'),
+          label: '게시글 삭제',
+          destructive: true,
+          onTap: _deletePost,
+        ),
       AppActionSheetItem(
         label: '신고하기',
         onTap: () => showPreparingToast(context),
       ),
     ],
   );
+
+  Future<void> _deletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('게시글 삭제'),
+        content: const Text('게시글을 삭제할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(communityProvider.notifier).deletePost(widget.postId);
+      if (mounted) context.go(communityFallbackPath(widget.sourceKey));
+    } catch (_) {
+      if (mounted) _snack('게시글 삭제에 실패했습니다.');
+    }
+  }
 }
 
 class _DetailHeader extends StatelessWidget {

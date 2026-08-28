@@ -207,6 +207,34 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     return post;
   }
 
+  Future<Post> updatePost(
+    String postId, {
+    required String title,
+    required String content,
+    required String category,
+    String? petSpecies,
+  }) async {
+    final post = await _svc.updatePost(
+      postId,
+      title: title,
+      content: content,
+      category: category,
+      petSpecies: petSpecies,
+    );
+    _replacePost(post);
+    return post;
+  }
+
+  Future<void> deletePost(String postId) async {
+    await _svc.deletePost(postId);
+    final posts = <String, List<Post>>{
+      for (final entry in state.postsByFeedKey.entries)
+        entry.key: entry.value.where((post) => post.id != postId).toList(),
+    };
+    final cache = Map<String, Post>.from(state.postsById)..remove(postId);
+    state = state.copyWith(postsByFeedKey: posts, postsById: cache);
+  }
+
   Future<Post> vote(String postId, String optionId) async {
     final post = await _svc.vote(postId, optionId);
     _replacePost(post);

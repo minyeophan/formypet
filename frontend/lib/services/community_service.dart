@@ -125,7 +125,7 @@ class CommunityService {
   }) async {
     final res = await dio.get(
       '/api/v1/posts/$postId/comments/$commentId',
-      queryParameters: {'replyLimit': replyLimit},
+      queryParameters: {'replyLimit': _pageLimit(replyLimit)},
     );
     return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
   }
@@ -169,6 +169,29 @@ class CommunityService {
 
   Future<void> deleteComment(String postId, String commentId) async {
     await dio.delete('/api/v1/posts/$postId/comments/$commentId');
+  }
+
+  Future<Post> updatePost(
+    String postId, {
+    required String title,
+    required String content,
+    required String category,
+    String? petSpecies,
+  }) async {
+    final res = await dio.put(
+      '/api/v1/posts/$postId',
+      data: {
+        'title': title.trim(),
+        'content': content.trim(),
+        'category': category.toUpperCase(),
+        'petSpecies': petSpecies,
+      },
+    );
+    return Post.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<void> deletePost(String postId) async {
+    await dio.delete('/api/v1/posts/$postId');
   }
 
   Future<void> reportComment(

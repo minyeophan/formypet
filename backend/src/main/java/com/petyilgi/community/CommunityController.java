@@ -13,6 +13,7 @@ import com.petyilgi.community.dto.PostCommentUpdateRequest;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
+import com.petyilgi.community.dto.PostUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -64,6 +65,25 @@ public class CommunityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "게시글 조회 성공")
     public ApiResponse<PostResponse> detail(@AuthenticationPrincipal String email, @PathVariable Long postId) {
         return ApiResponse.of(communityService.detail(email, postId));
+    }
+
+    @PutMapping("/{postId}")
+    @Operation(summary = "게시글 수정")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "게시글 수정 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "작성자만 수정 가능")
+    public ApiResponse<PostResponse> update(@AuthenticationPrincipal String email,
+                                            @PathVariable Long postId,
+                                            @Valid @RequestBody PostUpdateRequest request) {
+        return ApiResponse.of(communityService.update(email, postId, request));
+    }
+
+    @DeleteMapping("/{postId}")
+    @Operation(summary = "게시글 삭제")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "게시글 삭제 성공")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "작성자만 삭제 가능")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal String email, @PathVariable Long postId) {
+        communityService.delete(email, postId);
     }
 
     @GetMapping("/{postId}/comments")

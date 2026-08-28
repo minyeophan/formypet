@@ -13,6 +13,7 @@ import com.petyilgi.community.dto.PostCommentReportReason;
 import com.petyilgi.community.dto.PostFeedResponse;
 import com.petyilgi.community.dto.PostLikeResponse;
 import com.petyilgi.community.dto.PostResponse;
+import com.petyilgi.community.dto.PostUpdateRequest;
 import com.petyilgi.media.MediaService;
 import com.petyilgi.media.dto.MediaResponse;
 import com.petyilgi.notification.NotificationService;
@@ -129,6 +130,37 @@ public class CommunityService {
         User user = findUser(email);
         ensurePostExists(postId);
         return findPostResponse(postId, user.getId());
+    }
+
+    @Transactional
+    public PostResponse update(String email, Long postId, PostUpdateRequest request) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        Long authorId = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
+        if (!user.getId().equals(authorId)) {
+            throw new ForbiddenException("Forbidden post.", "POST_FORBIDDEN");
+        }
+        if (request.title() == null || request.title().isBlank() || request.title().length() > 30
+                || request.category() == null || request.category().isBlank()
+                || request.content() == null || request.content().isBlank()) {
+            throw new IllegalArgumentException("Post title, category, and content are required; title must be 30 characters or fewer.");
+        }
+        jdbcTemplate.update("""
+                UPDATE posts SET title = ?, category = ?, pet_species = ?, content = ? WHERE id = ?
+                """, request.title().trim(), normalizeCategory(request.category()), request.petSpecies(),
+                request.content().trim(), postId);
+        return findPostResponse(postId, user.getId());
+    }
+
+    @Transactional
+    public void delete(String email, Long postId) {
+        User user = findUser(email);
+        ensurePostExists(postId);
+        Long authorId = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
+        if (!user.getId().equals(authorId)) {
+            throw new ForbiddenException("Forbidden post.", "POST_FORBIDDEN");
+        }
+        jdbcTemplate.update("DELETE FROM posts WHERE id = ?", postId);
     }
 
     @Transactional(readOnly = true)

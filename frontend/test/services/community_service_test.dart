@@ -53,6 +53,32 @@ void main() {
     expect(captured?.queryParameters['category'], 'CARE');
   });
 
+  test('update and delete post use the backend contract', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      if (options.method == 'PUT') {
+        return _jsonResponse(options, 200, {
+          'data': {
+            'id': 'post-1', 'userId': 'user-1', 'authorNickname': 'Momo',
+            'title': 'updated', 'content': 'body', 'category': 'FREE',
+            'mediaUrls': [], 'createdAt': '2026-06-24T00:00:00',
+          },
+        });
+      }
+      return _jsonResponse(options, 204, {});
+    });
+
+    await CommunityService().updatePost('post-1', title: ' updated ',
+        content: ' body ', category: 'free');
+    await CommunityService().deletePost('post-1');
+
+    expect(requests.map((r) => '${r.method} ${r.path}'),
+        ['PUT /api/v1/posts/post-1', 'DELETE /api/v1/posts/post-1']);
+    expect((requests.first.data as Map)['category'], 'FREE');
+    expect((requests.first.data as Map)['title'], 'updated');
+  });
+
   test('pagination limits stay within backend range', () async {
     final captured = <RequestOptions>[];
     dio.httpClientAdapter = _CannedAdapter((options) {
@@ -65,12 +91,14 @@ void main() {
     final service = CommunityService();
     await service.getFeed(limit: 100);
     await service.getComments('post-1', limit: 0, replyLimit: 100);
+    await service.getCommentThread('post-1', 'comment-1', replyLimit: 100);
     await service.getReplies('post-1', 'comment-1', limit: 100);
 
     expect(captured[0].queryParameters['limit'], 50);
     expect(captured[1].queryParameters['limit'], 1);
     expect(captured[1].queryParameters['replyLimit'], 50);
-    expect(captured[2].queryParameters['limit'], 50);
+    expect(captured[2].queryParameters['replyLimit'], 50);
+    expect(captured[3].queryParameters['limit'], 50);
   });
 
   test('getFeed sends trimmed keyword with existing feed parameters', () async {

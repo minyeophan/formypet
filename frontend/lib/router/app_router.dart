@@ -27,6 +27,7 @@ import '../screens/community/community_constants.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
 import '../screens/community/write_screen.dart';
+import '../models/post.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
 import '../screens/my/my_inquiry_screen.dart';
@@ -283,7 +284,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           scheduleId: s.pathParameters['scheduleId']!,
         ),
       ),
-      GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
+      GoRoute(
+        path: '/community/write',
+        builder: (c, s) => WriteScreen(
+          editingPost: s.extra is Post ? s.extra as Post : null,
+        ),
+      ),
       GoRoute(
         path: '/pet/:id',
         builder: (c, s) => PetDetailScreen(petId: s.pathParameters['id']!),
