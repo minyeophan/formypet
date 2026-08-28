@@ -53,6 +53,26 @@ void main() {
     expect(captured?.queryParameters['category'], 'CARE');
   });
 
+  test('pagination limits stay within backend range', () async {
+    final captured = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured.add(options);
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    final service = CommunityService();
+    await service.getFeed(limit: 100);
+    await service.getComments('post-1', limit: 0, replyLimit: 100);
+    await service.getReplies('post-1', 'comment-1', limit: 100);
+
+    expect(captured[0].queryParameters['limit'], 50);
+    expect(captured[1].queryParameters['limit'], 1);
+    expect(captured[1].queryParameters['replyLimit'], 50);
+    expect(captured[2].queryParameters['limit'], 50);
+  });
+
   test('getFeed sends trimmed keyword with existing feed parameters', () async {
     RequestOptions? captured;
     dio.httpClientAdapter = _CannedAdapter((options) {
@@ -164,7 +184,11 @@ void main() {
       });
     });
 
-    await CommunityService().createPost(content: 'content', category: 'CARE');
+    await CommunityService().createPost(
+      content: 'content',
+      title: 'title',
+      category: 'CARE',
+    );
 
     expect(capturedData, isA<FormData>());
     expect((capturedData as FormData).fields.map((e) => e.key), ['payload']);

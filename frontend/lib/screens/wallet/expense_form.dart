@@ -158,6 +158,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
       !widget.submitting &&
       widget.petName != null &&
       (_amount ?? 0) > 0 &&
+      (_amount ?? 0) <= 999999999 &&
       _category != null;
 
   @override
@@ -241,6 +242,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
             child: _TextInput(
               key: const Key('expense-item-name-field'),
               controller: _itemNameCtrl,
+              maxLength: 100,
               hintText: '선택',
             ),
           ),
@@ -251,6 +253,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           child: _TextInput(
             key: const Key('expense-memo-field'),
             controller: _memoCtrl,
+            maxLength: 500,
             hintText: '선택',
             maxLines: 4,
           ),
@@ -295,7 +298,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   void _submit() {
     final amount = _amount;
     final category = _category;
-    if (amount == null || amount <= 0 || category == null) {
+    if (amount == null || amount <= 0 || amount > 999999999 || category == null) {
       return;
     }
     FocusScope.of(context).unfocus();
@@ -588,12 +591,14 @@ class _TextInput extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final int maxLines;
+  final int? maxLength;
 
   const _TextInput({
     super.key,
     required this.controller,
     required this.hintText,
     this.maxLines = 1,
+    this.maxLength,
   });
 
   @override
@@ -602,6 +607,7 @@ class _TextInput extends StatelessWidget {
       key: key,
       controller: controller,
       maxLines: maxLines,
+      maxLength: maxLength,
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: const TextStyle(
         fontSize: 14,

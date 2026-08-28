@@ -28,8 +28,11 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
     if (activePetId != null && activePetId != _loadedPetId) {
       _loadedPetId = activePetId;
       Future.microtask(
-        () =>
-            ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId),
+        () async {
+          try {
+            await ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId);
+          } catch (_) {}
+        },
       );
     }
 
@@ -52,6 +55,17 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                       title: '\uC9C0\uCD9C \uB9AC\uD3EC\uD2B8',
                       onBack: () => _goBack(context),
                     ),
+                    if (state.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    if (!state.isLoading && state.errorText != null)
+                      _ReportErrorPanel(
+                        onRetry: () => ref
+                            .read(walletExpenseProvider.notifier)
+                            .loadFirstPage(activePetId!),
+                      ),
                     const SizedBox(height: 8),
                     _ReportSummaryCard(
                       expenses: expenses,
@@ -89,6 +103,14 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                     else
                       for (final expense in expenses)
                         _ReportExpenseRow(expense: expense),
+                    if (state.hasMore)
+                      TextButton(
+                        key: const Key('wallet-load-more-button'),
+                        onPressed: () => ref
+                            .read(walletExpenseProvider.notifier)
+                            .loadMore(activePetId!),
+                        child: const Text('더 보기'),
+                      ),
                   ],
                 ),
               ),
@@ -98,6 +120,21 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
       ),
     );
   }
+}
+
+class _ReportErrorPanel extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _ReportErrorPanel({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    key: const Key('wallet-report-error-panel'),
+    children: [
+      const Expanded(child: AppText('지출 요약을 불러오지 못했어요.')),
+      TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+    ],
+  );
 }
 
 class _ReportSummaryCard extends StatelessWidget {

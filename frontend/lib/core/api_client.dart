@@ -23,8 +23,50 @@ void initApiClient(String baseUrl, {bool includeAuthInterceptor = true}) {
       headers: {'Content-Type': 'application/json'},
     ),
   );
+  dio.interceptors.add(_TransientGetRetryInterceptor(dio));
   if (includeAuthInterceptor) {
     dio.interceptors.add(_AuthInterceptor(dio));
+  }
+}
+
+class _TransientGetRetryInterceptor extends Interceptor {
+  final Dio _dio;
+
+  _TransientGetRetryInterceptor(this._dio);
+
+  @override
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final request = err.requestOptions;
+    final canRetry = request.method.toUpperCase() == 'GET' &&
+        request.extra['_noTransientRetry'] != true &&
+        request.extra['_transientGetRetry'] != true &&
+        _isTransient(err);
+    if (!canRetry) {
+      handler.next(err);
+      return;
+    }
+
+    request.extra['_transientGetRetry'] = true;
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    try {
+      handler.resolve(await _dio.fetch(request));
+    } on DioException catch (retryError) {
+      handler.next(retryError);
+    }
+  }
+
+  bool _isTransient(DioException error) {
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+    final status = error.response?.statusCode;
+    return status != null && status >= 500 && status <= 599;
   }
 }
 

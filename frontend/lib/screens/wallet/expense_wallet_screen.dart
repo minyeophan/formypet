@@ -27,8 +27,11 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
     if (activePetId != null && activePetId != _loadedPetId) {
       _loadedPetId = activePetId;
       Future.microtask(
-        () =>
-            ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId),
+        () async {
+          try {
+            await ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId);
+          } catch (_) {}
+        },
       );
     }
 
@@ -55,6 +58,18 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                       totalAmount: walletState.summary.totalAmount,
                       count: walletState.summary.count,
                     ),
+                    if (walletState.isLoading) ...[
+                      const SizedBox(height: 12),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                    if (!walletState.isLoading && walletState.errorText != null) ...[
+                      const SizedBox(height: 12),
+                      _WalletErrorPanel(
+                        onRetry: () => ref
+                            .read(walletExpenseProvider.notifier)
+                            .loadFirstPage(activePetId!),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -143,6 +158,29 @@ class _WalletSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WalletErrorPanel extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _WalletErrorPanel({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('wallet-error-panel'),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF1F2),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFFECACA)),
+    ),
+    child: Row(
+      children: [
+        const Expanded(child: AppText('지출을 불러오지 못했어요.')),
+        TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+      ],
+    ),
+  );
 }
 
 class _WalletActionButton extends StatelessWidget {

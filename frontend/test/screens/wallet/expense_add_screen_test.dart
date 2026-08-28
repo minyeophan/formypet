@@ -63,6 +63,21 @@ void main() {
     expect(wallet.updatedBody?.containsKey('detail'), isFalse);
   });
 
+  testWidgets('expense amount above backend maximum cannot be submitted', (
+    tester,
+  ) async {
+    final wallet = _TrackingWalletNotifier([_expense()]);
+    await _pumpExpenseRouter(tester, wallet, '/wallet/expenses/new');
+
+    await _enterAmount(tester, '1000000000');
+    await tester.tap(find.byKey(const Key('expense-category-food')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-save-button')));
+    await tester.pumpAndSettle();
+
+    expect(wallet.createdBody, isNull);
+  });
+
   testWidgets('expense detail deletes through wallet provider', (tester) async {
     final wallet = _TrackingWalletNotifier([_expense()]);
     await _pumpExpenseRouter(tester, wallet, '/wallet/expenses/expense-1');

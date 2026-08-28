@@ -33,7 +33,7 @@ class CommunityService {
   }) async {
     final normalizedCategory = category?.toUpperCase();
     final normalizedKeyword = keyword?.trim();
-    final params = <String, dynamic>{'limit': limit, 'sort': sort.apiValue};
+    final params = <String, dynamic>{'limit': _pageLimit(limit), 'sort': sort.apiValue};
     if (normalizedCategory != null &&
         normalizedCategory != 'ALL' &&
         normalizedCategory != 'POPULAR') {
@@ -50,7 +50,7 @@ class CommunityService {
 
   Future<Post> createPost({
     required String content,
-    String? title,
+    required String title,
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
@@ -58,7 +58,7 @@ class CommunityService {
     final payload = {
       'content': content,
       'category': category.toUpperCase(),
-      'title': ?title,
+      'title': title,
       if (poll case final poll?) 'poll': poll.toJson(),
     };
 
@@ -111,8 +111,8 @@ class CommunityService {
       '/api/v1/posts/$postId/comments',
       queryParameters: {
         'cursor': ?cursor,
-        'limit': limit,
-        'replyLimit': replyLimit,
+        'limit': _pageLimit(limit),
+        'replyLimit': _pageLimit(replyLimit),
       },
     );
     return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
@@ -138,7 +138,7 @@ class CommunityService {
   }) async {
     final res = await dio.get(
       '/api/v1/posts/$postId/comments/$commentId/replies',
-      queryParameters: {'cursor': ?cursor, 'limit': limit},
+      queryParameters: {'cursor': ?cursor, 'limit': _pageLimit(limit)},
     );
     return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
   }
@@ -195,3 +195,5 @@ class CommunityService {
     return 'upload-$index';
   }
 }
+
+int _pageLimit(int value) => value.clamp(1, 50).toInt();

@@ -248,7 +248,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   Future<Post> createPost({
     required String content,
-    String? title,
+    required String title,
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
