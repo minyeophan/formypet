@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../models/notification.dart';
@@ -89,14 +90,79 @@ class _NotificationBody extends ConsumerWidget {
           final item = state.items[index];
           return _NotificationTile(
             item: item,
-            onTap: item.isRead
-                ? null
-                : () => ref.read(notificationProvider.notifier).markRead(item.id),
+            onTap: () => _openNotification(context, ref, item),
           );
         },
       ),
     );
   }
+}
+
+Future<void> _openNotification(
+  BuildContext context,
+  WidgetRef ref,
+  NotificationItem item,
+) async {
+  if (!item.isRead) {
+    try {
+      await ref.read(notificationProvider.notifier).markRead(item.id);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('알림을 읽음 처리하지 못했어요.')),
+        );
+      }
+      return;
+    }
+  }
+
+  if (!context.mounted) return;
+  if (GoRouter.maybeOf(context) == null) return;
+  switch (item.type) {
+    case 'COMMENT':
+      _pushComment(context, item, reply: false);
+    case 'REPLY':
+      _pushComment(context, item, reply: true);
+    case 'POST_LIKE':
+    case 'POLL_VOTE':
+      _pushPost(context, item.postId);
+    case 'ROUTINE_REMINDER':
+      context.push('/routine');
+    case 'CARE_SCHEDULE_REMINDER':
+      final sourceId = item.sourceId;
+      if (sourceId == null || sourceId.isEmpty) {
+        _showMissingTarget(context);
+      } else {
+        context.push('/routine/schedule/$sourceId');
+      }
+    default:
+      _showMissingTarget(context);
+  }
+}
+
+void _pushPost(BuildContext context, String? postId) {
+  if (postId == null || postId.isEmpty) {
+    _showMissingTarget(context);
+    return;
+  }
+  context.push('/community/posts/$postId');
+}
+
+void _pushComment(BuildContext context, NotificationItem item, {required bool reply}) {
+  final postId = item.postId;
+  final commentId = item.commentId;
+  if (postId == null || postId.isEmpty || commentId == null || commentId.isEmpty) {
+    _showMissingTarget(context);
+    return;
+  }
+  final parameter = reply ? 'replyTo' : 'thread';
+  context.push('/community/posts/$postId/comments?$parameter=$commentId');
+}
+
+void _showMissingTarget(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('연결된 내용을 찾을 수 없어요.')),
+  );
 }
 
 class _NotificationTile extends StatelessWidget {
