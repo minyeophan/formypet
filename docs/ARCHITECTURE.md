@@ -15,6 +15,7 @@ lib/
 │   ├── activity_record.dart
 │   ├── routine.dart                 # Routine, RoutineCompletion, TodayRoutineData
 │   ├── post.dart
+│   ├── notification.dart
 │   └── user_profile.dart
 ├── services/
 │   ├── auth_service.dart            # login/logout/getProfile
@@ -22,11 +23,13 @@ lib/
 │   ├── record_service.dart
 │   ├── routine_service.dart         # getTodayRoutines, patchCompletion
 │   ├── community_service.dart
-│   └── media_service.dart
+│   ├── media_service.dart
+│   └── notification_service.dart
 ├── providers/
 │   ├── auth_provider.dart           # AuthState (StateNotifier)
 │   ├── pet_provider.dart            # PetState (StateNotifier) — pets, records, routines
-│   └── community_provider.dart
+│   ├── community_provider.dart
+│   └── notification_provider.dart
 ├── router/
 │   └── app_router.dart              # go_router + _RouterNotifier (refreshListenable)
 ├── screens/
@@ -52,6 +55,8 @@ lib/
 │   ├── pet/
 │   │   ├── pet_detail_screen.dart
 │   │   └── pet_edit_screen.dart
+│   ├── notification/
+│   │   └── notification_screen.dart
 │   ├── my/my_screen.dart
 │   └── routine/
 │       ├── routine_screen.dart
@@ -93,6 +98,7 @@ GoRouter
 │   ├── /community  → CommunityScreen
 │   ├── /community/category/:category → CommunityCategoryScreen
 │   ├── /community/posts/:postId → CommunityDetailScreen
+│   ├── /notifications → NotificationScreen
 │   └── /my         → MyScreen
 ├── /records        → RecordsScreen
 ├── /records/all    → AllRecordsScreen
@@ -107,7 +113,8 @@ GoRouter
 ├── /routine/schedule/new → RoutineScheduleCreateScreen
 ├── /community/write → WriteScreen
 ├── /pet/:id        → PetDetailScreen
-└── /pet/:id/edit   → PetEditScreen
+├── /pet/:id/edit   → PetEditScreen
+└── /notifications  → NotificationScreen
 ```
 
 리다이렉트 로직 (`_RouterNotifier`):
