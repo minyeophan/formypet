@@ -50,6 +50,11 @@ class OpenApiIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['403']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['404']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/pets'].get.responses['409']").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist());
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.RegisterRequest.properties.email").exists())
+                .andExpect(jsonPath("$.components.schemas.RegisterRequest.properties.password").exists())
+                .andExpect(jsonPath("$.components.schemas.UserProfileUpdateRequest.properties.nickname").exists())
+                .andExpect(jsonPath("$.components.schemas.UserProfileResponse.properties.profileImageUrl").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.security[0].bearerAuth").exists());
     }
 }
