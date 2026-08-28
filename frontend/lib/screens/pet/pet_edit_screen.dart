@@ -70,6 +70,16 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
 
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = '반려동물 이름을 입력해 주세요.');
+      return;
+    }
+    if (name.length > 50) {
+      setState(() => _error = '반려동물 이름은 50자 이하로 입력해 주세요.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -83,7 +93,7 @@ class _PetEditScreenState extends ConsumerState<PetEditScreen> {
               filename: _photo!.name,
             );
       final body = <String, dynamic>{
-        'name': _nameCtrl.text.trim(),
+        'name': name,
         'species': _species,
         if (_birthDateUnknown)
           'birthDateUnknown': true

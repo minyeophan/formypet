@@ -414,6 +414,20 @@ void main() {
     expect(notifier.updatedBody, isNot(contains('birthDate')));
   });
 
+  testWidgets('pet edit rejects an empty name before sending request', (
+    tester,
+  ) async {
+    final notifier = _UpdatePetNotifier(_state());
+    await _pump(tester, const PetEditScreen(petId: '1'), notifier);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(PetTextField).first, ' ');
+    await _tapSave(tester);
+
+    expect(notifier.updatedBody, isNull);
+    expect(find.text('반려동물 이름을 입력해 주세요.'), findsOneWidget);
+  });
+
   testWidgets('pet edit saves selected diseases as comma string', (
     tester,
   ) async {

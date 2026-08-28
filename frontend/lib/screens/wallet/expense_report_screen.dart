@@ -106,9 +106,11 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                     if (state.hasMore)
                       TextButton(
                         key: const Key('wallet-load-more-button'),
-                        onPressed: () => ref
-                            .read(walletExpenseProvider.notifier)
-                            .loadMore(activePetId!),
+                        onPressed: state.isLoadingMore
+                            ? null
+                            : () => ref
+                                .read(walletExpenseProvider.notifier)
+                                .loadMore(activePetId!),
                         child: const Text('더 보기'),
                       ),
                   ],

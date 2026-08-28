@@ -5,6 +5,7 @@ import '../services/wallet_expense_service.dart';
 
 class WalletExpenseState {
   final bool isLoading;
+  final bool isLoadingMore;
   final bool isMutating;
   final List<WalletExpense> items;
   final WalletExpenseSummary summary;
@@ -14,6 +15,7 @@ class WalletExpenseState {
 
   const WalletExpenseState({
     required this.isLoading,
+    this.isLoadingMore = false,
     required this.isMutating,
     required this.items,
     required this.summary,
@@ -24,6 +26,7 @@ class WalletExpenseState {
 
   factory WalletExpenseState.initial() => WalletExpenseState(
     isLoading: false,
+    isLoadingMore: false,
     isMutating: false,
     items: const [],
     summary: WalletExpenseSummary.empty(),
@@ -32,6 +35,7 @@ class WalletExpenseState {
 
   WalletExpenseState copyWith({
     bool? isLoading,
+    bool? isLoadingMore,
     bool? isMutating,
     List<WalletExpense>? items,
     WalletExpenseSummary? summary,
@@ -42,6 +46,7 @@ class WalletExpenseState {
     bool clearErrorText = false,
   }) => WalletExpenseState(
     isLoading: isLoading ?? this.isLoading,
+    isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     isMutating: isMutating ?? this.isMutating,
     items: items ?? this.items,
     summary: summary ?? this.summary,
@@ -53,6 +58,7 @@ class WalletExpenseState {
 
 class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
   final WalletExpenseService _service;
+  bool _loadingMore = false;
 
   WalletExpenseNotifier(this._service) : super(WalletExpenseState.initial());
 
@@ -81,16 +87,23 @@ class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
 
   Future<void> loadMore(String petId) async {
     final cursor = state.nextCursor;
-    if (!state.hasMore || cursor == null) {
+    if (!state.hasMore || cursor == null || _loadingMore) {
       return;
     }
-    final list = await _service.listExpenses(petId, cursor: cursor);
-    state = state.copyWith(
-      items: [...state.items, ...list.items],
-      nextCursor: list.nextCursor,
-      clearNextCursor: list.nextCursor == null,
-      hasMore: list.hasMore,
-    );
+    _loadingMore = true;
+    state = state.copyWith(isLoadingMore: true);
+    try {
+      final list = await _service.listExpenses(petId, cursor: cursor);
+      state = state.copyWith(
+        items: [...state.items, ...list.items],
+        nextCursor: list.nextCursor,
+        clearNextCursor: list.nextCursor == null,
+        hasMore: list.hasMore,
+      );
+    } finally {
+      _loadingMore = false;
+      state = state.copyWith(isLoadingMore: false);
+    }
   }
 
   Future<WalletExpense> getExpense(String petId, String expenseId) {
