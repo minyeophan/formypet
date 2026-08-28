@@ -8,6 +8,7 @@ import '../../core/visuals/app_visual_id.dart';
 import '../../models/pet.dart';
 import '../../models/post.dart';
 import '../../providers/home_popular_posts_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
@@ -24,6 +25,18 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   PageController? _pageController;
   bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      try {
+        await ref.read(notificationProvider.notifier).loadFirstPage();
+      } catch (_) {
+        // Notification loading must not prevent the home screen from opening.
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -139,11 +152,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _HomeHeader extends StatelessWidget {
+class _HomeHeader extends ConsumerWidget {
   const _HomeHeader();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasUnread = ref.watch(notificationProvider).unreadCount > 0;
+    return Container(
     key: const Key('home-v2-header'),
     color: HomeV2Tokens.background,
     padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
@@ -165,12 +180,34 @@ class _HomeHeader extends StatelessWidget {
         IconButton(
           key: const Key('home-notification-button'),
           tooltip: '알림',
-          onPressed: () => showPreparingToast(context),
-          icon: const Icon(Icons.notifications_none_rounded),
+          onPressed: () => context.push('/notifications'),
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.notifications_none_rounded),
+              if (hasUnread)
+                const Positioned(
+                  key: Key('home-notification-unread-dot'),
+                  right: -1,
+                  top: -1,
+                  child: SizedBox(
+                    width: 7,
+                    height: 7,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     ),
   );
+  }
 }
 
 class _PetProfilePager extends StatelessWidget {

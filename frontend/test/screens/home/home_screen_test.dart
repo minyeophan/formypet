@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/notification.dart';
 import 'package:frontend/providers/home_popular_posts_provider.dart';
+import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
@@ -58,6 +61,45 @@ void main() {
     expect(find.text('준비중'), findsWidgets);
   });
 
+  testWidgets('notification button navigates without showing a numeric badge', (
+    tester,
+  ) async {
+    final popular = await _popularNotifier(const []);
+    await tester.pumpWidget(
+      _app(
+        popular: popular,
+        notificationService: _FakeNotificationService(
+          const NotificationFeed(items: [], hasMore: false, unreadCount: 1),
+        ),
+        router: _routerWithNotifications(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-notification-unread-dot')), findsOneWidget);
+    expect(find.text('1'), findsNothing);
+    await tester.tap(find.byKey(const Key('home-notification-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('notifications'), findsOneWidget);
+  });
+
+  testWidgets('notification button hides unread dot when there are no unread items', (
+    tester,
+  ) async {
+    final popular = await _popularNotifier(const []);
+    await tester.pumpWidget(
+      _app(
+        popular: popular,
+        notificationService: _FakeNotificationService(
+          const NotificationFeed(items: [], hasMore: false, unreadCount: 0),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-notification-unread-dot')), findsNothing);
+  });
+
   testWidgets(
     'popular posts use title fallbacks and navigate to popular source',
     (tester) async {
@@ -102,11 +144,17 @@ Finder _homeScrollable() => find.byWidgetPredicate(
   (widget) => widget is Scrollable && widget.axisDirection == AxisDirection.down,
 );
 
-Widget _app({required HomePopularPostsNotifier popular, GoRouter? router}) {
+Widget _app({
+  required HomePopularPostsNotifier popular,
+  GoRouter? router,
+  NotificationService? notificationService,
+}) {
   final scope = ProviderScope(
     overrides: [
       petProvider.overrideWith((ref) => _PetNotifier()),
       homePopularPostsProvider.overrideWith((ref) => popular),
+      if (notificationService != null)
+        notificationServiceProvider.overrideWithValue(notificationService),
     ],
     child: router == null
         ? const MaterialApp(home: HomeScreen())
@@ -114,6 +162,17 @@ Widget _app({required HomePopularPostsNotifier popular, GoRouter? router}) {
   );
   return scope;
 }
+
+GoRouter _routerWithNotifications() => GoRouter(
+  initialLocation: '/home',
+  routes: [
+    GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+    GoRoute(
+      path: '/notifications',
+      builder: (_, _) => const Scaffold(body: Text('notifications')),
+    ),
+  ],
+);
 
 GoRouter _router() => GoRouter(
   initialLocation: '/home',
@@ -184,6 +243,14 @@ class _FakeCommunityService extends CommunityService {
     int limit = 20,
     String? keyword,
   }) async => PostFeed(items: posts);
+}
+
+class _FakeNotificationService extends NotificationService {
+  _FakeNotificationService(this.feed);
+  final NotificationFeed feed;
+
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async => feed;
 }
 
 Post _post(String id, {String? title = '제목', String content = '본문'}) => Post(
