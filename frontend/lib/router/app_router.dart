@@ -262,6 +262,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => const RoutineCreateScreen(),
       ),
       GoRoute(
+        path: '/routine/:routineId/edit',
+        builder: (c, s) => RoutineEditScreen(
+          routineId: s.pathParameters['routineId']!,
+        ),
+      ),
+      GoRoute(
         path: '/routine/schedule/new',
         builder: (c, s) => const RoutineScheduleCreateScreen(),
       ),

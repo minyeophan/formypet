@@ -50,6 +50,7 @@ void main() {
     expect(notifier.addedRoutineBody!['repeatType'], 'weekly');
     expect(notifier.addedRoutineBody!['days'], [todayDay]);
     expect(notifier.addedRoutineBody!['times'], ['08:00']);
+    expect(notifier.addedRoutineBody!['notificationEnabled'], isTrue);
     expect(notifier.addedRoutineBody!.containsKey('note'), isFalse);
   });
 

@@ -57,6 +57,30 @@ void main() {
     expect(find.text('예방접종 예약'), findsNothing);
   });
 
+  testWidgets('routine tab shows saved routines', (tester) async {
+    await _pumpRoutineScreen(
+      tester,
+      _petState(
+        routines: const [
+          Routine(
+            id: 'r1',
+            petId: '1',
+            label: 'Morning walk',
+            typeId: 'medicine',
+            repeatType: 'daily',
+            times: ['08:30'],
+            days: [],
+            startDate: '2026-01-01',
+          ),
+        ],
+      ),
+    );
+    await tester.tap(find.text('루틴'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('routine-item-r1')), findsOneWidget);
+    expect(find.text('Morning walk'), findsOneWidget);
+  });
+
   testWidgets('saved schedules render on selected date and calendar dot', (
     tester,
   ) async {

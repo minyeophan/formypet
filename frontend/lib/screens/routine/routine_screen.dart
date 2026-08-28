@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/pet_colors.dart';
 import '../../models/care_schedule.dart';
+import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
@@ -128,13 +129,18 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     accentColor: routineAccentColor,
                   ),
                 ),
-              ] else
+              ] else if (_tab == _RoutineMainTab.scheduleList)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _ScheduleList(
                     schedules: allSchedules,
                     accentColor: routineAccentColor,
                   ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _RoutineList(routines: state.routines),
                 ),
             ],
           ),
@@ -178,6 +184,11 @@ class _MainTabSwitch extends StatelessWidget {
             label: '일정 목록',
             selected: selected == _RoutineMainTab.scheduleList,
             onTap: () => onChanged(_RoutineMainTab.scheduleList),
+          ),
+          _SegmentButton(
+            label: '루틴',
+            selected: selected == _RoutineMainTab.routines,
+            onTap: () => onChanged(_RoutineMainTab.routines),
           ),
         ],
       ),
@@ -520,6 +531,39 @@ class _ScheduleList extends StatelessWidget {
   }
 }
 
+class _RoutineList extends ConsumerWidget {
+  final List<Routine> routines;
+
+  const _RoutineList({required this.routines});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (routines.isEmpty) return const _EmptyCareState();
+    return Column(
+      children: routines.map((routine) => Card(
+        key: Key('routine-item-${routine.id}'),
+        child: ListTile(
+          title: Text(routine.label),
+          subtitle: Text('${routine.repeatType} · ${routine.times.join(', ')}'),
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                if (context.mounted) context.push('/routine/${routine.id}/edit');
+              } else {
+                await ref.read(petProvider.notifier).deleteRoutine(routine.id);
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('수정')),
+              PopupMenuItem(value: 'delete', child: Text('삭제')),
+            ],
+          ),
+        ),
+      )).toList(),
+    );
+  }
+}
+
 class _ScheduleTile extends StatelessWidget {
   final CareSchedule schedule;
   final Color accentColor;
@@ -634,7 +678,7 @@ class _EmptyCareState extends StatelessWidget {
   }
 }
 
-enum _RoutineMainTab { calendar, scheduleList }
+enum _RoutineMainTab { calendar, scheduleList, routines }
 
 const _weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 

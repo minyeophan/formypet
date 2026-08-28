@@ -13,6 +13,7 @@ class Routine {
   final String? endDate;
   final int monthlyInterval;
   final bool active;
+  final bool notificationEnabled;
 
   const Routine({
     required this.id,
@@ -27,6 +28,7 @@ class Routine {
     this.endDate,
     this.monthlyInterval = 1,
     this.active = true,
+    this.notificationEnabled = true,
   });
 
   factory Routine.fromJson(Map<String, dynamic> j) => Routine(
@@ -47,6 +49,7 @@ class Routine {
     endDate: j['endDate'] as String?,
     monthlyInterval: j['monthlyInterval'] as int? ?? 1,
     active: j['active'] as bool? ?? true,
+    notificationEnabled: j['notificationEnabled'] as bool? ?? true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -59,6 +62,7 @@ class Routine {
     if (endDate != null) 'endDate': endDate,
     if (note != null) 'note': note,
     'monthlyInterval': monthlyInterval,
+    'notificationEnabled': notificationEnabled,
   };
 }
 

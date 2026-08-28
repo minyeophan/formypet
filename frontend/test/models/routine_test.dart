@@ -24,6 +24,7 @@ void main() {
       'days': <int>[],
       'startDate': '2026-06-01',
       'monthlyInterval': 1,
+      'notificationEnabled': true,
     });
   });
 
@@ -41,5 +42,22 @@ void main() {
     });
 
     expect(routine.monthlyInterval, 3);
+  });
+
+  test('Routine preserves notificationEnabled in response and request JSON', () {
+    final routine = Routine.fromJson({
+      'id': 1,
+      'petId': 2,
+      'label': 'walk',
+      'typeId': 'walk',
+      'repeatType': 'daily',
+      'times': ['09:00'],
+      'days': <int>[],
+      'startDate': '2026-06-01',
+      'notificationEnabled': false,
+    });
+
+    expect(routine.notificationEnabled, isFalse);
+    expect(routine.toJson(), containsPair('notificationEnabled', false));
   });
 }

@@ -6,6 +6,7 @@ import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
 import '../../core/keyboard_utils.dart';
 import '../../core/record_utils.dart';
+import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
@@ -13,11 +14,30 @@ import '../../widgets/app_visual.dart';
 import '../../widgets/record_inputs/record_date_time_pickers.dart';
 
 class RoutineCreateScreen extends ConsumerStatefulWidget {
-  const RoutineCreateScreen({super.key});
+  final Routine? editingRoutine;
+
+  const RoutineCreateScreen({super.key, this.editingRoutine});
 
   @override
   ConsumerState<RoutineCreateScreen> createState() =>
       _RoutineCreateScreenState();
+}
+
+class RoutineEditScreen extends ConsumerWidget {
+  final String routineId;
+
+  const RoutineEditScreen({super.key, required this.routineId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final routine = ref.watch(petProvider).routines
+        .where((item) => item.id == routineId)
+        .firstOrNull;
+    if (routine == null) {
+      return const Scaffold(body: Center(child: Text('루틴을 찾을 수 없습니다.')));
+    }
+    return RoutineCreateScreen(editingRoutine: routine);
+  }
 }
 
 class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
@@ -29,6 +49,29 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
   final _days = <int>{};
   bool _saving = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final routine = widget.editingRoutine;
+    if (routine == null) return;
+    _selectedType = _routineTypeOptions.firstWhere(
+      (option) => option.typeId == routine.typeId,
+      orElse: () => _routineTypeOptions.first,
+    );
+    _nameController.text = routine.label;
+    _noteController.text = routine.note ?? '';
+    _repeatType = routine.repeatType;
+    _days.addAll(routine.days);
+    if (routine.times.isNotEmpty) {
+      final parts = routine.times.first.split(':');
+      final hour = int.tryParse(parts.first);
+      final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+      if (hour != null && minute != null && hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+        _time = TimeOfDay(hour: hour, minute: minute);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -117,7 +160,8 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
       'repeatType': _repeatType,
       'times': [_formatTime(_time)],
       'days': days,
-      'startDate': todayString(),
+      'startDate': widget.editingRoutine?.startDate ?? todayString(),
+      'notificationEnabled': widget.editingRoutine?.notificationEnabled ?? true,
       if (_repeatType == 'monthly') 'monthlyInterval': 1,
       if (note.isNotEmpty) 'note': note,
     };
@@ -132,7 +176,14 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
       _error = null;
     });
     try {
-      await ref.read(petProvider.notifier).addRoutine(_buildPayload());
+      if (widget.editingRoutine == null) {
+        await ref.read(petProvider.notifier).addRoutine(_buildPayload());
+      } else {
+        await ref.read(petProvider.notifier).updateRoutine(
+          widget.editingRoutine!.id,
+          _buildPayload(),
+        );
+      }
       if (mounted) context.go('/routine');
     } catch (_) {
       if (mounted) {
