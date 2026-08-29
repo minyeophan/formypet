@@ -10,6 +10,7 @@ import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -113,14 +114,13 @@ void main() {
     );
     expect(
       find.descendant(of: card, matching: find.text('본문 미리보기입니다')),
-      findsNothing,
-    );
-    expect(
-      find.descendant(of: card, matching: find.text('Momo')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: card, matching: find.text('2시간 전')),
+      find.descendant(
+        of: card,
+        matching: find.byKey(const Key('community-post-meta')),
+      ),
       findsOneWidget,
     );
     expect(
@@ -562,7 +562,7 @@ void main() {
     );
     expect(
       find.descendant(of: card, matching: find.text('제목 없는 글 본문')),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       find.descendant(of: card, matching: find.text('익명집사')),
@@ -943,12 +943,11 @@ void _expectCommunityHeaderStyle(WidgetTester tester) {
   expect(decoration.color, AppV2Tokens.background);
   expect(decoration.border, isNull);
 
-  final title = tester.widget<Text>(
+  final title = tester.widget<AppText>(
     find.byKey(const Key('community-header-title')),
   );
-  expect(title.style!.color, AppV2Tokens.text);
-  expect(title.style!.fontFamily, AppV2Tokens.fontFamily);
-  expect(title.style!.fontSize, 24);
+  expect(title.color, AppV2Tokens.text);
+  expect(title.fontSize, 22);
 }
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {

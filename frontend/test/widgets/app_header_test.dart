@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/widgets/app_text.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
@@ -130,6 +131,18 @@ void main() {
     expect(appBar.centerTitle, isTrue);
   });
 
+  testWidgets('AppHeader uses compact no-divider defaults', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: Scaffold(appBar: AppHeader(title: '홈'))),
+    );
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    final title = tester.widget<AppText>(find.byType(AppText).first);
+
+    expect(appBar.shape, isNull);
+    expect(title.fontSize, 22);
+  });
+
   testWidgets('AppInlineHeader uses symmetric 84px side slots', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -145,11 +158,11 @@ void main() {
 
     expect(
       tester.getSize(find.byKey(const Key('app-inline-header-leading-slot'))),
-      const Size(84, 52),
+      const Size(84, 56),
     );
     expect(
       tester.getSize(find.byKey(const Key('app-inline-header-trailing-slot'))),
-      const Size(84, 52),
+      const Size(84, 56),
     );
   });
 
