@@ -20,23 +20,37 @@ class ExpenseWalletScreen extends ConsumerStatefulWidget {
 
 class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
   String? _loadedPetId;
+  String? _selectedPetId;
+  Map<String, List<WalletExpense>> _expensesByPet = const {};
+  bool _isLoadingAll = false;
 
   @override
   Widget build(BuildContext context) {
     final activePetId = ref.watch(petProvider).activePetId;
+    final pets = ref.watch(petProvider).pets;
     if (activePetId != null && activePetId != _loadedPetId) {
       _loadedPetId = activePetId;
+      _selectedPetId = null;
       Future.microtask(
         () async {
           try {
             await ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId);
+            await _loadExpensesForPets(pets);
           } catch (_) {}
         },
       );
     }
 
     final walletState = ref.watch(walletExpenseProvider);
-    final recent = walletState.items.take(3).toList();
+    final selectedItems = _selectedPetId == null
+        ? (_expensesByPet.isEmpty
+              ? [...walletState.items]
+              : _expensesByPet.values.expand((items) => items).toList())
+        : (_expensesByPet[_selectedPetId] ?? walletState.items);
+    selectedItems.sort((a, b) => '${b.expenseDate}${b.expenseTime ?? ''}'
+        .compareTo('${a.expenseDate}${a.expenseTime ?? ''}'));
+    final recent = selectedItems.take(3).toList();
+    final total = selectedItems.fold<int>(0, (sum, item) => sum + item.amount);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -54,10 +68,12 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                       onBack: () => _goBack(context),
                     ),
                     const SizedBox(height: 8),
-                    _WalletSummaryCard(
-                      totalAmount: walletState.summary.totalAmount,
-                      count: walletState.summary.count,
+                    _WalletPetFilter(
+                      pets: pets,
+                      selectedPetId: _selectedPetId,
+                      onChanged: (id) => setState(() => _selectedPetId = id),
                     ),
+                    _WalletSummaryCard(totalAmount: _selectedPetId == null ? total : walletState.summary.totalAmount, count: selectedItems.length),
                     if (walletState.isLoading) ...[
                       const SizedBox(height: 12),
                       const Center(child: CircularProgressIndicator()),
@@ -115,6 +131,63 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
       ),
     );
   }
+
+  Future<void> _loadExpensesForPets(List pets) async {
+    if (pets.isEmpty) return;
+    setState(() => _isLoadingAll = true);
+    final service = ref.read(walletExpenseServiceProvider);
+    try {
+      final entries = await Future.wait(
+        pets.map((pet) async {
+          final result = await service.listExpenses(pet.id);
+          return MapEntry<String, List<WalletExpense>>(pet.id, result.items);
+        }),
+      );
+      if (!mounted) return;
+      setState(() => _expensesByPet = Map.fromEntries(entries));
+    } finally {
+      if (mounted) setState(() => _isLoadingAll = false);
+    }
+  }
+}
+
+class _WalletPetFilter extends StatelessWidget {
+  const _WalletPetFilter({required this.pets, required this.selectedPetId, required this.onChanged});
+  final List pets;
+  final String? selectedPetId;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 42,
+    child: ListView(
+      scrollDirection: Axis.horizontal,
+      children: [
+        _filterChip('전체', selectedPetId == null, () => onChanged(null)),
+        for (final pet in pets) ...[
+          const SizedBox(width: 8),
+          _filterChip(pet.name, selectedPetId == pet.id, () => onChanged(pet.id)),
+        ],
+      ],
+    ),
+  );
+
+  Widget _filterChip(String label, bool selected, VoidCallback onTap) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+          selectedColor: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          labelStyle: TextStyle(
+            color: selected ? AppColors.white : AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      );
 }
 
 class _WalletSummaryCard extends StatelessWidget {
