@@ -11,7 +11,9 @@ import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_action_sheet.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
+import '../../widgets/app_navigation.dart';
 import '../../widgets/preparing_toast.dart';
 import 'community_comment_widgets.dart';
 import 'community_constants.dart';
@@ -363,48 +365,28 @@ class _DetailHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onMore;
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 60,
-    child: Padding(
-      padding: const EdgeInsets.only(left: 20, right: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              key: const Key('community-detail-back'),
-              onPressed: onBack,
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppV2Tokens.text,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: communityV2Style(size: 24, weight: FontWeight.w700),
-            ),
-          ),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: onMore == null
-                ? null
-                : AppMoreButton.plain(
-                    key: const Key('community-detail-more-button'),
-                    onPressed: onMore,
-                    plainColor: AppV2Tokens.textSecondary,
-                    plainSplashColor: AppV2Tokens.primarySoft,
-                  ),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => AppHeader(
+    title: title,
+    centerTitle: true,
+    leading: AppBackButton(
+      key: const Key('community-detail-back'),
+      onPressed: onBack,
     ),
+    actions: [
+      SizedBox(
+        width: 44,
+        height: 44,
+        child: onMore == null
+            ? null
+            : AppMoreButton.plain(
+                key: const Key('community-detail-more-button'),
+                onPressed: onMore,
+                plainColor: AppV2Tokens.textSecondary,
+                plainSplashColor: AppV2Tokens.primarySoft,
+              ),
+      ),
+      const SizedBox(width: 12),
+    ],
   );
 }
 

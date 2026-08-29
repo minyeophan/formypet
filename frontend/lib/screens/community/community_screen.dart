@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_v2_tokens.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
@@ -184,7 +185,7 @@ class _CommunityCategoryBody extends ConsumerWidget {
                     ),
                     SliverToBoxAdapter(
                       child: _FeedWidth(
-                        child: _CategorySectionHeader(feedKey: routeFeedKey),
+                        child: const _CategorySectionHeader(),
                       ),
                     ),
                     if (!activated && posts.isEmpty)
@@ -227,64 +228,44 @@ class _CommunityHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const Key('community-header'),
-      height: 60,
-      padding: const EdgeInsets.only(left: 20, right: 12),
       decoration: const BoxDecoration(color: AppV2Tokens.background),
-      child: Row(
-        children: [
-          SizedBox(
-            key: const Key('community-header-leading-slot'),
-            width: showBack ? 44 : 29,
-            height: 44,
-            child: showBack
-                ? AppBackButton(
-                    color: AppV2Tokens.text,
-                    onPressed: () {
-                      if (Navigator.of(context).canPop()) {
-                        context.pop();
-                        return;
-                      }
-                      context.go('/community');
-                    },
-                  )
-                : const Icon(Icons.pets, size: 25, color: AppV2Tokens.primary),
-          ),
-          const SizedBox(width: 4),
-          const Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '커뮤니티',
-                key: Key('community-header-title'),
-                style: TextStyle(
-                  fontFamily: AppV2Tokens.fontFamily,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppV2Tokens.text,
-                ),
-              ),
-            ),
-          ),
-          Row(
-            key: const Key('community-header-actions'),
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _CommunityHeaderButton(
-                key: const Key('community-search-button'),
-                icon: Icons.search_rounded,
-                tooltip: '검색',
-                onTap: () => showPreparingToast(context),
-              ),
-              const SizedBox(width: 4),
-              _CommunityHeaderButton(
-                key: const Key('community-notification-button'),
-                icon: Icons.notifications_none_rounded,
-                tooltip: '알림',
-                onTap: () => showPreparingToast(context),
-              ),
-            ],
-          ),
-        ],
+      child: AppHeader(
+      title: '커뮤니티',
+      titleKey: const Key('community-header-title'),
+      leadingKey: const Key('community-header-leading-slot'),
+      showBackButton: showBack,
+      onBack: () {
+        if (Navigator.of(context).canPop()) {
+          context.pop();
+          return;
+        }
+        context.go('/community');
+      },
+      leading: showBack
+          ? null
+          : const Icon(Icons.pets, size: 25, color: AppV2Tokens.primary),
+      actions: [
+        _CommunityHeaderButton(
+          key: const Key('community-search-button'),
+          icon: Icons.search_rounded,
+          tooltip: '검색',
+          onTap: () => showPreparingToast(context),
+        ),
+        _CommunityHeaderButton(
+          key: const Key('community-notification-button'),
+          icon: Icons.notifications_none_rounded,
+          tooltip: '알림',
+          onTap: () {
+            final router = GoRouter.maybeOf(context);
+            if (router == null) {
+              showPreparingToast(context);
+            } else {
+              router.push('/notifications');
+            }
+          },
+        ),
+        const SizedBox(width: 12),
+      ],
       ),
     );
   }
@@ -307,14 +288,6 @@ class _CommunitySectionHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppV2Tokens.text,
               ),
-            ),
-          ),
-          Text(
-            'popular · 전체',
-            style: _communityStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppV2Tokens.textSecondary,
             ),
           ),
         ],
@@ -394,7 +367,7 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                   color: _page == index
                       ? AppV2Tokens.primary
                       : AppV2Tokens.border,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -566,7 +539,7 @@ class _CategoryTabsState extends State<_CategoryTabs> {
                 selected: isActive,
                 child: InkWell(
                   key: Key('community-tab-$tab'),
-                  borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(12),
                   onTap: isActive
                       ? () {}
                       : () =>
@@ -715,13 +688,10 @@ class _GuideBullet extends StatelessWidget {
 }
 
 class _CategorySectionHeader extends StatelessWidget {
-  final String feedKey;
-  const _CategorySectionHeader({required this.feedKey});
+  const _CategorySectionHeader();
 
   @override
   Widget build(BuildContext context) {
-    final label = communitySourceLabel(feedKey);
-    final sort = feedKey == 'popular' ? 'popular' : 'latest';
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
       child: Row(
@@ -734,14 +704,6 @@ class _CategorySectionHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppV2Tokens.text,
               ),
-            ),
-          ),
-          Text(
-            '$sort · $label',
-            style: _communityStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppV2Tokens.textSecondary,
             ),
           ),
         ],

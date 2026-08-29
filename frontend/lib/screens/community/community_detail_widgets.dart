@@ -4,6 +4,7 @@ import '../../core/app_v2_tokens.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 import '../../widgets/app_more_button.dart';
+import '../../widgets/app_category_badge.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'community_comment_widgets.dart';
@@ -79,6 +80,20 @@ class CommunityDetailArticle extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 20),
+      AppCategoryBadge(
+        label: kCommunityCategoryLabels[post.category] ?? post.category,
+      ),
+      const SizedBox(height: 8),
+      if (post.poll != null)
+        const Text(
+          '투표',
+          style: TextStyle(
+            color: AppV2Tokens.primary,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      if (post.poll != null) const SizedBox(height: 4),
       Text(
         post.title?.trim().isNotEmpty == true ? post.title!.trim() : '제목 없음',
         style: communityV2Style(size: 24, weight: FontWeight.w700),

@@ -27,7 +27,7 @@ class CommunityCommentsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     key: const Key('community-comments-header'),
-    height: 60,
+    height: 56,
     child: Padding(
       padding: const EdgeInsets.only(left: 20, right: 12),
       child: Row(

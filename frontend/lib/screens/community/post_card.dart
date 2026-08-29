@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
-import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
-import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
+import '../../widgets/app_category_badge.dart';
 import 'community_constants.dart';
 
 const _communityError = AppV2Tokens.error;
@@ -78,52 +77,38 @@ class _PostCardState extends State<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Badge(
-                      label:
-                          kCommunityCategoryLabels[post.category] ??
-                          post.category,
-                    ),
-                    if (post.poll != null) ...[
-                      const SizedBox(width: 8),
-                      const _Badge(
-                        key: Key('community-post-poll-badge'),
-                        label: '투표',
-                        outlined: true,
-                      ),
-                    ],
-                    const Spacer(),
-                    if (relativeTime != null)
-                      Text(
-                        relativeTime,
-                        style: _communityTextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppV2Tokens.textSecondary,
-                        ),
-                      ),
+                    AppCategoryBadge(label: kCommunityCategoryLabels[post.category] ?? post.category),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (post.poll != null) ...[
+                      const Text('투표', style: TextStyle(color: AppV2Tokens.primary, fontWeight: FontWeight.w800, fontSize: 15)),
+                      const SizedBox(width: 6),
+                    ],
                     Expanded(
                       child: Text(
                         headline,
-                        style: _communityTextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: _isHovered
-                              ? AppV2Tokens.primary
-                              : AppV2Tokens.text,
-                        ),
+                        style: _communityTextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _isHovered ? AppV2Tokens.primary : AppV2Tokens.text),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(post.content.trim(), maxLines: 2, overflow: TextOverflow.ellipsis, style: _communityTextStyle(fontSize: 14, color: AppV2Tokens.textSecondary)),
+                    ),
                     if (post.imageUrls.isNotEmpty) ...[
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       _PostThumbnail(
                         key: ValueKey('community-post-image-${post.id}'),
                         url: post.imageUrls.first,
@@ -132,39 +117,14 @@ class _PostCardState extends State<PostCard> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Row(
+                  key: const Key('community-post-meta'),
                   children: [
-                    ClipOval(
-                      child: AuthenticatedNetworkImage(
-                        key: ValueKey('community-author-avatar-${post.id}'),
-                        url: post.authorProfileImageUrl,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
-                        fallback: const ColoredBox(
-                          color: AppV2Tokens.primarySoft,
-                          child: Center(
-                            child: AppVisual(
-                              id: AppVisualId.communityPaw,
-                              color: AppV2Tokens.primary,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        author,
-                        style: _communityTextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppV2Tokens.text,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        '${author}${relativeTime == null ? '' : ' · $relativeTime'}',
+                        style: _communityTextStyle(fontSize: 13, color: AppV2Tokens.textSecondary),
                       ),
                     ),
                     const SizedBox(width: 12),
