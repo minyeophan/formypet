@@ -17,6 +17,10 @@ docs/devlog-drafts/
 backend/.gradle/
 backend/build/
 backend/storage/
+backend/local.properties
+
+# Runtime uploaded files
+storage/
 backend/hs_err_pid*.log
 backend/replay_pid*.log
 hs_err_pid*.log
