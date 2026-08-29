@@ -64,7 +64,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 label: '계정 정보',
                 icon: Icons.badge_outlined,
                 showTopBorder: true,
-                onTap: () => showPreparingToast(context),
+                onTap: () => context.push('/my/profile'),
               ),
             ],
           ),
@@ -75,7 +75,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
               MyMenuRow(
                 label: '알림 설정',
                 icon: Icons.notifications_none_rounded,
-                onTap: () => showPreparingToast(context),
+                onTap: () => context.push('/notifications'),
               ),
               MyMenuRow(
                 label: '테마 설정',

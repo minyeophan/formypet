@@ -11,6 +11,7 @@ import '../../providers/home_popular_posts_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 import 'home_v2_tokens.dart';
@@ -158,25 +159,11 @@ class _HomeHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasUnread = ref.watch(notificationProvider).unreadCount > 0;
-    return Container(
-    key: const Key('home-v2-header'),
-    color: HomeV2Tokens.background,
-    padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
-    child: Row(
-      children: [
-        const Icon(Icons.pets, color: HomeV2Tokens.primary, size: 25),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            'ForMyPet',
-            style: TextStyle(
-              fontFamily: HomeV2Tokens.brandFont,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: HomeV2Tokens.primary,
-            ),
-          ),
-        ),
+    return AppHeader(
+      key: const Key('home-v2-header'),
+      title: 'ForMyPet',
+      leading: const Icon(Icons.pets, color: HomeV2Tokens.primary, size: 25),
+      actions: [
         IconButton(
           key: const Key('home-notification-button'),
           tooltip: '알림',
@@ -204,9 +191,9 @@ class _HomeHeader extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(width: 12),
       ],
-    ),
-  );
+    );
   }
 }
 
@@ -463,10 +450,8 @@ class _NewsSection extends StatelessWidget {
       children: [
         _SectionHeader(title: '오늘의 뉴스', action: '모두 보기', onTap: onPreparing),
         const SizedBox(height: 10),
-        for (final item in news) ...[
+        for (final item in news)
           _NewsCard(visual: item.$1, title: item.$2, onTap: onPreparing),
-          const SizedBox(height: 8),
-        ],
       ],
     );
   }
@@ -486,16 +471,28 @@ class _NewsCard extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
     child: InkWell(
-      borderRadius: BorderRadius.circular(HomeV2Tokens.radius),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: _cardDecoration(),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: HomeV2Tokens.border)),
+        ),
         child: Row(
           children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _Badge(label: '준비중'),
+                  const SizedBox(height: 5),
+                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
             Container(
-              width: 58,
-              height: 58,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: HomeV2Tokens.primarySoft,
                 borderRadius: BorderRadius.circular(16),
@@ -506,17 +503,6 @@ class _NewsCard extends StatelessWidget {
                   color: HomeV2Tokens.primary,
                   size: 28,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _Badge(label: '준비중'),
-                  const SizedBox(height: 5),
-                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                ],
               ),
             ),
             const Icon(Icons.chevron_right, color: HomeV2Tokens.textSecondary),
@@ -542,7 +528,6 @@ class _PopularPostsSection extends ConsumerWidget {
         if (state.isInitialLoading)
           for (var i = 0; i < 3; i++) ...[
             const _PopularSkeleton(),
-            const SizedBox(height: 8),
           ]
         else if (state.initialError != null)
           _PopularMessage(
@@ -561,7 +546,6 @@ class _PopularPostsSection extends ConsumerWidget {
         else
           for (final post in state.posts) ...[
             _PopularPostCard(post: post),
-            const SizedBox(height: 8),
           ],
       ],
     );
@@ -576,11 +560,12 @@ class _PopularPostCard extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
     child: InkWell(
-      borderRadius: BorderRadius.circular(HomeV2Tokens.radius),
       onTap: () => context.push('/community/posts/${post.id}?source=popular'),
       child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: _cardDecoration(),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: HomeV2Tokens.border)),
+        ),
         child: Row(
           children: [
             Expanded(
@@ -666,7 +651,12 @@ class _SectionHeader extends StatelessWidget {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
       ),
-      if (action != null) TextButton(onPressed: onTap, child: Text(action!)),
+      if (action != null)
+        TextButton(
+          onPressed: onTap,
+          style: TextButton.styleFrom(foregroundColor: HomeV2Tokens.primary),
+          child: Text(action!),
+        ),
     ],
   );
 }

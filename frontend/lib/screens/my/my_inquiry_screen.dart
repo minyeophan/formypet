@@ -102,7 +102,7 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
                   FilledButton(
                     onPressed: () => showPreparingToast(context),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF41B883),
+                      backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

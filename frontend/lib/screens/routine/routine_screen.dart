@@ -49,9 +49,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       state.activePet?.accentColor,
       AppColors.primary,
     );
-    final calendarAccentColor = colorPairForHex(
-      state.activePet?.accentColor ?? '#F4A460',
-    ).accent;
+    final calendarAccentColor = AppColors.primary;
 
     return Scaffold(
       backgroundColor: AppColors.background,
