@@ -26,6 +26,7 @@ import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/wallet/expense_add_screen.dart';
+import 'package:frontend/screens/wallet/expense_calendar_screen.dart';
 import 'package:frontend/screens/wallet/expense_detail_screen.dart';
 import 'package:frontend/screens/wallet/expense_edit_screen.dart';
 import 'package:frontend/screens/wallet/expense_report_screen.dart';
@@ -471,7 +472,7 @@ void main() {
     expect(find.byType(ExpenseWalletScreen), findsOneWidget);
   });
 
-  testWidgets('wallet actions open expense add and report routes', (
+  testWidgets('wallet actions open expense add route and reset filters', (
     tester,
   ) async {
     final pet = _pet('1');
@@ -487,7 +488,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.tap(find.text('\uBE44\uC6A9 \uCD94\uAC00'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseAddScreen), findsOneWidget);
 
@@ -503,9 +504,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.receipt_long_rounded));
+    await tester.tap(find.text('\uC804\uCCB4\uBCF4\uAE30'));
     await tester.pumpAndSettle();
-    expect(find.byType(ExpenseReportScreen), findsOneWidget);
+    expect(find.byType(ExpenseCalendarScreen), findsOneWidget);
   });
 
   testWidgets('wallet direct URL back buttons use wallet fallback', (

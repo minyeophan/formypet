@@ -24,7 +24,7 @@ void main() {
 
     expect(find.text('\uC9D1\uC0AC\uC758 \uC9C0\uAC11'), findsOneWidget);
     expect(find.text('35,000\uC6D0'), findsOneWidget);
-    expect(find.text('\uAC04\uC2DD'), findsOneWidget);
+    expect(find.text('\uAC04\uC2DD'), findsWidgets);
     expect(
       find.byKey(const Key('wallet-expense-row-expense-food')),
       findsOneWidget,
