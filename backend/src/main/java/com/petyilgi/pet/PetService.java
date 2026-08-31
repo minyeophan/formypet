@@ -24,6 +24,7 @@ public class PetService {
             "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
             "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"
     };
+
     private static final String[] BG_LIGHTS = {
             "#FFE5E5", "#E0F7F5", "#E0F4FB", "#EAF7EE", "#FFF9E6",
             "#F5E6F5", "#E6F7F4", "#FEF9E7", "#F0E6F6", "#E8F4FD"
