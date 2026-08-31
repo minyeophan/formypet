@@ -160,6 +160,8 @@ class _RoutineScheduleCreateScreenState
                         ),
                         Switch(
                           key: const Key('schedule-all-day-switch'),
+                          activeColor: AppColors.primary,
+                          activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                           value: _allDay,
                           onChanged: (value) =>
                               _applyRangeChange(allDay: value),
@@ -167,7 +169,7 @@ class _RoutineScheduleCreateScreenState
                       ],
                     ),
                     _DateTimeRow(
-                      label: '시작',
+                      label: '날짜',
                       date: _startDate,
                       time: _startTime,
                       allDay: _allDay,
@@ -175,17 +177,6 @@ class _RoutineScheduleCreateScreenState
                       timeKey: const Key('schedule-start-time-button'),
                       onPickDate: () => _pickDate(isStart: true),
                       onPickTime: () => _pickTime(isStart: true),
-                    ),
-                    const SizedBox(height: 8),
-                    _DateTimeRow(
-                      label: '종료',
-                      date: _endDate,
-                      time: _endTime,
-                      allDay: _allDay,
-                      dateKey: const Key('schedule-end-date-button'),
-                      timeKey: const Key('schedule-end-time-button'),
-                      onPickDate: () => _pickDate(isStart: false),
-                      onPickTime: () => _pickTime(isStart: false),
                     ),
                     if (_rangeAdjusted) ...[
                       const SizedBox(height: 8),
@@ -217,6 +208,10 @@ class _RoutineScheduleCreateScreenState
                           '지도에서 찾기',
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
                         ),
                       ),
                     ),
@@ -397,8 +392,8 @@ class _RoutineScheduleCreateScreenState
         title: _titleController.text.trim(),
         startDate: _isoDate(_startDate),
         startTime: _allDay ? null : _formatTime(_startTime),
-        endDate: _isoDate(_endDate),
-        endTime: _allDay ? null : _formatTime(_endTime),
+        endDate: _isoDate(_startDate),
+        endTime: _allDay ? null : _formatTime(_startTime),
         allDay: _allDay,
         place: _emptyToNull(_placeController.text),
         memo: _emptyToNull(_memoController.text),

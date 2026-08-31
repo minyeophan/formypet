@@ -115,6 +115,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _AddButtons(
                     onAddSchedule: () => context.push('/routine/schedule/new'),
+                    onAddRoutine: () => context.push('/routine/new'),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -433,15 +434,30 @@ class _RoutineCalendarDayCell extends StatelessWidget {
 
 class _AddButtons extends StatelessWidget {
   final VoidCallback onAddSchedule;
+  final VoidCallback onAddRoutine;
 
-  const _AddButtons({required this.onAddSchedule});
+  const _AddButtons({required this.onAddSchedule, required this.onAddRoutine});
 
   @override
   Widget build(BuildContext context) {
-    return _AddButton(
-      key: const Key('schedule-add-button'),
-      label: '일정 등록',
-      onTap: onAddSchedule,
+    return Row(
+      children: [
+        Expanded(
+          child: _AddButton(
+            key: const Key('schedule-add-button'),
+            label: '일정 등록',
+            onTap: onAddSchedule,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _AddButton(
+            key: const Key('routine-add-button'),
+            label: '루틴 등록',
+            onTap: onAddRoutine,
+          ),
+        ),
+      ],
     );
   }
 }

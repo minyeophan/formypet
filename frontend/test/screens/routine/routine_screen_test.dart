@@ -15,7 +15,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('routine screen shows schedule-only calendar actions', (
+  testWidgets('routine screen shows schedule and routine calendar actions', (
     tester,
   ) async {
     await _pumpRoutineScreen(tester, _petState());
@@ -25,7 +25,7 @@ void main() {
     expect(find.byKey(const Key('routine-month-calendar')), findsOneWidget);
     expect(find.text('월간'), findsNothing);
     expect(find.text('주간'), findsNothing);
-    expect(find.byKey(const Key('routine-add-button')), findsNothing);
+    expect(find.byKey(const Key('routine-add-button')), findsOneWidget);
     expect(find.byKey(const Key('schedule-add-button')), findsOneWidget);
     expect(find.byType(AppHeader), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);

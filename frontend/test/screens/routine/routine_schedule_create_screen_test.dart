@@ -129,9 +129,7 @@ void main() {
     expect(find.text('2시간 전'), findsNothing);
     expect(find.text('하루 전'), findsOneWidget);
     expect(find.text('2026.06.17'), findsOneWidget);
-    expect(find.text('2026.06.18'), findsOneWidget);
     expect(find.text('10:30'), findsOneWidget);
-    expect(find.text('11:00'), findsOneWidget);
     expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
     expect(find.widgetWithText(TextField, '동네 미용실'), findsOneWidget);
     expect(find.widgetWithText(TextField, '빗 챙기기'), findsOneWidget);
