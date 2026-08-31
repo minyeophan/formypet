@@ -219,10 +219,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   child: TextButton(
                     key: const Key('my-profile-photo-picker'),
                     onPressed: _isSaving ? null : _pickPhoto,
-                  child: const AppText('사진 선택'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                  ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                    child: const AppText('사진 선택'),
                   ),
                 ),
                 const SizedBox(height: 12),

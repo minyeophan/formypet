@@ -22,7 +22,6 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
   String? _loadedPetId;
   String? _selectedPetId;
   Map<String, List<WalletExpense>> _expensesByPet = const {};
-  bool _isLoadingAll = false;
 
   @override
   Widget build(BuildContext context) {
@@ -134,20 +133,15 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
 
   Future<void> _loadExpensesForPets(List pets) async {
     if (pets.isEmpty) return;
-    setState(() => _isLoadingAll = true);
     final service = ref.read(walletExpenseServiceProvider);
-    try {
-      final entries = await Future.wait(
-        pets.map((pet) async {
-          final result = await service.listExpenses(pet.id);
-          return MapEntry<String, List<WalletExpense>>(pet.id, result.items);
-        }),
-      );
-      if (!mounted) return;
-      setState(() => _expensesByPet = Map.fromEntries(entries));
-    } finally {
-      if (mounted) setState(() => _isLoadingAll = false);
-    }
+    final entries = await Future.wait(
+      pets.map((pet) async {
+        final result = await service.listExpenses(pet.id);
+        return MapEntry<String, List<WalletExpense>>(pet.id, result.items);
+      }),
+    );
+    if (!mounted) return;
+    setState(() => _expensesByPet = Map.fromEntries(entries));
   }
 }
 

@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/date_utils.dart';
-import '../../core/pet_colors.dart';
 import '../../models/care_schedule.dart';
 import '../../models/routine.dart';
 import '../../providers/pet_provider.dart';
