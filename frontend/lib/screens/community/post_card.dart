@@ -84,7 +84,8 @@ class _PostCardState extends State<PostCard> {
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
                     if (post.poll != null) ...[
                       const Text('투표', style: TextStyle(color: AppV2Tokens.primary, fontWeight: FontWeight.w800, fontSize: 15)),
@@ -123,7 +124,7 @@ class _PostCardState extends State<PostCard> {
                   children: [
                     Expanded(
                       child: Text(
-                        '${author}${relativeTime == null ? '' : ' · $relativeTime'}',
+                        '$author${relativeTime == null ? '' : ' · $relativeTime'}',
                         style: _communityTextStyle(fontSize: 13, color: AppV2Tokens.textSecondary),
                       ),
                     ),
@@ -243,30 +244,3 @@ class _PostThumbnail extends StatelessWidget {
   );
 }
 
-class _Badge extends StatelessWidget {
-  final String label;
-  final bool outlined;
-
-  const _Badge({super.key, required this.label, this.outlined = false});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: EdgeInsets.symmetric(
-      horizontal: outlined ? 8 : 10,
-      vertical: outlined ? 2 : 4,
-    ),
-    decoration: BoxDecoration(
-      color: outlined ? AppV2Tokens.surfaceSoft : AppV2Tokens.border,
-      border: outlined ? Border.all(color: AppV2Tokens.border) : null,
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label,
-      style: _communityTextStyle(
-        fontSize: outlined ? 11 : 12,
-        fontWeight: FontWeight.w600,
-        color: AppV2Tokens.textSecondary,
-      ),
-    ),
-  );
-}

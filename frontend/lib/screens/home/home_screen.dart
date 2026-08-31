@@ -11,10 +11,12 @@ import '../../providers/home_popular_posts_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/app_category_badge.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/preparing_toast.dart';
 import 'home_v2_tokens.dart';
+import '../../core/app_v2_tokens.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -58,7 +60,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _syncPage(pageIndex);
 
     return Scaffold(
-      backgroundColor: HomeV2Tokens.background,
+      backgroundColor: AppV2Tokens.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -162,7 +164,7 @@ class _HomeHeader extends ConsumerWidget {
     return AppHeader(
       key: const Key('home-v2-header'),
       title: 'ForMyPet',
-      leading: const Icon(Icons.pets, color: HomeV2Tokens.primary, size: 25),
+      leading: const Icon(Icons.pets, color: AppV2Tokens.primary, size: 25),
       actions: [
         IconButton(
           key: const Key('home-notification-button'),
@@ -238,8 +240,8 @@ class _PetProfilePager extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
               decoration: BoxDecoration(
                 color: index == activeIndex
-                    ? HomeV2Tokens.primary
-                    : HomeV2Tokens.border,
+                    ? AppV2Tokens.primary
+                    : AppV2Tokens.border,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -291,7 +293,7 @@ class _PetProfileCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: HomeV2Tokens.text,
+                        color: AppV2Tokens.text,
                       ),
                     ),
                   ),
@@ -300,7 +302,7 @@ class _PetProfileCard extends StatelessWidget {
                     tooltip: '성장 기록',
                     onPressed: () => context.push('/records/growth'),
                     icon: const Icon(Icons.show_chart_rounded),
-                    color: HomeV2Tokens.primary,
+                    color: AppV2Tokens.primary,
                   ),
                 ],
               ),
@@ -308,7 +310,7 @@ class _PetProfileCard extends StatelessWidget {
                 _compact(pet.breed) ?? '품종 미상',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: HomeV2Tokens.textSecondary),
+                style: const TextStyle(color: AppV2Tokens.textSecondary),
               ),
               const SizedBox(height: 3),
               Text(speciesLabel(pet.species)),
@@ -345,14 +347,14 @@ class _Fact extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(fontSize: 10, color: HomeV2Tokens.textSecondary),
+        style: const TextStyle(fontSize: 10, color: AppV2Tokens.textSecondary),
       ),
       Text(
         value,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          fontFamily: HomeV2Tokens.brandFont,
+          fontFamily: AppV2Tokens.fontFamily,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -475,7 +477,7 @@ class _NewsCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: HomeV2Tokens.border)),
+          border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
         ),
         child: Row(
           children: [
@@ -483,7 +485,7 @@ class _NewsCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _Badge(label: '준비중'),
+                  const AppCategoryBadge(label: '준비중'),
                   const SizedBox(height: 5),
                   Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
@@ -494,18 +496,18 @@ class _NewsCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: HomeV2Tokens.primarySoft,
+                color: AppV2Tokens.primarySoft,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Center(
                 child: AppVisual(
                   id: visual,
-                  color: HomeV2Tokens.primary,
+                  color: AppV2Tokens.primary,
                   size: 28,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: HomeV2Tokens.textSecondary),
+            const Icon(Icons.chevron_right, color: AppV2Tokens.textSecondary),
           ],
         ),
       ),
@@ -564,7 +566,7 @@ class _PopularPostCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: HomeV2Tokens.border)),
+          border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
         ),
         child: Row(
           children: [
@@ -572,7 +574,7 @@ class _PopularPostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Badge(label: _categoryLabel(post.category)),
+                  AppCategoryBadge(label: _categoryLabel(post.category)),
                   const SizedBox(height: 5),
                   Text(
                     _postTitle(post),
@@ -603,12 +605,12 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 14, color: HomeV2Tokens.textSecondary),
+      Icon(icon, size: 14, color: AppV2Tokens.textSecondary),
       const SizedBox(width: 3),
       Text(
         '$value',
         style: const TextStyle(
-          fontFamily: HomeV2Tokens.brandFont,
+          fontFamily: AppV2Tokens.fontFamily,
           fontSize: 11,
         ),
       ),
@@ -621,7 +623,7 @@ class _PopularSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 76,
-    decoration: _cardDecoration(color: HomeV2Tokens.surfaceSoft),
+    decoration: _cardDecoration(color: AppV2Tokens.surfaceSoft),
   );
 }
 
@@ -654,31 +656,10 @@ class _SectionHeader extends StatelessWidget {
       if (action != null)
         TextButton(
           onPressed: onTap,
-          style: TextButton.styleFrom(foregroundColor: HomeV2Tokens.primary),
+          style: TextButton.styleFrom(foregroundColor: AppV2Tokens.primary),
           child: Text(action!),
         ),
     ],
-  );
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: HomeV2Tokens.primarySoft,
-      borderRadius: BorderRadius.circular(99),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        color: HomeV2Tokens.primary,
-      ),
-    ),
   );
 }
 
@@ -689,7 +670,7 @@ class _BottomBanner extends StatelessWidget {
     key: const Key('home-bottom-banner'),
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: HomeV2Tokens.primarySoft,
+      color: AppV2Tokens.primarySoft,
       borderRadius: BorderRadius.circular(28),
     ),
     child: Row(
@@ -705,7 +686,7 @@ class _BottomBanner extends StatelessWidget {
               SizedBox(height: 4),
               Text(
                 '반려동물의 행복을 기록해요',
-                style: TextStyle(color: HomeV2Tokens.textSecondary),
+                style: TextStyle(color: AppV2Tokens.textSecondary),
               ),
             ],
           ),
@@ -725,11 +706,11 @@ class _EmptyHome extends StatelessWidget {
 
 BoxDecoration _cardDecoration({
   double radius = HomeV2Tokens.radius,
-  Color color = HomeV2Tokens.surface,
+  Color color = AppV2Tokens.surface,
 }) => BoxDecoration(
   color: color,
   borderRadius: BorderRadius.circular(radius),
-  border: Border.all(color: HomeV2Tokens.border),
+  border: Border.all(color: AppV2Tokens.border),
   boxShadow: const [
     BoxShadow(color: Color(0x09000000), blurRadius: 20, offset: Offset(0, 7)),
   ],
