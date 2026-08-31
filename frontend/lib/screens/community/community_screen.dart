@@ -517,10 +517,10 @@ class _CategoryTabsState extends State<_CategoryTabs> {
   Widget build(BuildContext context) {
     return SizedBox(
       key: const Key('community-category-tabs'),
-      height: 56,
+      height: 60,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
         child: Row(
           children: List.generate(kCommunityFeedTabs.length, (index) {
             final tab = kCommunityFeedTabs[index];
@@ -532,37 +532,39 @@ class _CategoryTabsState extends State<_CategoryTabs> {
             final isActive = widget.routeFeedKey == tabKey;
             return Padding(
               padding: EdgeInsets.only(
-                right: index == kCommunityFeedTabs.length - 1 ? 0 : 8,
+                right: index == kCommunityFeedTabs.length - 1 ? 0 : 28,
               ),
               child: Semantics(
                 button: true,
                 selected: isActive,
                 child: InkWell(
                   key: Key('community-tab-$tab'),
-                    borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                   onTap: isActive
                       ? () {}
                       : () =>
                             context.pushReplacement('/community/category/$tab'),
                   child: Container(
                     key: _chipKeys[index],
-                    constraints: const BoxConstraints(minHeight: 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    constraints: const BoxConstraints(minHeight: 60),
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? AppV2Tokens.primary
-                          : AppV2Tokens.surfaceSoft,
-                      borderRadius: BorderRadius.circular(999),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isActive
+                              ? AppV2Tokens.primary
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       kCommunityCategoryLabels[tab] ?? tab,
                       style: _communityStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isActive
-                            ? Colors.white
-                            : AppV2Tokens.textSecondary,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        color: isActive ? AppV2Tokens.text : AppV2Tokens.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
