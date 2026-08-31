@@ -507,7 +507,6 @@ class _NewsCard extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppV2Tokens.textSecondary),
           ],
         ),
       ),
@@ -586,7 +585,11 @@ class _PopularPostCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            _Metric(icon: Icons.favorite_border, value: post.likesCount),
+            _Metric(
+              icon: post.liked ? Icons.favorite : Icons.favorite_border,
+              iconColor: post.liked ? AppV2Tokens.error : AppV2Tokens.textSecondary,
+              value: post.likesCount,
+            ),
             const SizedBox(width: 10),
             _Metric(icon: Icons.chat_bubble_outline, value: post.commentsCount),
           ],
@@ -597,15 +600,16 @@ class _PopularPostCard extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.icon, required this.value});
+  const _Metric({required this.icon, required this.value, this.iconColor});
   final IconData icon;
   final int value;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 14, color: AppV2Tokens.textSecondary),
+      Icon(icon, size: 14, color: iconColor ?? AppV2Tokens.textSecondary),
       const SizedBox(width: 3),
       Text(
         '$value',

@@ -41,7 +41,12 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(petProvider);
     final pet = state.activePet;
-    final accent = colorPairForHex(pet?.accentColor ?? '#F4A460');
+    final accent = const PetColorPair(
+      accent: AppColors.primary,
+      bgLight: AppColors.surfaceSoft,
+      accentHex: '#32B982',
+      bgLightHex: '#F5F6F5',
+    );
     final records = state.records;
     final visibleRecords = records
         .where((record) => isRecordDetailSupported(record.typeId))
