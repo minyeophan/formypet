@@ -17,6 +17,7 @@ import '../screens/wallet/expense_add_screen.dart';
 import '../screens/wallet/expense_detail_screen.dart';
 import '../screens/wallet/expense_edit_screen.dart';
 import '../screens/wallet/expense_report_screen.dart';
+import '../screens/wallet/expense_calendar_screen.dart';
 import '../screens/wallet/expense_wallet_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
@@ -208,6 +209,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
+      GoRoute(
+        path: '/wallet/calendar',
+        builder: (c, s) => const ExpenseCalendarScreen(),
+      ),
       GoRoute(
         path: '/wallet/report',
         builder: (c, s) => const ExpenseReportScreen(),

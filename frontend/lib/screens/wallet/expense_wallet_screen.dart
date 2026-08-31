@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_colors.dart';
 import '../../models/wallet_expense.dart';
@@ -8,6 +9,7 @@ import '../../providers/pet_provider.dart';
 import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_underline_tabs.dart';
 import 'wallet_expense_utils.dart';
 
 class ExpenseWalletScreen extends ConsumerStatefulWidget {
@@ -21,7 +23,21 @@ class ExpenseWalletScreen extends ConsumerStatefulWidget {
 class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
   String? _loadedPetId;
   String? _selectedPetId;
+  String? _selectedCategory;
   Map<String, List<WalletExpense>> _expensesByPet = const {};
+  int? _monthlyBudget;
+  String _totalPeriod = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBudget();
+  }
+
+  Future<void> _loadBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _monthlyBudget = prefs.getInt('wallet_monthly_budget'));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,14 +57,22 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
     }
 
     final walletState = ref.watch(walletExpenseProvider);
-    final selectedItems = _selectedPetId == null
+    final petItems = _selectedPetId == null
         ? (_expensesByPet.isEmpty
               ? [...walletState.items]
               : _expensesByPet.values.expand((items) => items).toList())
         : (_expensesByPet[_selectedPetId] ?? walletState.items);
+    final selectedItems = petItems.where((item) => _selectedCategory == null || item.category == _selectedCategory).toList();
+    final now = DateTime.now();
+    selectedItems.removeWhere((item) {
+      final date = DateTime.tryParse(item.expenseDate);
+      if (date == null || _totalPeriod == 'all') return false;
+      if (_totalPeriod == 'year') return date.year != now.year;
+      return date.year != now.year || date.month != now.month;
+    });
     selectedItems.sort((a, b) => '${b.expenseDate}${b.expenseTime ?? ''}'
         .compareTo('${a.expenseDate}${a.expenseTime ?? ''}'));
-    final recent = selectedItems.take(3).toList();
+    final recent = selectedItems.take(5).toList();
     final total = selectedItems.fold<int>(0, (sum, item) => sum + item.amount);
 
     return Scaffold(
@@ -66,13 +90,45 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                       title: '\uC9D1\uC0AC\uC758 \uC9C0\uAC11',
                       onBack: () => _goBack(context),
                     ),
-                    const SizedBox(height: 8),
-                    _WalletPetFilter(
-                      pets: pets,
-                      selectedPetId: _selectedPetId,
-                      onChanged: (id) => setState(() => _selectedPetId = id),
+                    const SizedBox(height: 18),
+                    AppUnderlineTabs(
+                      items: ['전체', ...pets.map((pet) => pet.name)],
+                      selectedIndex: _selectedPetId == null
+                          ? 0
+                          : pets.indexWhere((pet) => pet.id == _selectedPetId) + 1,
+                      onChanged: (index) => setState(() {
+                        _selectedPetId = index == 0 ? null : pets[index - 1].id;
+                      }),
                     ),
-                    _WalletSummaryCard(totalAmount: _selectedPetId == null ? total : walletState.summary.totalAmount, count: selectedItems.length),
+                    const SizedBox(height: 12),
+                    AppUnderlineTabs(
+                      items: ['전체', ...expenseCategoryOptions.map((item) => item.label)],
+                      selectedIndex: _selectedCategory == null ? 0 : expenseCategoryOptions.indexWhere((item) => item.key == _selectedCategory) + 1,
+                      onChanged: (index) => setState(() => _selectedCategory = index == 0 ? null : expenseCategoryOptions[index - 1].key),
+                    ),
+                    _WalletSummaryCard(
+                      totalAmount: total,
+                      budget: _monthlyBudget,
+                      count: selectedItems.length,
+                      isOverBudget: _monthlyBudget != null && total > _monthlyBudget!,
+                      onBudgetTap: _editBudget,
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _totalPeriod,
+                          isDense: true,
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('전체 기간')),
+                            DropdownMenuItem(value: 'year', child: Text('올해 지출')),
+                            DropdownMenuItem(value: 'month', child: Text('이번 달 지출')),
+                          ],
+                          onChanged: (value) => setState(() => _totalPeriod = value ?? 'month'),
+                        ),
+                      ),
+                    ),
                     if (walletState.isLoading) ...[
                       const SizedBox(height: 12),
                       const Center(child: CircularProgressIndicator()),
@@ -85,32 +141,26 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                             .loadFirstPage(activePetId!),
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 22),
                     Row(
                       children: [
                         Expanded(
                           child: _WalletActionButton(
                             label: '\uBE44\uC6A9 \uCD94\uAC00',
-                            icon: Icons.add_rounded,
                             onTap: () => context.push('/wallet/expenses/new'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _WalletActionButton(
-                            label: '\uB0B4\uC5ED \uBCF4\uAE30',
-                            icon: Icons.receipt_long_rounded,
-                            onTap: () => context.push('/wallet/report'),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const AppText(
-                      '\uCD5C\uADFC \uC9C0\uCD9C',
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.text,
+                    Row(
+                      children: [
+                        const Expanded(child: AppText('\uCD5C\uADFC \uBE44\uC6A9', fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text)),
+                        TextButton(
+                          onPressed: () => context.push('/wallet/calendar'),
+                          child: const Text('\uC804\uCCB4\uBCF4\uAE30'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     if (recent.isEmpty)
@@ -143,88 +193,91 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
     if (!mounted) return;
     setState(() => _expensesByPet = Map.fromEntries(entries));
   }
-}
 
-class _WalletPetFilter extends StatelessWidget {
-  const _WalletPetFilter({required this.pets, required this.selectedPetId, required this.onChanged});
-  final List pets;
-  final String? selectedPetId;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 42,
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      children: [
-        _filterChip('전체', selectedPetId == null, () => onChanged(null)),
-        for (final pet in pets) ...[
-          const SizedBox(width: 8),
-          _filterChip(pet.name, selectedPetId == pet.id, () => onChanged(pet.id)),
+  Future<void> _editBudget() async {
+    final controller = TextEditingController(text: _monthlyBudget?.toString() ?? '');
+    final value = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이번 달 예산'),
+        content: TextField(controller: controller, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '금액을 입력해 주세요', suffixText: '원')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('건너뛰기')),
+          FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(controller.text.replaceAll(',', '').trim())), child: const Text('저장')),
         ],
-      ],
-    ),
-  );
-
-  Widget _filterChip(String label, bool selected, VoidCallback onTap) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: ChoiceChip(
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => onTap(),
-          selectedColor: AppColors.primary,
-          backgroundColor: AppColors.surface,
-          labelStyle: TextStyle(
-            color: selected ? AppColors.white : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-          side: const BorderSide(color: AppColors.border),
-        ),
-      );
+      ),
+    );
+    controller.dispose();
+    if (!mounted || value == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('wallet_monthly_budget', value);
+    if (mounted) setState(() => _monthlyBudget = value);
+  }
 }
 
 class _WalletSummaryCard extends StatelessWidget {
   final int totalAmount;
+  final int? budget;
   final int count;
+  final VoidCallback onBudgetTap;
+  final bool isOverBudget;
 
-  const _WalletSummaryCard({required this.totalAmount, required this.count});
+  const _WalletSummaryCard({required this.totalAmount, required this.budget, required this.count, required this.onBudgetTap, required this.isOverBudget});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
+    return InkWell(
+      onTap: onBudgetTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(22),
+            bottomRight: Radius.circular(32),
+            bottomLeft: Radius.circular(18),
+          ),
+          border: Border.all(color: AppColors.border),
+        ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AppText(
-            '\uB204\uC801 \uC9C0\uCD9C',
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 6),
-          AppText(
-            formatWon(totalAmount),
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-          const SizedBox(height: 6),
-          AppText(
-            '$count\uAC74\uC758 \uC9C0\uCD9C \uAE30\uB85D',
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ],
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: _SummaryValue(label: '\uC774\uBC88 \uB2EC \uC9C0\uCD9C', value: formatWon(totalAmount), accent: true)),
+                Container(width: 1, height: 58, color: AppColors.border),
+                Expanded(child: _SummaryValue(label: '\uC774\uBC88 \uB2EC \uC608\uC0B0', value: budget == null ? '\uBBF8\uC124\uC815' : formatWon(budget!), accent: false)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Center(child: AppText('$count\uAC74 · \uC608\uC0B0\uC744 \uB204\uB974\uBA74 \uC124\uC815\uD560 \uC218 \uC788\uC5B4\uC694', fontSize: 11, color: AppColors.textSecondary)),
+            if (isOverBudget) ...[
+              const SizedBox(height: 6),
+              const Center(child: AppText('\uC608\uC0B0\uC744 \uCD08\uACFC\uD588\uC5B4\uC694', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text)),
+            ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _SummaryValue extends StatelessWidget {
+  const _SummaryValue({required this.label, required this.value, required this.accent});
+  final String label;
+  final String value;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      AppText(label, fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+      const SizedBox(height: 7),
+      AppText(value, fontSize: 22, fontWeight: FontWeight.bold, color: accent ? AppColors.primary : AppColors.text),
+    ],
+  );
 }
 
 class _WalletErrorPanel extends StatelessWidget {
@@ -252,19 +305,17 @@ class _WalletErrorPanel extends StatelessWidget {
 
 class _WalletActionButton extends StatelessWidget {
   final String label;
-  final IconData icon;
   final VoidCallback onTap;
 
   const _WalletActionButton({
     required this.label,
-    required this.icon,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: AppColors.primary,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -274,18 +325,16 @@ class _WalletActionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: AppColors.primary),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: const Color(0xFF4F8FCF)),
-              const SizedBox(width: 7),
               AppText(
                 label,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: AppColors.text,
+                color: AppColors.white,
               ),
             ],
           ),
@@ -342,13 +391,13 @@ class _ExpenseListRowState extends State<_ExpenseListRow> {
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F8FCF).withValues(alpha: 0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
                   Icons.account_balance_wallet_rounded,
                   size: 20,
-                  color: Color(0xFF4F8FCF),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -382,6 +431,8 @@ class _ExpenseListRowState extends State<_ExpenseListRow> {
                 fontWeight: FontWeight.bold,
                 color: AppColors.text,
               ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
