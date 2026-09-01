@@ -33,6 +33,12 @@ void main() {
     expect(find.text('알림 시점'), findsOneWidget);
     expect(find.text('동반자'), findsNothing);
     expect(find.text('사진'), findsNothing);
+    expect(find.text('시작'), findsNothing);
+    expect(find.text('종료'), findsNothing);
+    expect(find.byKey(const Key('schedule-start-date-button')), findsOneWidget);
+    expect(find.byKey(const Key('schedule-start-time-button')), findsOneWidget);
+    expect(find.byKey(const Key('schedule-end-date-button')), findsNothing);
+    expect(find.byKey(const Key('schedule-end-time-button')), findsNothing);
   });
 
   testWidgets('header has no save button and bottom save starts disabled', (
@@ -73,22 +79,26 @@ void main() {
     expect(notifier.state.schedules.single.title, '목욕 예약');
     expect(notifier.state.schedules.single.categoryId, 'grooming');
     expect(notifier.state.schedules.single.startTime, '00:00');
+    expect(
+      notifier.state.schedules.single.endDate,
+      notifier.state.schedules.single.startDate,
+    );
+    expect(
+      notifier.state.schedules.single.endTime,
+      notifier.state.schedules.single.startTime,
+    );
     expect(find.textContaining('routine target date='), findsOneWidget);
+    expect(find.text('routine target tab=schedules'), findsOneWidget);
   });
 
-  testWidgets('all day hides time controls and map search shows toast', (
+  testWidgets('schedule has no all-day control and map search shows toast', (
     tester,
   ) async {
     await _pumpScreen(tester);
 
     expect(find.byKey(const Key('schedule-start-time-button')), findsOneWidget);
-    await tester.ensureVisible(
-      find.byKey(const Key('schedule-all-day-switch')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('schedule-all-day-switch')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('schedule-start-time-button')), findsNothing);
+    expect(find.byKey(const Key('schedule-all-day-switch')), findsNothing);
+    expect(find.text('종일'), findsNothing);
 
     await tester.ensureVisible(find.text('지도에서 찾기'));
     await tester.pumpAndSettle();
@@ -161,7 +171,7 @@ void main() {
     expect(find.text('schedule detail id=s1'), findsOneWidget);
   });
 
-  testWidgets('edit save clears optional fields and all day times', (
+  testWidgets('edit save clears optional fields and stays timed', (
     tester,
   ) async {
     final notifier = _petNotifier(schedules: [_schedule()]);
@@ -171,12 +181,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '동네 미용실'), '');
     await tester.enterText(find.widgetWithText(TextField, '빗 챙기기'), '');
-    await tester.ensureVisible(
-      find.byKey(const Key('schedule-all-day-switch')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('schedule-all-day-switch')));
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('schedule-all-day-switch')), findsNothing);
     await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('schedule-save-button')));
@@ -185,9 +190,10 @@ void main() {
     final schedule = notifier.state.schedules.single;
     expect(schedule.place, isNull);
     expect(schedule.memo, isNull);
-    expect(schedule.allDay, isTrue);
-    expect(schedule.startTime, isNull);
-    expect(schedule.endTime, isNull);
+    expect(schedule.allDay, isFalse);
+    expect(schedule.startTime, '10:30');
+    expect(schedule.endDate, schedule.startDate);
+    expect(schedule.endTime, '10:30');
   });
 
   testWidgets(
@@ -250,8 +256,11 @@ Future<void> _pumpScreen(
       GoRoute(
         path: '/routine',
         builder: (_, state) => Scaffold(
-          body: Text(
-            'routine target date=${state.uri.queryParameters['date']}',
+          body: Column(
+            children: [
+              Text('routine target date=${state.uri.queryParameters['date']}'),
+              Text('routine target tab=${state.uri.queryParameters['tab']}'),
+            ],
           ),
         ),
       ),

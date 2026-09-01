@@ -36,12 +36,13 @@ class RecordEditActionBar extends StatelessWidget {
     final busy = isSaving || isDeleting;
     final canSave = enabled && !busy;
     final canDelete = !busy;
+    final saveActive = canSave || isSaving;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Material(
-          color: canSave ? AppColors.primary : AppColors.surfaceSoft,
+          color: saveActive ? AppColors.primary : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             key: saveKey,
@@ -53,14 +54,14 @@ class RecordEditActionBar extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: canSave ? AppColors.primary : AppColors.border,
+                  color: saveActive ? AppColors.primary : AppColors.border,
                 ),
               ),
               child: AppText(
                 isSaving ? savingLabel : saveLabel,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: canSave ? AppColors.white : AppColors.muted,
+                color: saveActive ? AppColors.white : AppColors.muted,
               ),
             ),
           ),

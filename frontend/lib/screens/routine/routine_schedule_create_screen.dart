@@ -33,13 +33,9 @@ class _RoutineScheduleCreateScreenState
   final _placeController = TextEditingController();
   final _memoController = TextEditingController();
   late DateTime _startDate;
-  late DateTime _endDate;
   TimeOfDay _startTime = const TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 23, minute: 59);
   _ScheduleCategory? _selectedCategory;
   String _reminder = _reminders.first;
-  bool _allDay = false;
-  bool _rangeAdjusted = false;
   bool _saving = false;
   bool _deleting = false;
   String? _error;
@@ -51,19 +47,14 @@ class _RoutineScheduleCreateScreenState
     if (editing == null) {
       final today = _dateOnly(DateTime.now());
       _startDate = today;
-      _endDate = today;
     } else {
       _selectedCategory = _categoryFor(editing.categoryId);
       _titleController.text = editing.title;
-      _allDay = editing.allDay;
       _startDate = _parseIsoDate(editing.startDate);
-      _endDate = _parseIsoDate(editing.endDate);
-      _startTime =
-          _parseScheduleTime(editing.startTime) ??
-          const TimeOfDay(hour: 0, minute: 0);
-      _endTime =
-          _parseScheduleTime(editing.endTime) ??
-          const TimeOfDay(hour: 23, minute: 59);
+      _startTime = editing.allDay
+          ? const TimeOfDay(hour: 0, minute: 0)
+          : _parseScheduleTime(editing.startTime) ??
+                const TimeOfDay(hour: 0, minute: 0);
       _placeController.text = editing.place ?? '';
       _memoController.text = editing.memo ?? '';
       _reminder = _reminders.contains(editing.reminder)
@@ -149,43 +140,14 @@ class _RoutineScheduleCreateScreenState
                 label: '일시',
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: AppText(
-                            '종일',
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Switch(
-                          key: const Key('schedule-all-day-switch'),
-                          activeColor: AppColors.primary,
-                          activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
-                          value: _allDay,
-                          onChanged: (value) =>
-                              _applyRangeChange(allDay: value),
-                        ),
-                      ],
-                    ),
                     _DateTimeRow(
-                      label: '날짜',
                       date: _startDate,
                       time: _startTime,
-                      allDay: _allDay,
                       dateKey: const Key('schedule-start-date-button'),
                       timeKey: const Key('schedule-start-time-button'),
-                      onPickDate: () => _pickDate(isStart: true),
-                      onPickTime: () => _pickTime(isStart: true),
+                      onPickDate: _pickDate,
+                      onPickTime: _pickTime,
                     ),
-                    if (_rangeAdjusted) ...[
-                      const SizedBox(height: 8),
-                      const AppText(
-                        '종료 일시는 시작 일시보다 빠를 수 없어요. 시작 일시에 맞게 조정했어요.',
-                        fontSize: 12,
-                        color: Colors.redAccent,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -258,10 +220,14 @@ class _RoutineScheduleCreateScreenState
                         : null,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
-                      backgroundColor: AppColors.text,
+                      backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.white,
-                      disabledBackgroundColor: AppColors.surfaceSoft,
-                      disabledForegroundColor: AppColors.muted,
+                      disabledBackgroundColor: _saving
+                          ? AppColors.primary
+                          : AppColors.surfaceSoft,
+                      disabledForegroundColor: _saving
+                          ? AppColors.white
+                          : AppColors.muted,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -308,32 +274,31 @@ class _RoutineScheduleCreateScreenState
     if (mounted) setState(() {});
   }
 
-  Future<void> _pickDate({required bool isStart}) async {
-    final initialDate = isStart ? _startDate : _endDate;
+  Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showRecordDatePickerSheet(
       context,
-      initialDate: initialDate,
+      initialDate: _startDate,
       firstDate: _schedulePickerFirstDate(now, widget.editingSchedule),
       lastDate: _schedulePickerLastDate(now, widget.editingSchedule),
     );
     if (picked == null || !mounted) return;
-    _applyRangeChange(
-      startDate: isStart ? picked : null,
-      endDate: isStart ? null : picked,
-    );
+    setState(() {
+      _error = null;
+      _startDate = _dateOnly(picked);
+    });
   }
 
-  Future<void> _pickTime({required bool isStart}) async {
+  Future<void> _pickTime() async {
     final picked = await showRecordTimePickerSheet(
       context,
-      initialTime: isStart ? _startTime : _endTime,
+      initialTime: _startTime,
     );
     if (picked == null || !mounted) return;
-    _applyRangeChange(
-      startTime: isStart ? picked : null,
-      endTime: isStart ? null : picked,
-    );
+    setState(() {
+      _error = null;
+      _startTime = picked;
+    });
   }
 
   Future<void> _pickReminder() async {
@@ -342,33 +307,6 @@ class _RoutineScheduleCreateScreenState
       builder: (context) => _ReminderPickerSheet(initialValue: _reminder),
     );
     if (picked != null && mounted) setState(() => _reminder = picked);
-  }
-
-  void _applyRangeChange({
-    DateTime? startDate,
-    DateTime? endDate,
-    TimeOfDay? startTime,
-    TimeOfDay? endTime,
-    bool? allDay,
-  }) {
-    final nextStartDate = startDate ?? _startDate;
-    final nextStartTime = startTime ?? _startTime;
-    final range = normalizeScheduleRange(
-      startDate: nextStartDate,
-      startTime: nextStartTime,
-      endDate: endDate ?? _endDate,
-      endTime: endTime ?? _endTime,
-      allDay: allDay ?? _allDay,
-    );
-    setState(() {
-      _error = null;
-      _startDate = _dateOnly(nextStartDate);
-      _startTime = nextStartTime;
-      _endDate = range.endDate;
-      _endTime = range.endTime;
-      _allDay = allDay ?? _allDay;
-      _rangeAdjusted = range.wasAdjusted;
-    });
   }
 
   Future<void> _save() async {
@@ -391,10 +329,10 @@ class _RoutineScheduleCreateScreenState
         categoryId: _selectedCategory!.id,
         title: _titleController.text.trim(),
         startDate: _isoDate(_startDate),
-        startTime: _allDay ? null : _formatTime(_startTime),
+        startTime: _formatTime(_startTime),
         endDate: _isoDate(_startDate),
-        endTime: _allDay ? null : _formatTime(_startTime),
-        allDay: _allDay,
+        endTime: _formatTime(_startTime),
+        allDay: false,
         place: _emptyToNull(_placeController.text),
         memo: _emptyToNull(_memoController.text),
         reminder: _reminder,
@@ -405,7 +343,7 @@ class _RoutineScheduleCreateScreenState
           : await ref.read(petProvider.notifier).updateCareSchedule(schedule);
       if (!mounted) return;
       if (editing == null) {
-        context.go('/routine?date=${saved.startDate}');
+        context.go('/routine?date=${saved.startDate}&tab=schedules');
       } else {
         context.go('/routine/schedule/${saved.id}');
       }
@@ -463,20 +401,16 @@ class _RoutineScheduleCreateScreenState
 }
 
 class _DateTimeRow extends StatelessWidget {
-  final String label;
   final DateTime date;
   final TimeOfDay time;
-  final bool allDay;
   final Key dateKey;
   final Key timeKey;
   final VoidCallback onPickDate;
   final VoidCallback onPickTime;
 
   const _DateTimeRow({
-    required this.label,
     required this.date,
     required this.time,
-    required this.allDay,
     required this.dateKey,
     required this.timeKey,
     required this.onPickDate,
@@ -487,15 +421,6 @@ class _DateTimeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 34,
-          child: AppText(
-            label,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
         Expanded(
           child: _ValueButton(
             key: dateKey,
@@ -503,16 +428,14 @@ class _DateTimeRow extends StatelessWidget {
             onTap: onPickDate,
           ),
         ),
-        if (!allDay) ...[
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ValueButton(
-              key: timeKey,
-              value: _formatTime(time),
-              onTap: onPickTime,
-            ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ValueButton(
+            key: timeKey,
+            value: _formatTime(time),
+            onTap: onPickTime,
           ),
-        ],
+        ),
       ],
     );
   }

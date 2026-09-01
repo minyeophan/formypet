@@ -20,6 +20,7 @@ import '../screens/wallet/expense_report_screen.dart';
 import '../screens/wallet/expense_calendar_screen.dart';
 import '../screens/wallet/expense_wallet_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
+import '../screens/routine/routine_detail_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
@@ -140,7 +141,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
-          GoRoute(path: '/notifications', builder: (c, s) => const NotificationScreen()),
+          GoRoute(
+            path: '/notifications',
+            builder: (c, s) => const NotificationScreen(),
+          ),
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
@@ -261,6 +265,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/routine',
         builder: (c, s) => RoutineScreen(
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+          initialTab: s.uri.queryParameters['tab'],
         ),
       ),
       GoRoute(
@@ -269,9 +274,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/routine/:routineId/edit',
-        builder: (c, s) => RoutineEditScreen(
-          routineId: s.pathParameters['routineId']!,
-        ),
+        builder: (c, s) =>
+            RoutineEditScreen(routineId: s.pathParameters['routineId']!),
       ),
       GoRoute(
         path: '/routine/schedule/new',
@@ -291,9 +295,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/community/write',
-        builder: (c, s) => WriteScreen(
-          editingPost: s.extra is Post ? s.extra as Post : null,
-        ),
+        builder: (c, s) =>
+            WriteScreen(editingPost: s.extra is Post ? s.extra as Post : null),
+      ),
+      GoRoute(
+        path: '/routine/:routineId',
+        builder: (c, s) =>
+            RoutineDetailScreen(routineId: s.pathParameters['routineId']!),
       ),
       GoRoute(
         path: '/pet/:id',

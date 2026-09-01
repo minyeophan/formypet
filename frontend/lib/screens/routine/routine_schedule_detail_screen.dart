@@ -52,24 +52,28 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
                       label: '일시',
                       value: _dateTimeLabel(schedule),
                     ),
-                    const SizedBox(height: 10),
-                    _InfoRow(
-                      key: const Key('schedule-detail-info-row-place'),
-                      label: '장소',
-                      value: schedule.place,
-                    ),
+                    if ((schedule.place ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _InfoRow(
+                        key: const Key('schedule-detail-info-row-place'),
+                        label: '장소',
+                        value: schedule.place,
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     _InfoRow(
                       key: const Key('schedule-detail-info-row-reminder'),
                       label: '알림',
                       value: schedule.reminder,
                     ),
-                    const SizedBox(height: 10),
-                    _InfoRow(
-                      key: const Key('schedule-detail-info-row-memo'),
-                      label: '메모',
-                      value: schedule.memo,
-                    ),
+                    if ((schedule.memo ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _InfoRow(
+                        key: const Key('schedule-detail-info-row-memo'),
+                        label: '메모',
+                        value: schedule.memo,
+                      ),
+                    ],
                     const Spacer(),
                     const SizedBox(height: 24),
                     _ScheduleDetailEditButton(
@@ -357,10 +361,13 @@ String _dateTimeLabel(CareSchedule schedule) {
   if (end == null || end.isEmpty) {
     return start;
   }
+  if (schedule.startDate == schedule.endDate && startTime == endTime) {
+    return start;
+  }
   return '$start - $end';
 }
 
-String _dateLabel(DateTime date) => DateFormat('M월 d일').format(date);
+String _dateLabel(DateTime date) => DateFormat('yyyy년 M월 d일').format(date);
 
 void _goBack(BuildContext context, {required String fallback}) {
   if (context.canPop()) {

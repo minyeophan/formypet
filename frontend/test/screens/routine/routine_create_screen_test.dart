@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_create_screen.dart';
@@ -12,15 +13,34 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('routine type cards use real saved type labels', (tester) async {
+  testWidgets('routine categories are inline with period fields', (
+    tester,
+  ) async {
     await _pumpScreen(tester, _FakePetNotifier(_petState()));
 
     expect(find.text('투약'), findsOneWidget);
     expect(find.text('급식'), findsOneWidget);
-    expect(find.text('병원'), findsOneWidget);
+    expect(find.text('병원 관리'), findsOneWidget);
+    expect(find.text('루틴 유형 선택'), findsNothing);
+    expect(find.byKey(const Key('routine-name-field')), findsOneWidget);
+    expect(find.byKey(const Key('routine-start-date-field')), findsOneWidget);
+    expect(find.byKey(const Key('routine-end-date-field')), findsOneWidget);
+    expect(find.text('종료일 없음'), findsOneWidget);
     expect(find.text('검진'), findsNothing);
     expect(find.text('놀이'), findsNothing);
     expect(find.text('커스텀'), findsNothing);
+
+    final dailyChip = tester.widget<ChoiceChip>(
+      find.widgetWithText(ChoiceChip, '매일'),
+    );
+    final weeklyChip = tester.widget<ChoiceChip>(
+      find.widgetWithText(ChoiceChip, '매주'),
+    );
+    expect(dailyChip.showCheckmark, isFalse);
+    expect(dailyChip.selectedColor, AppColors.primary);
+    expect(weeklyChip.backgroundColor, AppColors.white);
+    expect(find.byKey(const Key('routine-notification-button')), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
   });
 
   testWidgets('weekly save defaults today weekday and omits empty note', (
@@ -28,7 +48,16 @@ void main() {
   ) async {
     final notifier = _FakePetNotifier(_petState());
     await _pumpScreen(tester, notifier);
-    await tester.tap(find.byKey(const Key('routine-type-medicine')));
+    await tester.tap(find.byKey(const Key('routine-category-medicine')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('routine-name-field')))
+          .controller!
+          .text,
+      '투약',
+    );
+    await tester.ensureVisible(find.text('매주'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('매주'));
     await tester.pumpAndSettle();
@@ -52,13 +81,16 @@ void main() {
     expect(notifier.addedRoutineBody!['times'], ['08:00']);
     expect(notifier.addedRoutineBody!['notificationEnabled'], isTrue);
     expect(notifier.addedRoutineBody!.containsKey('note'), isFalse);
+    expect(find.text('routine target tab=routines'), findsOneWidget);
   });
 
   testWidgets('routine time field opens shared time picker', (tester) async {
     await _pumpScreen(tester, _FakePetNotifier(_petState()));
-    await tester.tap(find.byKey(const Key('routine-type-meal')));
+    await tester.tap(find.byKey(const Key('routine-category-meal')));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('routine-time-field')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('routine-time-field')));
     await tester.pumpAndSettle();
 
@@ -70,7 +102,7 @@ void main() {
   ) async {
     final notifier = _FakePetNotifier(_petState(), failAdd: true);
     await _pumpScreen(tester, notifier);
-    await tester.tap(find.byKey(const Key('routine-type-medicine')));
+    await tester.tap(find.byKey(const Key('routine-category-medicine')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('저장'));
     await tester.pumpAndSettle();
@@ -92,7 +124,9 @@ Future<void> _pumpScreen(WidgetTester tester, _FakePetNotifier notifier) async {
       ),
       GoRoute(
         path: '/routine',
-        builder: (_, _) => const Scaffold(body: Text('routine target')),
+        builder: (_, state) => Scaffold(
+          body: Text('routine target tab=${state.uri.queryParameters['tab']}'),
+        ),
       ),
     ],
   );

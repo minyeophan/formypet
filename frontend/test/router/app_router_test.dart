@@ -6,6 +6,7 @@ import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/routine.dart';
 import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
@@ -688,6 +689,46 @@ void main() {
     expect(find.text('루틴 추가'), findsOneWidget);
   });
 
+  testWidgets('/routine/:id opens routine detail with saved information', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/r1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        routines: const [
+          Routine(
+            id: 'r1',
+            petId: '1',
+            label: '심장약',
+            typeId: 'medicine',
+            repeatType: 'weekly',
+            times: ['08:30'],
+            days: [1, 3],
+            note: '식후 복용',
+            startDate: '2026-09-01',
+            endDate: '2026-12-31',
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('루틴 상세'), findsOneWidget);
+    expect(find.text('심장약'), findsOneWidget);
+    expect(find.text('투약'), findsOneWidget);
+    expect(find.text('2026년 9월 1일'), findsOneWidget);
+    expect(find.text('2026년 12월 31일'), findsOneWidget);
+    expect(find.text('매주 · 월, 수'), findsOneWidget);
+    expect(find.text('08:30'), findsOneWidget);
+    expect(find.text('식후 복용'), findsOneWidget);
+  });
+
   testWidgets('/routine/schedule/new opens schedule creation screen', (
     tester,
   ) async {
@@ -751,7 +792,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-info-row-date-time')),
-        matching: find.text('6월 17일 10:30 - 11:00'),
+        matching: find.text('2026년 6월 17일 10:30 - 11:00'),
       ),
       findsOneWidget,
     );
@@ -844,19 +885,18 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-info-row-date-time')),
-        matching: find.text('6월 17일 - 6월 19일 종일'),
+        matching: find.text('2026년 6월 17일 - 2026년 6월 19일 종일'),
       ),
       findsOneWidget,
     );
-    for (final rowKey in const [
-      'schedule-detail-info-row-place',
-      'schedule-detail-info-row-memo',
-    ]) {
-      expect(
-        find.descendant(of: find.byKey(Key(rowKey)), matching: find.text('-')),
-        findsOneWidget,
-      );
-    }
+    expect(
+      find.byKey(const Key('schedule-detail-info-row-place')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('schedule-detail-info-row-memo')),
+      findsNothing,
+    );
   });
 
   testWidgets('routine schedule card detail button opens detail route', (
@@ -1198,6 +1238,7 @@ PetState _petState({
   List<Pet> pets = const [],
   String? activePetId,
   List<ActivityRecord> records = const [],
+  List<Routine> routines = const [],
   List<CareSchedule> schedules = const [],
 }) => PetState(
   isLoading: isLoading,
@@ -1205,7 +1246,7 @@ PetState _petState({
   pets: pets,
   activePetId: activePetId,
   records: records,
-  routines: const [],
+  routines: routines,
   schedules: schedules,
   todayRoutineItems: const [],
   routineCompletions: const {},

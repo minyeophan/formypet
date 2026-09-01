@@ -79,6 +79,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('routine-item-r1')), findsOneWidget);
     expect(find.text('Morning walk'), findsOneWidget);
+    expect(find.text('진행 중인 루틴'), findsNothing);
   });
 
   testWidgets('saved schedules render on selected date and calendar dot', (
