@@ -7,9 +7,9 @@ spring:
       enabled: true
 
   datasource:
-    url: jdbc:mysql://localhost:3306/formypet?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: formypet
-    password: formypet123
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/formypet?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:formypet}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -38,7 +38,7 @@ app:
     timezone: Asia/Seoul
     scheduler-enabled: true
   jwt:
-    secret: "${JWT_SECRET:formypet-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
+    secret: "${JWT_SECRET}"
     access-token-expiration: 1800000    # 30분 (ms)
     refresh-token-expiration: 2592000000 # 30일 (ms)
 

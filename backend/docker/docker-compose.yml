@@ -3,10 +3,10 @@ services:
     image: mysql:8.0
     container_name: formypet-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-formypet}
       MYSQL_USER: ${MYSQL_USER:-formypet}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-formypet123}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       TZ: Asia/Seoul
     ports:
       - "3307:3306"

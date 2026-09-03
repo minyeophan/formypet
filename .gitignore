@@ -18,6 +18,9 @@ backend/.gradle/
 backend/build/
 backend/storage/
 backend/local.properties
+backend/.env
+backend/.env.*
+backend/src/main/resources/application-local.yml
 
 # Runtime uploaded files
 storage/

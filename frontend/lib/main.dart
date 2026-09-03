@@ -12,7 +12,11 @@ void main() async {
 
   final baseUrl = kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080';
   initApiClient(baseUrl);
-  await KakaoSdk.init(nativeAppKey: 'c5884b48709cf440cd9cf604168ba0cb');
+  const kakaoNativeAppKey = String.fromEnvironment('KAKAO_NATIVE_APP_KEY');
+  if (kakaoNativeAppKey.isEmpty) {
+    throw StateError('KAKAO_NATIVE_APP_KEY is not configured');
+  }
+  await KakaoSdk.init(nativeAppKey: kakaoNativeAppKey);
 
   runApp(const ProviderScope(child: FormypetApp()));
 }
