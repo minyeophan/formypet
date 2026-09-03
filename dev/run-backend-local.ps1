@@ -3,7 +3,6 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $envFile = Join-Path $repoRoot '.env'
 $composeFile = Join-Path $repoRoot 'backend/docker/docker-compose.yml'
-$localComposeFile = Join-Path $repoRoot 'backend/docker/docker-compose.local.yml'
 
 if (-not (Test-Path -LiteralPath $envFile)) {
     throw "Missing $envFile. Create it from the variables documented in backend/src/main/resources/application.yml."
@@ -23,7 +22,7 @@ function Import-DotEnv([string]$path) {
 }
 
 Import-DotEnv $envFile
-docker compose --env-file $envFile -f $composeFile -f $localComposeFile up -d mysql
+docker compose --env-file $envFile -f $composeFile up -d mysql
 
 $deadline = (Get-Date).AddSeconds(60)
 do {

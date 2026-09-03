@@ -1,8 +1,0 @@
-services:
-  mysql:
-    # Local test database only. Production should use the managed DB default.
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=+09:00
-      - --default-authentication-plugin=mysql_native_password
