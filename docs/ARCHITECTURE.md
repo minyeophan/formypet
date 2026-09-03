@@ -137,7 +137,7 @@ GoRouter
 ## 앱 시작 흐름
 ```
 main() → initApiClient() → runApp(ProviderScope)
-  → PetyilgiApp → routerProvider 생성
+  → FormypetApp → routerProvider 생성
     → PetNotifier._init()
       → SharedPreferences: hasOnboarded 확인
         → false: isLoading=false, /auth로 리다이렉트

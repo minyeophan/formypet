@@ -665,7 +665,7 @@ public abstract class BaseEntity {
 // Main 클래스에 활성화
 @EnableJpaAuditing
 @SpringBootApplication
-public class PetyilgiApplication { ... }
+public class FormypetApplication { ... }
 ```
 
 ---

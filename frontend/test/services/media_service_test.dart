@@ -177,7 +177,7 @@ void main() {
 }
 
 Future<File> _tempFile(String name) async {
-  final dir = await Directory.systemTemp.createTemp('petyilgi-media-test-');
+  final dir = await Directory.systemTemp.createTemp('formypet-media-test-');
   final file = File('${dir.path}${Platform.pathSeparator}$name');
   return file.writeAsBytes(utf8.encode('image'));
 }

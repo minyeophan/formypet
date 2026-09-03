@@ -1,15 +1,15 @@
 spring:
   application:
-    name: petyilgi
+    name: formypet
 
   threads:
     virtual:
       enabled: true
 
   datasource:
-    url: jdbc:mysql://localhost:3306/petyilgi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: petyilgi
-    password: petyilgi123
+    url: jdbc:mysql://localhost:3306/formypet?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: formypet
+    password: formypet123
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -38,7 +38,7 @@ app:
     timezone: Asia/Seoul
     scheduler-enabled: true
   jwt:
-    secret: "${JWT_SECRET:petyilgi-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
+    secret: "${JWT_SECRET:formypet-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
     access-token-expiration: 1800000    # 30분 (ms)
     refresh-token-expiration: 2592000000 # 30일 (ms)
 
@@ -55,7 +55,7 @@ logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   level:
-    com.petyilgi: DEBUG
+    com.formypet: DEBUG
     org.hibernate.SQL: DEBUG
     org.flywaydb: INFO
 

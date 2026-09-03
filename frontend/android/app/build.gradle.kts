@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.petyilgi.frontend"
+    namespace = "com.formypet.frontend"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID.
-        applicationId = "com.petyilgi.frontend"
+        applicationId = "com.formypet.frontend"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion

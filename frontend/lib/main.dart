@@ -14,17 +14,17 @@ void main() async {
   initApiClient(baseUrl);
   await KakaoSdk.init(nativeAppKey: 'c5884b48709cf440cd9cf604168ba0cb');
 
-  runApp(const ProviderScope(child: PetyilgiApp()));
+  runApp(const ProviderScope(child: FormypetApp()));
 }
 
-class PetyilgiApp extends ConsumerWidget {
-  const PetyilgiApp({super.key});
+class FormypetApp extends ConsumerWidget {
+  const FormypetApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'petyilgi',
+      title: '포마펫',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8A65)),

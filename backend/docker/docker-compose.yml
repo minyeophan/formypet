@@ -1,12 +1,12 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: petyilgi-mysql
+    container_name: formypet-mysql
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: petyilgi
-      MYSQL_USER: petyilgi
-      MYSQL_PASSWORD: petyilgi123
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-formypet}
+      MYSQL_USER: ${MYSQL_USER:-formypet}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-formypet123}
       TZ: Asia/Seoul
     ports:
       - "3307:3306"
@@ -18,7 +18,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --default-time-zone=+09:00
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "petyilgi", "-ppetyilgi123"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\""]
       interval: 10s
       timeout: 5s
       retries: 5
