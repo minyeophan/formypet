@@ -25,6 +25,14 @@ function Import-DotEnv([string]$path) {
 Import-DotEnv $envFile
 docker compose --env-file $envFile -f $composeFile -f $localComposeFile up -d mysql
 
+$deadline = (Get-Date).AddSeconds(60)
+do {
+    $health = docker inspect --format '{{.State.Health.Status}}' formypet-mysql 2>$null
+    if ($health -eq 'healthy') { break }
+    if ((Get-Date) -ge $deadline) { throw 'MySQL did not become healthy within 60 seconds.' }
+    Start-Sleep -Seconds 2
+} while ($true)
+
 Push-Location (Join-Path $repoRoot 'backend')
 try {
     .\gradlew.bat bootRun
