@@ -21,7 +21,7 @@ if ([string]::IsNullOrWhiteSpace($kakaoKey)) {
 
 Push-Location (Join-Path $repoRoot 'frontend')
 try {
-    flutter run --dart-define="KAKAO_NATIVE_APP_KEY=$kakaoKey"
+    flutter run -d chrome --dart-define="KAKAO_NATIVE_APP_KEY=$kakaoKey"
 }
 finally {
     Pop-Location
