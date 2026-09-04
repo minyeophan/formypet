@@ -507,7 +507,7 @@ void main() {
 
     await tester.tap(find.text('\uC804\uCCB4\uBCF4\uAE30'));
     await tester.pumpAndSettle();
-    expect(find.byType(ExpenseCalendarScreen), findsOneWidget);
+    expect(find.byType(ExpenseReportScreen), findsOneWidget);
   });
 
   testWidgets('wallet direct URL back buttons use wallet fallback', (

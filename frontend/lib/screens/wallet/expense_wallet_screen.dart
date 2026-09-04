@@ -64,6 +64,10 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
         : (_expensesByPet[_selectedPetId] ?? walletState.items);
     final selectedItems = petItems.where((item) => _selectedCategory == null || item.category == _selectedCategory).toList();
     final now = DateTime.now();
+    final monthlyTotal = selectedItems.where((item) {
+      final date = DateTime.tryParse(item.expenseDate);
+      return date != null && date.year == now.year && date.month == now.month;
+    }).fold<int>(0, (sum, item) => sum + item.amount);
     selectedItems.removeWhere((item) {
       final date = DateTime.tryParse(item.expenseDate);
       if (date == null || _totalPeriod == 'all') return false;
@@ -89,9 +93,14 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                     AppInlineHeader(
                       title: '\uC9D1\uC0AC\uC758 \uC9C0\uAC11',
                       onBack: () => _goBack(context),
+                      trailing: TextButton(
+                        onPressed: () => context.push('/wallet/report'),
+                        child: const Text('\uC804\uCCB4\uBCF4\uAE30'),
+                      ),
                     ),
                     const SizedBox(height: 18),
-                    AppUnderlineTabs(
+                    _WalletPetSelector(
+                      key: const Key('wallet-pet-selector'),
                       items: ['전체', ...pets.map((pet) => pet.name)],
                       selectedIndex: _selectedPetId == null
                           ? 0
@@ -108,26 +117,11 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                     ),
                     _WalletSummaryCard(
                       totalAmount: total,
+                      monthlyTotal: monthlyTotal,
                       budget: _monthlyBudget,
                       count: selectedItems.length,
                       isOverBudget: _monthlyBudget != null && total > _monthlyBudget!,
                       onBudgetTap: _editBudget,
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _totalPeriod,
-                          isDense: true,
-                          items: const [
-                            DropdownMenuItem(value: 'all', child: Text('전체 기간')),
-                            DropdownMenuItem(value: 'year', child: Text('올해 지출')),
-                            DropdownMenuItem(value: 'month', child: Text('이번 달 지출')),
-                          ],
-                          onChanged: (value) => setState(() => _totalPeriod = value ?? 'month'),
-                        ),
-                      ),
                     ),
                     if (walletState.isLoading) ...[
                       const SizedBox(height: 12),
@@ -141,24 +135,26 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                             .loadFirstPage(activePetId!),
                       ),
                     ],
-                    const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _WalletActionButton(
-                            label: '\uBE44\uC6A9 \uCD94\uAC00',
-                            onTap: () => context.push('/wallet/expenses/new'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 18),
                     Row(
                       children: [
                         const Expanded(child: AppText('\uCD5C\uADFC \uBE44\uC6A9', fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text)),
-                        TextButton(
-                          onPressed: () => context.push('/wallet/calendar'),
-                          child: const Text('\uC804\uCCB4\uBCF4\uAE30'),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _totalPeriod,
+                            isDense: true,
+                            selectedItemBuilder: (_) => const [
+                              Text('\uAE30\uAC04 \uC120\uD0DD'),
+                              Text('\uAE30\uAC04 \uC120\uD0DD'),
+                              Text('\uAE30\uAC04 \uC120\uD0DD'),
+                            ],
+                            items: const [
+                              DropdownMenuItem(value: 'all', child: Text('\uC804\uCCB4 \uAE30\uAC04')),
+                              DropdownMenuItem(value: 'year', child: Text('\uC62C\uD574 \uC9C0\uCD9C')),
+                              DropdownMenuItem(value: 'month', child: Text('\uC774\uBC88 \uB2EC \uC9C0\uCD9C')),
+                            ],
+                            onChanged: (value) => setState(() => _totalPeriod = value ?? 'all'),
+                          ),
                         ),
                       ],
                     ),
@@ -171,6 +167,11 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                     else
                       for (final expense in recent)
                         _ExpenseListRow(expense: expense),
+                    const SizedBox(height: 14),
+                    _WalletActionButton(
+                      label: '\uBE44\uC6A9 \uCD94\uAC00',
+                      onTap: () => context.push('/wallet/expenses/new'),
+                    ),
                   ],
                 ),
               ),
@@ -202,7 +203,15 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
         title: const Text('이번 달 예산'),
         content: TextField(controller: controller, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '금액을 입력해 주세요', suffixText: '원')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('건너뛰기')),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('건너뛰기'),
+          ),
           FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(controller.text.replaceAll(',', '').trim())), child: const Text('저장')),
         ],
       ),
@@ -215,14 +224,47 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
   }
 }
 
+class _WalletPetSelector extends StatelessWidget {
+  const _WalletPetSelector({super.key, required this.items, required this.selectedIndex, required this.onChanged});
+  final List<String> items;
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 44,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, index) => InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => onChanged(index),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 82),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: index == selectedIndex ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: index == selectedIndex ? AppColors.primary : AppColors.border),
+          ),
+          child: AppText(items[index], fontSize: 12, fontWeight: FontWeight.bold, color: index == selectedIndex ? AppColors.white : AppColors.text),
+        ),
+      ),
+    ),
+  );
+}
+
 class _WalletSummaryCard extends StatelessWidget {
   final int totalAmount;
+  final int monthlyTotal;
   final int? budget;
   final int count;
   final VoidCallback onBudgetTap;
   final bool isOverBudget;
 
-  const _WalletSummaryCard({required this.totalAmount, required this.budget, required this.count, required this.onBudgetTap, required this.isOverBudget});
+  const _WalletSummaryCard({required this.totalAmount, required this.monthlyTotal, required this.budget, required this.count, required this.onBudgetTap, required this.isOverBudget});
 
   @override
   Widget build(BuildContext context) {
@@ -246,13 +288,13 @@ class _WalletSummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: _SummaryValue(label: '\uC774\uBC88 \uB2EC \uC9C0\uCD9C', value: formatWon(totalAmount), accent: true)),
+                Expanded(child: _SummaryValue(label: '\uCD1D \uC9C0\uCD9C', value: formatWon(totalAmount), accent: true)),
                 Container(width: 1, height: 58, color: AppColors.border),
-                Expanded(child: _SummaryValue(label: '\uC774\uBC88 \uB2EC \uC608\uC0B0', value: budget == null ? '\uBBF8\uC124\uC815' : formatWon(budget!), accent: false)),
+                Expanded(child: _SummaryValue(label: '\uC774\uBC88 \uB2EC', value: formatWon(monthlyTotal), accent: false)),
               ],
             ),
             const SizedBox(height: 10),
-            Center(child: AppText('$count\uAC74 · \uC608\uC0B0\uC744 \uB204\uB974\uBA74 \uC124\uC815\uD560 \uC218 \uC788\uC5B4\uC694', fontSize: 11, color: AppColors.textSecondary)),
+            Center(child: AppText(budget == null ? '$count\uAC74 · \uC608\uC0B0\uC744 \uB204\uB974\uBA74 \uC124\uC815\uD560 \uC218 \uC788\uC5B4\uC694' : '\uC6D4 \uC608\uC0B0 ${formatWon(budget!)}', fontSize: 11, color: AppColors.textSecondary)),
             if (isOverBudget) ...[
               const SizedBox(height: 6),
               const Center(child: AppText('\uC608\uC0B0\uC744 \uCD08\uACFC\uD588\uC5B4\uC694', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text)),
@@ -394,11 +436,7 @@ class _ExpenseListRowState extends State<_ExpenseListRow> {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
+                child: Text(_walletExpenseEmoji(expense.category), style: const TextStyle(fontSize: 22)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -415,7 +453,7 @@ class _ExpenseListRowState extends State<_ExpenseListRow> {
                     ),
                     const SizedBox(height: 3),
                     AppText(
-                      '${expense.expenseDate} · ${walletExpenseCategoryLabel(expense)}',
+                      expense.expenseDate,
                       fontSize: 11,
                       color: AppColors.textSecondary,
                       maxLines: 1,
@@ -474,3 +512,12 @@ void _goBack(BuildContext context) {
   }
   context.go('/home');
 }
+
+String _walletExpenseEmoji(String category) => switch (category) {
+  'food' => '🍚',
+  'snack' => '🦴',
+  'vet' || 'hospital' => '🏥',
+  'medicine' || 'medication' => '💊',
+  'grooming' => '✂️',
+  _ => '🧾',
+};
