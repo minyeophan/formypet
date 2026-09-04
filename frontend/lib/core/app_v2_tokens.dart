@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppV2Tokens {
+  static const brandMint = Color(0xFF70D8C8);
+  static const actionMint = Color(0xFF167D70);
   static const background = Color(0xFFFFFFFF);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceSoft = Color(0xFFF5F6F5);

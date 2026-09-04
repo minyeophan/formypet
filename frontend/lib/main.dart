@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import 'core/api_client.dart';
+import 'core/app_theme.dart';
 import 'router/app_router.dart';
 
 void main() async {
@@ -30,10 +31,8 @@ class FormypetApp extends ConsumerWidget {
     return MaterialApp.router(
       title: '포마펫',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8A65)),
-        textTheme: GoogleFonts.notoSansKrTextTheme(Theme.of(context).textTheme),
-        useMaterial3: true,
+      theme: buildAppTheme().copyWith(
+        textTheme: GoogleFonts.notoSansKrTextTheme(),
       ),
       routerConfig: router,
     );

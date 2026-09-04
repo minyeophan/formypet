@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
+import '../../widgets/brand_logo.dart';
+
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color(0xFFF7F4ED),
+      backgroundColor: AppColors.brandMint,
       body: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: Color(0xFFF4A460),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            BrandLogo(size: 168),
+            SizedBox(height: 16),
+            Text(
+              '포마펫',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
     );

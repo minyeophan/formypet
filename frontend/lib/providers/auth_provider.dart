@@ -66,6 +66,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _setAuthenticated(UserProfile profile) async {
     await _petNotifier?.loadForAuthenticatedUser();
+    if (!mounted) return;
     state = AuthState(
       isLoading: false,
       isAuthenticated: true,
@@ -93,8 +94,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final profile = await _svc.login(email: email, password: password);
+      if (!mounted) return;
       await _setAuthenticated(profile);
     } catch (_) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false);
       rethrow;
     }
@@ -104,6 +107,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final profile = await _svc.loginWithKakao();
+      if (!mounted) return false;
       if (profile == null) {
         state = state.copyWith(isLoading: false);
         return false;
@@ -111,6 +115,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _setAuthenticated(profile);
       return true;
     } catch (_) {
+      if (!mounted) return false;
       state = state.copyWith(isLoading: false);
       rethrow;
     }
@@ -128,8 +133,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
         nickname: nickname,
       );
+      if (!mounted) return;
       await _setAuthenticated(profile);
     } catch (_) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false);
       rethrow;
     }

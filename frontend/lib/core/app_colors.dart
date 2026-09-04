@@ -6,6 +6,8 @@ class AppColors {
   const AppColors._();
 
   static const background = AppV2Tokens.background;
+  static const brandMint = AppV2Tokens.brandMint;
+  static const actionMint = AppV2Tokens.actionMint;
   static const surface = AppV2Tokens.surface;
   static const surfaceSoft = AppV2Tokens.surfaceSoft;
   static const primary = AppV2Tokens.primary;
