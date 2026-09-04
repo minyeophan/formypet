@@ -33,6 +33,7 @@ dependencies {
     runtimeOnly  'com.mysql:mysql-connector-j:8.4.0'
     implementation 'org.hibernate.orm:hibernate-spatial'
     implementation 'org.flywaydb:flyway-mysql'
+    implementation 'com.google.firebase:firebase-admin:9.5.0'
 
     // ── API Docs ──────────────────────────────────────────
     // JWT

@@ -5,6 +5,7 @@ import '../core/secure_storage.dart';
 import '../models/user_profile.dart';
 import 'pet_provider.dart';
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 
 class AuthState {
   final bool isLoading;
@@ -66,6 +67,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _setAuthenticated(UserProfile profile) async {
     await _petNotifier?.loadForAuthenticatedUser();
+    try {
+      await PushNotificationService.instance.registerDeviceToken();
+    } catch (error) {
+      debugPrint('Failed to register FCM device token: $error');
+    }
     if (!mounted) return;
     state = AuthState(
       isLoading: false,
@@ -162,6 +168,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final authenticatedState = state;
     state = state.copyWith(isLoading: true);
     try {
+      try {
+        await PushNotificationService.instance.disableDeviceToken();
+      } catch (error) {
+        debugPrint('Failed to disable FCM device token: $error');
+      }
       await _svc.logout();
     } catch (_) {
       state = authenticatedState;

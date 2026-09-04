@@ -40,6 +40,10 @@ frontend/*.log
 frontend/*.err.log
 frontend/devtools_options.yaml
 
+# Firebase platform configuration (keep credentials out of Git)
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+
 # Flutter build outputs
 frontend/build/
 frontend/android/build/
@@ -72,3 +76,6 @@ docs/api-screen-inventory.md
 backend/bin/
 TODOS.md
 gstack/
+
+# Firebase Admin service account (keep secrets out of Git)
+backend/firebase-service-account.json
