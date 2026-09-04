@@ -88,6 +88,14 @@ class PetPhotoUpload {
   const PetPhotoUpload({required this.bytes, required this.filename});
 }
 
+/// Profile fields are persisted; callers must retry this pet, not create another.
+class PetPhotoSaveException implements Exception {
+  final String petId;
+  const PetPhotoSaveException(this.petId);
+  @override
+  String toString() => '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.';
+}
+
 class RecordPhotoUpload {
   final Uint8List bytes;
   final String filename;
@@ -332,7 +340,7 @@ class PetNotifier extends StateNotifier<PetState> {
     final pet = await _petSvc.createPet(body);
     state = PetState(
       isLoading: false,
-      hasOnboarded: true,
+      hasOnboarded: state.hasOnboarded,
       pets: [...state.pets, pet],
       activePetId: pet.id,
       records: const [],
@@ -343,12 +351,18 @@ class PetNotifier extends StateNotifier<PetState> {
       quickTypeIds: state.quickTypeIds,
     );
     if (photo != null) {
-      final savedPet = await _uploadPhoto(pet, photo);
+      final savedPet = await _uploadSavedPetPhoto(pet, photo);
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == pet.id ? savedPet : p).toList(),
       );
     }
-    await _loadPetData(pet.id);
+    try {
+      await _loadPetData(pet.id);
+    } catch (error) {
+      // Creation already succeeded; a refresh failure must not invite duplication.
+      debugPrint('Failed to refresh new pet data: $error');
+    }
+    state = state.copyWith(hasOnboarded: true);
   }
 
   Future<void> updatePet(
@@ -361,10 +375,19 @@ class PetNotifier extends StateNotifier<PetState> {
       pets: state.pets.map((p) => p.id == petId ? updated : p).toList(),
     );
     if (photo != null) {
-      final savedPet = await _uploadPhoto(updated, photo);
+      final savedPet = await _uploadSavedPetPhoto(updated, photo);
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == petId ? savedPet : p).toList(),
       );
+    }
+    state = state.copyWith(hasOnboarded: true);
+  }
+
+  Future<Pet> _uploadSavedPetPhoto(Pet pet, PetPhotoUpload photo) async {
+    try {
+      return await _uploadPhoto(pet, photo);
+    } catch (_) {
+      throw PetPhotoSaveException(pet.id);
     }
   }
 

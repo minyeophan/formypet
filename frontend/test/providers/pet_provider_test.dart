@@ -535,58 +535,55 @@ void main() {
     expect(notifier.state.quickTypeIds, const ['meal', 'water']);
   });
 
-  test('stored quick types remove only removed values and persist migration', () async {
-    SharedPreferences.setMockInitialValues({
-      'quickTypeIds': [
-        'meal',
-        'bath',
-        'unknown',
-        'meal',
-        'groom',
-      ],
-    });
-    final notifier = PetNotifier(
-      _FakePetService(pets: const []),
-      _FakeRecordService(),
-      _FakeRoutineService(),
-    );
+  test(
+    'stored quick types remove only removed values and persist migration',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'quickTypeIds': ['meal', 'bath', 'unknown', 'meal', 'groom'],
+      });
+      final notifier = PetNotifier(
+        _FakePetService(pets: const []),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+      );
 
-    await notifier.loadForAuthenticatedUser();
+      await notifier.loadForAuthenticatedUser();
 
-    const expected = ['meal', 'unknown', 'meal'];
-    expect(notifier.state.quickTypeIds, expected);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList('quickTypeIds'), expected);
-  });
+      const expected = ['meal', 'unknown', 'meal'];
+      expect(notifier.state.quickTypeIds, expected);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList('quickTypeIds'), expected);
+    },
+  );
 
-  test('test quick type loader removes only removed values before state update', () async {
-    final notifier = PetNotifier.testWithServices(
-      PetState(
-        isLoading: true,
-        hasOnboarded: false,
-        pets: const [],
-        records: const [],
-        routines: const [],
-        schedules: const [],
-        todayRoutineItems: const [],
-        routineCompletions: const {},
-        quickTypeIds: const [],
-      ),
-      quickTypeIdsLoader: () async => const [
-        'bath',
-        'unknown',
-        'bath',
-        'groom',
-      ],
-    );
+  test(
+    'test quick type loader removes only removed values before state update',
+    () async {
+      final notifier = PetNotifier.testWithServices(
+        PetState(
+          isLoading: true,
+          hasOnboarded: false,
+          pets: const [],
+          records: const [],
+          routines: const [],
+          schedules: const [],
+          todayRoutineItems: const [],
+          routineCompletions: const {},
+          quickTypeIds: const [],
+        ),
+        quickTypeIdsLoader: () async => const [
+          'bath',
+          'unknown',
+          'bath',
+          'groom',
+        ],
+      );
 
-    await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(
-      notifier.state.quickTypeIds,
-      const ['unknown'],
-    );
-  });
+      expect(notifier.state.quickTypeIds, const ['unknown']);
+    },
+  );
 
   test('setQuickTypeIds removes only removed values before saving', () async {
     final notifier = PetNotifier.test(
@@ -751,6 +748,76 @@ void main() {
     },
   );
 
+  test(
+    'failed photo keeps created pet without completing onboarding',
+    () async {
+      final notifier = PetNotifier(
+        _FakePetService(pets: [], createdPet: _pet('2')),
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        _FailingPetPhotoService(),
+      );
+      await expectLater(
+        notifier.addPet(
+          {'name': 'Bori'},
+          photo: PetPhotoUpload(
+            bytes: Uint8List.fromList([1]),
+            filename: 'pet.png',
+          ),
+        ),
+        throwsA(predicate((e) => e.toString().contains('사진'))),
+      );
+      expect(notifier.state.pets.single.id, '2');
+      expect(notifier.state.hasOnboarded, isFalse);
+    },
+  );
+
+  test(
+    'retrying saved pet photo completes onboarding without another create',
+    () async {
+      final service = _FakePetService(pets: [], createdPet: _pet('2'));
+      final media = _FailingPetPhotoService();
+      final notifier = PetNotifier(
+        service,
+        _FakeRecordService(),
+        _FakeRoutineService(),
+        media,
+      );
+      final photo = PetPhotoUpload(
+        bytes: Uint8List.fromList([1]),
+        filename: 'pet.png',
+      );
+      await expectLater(
+        notifier.addPet({'name': 'Bori'}, photo: photo),
+        throwsA(isA<PetPhotoSaveException>()),
+      );
+      media.fail = false;
+      await notifier.updatePet('2', {
+        'name': 'Bori',
+        'species': 'dog',
+      }, photo: photo);
+      expect(service.createCount, 1);
+      expect(service.updatedPetIds, ['2']);
+      expect(notifier.state.hasOnboarded, isTrue);
+      expect(notifier.state.pets.single.profileImageUrl, '/api/v1/media/retry');
+    },
+  );
+
+  test(
+    'new pet refresh failure does not turn saved creation into a failed save',
+    () async {
+      final records = _FakeRecordService()..failPetIds.add('2');
+      final notifier = PetNotifier(
+        _FakePetService(pets: [], createdPet: _pet('2')),
+        records,
+        _FakeRoutineService(),
+      );
+      await notifier.addPet({'name': 'Bori'});
+      expect(notifier.state.pets.single.id, '2');
+      expect(notifier.state.hasOnboarded, isTrue);
+    },
+  );
+
   test('deletePet clears onboarding after deleting the last pet', () async {
     final pet = _pet('1');
     final petService = _FakePetService(pets: [pet]);
@@ -905,17 +972,40 @@ class _FakePetService extends PetService {
   List<Pet> pets;
   final Pet? createdPet;
   final deletedPetIds = <String>[];
+  int createCount = 0;
+  final updatedPetIds = <String>[];
 
   @override
   Future<List<Pet>> getPets() async => pets;
 
   @override
-  Future<Pet> createPet(Map<String, dynamic> body) async =>
-      createdPet ?? _pet('created');
+  Future<Pet> createPet(Map<String, dynamic> body) async {
+    createCount++;
+    return createdPet ?? _pet('created');
+  }
+
+  @override
+  Future<Pet> updatePet(String petId, Map<String, dynamic> body) async {
+    updatedPetIds.add(petId);
+    return Pet.fromJson({'id': petId, ...body});
+  }
 
   @override
   Future<void> deletePet(String petId) async {
     deletedPetIds.add(petId);
+  }
+}
+
+class _FailingPetPhotoService extends MediaService {
+  bool fail = true;
+  @override
+  Future<String> uploadPetPhoto({
+    required String petId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    if (fail) throw Exception('upload unavailable');
+    return '/api/v1/media/retry';
   }
 }
 

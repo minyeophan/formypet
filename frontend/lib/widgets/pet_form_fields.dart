@@ -91,7 +91,7 @@ class PetTextField extends StatelessWidget {
             ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.white,
+            fillColor: AppColors.surfaceSoft,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 13,
@@ -144,7 +144,7 @@ class PetDateField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.white,
+          color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
@@ -208,7 +208,7 @@ class PetPickerField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.surface,
+          color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -250,6 +250,7 @@ class PetPickerField extends StatelessWidget {
 }
 
 class PetChoiceButton extends StatelessWidget {
+  final Widget? leading;
   final String label;
   final bool selected;
   final VoidCallback? onTap;
@@ -258,6 +259,7 @@ class PetChoiceButton extends StatelessWidget {
 
   const PetChoiceButton({
     super.key,
+    this.leading,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -270,13 +272,13 @@ class PetChoiceButton extends StatelessWidget {
     final textColor = enabled ? AppColors.text : AppColors.muted;
     final minHeight = dense ? 44.0 : 48.0;
     final minWidth = dense ? 0.0 : 74.0;
-    final horizontalPadding = dense ? 8.0 : 14.0;
+    final horizontalPadding = leading != null ? 6.0 : (dense ? 8.0 : 14.0);
     final verticalPadding = dense ? 10.0 : 11.0;
     final fontSize = dense ? 12.0 : 14.0;
     return Opacity(
       opacity: enabled ? 1 : 0.56,
       child: Material(
-        color: selected ? AppColors.surfaceSoft : AppColors.surface,
+        color: selected ? AppColors.primary : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -293,18 +295,25 @@ class PetChoiceButton extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: selected ? AppColors.text : AppColors.border,
-                width: selected ? 1.4 : 1,
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1,
               ),
             ),
             alignment: Alignment.center,
-            child: AppText(
-              label,
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: selected ? AppColors.text : textColor,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (leading != null) ...[leading!, const SizedBox(height: 4)],
+                AppText(
+                  label,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? AppColors.white : textColor,
+                  textAlign: TextAlign.center,
+                  maxLines: leading == null ? 1 : null,
+                  overflow: leading == null ? TextOverflow.ellipsis : null,
+                ),
+              ],
             ),
           ),
         ),

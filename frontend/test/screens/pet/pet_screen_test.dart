@@ -148,6 +148,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await _expandExtra(tester);
     final identity = find.byKey(const Key('pet-edit-identity-section'));
     final profile = find.byKey(const Key('pet-edit-profile-section'));
     final extra = find.byKey(const Key('pet-edit-extra-section'));
@@ -156,7 +157,7 @@ void main() {
     expect(profile, findsOneWidget);
     expect(extra, findsOneWidget);
     expect(_inside(identity, '이름'), findsOneWidget);
-    expect(_inside(identity, '종'), findsOneWidget);
+    expect(_inside(identity, '동물 종류'), findsOneWidget);
     expect(_inside(identity, '품종/하위종'), findsOneWidget);
     expect(_inside(profile, '생년월일'), findsOneWidget);
     expect(_inside(profile, '함께한 날'), findsOneWidget);
@@ -178,6 +179,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await _expandExtra(tester);
     final identity = find.byKey(const Key('pet-edit-identity-section'));
     final profile = find.byKey(const Key('pet-edit-profile-section'));
     final extra = find.byKey(const Key('pet-edit-extra-section'));
@@ -288,7 +290,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('pet-edit-save-button')), findsNothing);
-    expect(find.text('수정 완료'), findsOneWidget);
+    expect(find.text('저장'), findsOneWidget);
     expect(find.text('색상'), findsNothing);
 
     await _tapSave(tester);
@@ -306,7 +308,7 @@ void main() {
     expect(notifier.updatedBody?['bgLight'], '#FFF8F0');
   });
 
-  testWidgets('male pet with existing null defaults neutered to incomplete', (
+  testWidgets('male pet with unknown neutering stays unselected', (
     tester,
   ) async {
     final notifier = _UpdatePetNotifier(
@@ -316,11 +318,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final incomplete = _choiceInProfile(tester, '미완료');
-    expect(incomplete.selected, isTrue);
+    expect(incomplete.selected, isFalse);
     expect(incomplete.enabled, isTrue);
 
     await _tapSave(tester);
-    expect(notifier.updatedBody?['neutered'], false);
+    expect(notifier.updatedBody?['neutered'], isNull);
   });
 
   testWidgets('male neutered selection is reflected in update payload', (
@@ -338,25 +340,23 @@ void main() {
     expect(notifier.updatedBody?['neutered'], true);
   });
 
-  testWidgets(
-    'female or unspecified gender disables neutered and preserves existing value',
-    (tester) async {
-      final notifier = _UpdatePetNotifier(
-        _state(pets: [_pet('1', gender: 'female', neutered: true)]),
-      );
-      await _pump(tester, const PetEditScreen(petId: '1'), notifier);
-      await tester.pumpAndSettle();
+  testWidgets('female pet can change neutered selection', (tester) async {
+    final notifier = _UpdatePetNotifier(
+      _state(pets: [_pet('1', gender: 'female', neutered: true)]),
+    );
+    await _pump(tester, const PetEditScreen(petId: '1'), notifier);
+    await tester.pumpAndSettle();
 
-      final complete = _choiceInProfile(tester, '완료');
-      final incomplete = _choiceInProfile(tester, '미완료');
-      expect(complete.selected, isTrue);
-      expect(complete.enabled, isFalse);
-      expect(incomplete.enabled, isFalse);
+    final complete = _choiceInProfile(tester, '완료');
+    final incomplete = _choiceInProfile(tester, '미완료');
+    expect(complete.selected, isTrue);
+    expect(complete.enabled, isTrue);
+    expect(incomplete.enabled, isTrue);
 
-      await _tapSave(tester);
-      expect(notifier.updatedBody?['neutered'], true);
-    },
-  );
+    await _tapChoiceInProfile(tester, '미완료');
+    await _tapSave(tester);
+    expect(notifier.updatedBody?['neutered'], false);
+  });
 
   testWidgets(
     'unspecified gender with existing null keeps neutered absent from payload',
@@ -371,31 +371,30 @@ void main() {
       final incomplete = _choiceInProfile(tester, '미완료');
       expect(complete.selected, isFalse);
       expect(incomplete.selected, isFalse);
-      expect(complete.enabled, isFalse);
-      expect(incomplete.enabled, isFalse);
+      expect(complete.enabled, isTrue);
+      expect(incomplete.enabled, isTrue);
 
       await _tapSave(tester);
       expect(notifier.updatedBody, isNot(contains('neutered')));
     },
   );
 
-  testWidgets(
-    'switching from male edit to female preserves original neutered value',
-    (tester) async {
-      final notifier = _UpdatePetNotifier(
-        _state(pets: [_pet('1', gender: 'male', neutered: false)]),
-      );
-      await _pump(tester, const PetEditScreen(petId: '1'), notifier);
-      await tester.pumpAndSettle();
+  testWidgets('switching gender preserves the users new neutered selection', (
+    tester,
+  ) async {
+    final notifier = _UpdatePetNotifier(
+      _state(pets: [_pet('1', gender: 'male', neutered: false)]),
+    );
+    await _pump(tester, const PetEditScreen(petId: '1'), notifier);
+    await tester.pumpAndSettle();
 
-      await _tapChoiceInProfile(tester, '완료');
-      await _tapChoiceInProfile(tester, '여아');
-      await _tapSave(tester);
+    await _tapChoiceInProfile(tester, '완료');
+    await _tapChoiceInProfile(tester, '여아');
+    await _tapSave(tester);
 
-      expect(notifier.updatedBody?['gender'], 'female');
-      expect(notifier.updatedBody?['neutered'], false);
-    },
-  );
+    expect(notifier.updatedBody?['gender'], 'female');
+    expect(notifier.updatedBody?['neutered'], true);
+  });
 
   testWidgets('pet edit sends birthDateUnknown when user marks unknown', (
     tester,
@@ -435,6 +434,7 @@ void main() {
     await _pump(tester, const PetEditScreen(petId: '1'), notifier);
     await tester.pumpAndSettle();
 
+    await _expandExtra(tester);
     await tester.scrollUntilVisible(
       find.text('질병'),
       260,
@@ -531,6 +531,13 @@ void main() {
   });
 }
 
+Future<void> _expandExtra(WidgetTester tester) async {
+  final toggle = find.text('추가 정보 (선택)');
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
+
 Finder _inside(Finder parent, String text) =>
     find.descendant(of: parent, matching: find.text(text));
 
@@ -554,7 +561,7 @@ Future<void> _tapChoiceInProfile(WidgetTester tester, String label) async {
 }
 
 Future<void> _tapSave(WidgetTester tester) async {
-  final button = find.widgetWithText(ElevatedButton, '수정 완료');
+  final button = find.widgetWithText(ElevatedButton, '저장');
   await tester.ensureVisible(button);
   await tester.tap(button);
   await tester.pumpAndSettle();
