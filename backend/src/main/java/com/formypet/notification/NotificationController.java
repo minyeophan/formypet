@@ -5,7 +5,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 @RestController @RequestMapping("/api/v1/notifications") @RequiredArgsConstructor
 @Tag(name="Notifications", description="알림 및 예약 알림 설정 API")
 @SecurityRequirement(name="bearerAuth")
-public class NotificationController { private final NotificationService service;
+public class NotificationController { private final NotificationService service; private final DeviceTokenService deviceTokens;
+ @Operation(summary="Register an FCM device token")
+ @PostMapping("/device-tokens") public ApiResponse<Void> registerToken(@AuthenticationPrincipal String e,@Valid @RequestBody DeviceTokenRequest request){deviceTokens.register(e,request);return ApiResponse.empty();}
+ @Operation(summary="Disable an FCM device token")
+ @DeleteMapping("/device-tokens") public ApiResponse<Void> disableToken(@AuthenticationPrincipal String e,@RequestParam String token){deviceTokens.disable(e,token);return ApiResponse.empty();}
  @Operation(summary="내 예약 알림 설정 조회")
  @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="200", description="설정 조회 성공")
  @GetMapping("/settings") public ApiResponse<NotificationSettingsResponse> settings(@AuthenticationPrincipal String e){return ApiResponse.of(service.getSettings(e));}

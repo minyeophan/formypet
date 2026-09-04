@@ -34,6 +34,8 @@ spring:
     baseline-on-migrate: false
 
 app:
+  firebase:
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
   notification:
     interval-ms: 60000
     lookback-minutes: 1

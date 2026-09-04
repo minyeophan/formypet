@@ -7,12 +7,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.MulticastMessage;
 
 @Service @RequiredArgsConstructor
 public class NotificationService {
+ private static final Logger log=LoggerFactory.getLogger(NotificationService.class);
  private final JdbcTemplate jdbc; private final UserRepository users;
  private static final String AGE="created_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)";
  @Transactional public void create(Long recipient,Long actor,String nickname,NotificationType type,Long post,Long comment){
@@ -21,7 +27,20 @@ public class NotificationService {
  }
  @Transactional public void createReminder(Long recipient,NotificationType type,String sourceType,Long sourceId,LocalDateTime scheduledFor,String title,String body){
   if(recipient==null)return;
-  jdbc.update("INSERT IGNORE INTO notifications (recipient_user_id,type,title,body,source_type,source_id,scheduled_for,created_at) VALUES (?,?,?,?,?,?,?,?)",recipient,type.name(),title,body,sourceType,sourceId,scheduledFor,LocalDateTime.now());
+  int inserted=jdbc.update("INSERT IGNORE INTO notifications (recipient_user_id,type,title,body,source_type,source_id,scheduled_for,created_at) VALUES (?,?,?,?,?,?,?,?)",recipient,type.name(),title,body,sourceType,sourceId,scheduledFor,LocalDateTime.now());
+  if (inserted == 1) sendPush(recipient, type, sourceId, title, body);
+ }
+ private void sendPush(Long recipient, NotificationType type, Long sourceId, String title, String body) {
+  if (FirebaseApp.getApps().isEmpty()) return;
+  List<String> tokens=jdbc.queryForList("SELECT token FROM device_tokens WHERE user_id=? AND enabled=TRUE",String.class,recipient);
+  if (tokens.isEmpty()) return;
+  try {
+   MulticastMessage message=MulticastMessage.builder().addAllTokens(tokens)
+     .setNotification(com.google.firebase.messaging.Notification.builder().setTitle(title).setBody(body).build())
+     .putData("type",type.name()).putData("sourceId",Objects.toString(sourceId, ""))
+     .putData("route", type == NotificationType.CARE_SCHEDULE_REMINDER ? "/routine/schedule/"+sourceId : "/routine/"+sourceId).build();
+   FirebaseMessaging.getInstance().sendEachForMulticast(message);
+  } catch (Exception error) { log.warn("FCM push failed for user {}", recipient, error); }
  }
  @Transactional(readOnly=true) public NotificationSettingsResponse getSettings(String email){
   Boolean enabled=jdbc.queryForObject("SELECT notification_enabled FROM users WHERE email=?",Boolean.class,email);
