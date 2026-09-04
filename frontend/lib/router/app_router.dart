@@ -28,6 +28,7 @@ import '../screens/community/community_comments_screen.dart';
 import '../screens/community/community_constants.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
+import '../screens/community/community_search_screen.dart';
 import '../screens/community/write_screen.dart';
 import '../models/post.dart';
 import '../screens/pet/pet_detail_screen.dart';
@@ -127,6 +128,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
+          ),
+          GoRoute(
+            path: '/community/search',
+            builder: (c, s) => const CommunitySearchScreen(),
           ),
           GoRoute(
             path: '/community/category/:category',

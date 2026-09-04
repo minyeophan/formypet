@@ -249,7 +249,7 @@ class _CommunityHeader extends StatelessWidget {
           key: const Key('community-search-button'),
           icon: Icons.search_rounded,
           tooltip: '검색',
-          onTap: () => showPreparingToast(context),
+          onTap: () => context.push('/community/search'),
         ),
         _CommunityHeaderButton(
           key: const Key('community-notification-button'),
