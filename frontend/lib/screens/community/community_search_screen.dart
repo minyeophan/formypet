@@ -21,6 +21,7 @@ class _CommunitySearchScreenState extends State<CommunitySearchScreen> {
   bool _loading = false;
   String? _error;
   bool _searched = false;
+  String? _lastKeyword;
 
   @override
   void dispose() {
@@ -29,6 +30,7 @@ class _CommunitySearchScreenState extends State<CommunitySearchScreen> {
   }
 
   Future<void> _search() async {
+    if (_loading) return;
     final keyword = _controller.text.trim();
     if (keyword.length < 2 || keyword.length > 20) {
       setState(() => _error = '검색어는 2~20자로 입력해 주세요.');
@@ -38,6 +40,8 @@ class _CommunitySearchScreenState extends State<CommunitySearchScreen> {
       _loading = true;
       _error = null;
       _searched = true;
+      _lastKeyword = keyword;
+      _posts = const [];
     });
     try {
       final result = await _service.getFeed(keyword: keyword, limit: 50);
@@ -74,15 +78,34 @@ class _CommunitySearchScreenState extends State<CommunitySearchScreen> {
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: IconButton(
                   tooltip: '검색어 지우기',
-                  onPressed: _controller.clear,
+                  onPressed: () {
+                    _controller.clear();
+                    setState(() {
+                      _posts = const [];
+                      _error = null;
+                      _searched = false;
+                      _lastKeyword = null;
+                    });
+                  },
                   icon: const Icon(Icons.close_rounded),
                 ),
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('community-search-submit-button'),
+                onPressed: _loading ? null : _search,
+                child: const Text('검색'),
               ),
             ),
           ),
@@ -95,7 +118,20 @@ class _CommunitySearchScreenState extends State<CommunitySearchScreen> {
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
-      return Center(child: Text(_error!));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              key: const Key('community-search-retry-button'),
+              onPressed: _lastKeyword == null ? null : _search,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
     }
     if (_searched && _posts.isEmpty) {
       return const Center(child: Text('검색 결과가 없어요.'));
