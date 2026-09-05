@@ -47,8 +47,14 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
         if (!snapshot.hasData) {
           return const _ExpenseNotFoundScreen();
         }
+        final matchingPets = ref
+            .read(petProvider)
+            .pets
+            .where((pet) => pet.id == petId)
+            .toList();
         return _ExpenseDetailBody(
           expense: snapshot.data!,
+          petName: matchingPets.isEmpty ? null : matchingPets.first.name,
           deleting: _deleting,
           errorText: _errorText,
           onDelete: _deleting ? null : _confirmDelete,
@@ -141,12 +147,14 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
 
 class _ExpenseDetailBody extends StatelessWidget {
   final WalletExpense expense;
+  final String? petName;
   final bool deleting;
   final String? errorText;
   final ValueChanged<WalletExpense>? onDelete;
 
   const _ExpenseDetailBody({
     required this.expense,
+    required this.petName,
     required this.deleting,
     required this.errorText,
     required this.onDelete,
@@ -212,6 +220,11 @@ class _ExpenseDetailBody extends StatelessWidget {
                     child: Column(
                       children: [
                         _ValueRow(
+                          key: const Key('expense-detail-pet-row'),
+                          label: '반려동물',
+                          value: petName ?? '-',
+                        ),
+                        _ValueRow(
                           label: '\uAE08\uC561',
                           value: walletExpenseAmountLabel(expense),
                         ),
@@ -219,13 +232,14 @@ class _ExpenseDetailBody extends StatelessWidget {
                           label: '\uCE74\uD14C\uACE0\uB9AC',
                           value: walletExpenseCategoryLabel(expense),
                         ),
-                        if (itemName != null && itemName.isNotEmpty)
-                          _ValueRow(
-                            label: '\uD488\uBAA9\uBA85',
-                            value: itemName,
-                          ),
-                        if (note != null && note.isNotEmpty)
-                          _ValueRow(label: '\uBA54\uBAA8', value: note),
+                        _ValueRow(
+                          label: '\uD488\uBAA9\uBA85',
+                          value: itemName?.isNotEmpty == true ? itemName! : '-',
+                        ),
+                        _ValueRow(
+                          label: '\uBA54\uBAA8',
+                          value: note?.isNotEmpty == true ? note! : '-',
+                        ),
                       ],
                     ),
                   ),
@@ -339,7 +353,7 @@ class _ValueRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _ValueRow({required this.label, required this.value});
+  const _ValueRow({super.key, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
