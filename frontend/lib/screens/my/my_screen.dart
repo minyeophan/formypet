@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
-import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
@@ -18,9 +17,6 @@ class MyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final petState = ref.watch(petProvider);
-    final representativePet = petState.activePet ?? petState.pets.firstOrNull;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeader(
@@ -43,11 +39,6 @@ class MyScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _MyPetsSection(
-                    pet: representativePet,
-                    isLoading: petState.isLoading,
-                    onViewAll: () => context.push('/my/pets'),
-                  ),
                   for (final group in _menuGroups) _MenuGroup(group: group),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -517,6 +508,11 @@ const _menuGroups = [
         label: '내 프로필 편집',
         icon: Icons.person_outline_rounded,
         route: '/my/profile',
+      ),
+      _MyMenuItem(
+        label: '반려동물 관리',
+        icon: Icons.pets_outlined,
+        route: '/my/pets',
       ),
       _MyMenuItem(label: '공동집사 관리', icon: Icons.group_outlined),
     ],
