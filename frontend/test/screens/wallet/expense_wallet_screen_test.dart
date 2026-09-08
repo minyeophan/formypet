@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' show SemanticsAction, Tristate;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
+import 'package:frontend/providers/wallet_query_provider.dart';
 import 'package:frontend/screens/wallet/expense_report_screen.dart';
 import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
@@ -31,7 +32,7 @@ void main() {
     expect(find.text('35,000\uC6D0'), findsOneWidget);
     expect(find.text('\uAC04\uC2DD'), findsWidgets);
     expect(find.byKey(const Key('wallet-pet-selector')), findsOneWidget);
-    expect(find.text('\uC804\uCCB4\uBCF4\uAE30'), findsOneWidget);
+    expect(find.text('리포트'), findsOneWidget);
     expect(find.text('\uC804\uCCB4 \uAE30\uAC04'), findsOneWidget);
     expect(
       find.byKey(const Key('wallet-expense-row-expense-food')),
@@ -43,18 +44,11 @@ void main() {
     tester,
   ) async {
     await _pumpScreen(tester, const ExpenseWalletScreen());
-    final selector = find.byType(DropdownButton<String>);
-
-    for (final label in ['올해 지출', '이번 달 지출', '전체 기간']) {
+    for (final label in ['올해', '월별', '전체 기간']) {
+      final selector = find.widgetWithText(ChoiceChip, label);
       await tester.tap(selector);
       await tester.pumpAndSettle();
-      await tester.tap(find.text(label).last);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.descendant(of: selector, matching: find.text(label)).hitTestable(),
-        findsOneWidget,
-      );
+      expect(tester.widget<ChoiceChip>(selector).selected, isTrue);
     }
   });
 
@@ -74,13 +68,16 @@ void main() {
     );
     await _pumpRouter(tester, router);
 
+    await tester.ensureVisible(
+      find.byKey(const Key('wallet-expense-row-expense-food')),
+    );
     await tester.tap(find.byKey(const Key('wallet-expense-row-expense-food')));
     await tester.pumpAndSettle();
 
     expect(find.text('expense-food'), findsOneWidget);
   });
 
-  testWidgets('wallet recent row keeps its surface and shows focus border', (
+  testWidgets('wallet recent row remains accessible and tappable', (
     tester,
   ) async {
     await _pumpScreen(tester, const ExpenseWalletScreen());
@@ -111,6 +108,9 @@ void main() {
 
     expect(find.text('\uC9C0\uCD9C \uB9AC\uD3EC\uD2B8'), findsOneWidget);
     expect(find.text('35,000\uC6D0'), findsWidgets);
+    await tester.ensureVisible(
+      find.byKey(const Key('wallet-report-expense-row-expense-food')),
+    );
     await tester.tap(
       find.byKey(const Key('wallet-report-expense-row-expense-food')),
     );
@@ -119,9 +119,7 @@ void main() {
     expect(find.text('expense-food'), findsOneWidget);
   });
 
-  testWidgets('report row keeps its surface and shows focus border', (
-    tester,
-  ) async {
+  testWidgets('report row remains accessible and tappable', (tester) async {
     await _pumpScreen(tester, const ExpenseReportScreen());
 
     await _expectRowInteraction(
@@ -132,41 +130,27 @@ void main() {
 }
 
 Future<void> _expectRowInteraction(WidgetTester tester, Key materialKey) async {
-  final materialFinder = find.byKey(materialKey);
-  var material = tester.widget<Material>(materialFinder);
-  var inkWell = material.child! as InkWell;
-
-  expect(inkWell.hoverColor, Colors.transparent);
-  expect(inkWell.focusColor, Colors.transparent);
-  expect(inkWell.highlightColor, Colors.transparent);
-  expect(inkWell.splashColor, AppColors.text.withValues(alpha: 0.06));
-  expect(inkWell.onFocusChange, isNotNull);
-
-  inkWell.onFocusChange!(true);
-  await tester.pump();
-
-  material = tester.widget<Material>(materialFinder);
-  inkWell = material.child! as InkWell;
-  var decoration = (inkWell.child! as Container).decoration! as BoxDecoration;
-  var border = decoration.border! as Border;
-  expect(border.top.color, AppColors.textSecondary);
-  expect(border.top.width, 2);
-
-  inkWell.onFocusChange!(false);
-  await tester.pump();
-
-  material = tester.widget<Material>(materialFinder);
-  inkWell = material.child! as InkWell;
-  decoration = (inkWell.child! as Container).decoration! as BoxDecoration;
-  border = decoration.border! as Border;
-  expect(border.top.color, AppColors.border);
-  expect(border.top.width, 1);
+  final handle = tester.ensureSemantics();
+  try {
+    final row = find.byKey(materialKey);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    final semantics = tester.getSemantics(row).getSemanticsData();
+    expect(semantics.hasAction(SemanticsAction.tap), isTrue);
+    expect(semantics.flagsCollection.isFocused, isNot(Tristate.none));
+  } finally {
+    handle.dispose();
+  }
 }
 
 Future<void> _pumpScreen(WidgetTester tester, Widget screen) async {
+  _largeViewport(tester);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        walletQueryProvider.overrideWith(
+          (ref) => WalletQueryNotifier(now: () => DateTime(2026, 5, 21)),
+        ),
         petProvider.overrideWith((ref) => PetNotifier.test(_petState())),
         walletExpenseProvider.overrideWith(
           (ref) => _WalletNotifier(_walletState()),
@@ -179,9 +163,14 @@ Future<void> _pumpScreen(WidgetTester tester, Widget screen) async {
 }
 
 Future<void> _pumpRouter(WidgetTester tester, GoRouter router) async {
+  _largeViewport(tester);
+  addTearDown(router.dispose);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        walletQueryProvider.overrideWith(
+          (ref) => WalletQueryNotifier(now: () => DateTime(2026, 5, 21)),
+        ),
         petProvider.overrideWith((ref) => PetNotifier.test(_petState())),
         walletExpenseProvider.overrideWith(
           (ref) => _WalletNotifier(_walletState()),
@@ -291,4 +280,15 @@ class _WalletNotifier extends WalletExpenseNotifier {
   Future<void> loadFirstPage(String petId) async {}
 }
 
-class _NoopService extends WalletExpenseService {}
+class _NoopService extends WalletExpenseService {
+  @override
+  Future<List<WalletExpense>> listAllExpenses(String petId) async =>
+      _walletState().expensesByPet[petId] ?? [];
+}
+
+void _largeViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}

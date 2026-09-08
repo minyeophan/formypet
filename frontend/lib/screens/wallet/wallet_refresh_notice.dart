@@ -26,11 +26,9 @@ class WalletRefreshNotice extends ConsumerWidget {
                   final wallet = ref.read(walletExpenseProvider.notifier);
                   final pets = ref.read(petProvider);
                   try {
-                    await wallet.loadAllPets(
+                    await wallet.refreshWallet(
                       pets.pets.map((pet) => pet.id).toList(),
                     );
-                    final petId = state.petId ?? pets.activePetId;
-                    if (petId != null) await wallet.loadFirstPage(petId);
                   } catch (_) {
                     // Keep the loaded data and retry notice.
                   }

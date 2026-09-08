@@ -76,13 +76,13 @@ void main() {
   }
 
   testWidgets(
-    'valid expense save uses primary green without changing geometry',
+    'valid expense save uses primary green and the shared button geometry',
     (tester) async {
       ExpenseFormData? saved;
       await _pumpForm(tester, onSubmit: (value) => saved = value);
 
       expect(_saveDecoration(tester).color, AppColors.primary);
-      expect(_saveDecoration(tester).borderRadius, BorderRadius.circular(16));
+      expect(_saveDecoration(tester).borderRadius, BorderRadius.circular(20));
       expect(tester.getSize(_saveButton()).height, 52);
 
       await tester.tap(_saveButton());

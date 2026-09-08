@@ -1,365 +1,114 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../core/app_colors.dart';
-import '../../models/wallet_expense.dart';
-import '../../providers/pet_provider.dart';
-import '../../providers/wallet_expense_provider.dart';
-import '../../widgets/app_header.dart';
+import '../../providers/wallet_view_provider.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
-import 'wallet_refresh_notice.dart';
+import 'wallet_widgets.dart';
 
 class ExpenseReportScreen extends ConsumerStatefulWidget {
-  final String? petId;
-  final String? category;
-  final String? period;
-
-  const ExpenseReportScreen({super.key, this.petId, this.category, this.period});
-
+  final String? petId, category, period;
+  const ExpenseReportScreen({
+    super.key,
+    this.petId,
+    this.category,
+    this.period,
+  });
   @override
   ConsumerState<ExpenseReportScreen> createState() =>
       _ExpenseReportScreenState();
 }
 
 class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
-  String? _loadedPetsKey;
-
+  int _visibleCount = 20;
+  Object? _queryKey;
   @override
   Widget build(BuildContext context) {
-    final petState = ref.watch(petProvider);
-    final pets = petState.pets;
-    final activePetId = widget.petId ?? petState.activePetId;
-    final petsKey = '${ref.watch(walletExpenseProvider).session}:${pets.map((p) => p.id).join(',')}';
-    if (petsKey != _loadedPetsKey) {
-      _loadedPetsKey = petsKey;
-      Future.microtask(() async {
-        try {
-          await ref
-              .read(walletExpenseProvider.notifier)
-              .loadAllPets(pets.map((pet) => pet.id).toList());
-        } catch (_) {}
-      });
+    final data = ref.watch(walletViewProvider);
+    final query = data.query;
+    final key = (query.petId, query.period, query.baseMonth, query.category);
+    if (_queryKey != key) {
+      _queryKey = key;
+      _visibleCount = 20;
     }
-
-    final state = ref.watch(walletExpenseProvider);
-    final allExpenses = pets.expand((pet) => state.expensesByPet[pet.id] ?? const <WalletExpense>[]);
-    final expenses = filterWalletExpenses(
-      allExpenses,
+    final entries =
+        data.amounts.categories.entries
+            .where((e) => query.category == null || e.key == query.category)
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    return WalletDataScope(
       petId: widget.petId,
       category: widget.category,
-      period: walletPeriodFromValue(widget.period),
-    );
-    final totalAmount = expenses.fold<int>(0, (sum, expense) => sum + expense.amount);
-    final categories = <String, int>{};
-    for (final expense in expenses) {
-      categories.update(expense.category, (value) => value + expense.amount, ifAbsent: () => expense.amount);
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      period: widget.period,
+      child: WalletPage(
+        title: '지출 리포트',
+        children: [
+          const WalletFilters(),
+          const SizedBox(height: 24),
+          WalletTotal(data: data),
+          const WalletLoadStatus(),
+          const SizedBox(height: 24),
+          const AppText('카테고리별 지출', fontSize: 18, fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          const WalletFilters(showCategory: true),
+          if (data.available) ...[
+            for (final entry in entries)
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppInlineHeader(
-                      title: '\uC9C0\uCD9C \uB9AC\uD3EC\uD2B8',
-                      onBack: () => _goBack(context),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        AppText(
+                          expenseCategoryDisplayLabel(entry.key),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        AppText(
+                          '${formatWon(entry.value)} · ${data.amounts.total == 0 ? '0' : (entry.value * 100 / data.amounts.total).toStringAsFixed(1)}%',
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
                     ),
-                    if (state.isLoading)
-                      const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    if (!state.isLoading && state.errorText != null)
-                      _ReportErrorPanel(
-                        onRetry: () => ref
-                            .read(walletExpenseProvider.notifier)
-                            .loadAllPets(pets.map((pet) => pet.id).toList()),
-                      ),
                     const SizedBox(height: 8),
-                    if (state.refreshWarning != null)
-                      const WalletRefreshNotice(),
-                      _ReportSummaryCard(
-                      expenses: expenses,
-                      totalAmount: totalAmount,
+                    LinearProgressIndicator(
+                      value: data.amounts.total <= 0
+                          ? 0
+                          : (entry.value / data.amounts.total).clamp(0.0, 1.0),
+                      color: AppColors.primary,
+                      backgroundColor: AppColors.primary.withValues(alpha: .08),
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    const SizedBox(height: 14),
-                    const AppText(
-                      '\uCE74\uD14C\uACE0\uB9AC \uC694\uC57D',
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.text,
-                    ),
-                    const SizedBox(height: 10),
-                    if (categories.isEmpty)
-                      const _ReportEmptyPanel(
-                        message:
-                            '\uC694\uC57D\uD560 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
-                      )
-                    else
-                      for (final entry in categories.entries)
-                        _CategorySummaryRow(categoryLabel: expenseCategoryDisplayLabel(entry.key), amount: entry.value),
-                    const SizedBox(height: 14),
-                    const AppText(
-                      '\uC9C0\uCD9C \uB0B4\uC5ED',
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.text,
-                    ),
-                    const SizedBox(height: 10),
-                    if (expenses.isEmpty)
-                      const _ReportEmptyPanel(
-                        message:
-                            '\uC544\uC9C1 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
-                      )
-                    else
-                      for (final expense in expenses)
-                        _ReportExpenseRow(expense: expense),
-                    if (state.hasMore)
-                      TextButton(
-                        key: const Key('wallet-load-more-button'),
-                        onPressed: state.isLoadingMore
-                            ? null
-                            : () => ref
-                                  .read(walletExpenseProvider.notifier)
-                                  .loadMore(activePetId!),
-                        child: const Text('더 보기'),
-                      ),
                   ],
                 ),
               ),
+            const SizedBox(height: 24),
+            const AppText('지출 내역', fontSize: 18, fontWeight: FontWeight.bold),
+            if (data.amounts.visible.isEmpty)
+              WalletEmpty(noPets: data.pets.isEmpty),
+            ...walletDatedRows(
+              data.amounts.visible.take(_visibleCount).toList(),
+              data,
+              keyPrefix: 'wallet-report-expense-row',
             ),
+            if (_visibleCount < data.amounts.visible.length)
+              TextButton(
+                key: const Key('wallet-load-more-button'),
+                onPressed: () => setState(() => _visibleCount += 20),
+                child: const Text('더 보기'),
+              ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReportErrorPanel extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _ReportErrorPanel({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    key: const Key('wallet-report-error-panel'),
-    children: [
-      const Expanded(child: AppText('지출 요약을 불러오지 못했어요.')),
-      TextButton(onPressed: onRetry, child: const Text('다시 시도')),
-    ],
-  );
-}
-
-class _ReportSummaryCard extends StatelessWidget {
-  final List<WalletExpense> expenses;
-  final int totalAmount;
-
-  const _ReportSummaryCard({required this.expenses, required this.totalAmount});
-
-  @override
-  Widget build(BuildContext context) {
-    final period = expenses.isEmpty
-        ? '\uAE30\uAC04 \uC5C6\uC74C'
-        : '${expenses.last.expenseDate} - ${expenses.first.expenseDate}';
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const AppText(
-                  '\uC804\uCCB4 \uAE30\uAC04',
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(height: 5),
-                AppText(
-                  period,
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          AppText(
-            formatWon(totalAmount),
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => context.push('/wallet/calendar'),
+            child: const Text('캘린더에서 보기'),
           ),
         ],
       ),
     );
   }
-}
-
-class _CategorySummaryRow extends StatelessWidget {
-  final String categoryLabel;
-  final int amount;
-
-  const _CategorySummaryRow({required this.categoryLabel, required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppText(
-              categoryLabel,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          AppText(
-            formatWon(amount),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportExpenseRow extends StatefulWidget {
-  final WalletExpense expense;
-
-  const _ReportExpenseRow({required this.expense});
-
-  @override
-  State<_ReportExpenseRow> createState() => _ReportExpenseRowState();
-}
-
-class _ReportExpenseRowState extends State<_ReportExpenseRow> {
-  bool _isFocused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final expense = widget.expense;
-    return Material(
-      key: Key('wallet-report-expense-row-${expense.id}'),
-      color: AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(
-          '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(expense.petId)}',
-        ),
-        onFocusChange: (isFocused) {
-          if (_isFocused == isFocused) return;
-          setState(() => _isFocused = isFocused);
-        },
-        hoverColor: Colors.transparent,
-        focusColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: AppColors.text.withValues(alpha: 0.06),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isFocused ? AppColors.textSecondary : AppColors.border,
-              width: _isFocused ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 78,
-                child: AppText(
-                  expense.expenseDate,
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Expanded(
-                child: AppText(
-                  '${walletExpenseTitle(expense)} · ${walletExpenseCategoryLabel(expense)}',
-                  fontSize: 13,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              AppText(
-                walletExpenseAmountLabel(expense),
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReportEmptyPanel extends StatelessWidget {
-  final String message;
-
-  const _ReportEmptyPanel({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: AppText(
-        message,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textSecondary,
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-void _goBack(BuildContext context) {
-  if (context.canPop()) {
-    context.pop();
-    return;
-  }
-  context.go('/wallet');
 }
