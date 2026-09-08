@@ -1,0 +1,26 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#fae4aa" stroke="#363a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 18C29 32 40 35 40 35C29 38 26 53 26 53C23 38 12 35 12 35C23 32 26 18 26 18Z"/>
+    <path d="M46 9C47.5 17 54 19 54 19C47.5 21 46 29 46 29C44.5 21 38 19 38 19C44.5 17 46 9 46 9Z"/>
+    <path d="M48 42C49 46 53 47 53 47C49 48 48 53 48 53C47 48 43 47 43 47C47 46 48 42 48 42Z"/>
+  </g>
+</svg>
+<!-- replaced by the editable Figma sparkle icon above -->
+<!--
+<g transform="matrix(1 0 0 1 23.029 11.2211)" opacity="1">
+<path d="M 0 18.6205 C 4.3166 15.3831 7.554 11.0665 9.7123 5.6708 C 10.7915 1.3542 11.8706 -0.8041 15.1081 0.275 C 19.4247 0.275 20.5038 4.5916 18.3455 13.2248 L 24.8204 13.2248 C 30.2162 13.2248 33.4536 16.4622 31.2953 21.858 L 26.9787 36.9661 C 26.2593 40.5632 23.7413 42.3618 19.4247 42.3618 L 0 42.3618 L 0 18.6205 Z" fill-rule="nonzero" fill="#f5d1bf" fill-opacity="1"/>
+<path d="M 0 18.6205 C 4.3166 15.3831 7.554 11.0665 9.7123 5.6708 C 10.7915 1.3542 11.8706 -0.8041 15.1081 0.275 C 19.4247 0.275 20.5038 4.5916 18.3455 13.2248 L 24.8204 13.2248 C 30.2162 13.2248 33.4536 16.4622 31.2953 21.858 L 26.9787 36.9661 C 26.2593 40.5632 23.7413 42.3618 19.4247 42.3618 L 0 42.3618 L 0 18.6205 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 9 28.7624)" opacity="1">
+<path d="M 5.3957 0 L 9.7123 0 C 12.6923 0 15.1081 2.4158 15.1081 5.3957 L 15.1081 20.5038 C 15.1081 23.4838 12.6923 25.8996 9.7123 25.8996 L 5.3957 25.8996 C 2.4158 25.8996 0 23.4838 0 20.5038 L 0 5.3957 C 0 2.4158 2.4158 0 5.3957 0 Z" fill-rule="nonzero" fill="#95d9cc" fill-opacity="1"/>
+<path d="M 5.3957 0 L 9.7123 0 C 12.6923 0 15.1081 2.4158 15.1081 5.3957 L 15.1081 20.5038 C 15.1081 23.4838 12.6923 25.8996 9.7123 25.8996 L 5.3957 25.8996 C 2.4158 25.8996 0 23.4838 0 20.5038 L 0 5.3957 C 0 2.4158 2.4158 0 5.3957 0 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 9 9.3378)" opacity="1">
+<path d="M 7.554 0 L 9.7123 5.3957 L 15.1081 7.554 L 9.7123 9.7123 L 7.554 15.1081 L 5.3957 9.7123 L 0 7.554 L 5.3957 5.3957 L 7.554 0 Z" fill-rule="nonzero" fill="#fae4aa" fill-opacity="1"/>
+<path d="M 7.554 0 L 9.7123 5.3957 L 15.1081 7.554 L 9.7123 9.7123 L 7.554 15.1081 L 5.3957 9.7123 L 0 7.554 L 5.3957 5.3957 L 7.554 0 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 31.6623 32)" opacity="1">
+<path d="M 1.0791 0 L 10.7915 0 C 11.5109 0 11.8706 0.3597 11.8706 1.0791 L 11.8706 1.0791 C 11.8706 1.7986 11.5109 2.1583 10.7915 2.1583 L 1.0791 2.1583 C 0.3597 2.1583 0 1.7986 0 1.0791 L 0 1.0791 C 0 0.3597 0.3597 0 1.0791 0 Z" fill-rule="nonzero" fill="#fff1e8" fill-opacity="1"/>
+</g>
+</svg>
+-->

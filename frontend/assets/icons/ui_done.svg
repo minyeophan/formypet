@@ -1,4 +1,5 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 55C44.7025 55 55 44.7025 55 32C55 19.2975 44.7025 9 32 9C19.2975 9 9 19.2975 9 32C9 44.7025 19.2975 55 32 55Z" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M20 32L28 40L44 24" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10 10)" opacity="1">
+<path d="M 10.4213 22.0004 L 18.1407 29.7199 L 33.5796 14.281 M 44.0009 22.0004 C 44.0009 34.1509 34.1509 44.0009 22.0004 44.0009 C 9.8499 44.0009 0 34.1509 0 22.0004 C 0 9.8499 9.8499 0 22.0004 0 C 34.1509 0 44.0009 9.8499 44.0009 22.0004 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>

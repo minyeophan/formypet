@@ -1,13 +1,13 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_242_44)">
-<path d="M28.6304 16.5518C34.541 10.2134 40.6656 9.99952 47.004 15.9102C53.3424 21.8208 53.5562 27.9453 47.6456 34.2837L35.3696 47.4481C29.459 53.7865 23.3344 54.0004 16.996 48.0897C10.6576 42.1791 10.4438 36.0546 16.3544 29.7162L28.6304 16.5518Z" fill="#FFF8ED" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M22.4924 23.1339L41.5076 40.8659L35.3696 47.4481C29.459 53.7865 23.3344 54.0003 16.996 48.0897C10.6576 42.179 10.4438 36.0545 16.3544 29.7161L22.4924 23.1339Z" fill="#EBA0A7" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M22.7392 30.2007L20.0112 33.1261C17.2832 36.0515 16.667 38.6673 18.1626 40.9736" stroke="#FFF2EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(0.8214 0.766 -0.766 0.8214 38.1734 3.9703)" opacity="1">
+<path d="M 0 13 C 0 4.3333 4.3333 0 13 0 C 21.6667 0 26 4.3333 26 13 L 26 31 C 26 39.6667 21.6667 44 13 44 C 4.3333 44 0 39.6667 0 31 L 0 13 Z" fill-rule="nonzero" fill="#fff8ed" fill-opacity="1"/>
+<path d="M 0 13 C 0 4.3333 4.3333 0 13 0 C 21.6667 0 26 4.3333 26 13 L 26 31 C 26 39.6667 21.6667 44 13 44 C 4.3333 44 0 39.6667 0 31 L 0 13 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<defs>
-<clipPath id="clip0_242_44">
-<rect width="64" height="64" fill="white"/>
-</clipPath>
-</defs>
+<g transform="matrix(0.8214 0.766 -0.766 0.8214 21.3213 22.0419)" opacity="1">
+<path d="M 0 0 L 26 0 L 26 9 C 26 17.6667 21.6667 22 13 22 C 4.3333 22 0 17.6667 0 9 L 0 0 Z" fill-rule="nonzero" fill="#eba0a7" fill-opacity="1"/>
+<path d="M 0 0 L 26 0 L 26 9 C 26 17.6667 21.6667 22 13 22 C 4.3333 22 0 17.6667 0 9 L 0 0 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(0.8214 0.766 -0.766 0.8214 21.5985 29.9791)" opacity="1">
+<path d="M 0 0 L 0 4 C 0 8 1.3333 10.3333 4 11" fill-rule="nonzero" fill="none" stroke="#fff2ea" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>
-

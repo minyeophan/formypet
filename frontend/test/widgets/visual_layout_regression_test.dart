@@ -59,6 +59,27 @@ Future<Rect> _inkBounds(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('exported ancestor backgrounds cannot cover adjacent content', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const RepaintBoundary(
+          key: Key('capture'),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: AppIcon(Icons.map_outlined, size: 24),
+          ),
+        ),
+        '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">'
+        '<rect x="-148" y="-262" width="488" height="352" fill="white"/>'
+        '</svg>',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(await _inkBounds(tester), const Rect.fromLTWH(16, 16, 24, 24));
+  });
+
   const squareSvg =
       '<svg width="64" height="64" viewBox="0 0 64 64" '
       'xmlns="http://www.w3.org/2000/svg">'

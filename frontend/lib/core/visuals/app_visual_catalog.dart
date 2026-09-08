@@ -365,21 +365,21 @@ const Map<AppVisualId, AppVisualSpec> appVisualCatalog = {
   ),
   AppVisualId.communityShow: AppVisualSpec(
     source: SvgAssetVisualSource.figma(
-      'assets/icons/ui_camera.svg',
+      'assets/icons/community_show.svg',
       tintable: false,
     ),
     fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityQuestion: AppVisualSpec(
     source: SvgAssetVisualSource.figma(
-      'assets/icons/common_help.svg',
+      'assets/icons/community_question.svg',
       tintable: false,
     ),
     fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityFree: AppVisualSpec(
     source: SvgAssetVisualSource.figma(
-      'assets/icons/common_comment.svg',
+      'assets/icons/community_free.svg',
       tintable: false,
     ),
     fallback: AppVisualFallback.material(Icons.image_not_supported),

@@ -511,7 +511,7 @@ class _CategoryButton extends StatelessWidget {
           children: [
             AppVisual(
               id: scheduleVisualId(category.id),
-              size: 24,
+              size: 32,
               color: category.color,
             ),
             const SizedBox(width: 7),

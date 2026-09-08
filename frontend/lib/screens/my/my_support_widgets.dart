@@ -72,6 +72,9 @@ class MySupportCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -87,14 +90,12 @@ class MySupportRow extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool showTopBorder;
-  final String? iconLabel;
 
   const MySupportRow({
     super.key,
     required this.title,
     required this.onTap,
     this.showTopBorder = false,
-    this.iconLabel,
   });
 
   @override
@@ -113,10 +114,6 @@ class MySupportRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (iconLabel != null) ...[
-                _TextIconTile(label: iconLabel!),
-                const SizedBox(width: 10),
-              ],
               Expanded(
                 child: AppText(
                   title,

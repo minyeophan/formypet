@@ -10,6 +10,7 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/services/care_schedule_service.dart';
+import 'package:frontend/widgets/app_visual.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +22,26 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('place input stays usable on narrow screens after scrolling', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    for (final width in [360.0, 390.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      await _pumpScreen(tester);
+      final place = find.widgetWithText(TextField, '장소를 직접 입력하거나 검색하세요');
+      await tester.ensureVisible(place);
+      await tester.pumpAndSettle();
+      await tester.enterText(place, '반려동물 병원');
+      await tester.pumpAndSettle();
+      expect(find.text('반려동물 병원'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
   });
 
   testWidgets('saving indicator remains visible on green button', (
@@ -79,6 +100,19 @@ void main() {
       expect((card('hospital').border! as Border).top.color, AppColors.border);
     },
   );
+
+  testWidgets('schedule category icons use the enlarged category size', (
+    tester,
+  ) async {
+    await _pumpScreen(tester);
+    final icon = tester.widget<AppVisual>(
+      find.descendant(
+        of: find.byKey(const Key('schedule-category-grooming')),
+        matching: find.byType(AppVisual),
+      ),
+    );
+    expect(icon.size, 32);
+  });
 
   testWidgets('schedule form excludes photo and companion inputs', (
     tester,

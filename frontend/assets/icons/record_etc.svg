@@ -1,14 +1,15 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_242_68)">
-<path d="M10 32C10 18 17 10.6667 31 10C45.6667 9.33335 53.3333 16.3334 54 31C54.6667 46.3334 47.6667 54 33 54C17.6667 54.6667 10 47.3334 10 32Z" fill="white" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M21 35C22.6569 35 24 33.6569 24 32C24 30.3431 22.6569 29 21 29C19.3431 29 18 30.3431 18 32C18 33.6569 19.3431 35 21 35Z" fill="#4B4844"/>
-<path d="M32 35C33.6569 35 35 33.6569 35 32C35 30.3431 33.6569 29 32 29C30.3431 29 29 30.3431 29 32C29 33.6569 30.3431 35 32 35Z" fill="#4B4844"/>
-<path d="M43 35C44.6569 35 46 33.6569 46 32C46 30.3431 44.6569 29 43 29C41.3431 29 40 30.3431 40 32C40 33.6569 41.3431 35 43 35Z" fill="#4B4844"/>
+<g transform="matrix(1.0416 0 0 1.0416 9.0632 9.0414)" opacity="1">
+<path d="M 0 22.0435 C 0 8.0435 7 0.7101 21 0.0435 C 35.6667 -0.6232 43.3333 6.3768 44 21.0435 C 44.6667 36.3768 37.6667 44.0435 23 44.0435 C 7.6667 44.7101 0 37.3768 0 22.0435 Z" fill-rule="nonzero" fill="#ffffff" fill-opacity="1"/>
+<path d="M 0 22.0435 C 0 8.0435 7 0.7101 21 0.0435 C 35.6667 -0.6232 43.3333 6.3768 44 21.0435 C 44.6667 36.3768 37.6667 44.0435 23 44.0435 C 7.6667 44.7101 0 37.3768 0 22.0435 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<defs>
-<clipPath id="clip0_242_68">
-<rect width="64" height="64" fill="white"/>
-</clipPath>
-</defs>
+<g transform="matrix(1.0416 0 0 1.0416 17.3956 28.8762)" opacity="1">
+<path d="M 6 3 C 6 4.6569 4.6569 6 3 6 C 1.3431 6 0 4.6569 0 3 C 0 1.3431 1.3431 0 3 0 C 4.6569 0 6 1.3431 6 3 Z" fill-rule="nonzero" fill="#4b4844" fill-opacity="1"/>
+</g>
+<g transform="matrix(1.0416 0 0 1.0416 28.8527 28.8762)" opacity="1">
+<path d="M 6 3 C 6 4.6569 4.6569 6 3 6 C 1.3431 6 0 4.6569 0 3 C 0 1.3431 1.3431 0 3 0 C 4.6569 0 6 1.3431 6 3 Z" fill-rule="nonzero" fill="#4b4844" fill-opacity="1"/>
+</g>
+<g transform="matrix(1.0416 0 0 1.0416 40.3098 28.8762)" opacity="1">
+<path d="M 6 3 C 6 4.6569 4.6569 6 3 6 C 1.3431 6 0 4.6569 0 3 C 0 1.3431 1.3431 0 3 0 C 4.6569 0 6 1.3431 6 3 Z" fill-rule="nonzero" fill="#4b4844" fill-opacity="1"/>
+</g>
 </svg>
-

@@ -1,13 +1,14 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_242_48)">
-<path d="M13 31H22V18C22 14.6667 23.6667 13 27 13H37C40.3333 13 42 14.6667 42 18V31H51C53.6667 31 55 32.3333 55 35V48C55 51.3333 53.3333 53 50 53H14C10.6667 53 9 51.3333 9 48V35C9 32.3333 10.3333 31 13 31Z" fill="white" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M29.3333 20H33.6667V24.3333H38V28.6667H33.6667V33H29.3333V28.6667H25V24.3333H29.3333V20Z" fill="#EFA2A7" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M27 53V44C27 42 28 41 30 41H34C36 41 37 42 37 44V53H27Z" fill="#B7DBE8" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 9 12)" opacity="1">
+<path d="M 4 18 L 13 18 L 13 5 C 13 1.6667 14.6667 0 18 0 L 28 0 C 31.3333 0 33 1.6667 33 5 L 33 18 L 42 18 C 44.6667 18 46 19.3333 46 22 L 46 35 C 46 38.3333 44.3333 40 41 40 L 5 40 C 1.6667 40 0 38.3333 0 35 L 0 22 C 0 19.3333 1.3333 18 4 18 Z" fill-rule="nonzero" fill="#ffffff" fill-opacity="1"/>
+<path d="M 4 18 L 13 18 L 13 5 C 13 1.6667 14.6667 0 18 0 L 28 0 C 31.3333 0 33 1.6667 33 5 L 33 18 L 42 18 C 44.6667 18 46 19.3333 46 22 L 46 35 C 46 38.3333 44.3333 40 41 40 L 5 40 C 1.6667 40 0 38.3333 0 35 L 0 22 C 0 19.3333 1.3333 18 4 18 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<defs>
-<clipPath id="clip0_242_48">
-<rect width="64" height="64" fill="white"/>
-</clipPath>
-</defs>
+<g transform="matrix(1 0 0 1 25 19)" opacity="1">
+<path d="M 4.3333 0 L 8.6667 0 L 8.6667 4.3333 L 13 4.3333 L 13 8.6667 L 8.6667 8.6667 L 8.6667 13 L 4.3333 13 L 4.3333 8.6667 L 0 8.6667 L 0 4.3333 L 4.3333 4.3333 L 4.3333 0 Z" fill-rule="nonzero" fill="#efa2a7" fill-opacity="1"/>
+<path d="M 4.3333 0 L 8.6667 0 L 8.6667 4.3333 L 13 4.3333 L 13 8.6667 L 8.6667 8.6667 L 8.6667 13 L 4.3333 13 L 4.3333 8.6667 L 0 8.6667 L 0 4.3333 L 4.3333 4.3333 L 4.3333 0 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 27 40)" opacity="1">
+<path d="M 0 12 L 0 3 C 0 1 1 0 3 0 L 7 0 C 9 0 10 1 10 3 L 10 12 L 0 12 Z" fill-rule="nonzero" fill="#b7dbe8" fill-opacity="1"/>
+<path d="M 0 12 L 0 3 C 0 1 1 0 3 0 L 7 0 C 9 0 10 1 10 3 L 10 12 L 0 12 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>
-
