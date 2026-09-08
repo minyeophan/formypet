@@ -14,12 +14,10 @@ import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
-import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/notification/notification_screen.dart';
-import 'package:frontend/screens/pet/pet_detail_screen.dart';
 import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,13 +33,13 @@ void main() {
     await _pumpMyScreen(tester);
 
     expect(find.text('마이페이지'), findsOneWidget);
-    expect(find.text('마이펫'), findsOneWidget);
-    expect(find.text('초코'), findsOneWidget);
-    expect(find.text('펫 추가하기'), findsOneWidget);
+    expect(find.text('마이펫'), findsNothing);
+    expect(find.text('펫 추가하기'), findsNothing);
 
     for (final text in [
       '정보',
       '내 프로필 편집',
+      '반려동물 관리',
       '공동집사 관리',
       '나의 활동',
       '내가 쓴 글',
@@ -65,26 +63,13 @@ void main() {
     expect(find.byType(AppDisclosureChevron), findsWidgets);
   });
 
-  testWidgets('pet card opens pet detail route', (tester) async {
+  testWidgets('pet management menu opens the pet list route', (tester) async {
     await _pumpMyScreen(tester);
 
-    await tester.tap(find.byKey(const Key('my-pet-card-1')));
+    await _tapMenuRow(tester, '반려동물 관리');
     await tester.pumpAndSettle();
 
-    expect(find.byType(PetDetailScreen), findsOneWidget);
-    expect(find.text('생년월일'), findsOneWidget);
-  });
-
-  testWidgets('add pet card opens additional pet route', (tester) async {
-    await _pumpMyScreen(tester);
-
-    await tester.tap(find.byKey(const Key('my-add-pet-card')));
-    await tester.pumpAndSettle();
-
-    final screen = tester.widget<OnboardingScreen>(
-      find.byType(OnboardingScreen),
-    );
-    expect(screen.mode, PetEntryMode.additionalPet);
+    expect(find.byType(MyPetsScreen), findsOneWidget);
   });
 
   testWidgets('general settings menu opens the existing settings screen', (
@@ -191,7 +176,7 @@ void main() {
     expect(icon.color, AppColors.textSecondary);
   });
 
-  testWidgets('settings, all pets, and profile controls open real routes', (
+  testWidgets('settings and profile controls open real routes', (
     tester,
   ) async {
     await _pumpMyScreen(tester);
@@ -200,25 +185,11 @@ void main() {
     expect(find.byType(MySettingsScreen), findsOneWidget);
 
     await _pumpMyScreen(tester);
-    await tester.tap(find.byKey(const Key('my-view-all-pets')));
-    await tester.pumpAndSettle();
-    expect(find.byType(MyPetsScreen), findsOneWidget);
-
-    await _pumpMyScreen(tester);
     await _tapMenuRow(tester, '내 프로필 편집');
     await tester.pumpAndSettle();
     expect(find.byType(MyProfileScreen), findsOneWidget);
   });
 
-  testWidgets('main pet card prefers active pet and shows loading spinner', (
-    tester,
-  ) async {
-    await _pumpMyScreen(tester, pets: [_pet('1'), _pet('2')], activePetId: '2');
-    expect(find.byKey(const Key('my-pet-card-2')), findsOneWidget);
-
-    await _pumpMyScreen(tester, isLoading: true);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-  });
 }
 
 Future<void> _pumpMyScreen(
