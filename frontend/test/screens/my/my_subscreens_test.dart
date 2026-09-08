@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -17,6 +18,7 @@ import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -66,6 +68,45 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('theme settings is visibly preparing and disabled', (tester) async {
+    await _pump(tester, const MySettingsScreen());
+    final row = find.ancestor(
+      of: find.text('테마 설정'),
+      matching: find.byType(InkWell),
+    ).first;
+
+    expect(
+      find.descendant(of: row, matching: find.text('준비중')),
+      findsOneWidget,
+    );
+    expect(tester.widget<InkWell>(row).onTap, isNull);
+    expect(
+      find.descendant(of: row, matching: find.byType(AppDisclosureChevron)),
+      findsNothing,
+    );
+    await tester.tap(find.text('테마 설정'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('cancelling logout keeps the account connected', (tester) async {
+    final service = _FakeAuthService();
+    await _pump(tester, const MySettingsScreen(), authService: service);
+
+    await tester.tap(find.text('로그아웃'));
+    await tester.pumpAndSettle();
+    expect(service.logoutCalls, 0);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('로그아웃할까요?'), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MySettingsScreen)),
+    );
+    expect(container.read(authProvider).isAuthenticated, isTrue);
+    expect(service.logoutCalls, 0);
+  });
+
   testWidgets('profile hydrates fields and previews selected local bytes', (
     tester,
   ) async {
@@ -107,56 +148,72 @@ void main() {
     expect(find.text('프로필 정보를 불러올 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('profile save updates nickname before uploading the selected image', (tester) async {
+  testWidgets(
+    'profile save updates nickname before uploading the selected image',
+    (tester) async {
+      final service = _FakeAuthService(
+        updateProfileResult: _renamedProfile,
+        uploadProfileImageResult: _profileWithPhoto,
+      );
+      await _pump(
+        tester,
+        MyProfileScreen(
+          pickImage: () async =>
+              XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+        ),
+        authService: service,
+      );
+
+      await tester.enterText(find.byType(TextField).first, 'Renamed');
+      await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pumpAndSettle();
+
+      expect(service.operations, ['nickname', 'photo']);
+    },
+  );
+
+  testWidgets(
+    'profile photo upload failure keeps the newly saved nickname and clears local preview',
+    (tester) async {
+      final service = _FakeAuthService(
+        updateProfileResult: _renamedProfile,
+        uploadProfileImageError: Exception('upload failed'),
+      );
+      await _pump(
+        tester,
+        MyProfileScreen(
+          pickImage: () async =>
+              XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+        ),
+        authService: service,
+      );
+
+      await tester.enterText(find.byType(TextField).first, 'Renamed');
+      await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pumpAndSettle();
+
+      expect(service.operations, ['nickname', 'photo']);
+      expect(find.byKey(const Key('my-profile-local-preview')), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AppIcon && widget.icon == Icons.person_outline_rounded,
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('profile nickname failure does not upload the selected image', (
+    tester,
+  ) async {
     final service = _FakeAuthService(
-      updateProfileResult: _renamedProfile,
-      uploadProfileImageResult: _profileWithPhoto,
+      updateProfileError: Exception('patch failed'),
     );
-    await _pump(
-      tester,
-      MyProfileScreen(
-        pickImage: () async =>
-            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
-      ),
-      authService: service,
-    );
-
-    await tester.enterText(find.byType(TextField).first, 'Renamed');
-    await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.pumpAndSettle();
-
-    expect(service.operations, ['nickname', 'photo']);
-  });
-
-  testWidgets('profile photo upload failure keeps the newly saved nickname and clears local preview', (tester) async {
-    final service = _FakeAuthService(
-      updateProfileResult: _renamedProfile,
-      uploadProfileImageError: Exception('upload failed'),
-    );
-    await _pump(
-      tester,
-      MyProfileScreen(
-        pickImage: () async =>
-            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
-      ),
-      authService: service,
-    );
-
-    await tester.enterText(find.byType(TextField).first, 'Renamed');
-    await tester.tap(find.byKey(const Key('my-profile-photo-picker')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.pumpAndSettle();
-
-    expect(service.operations, ['nickname', 'photo']);
-    expect(find.byKey(const Key('my-profile-local-preview')), findsNothing);
-    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
-  });
-
-  testWidgets('profile nickname failure does not upload the selected image', (tester) async {
-    final service = _FakeAuthService(updateProfileError: Exception('patch failed'));
     await _pump(
       tester,
       MyProfileScreen(
@@ -176,39 +233,50 @@ void main() {
     expect(find.byKey(const Key('my-profile-local-preview')), findsOneWidget);
   });
 
-  testWidgets('profile rejects blank and oversized nicknames without requests', (tester) async {
-    final service = _FakeAuthService();
-    await _pump(tester, const MyProfileScreen(), authService: service);
+  testWidgets(
+    'profile rejects blank and oversized nicknames without requests',
+    (tester) async {
+      final service = _FakeAuthService();
+      await _pump(tester, const MyProfileScreen(), authService: service);
 
-    await tester.enterText(find.byType(TextField).first, '');
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.pump();
-    expect(service.operations, isEmpty);
+      await tester.enterText(find.byType(TextField).first, '');
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pump();
+      expect(service.operations, isEmpty);
 
-    await tester.enterText(find.byType(TextField).first, 'a' * 51);
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.pump();
-    expect(service.operations, isEmpty);
-  });
+      await tester.enterText(find.byType(TextField).first, 'a' * 51);
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pump();
+      expect(service.operations, isEmpty);
+    },
+  );
 
-  testWidgets('profile save prevents duplicate requests while the nickname update is pending', (tester) async {
-    final service = _FakeAuthService()..updateProfileCompleter = Completer<UserProfile>();
-    await _pump(tester, const MyProfileScreen(), authService: service);
+  testWidgets(
+    'profile save prevents duplicate requests while the nickname update is pending',
+    (tester) async {
+      final service = _FakeAuthService()
+        ..updateProfileCompleter = Completer<UserProfile>();
+      await _pump(tester, const MyProfileScreen(), authService: service);
 
-    await tester.enterText(find.byType(TextField).first, 'Renamed');
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.tap(find.byKey(const Key('my-profile-save')));
-    await tester.pump();
+      await tester.enterText(find.byType(TextField).first, 'Renamed');
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pump();
 
-    expect(service.operations, ['nickname']);
-    expect(
-      tester.widget<TextButton>(find.byKey(const Key('my-profile-photo-picker'))).onPressed,
-      isNull,
-    );
+      expect(service.operations, ['nickname']);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const Key('my-profile-photo-picker')),
+            )
+            .onPressed,
+        isNull,
+      );
 
-    service.updateProfileCompleter!.complete(_renamedProfile);
-    await tester.pumpAndSettle();
-  });
+      service.updateProfileCompleter!.complete(_renamedProfile);
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('policies list shows only the five policy names', (tester) async {
     await _pumpPoliciesRouter(tester, '/my/policies');
@@ -320,17 +388,54 @@ void main() {
     expect(find.text('질문을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('inquiry screen submit keeps preparing toast', (tester) async {
+  testWidgets('inquiry explains unavailability before the form', (tester) async {
+    await _pumpSupportRouter(tester, '/my/inquiry');
+
+    final notice = find.textContaining('준비중');
+    final unavailable = find.textContaining('보낼 수 없어요');
+    expect(notice, findsOneWidget);
+    expect(unavailable, findsOneWidget);
+    expect(
+      tester.getBottomLeft(unavailable).dy,
+      lessThan(tester.getTopLeft(find.text('문의 유형')).dy),
+    );
+    expect(notice.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('inquiry type and text entry are disabled', (tester) async {
     await _pumpSupportRouter(tester, '/my/inquiry');
 
     expect(find.text('문의 유형'), findsOneWidget);
     expect(find.text('제목'), findsOneWidget);
     expect(find.text('문의 내용'), findsOneWidget);
+    final dropdown = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>),
+    );
+    expect(dropdown.onChanged, isNull);
+    expect(find.byType(TextField), findsNWidgets(2));
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.enabled, isFalse);
+    }
 
-    await tester.tap(find.text('문의 접수'));
+    await tester.tap(find.byType(TextField).first, warnIfMissed: false);
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isFalse);
+  });
+
+  testWidgets('inquiry submission is disabled without a fake receipt', (
+    tester,
+  ) async {
+    await _pumpSupportRouter(tester, '/my/inquiry');
+
+    final submit = find.widgetWithText(FilledButton, '문의 접수');
+    await tester.ensureVisible(submit);
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+
+    await tester.tap(submit);
     await tester.pump();
 
-    expect(find.text('준비중'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byType(MyInquiryScreen), findsOneWidget);
   });
 }
 

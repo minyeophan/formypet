@@ -1,10 +1,13 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
+import 'package:frontend/models/notification.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
+import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
@@ -15,7 +18,9 @@ import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
+import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/screens/pet/pet_detail_screen.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -44,7 +49,7 @@ void main() {
       '내가 댓글 남긴 글',
       '설정',
       '일반 설정',
-      '알림 설정',
+      '알림 내역',
       '고객지원',
       '공지사항',
       '고객센터',
@@ -82,14 +87,60 @@ void main() {
     expect(screen.mode, PetEntryMode.additionalPet);
   });
 
-  testWidgets('unsupported menu controls show preparing snack bar', (
+  testWidgets('general settings menu opens the existing settings screen', (
     tester,
   ) async {
     await _pumpMyScreen(tester);
 
-    await _tapMenuRow(tester, '공동집사 관리');
-    expect(find.text('준비중'), findsOneWidget);
+    await _tapMenuRow(tester, '일반 설정');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MySettingsScreen), findsOneWidget);
   });
+
+  for (final fromSettings in [false, true]) {
+    testWidgets(
+      '${fromSettings ? 'settings' : 'main'} notification history opens the inbox',
+      (tester) async {
+        await _pumpMyScreen(tester);
+        if (fromSettings) {
+          await tester.tap(find.byKey(const Key('my-settings-button')));
+          await tester.pumpAndSettle();
+        }
+
+        expect(find.text('알림 내역'), findsOneWidget);
+        await _tapMenuRow(tester, '알림 내역');
+        await tester.pumpAndSettle();
+
+        expect(find.byType(NotificationScreen), findsOneWidget);
+        expect(find.text('새로운 알림이 없어요.'), findsOneWidget);
+      },
+    );
+  }
+
+  for (final label in ['공동집사 관리', '내가 쓴 글', '내가 공감한 글', '내가 댓글 남긴 글']) {
+    testWidgets('$label is visibly preparing and disabled', (tester) async {
+      await _pumpMyScreen(tester);
+      await _expectTextVisible(tester, label);
+      final row = find
+          .ancestor(of: find.text(label), matching: find.byType(InkWell))
+          .first;
+
+      expect(
+        find.descendant(of: row, matching: find.text('준비중')),
+        findsOneWidget,
+      );
+      expect(tester.widget<InkWell>(row).onTap, isNull);
+      expect(
+        find.descendant(of: row, matching: find.byType(AppDisclosureChevron)),
+        findsNothing,
+      );
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(find.text('마이페이지'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+  }
 
   testWidgets('policy menu opens policy list route', (tester) async {
     await _pumpMyScreen(tester);
@@ -118,13 +169,13 @@ void main() {
     expect(find.byType(MyInquiryScreen), findsOneWidget);
   });
 
-  testWidgets('settings button uses the shared 38px icon surface', (
+  testWidgets('settings button uses the shared 44px touch target', (
     tester,
   ) async {
     await _pumpMyScreen(tester);
 
     final finder = find.byKey(const Key('my-settings-button'));
-    expect(tester.getSize(finder), const Size(38, 38));
+    expect(tester.getSize(finder), const Size(44, 44));
 
     final container = tester.widget<Container>(
       find.descendant(of: finder, matching: find.byType(Container)).first,
@@ -133,8 +184,8 @@ void main() {
     expect(decoration.borderRadius, BorderRadius.circular(14));
     expect(decoration.border, Border.all(color: AppColors.border));
 
-    final icon = tester.widget<Icon>(
-      find.descendant(of: finder, matching: find.byType(Icon)).first,
+    final icon = tester.widget<AppIcon>(
+      find.descendant(of: finder, matching: find.byType(AppIcon)).first,
     );
     expect(icon.size, 20);
     expect(icon.color, AppColors.textSecondary);
@@ -183,6 +234,9 @@ Future<void> _pumpMyScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        notificationServiceProvider.overrideWithValue(
+          _EmptyNotificationService(),
+        ),
         authProvider.overrideWith(
           (ref) => AuthNotifier.test(
             const AuthState(
@@ -226,6 +280,7 @@ Future<void> _pumpMyScreen(
 
 Future<void> _expectTextVisible(WidgetTester tester, String text) async {
   final finder = find.text(text);
+  expect(finder, findsOneWidget);
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   expect(finder, findsOneWidget);
@@ -265,3 +320,9 @@ Pet _pet(String id) => Pet(
   weight: 4.2,
   neutered: true,
 );
+
+class _EmptyNotificationService extends NotificationService {
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async =>
+      NotificationFeed(items: [], hasMore: false, unreadCount: 0);
+}

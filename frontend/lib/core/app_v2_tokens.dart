@@ -17,5 +17,5 @@ abstract final class AppV2Tokens {
   static const border = mintBorder;
   static const error = Color(0xFFBA1A1A);
   static const gutter = 20.0;
-  static const fontFamily = 'PlusJakartaSans';
+  static const headerTitleSize = 20.0;
 }

@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -359,7 +360,7 @@ class _MealPhotoSection extends StatelessWidget {
                         height: 108,
                         color: AppColors.surfaceSoft,
                         alignment: Alignment.center,
-                        child: const Icon(
+                        child: const AppIcon(
                           Icons.image_outlined,
                           color: AppColors.muted,
                         ),

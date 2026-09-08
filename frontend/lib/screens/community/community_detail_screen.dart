@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -317,13 +318,18 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     context,
     title: '더보기 메뉴',
     actions: [
-      if (ref.read(authProvider).profile?.id == ref.read(communityProvider).postsById[widget.postId]?.userId)
+      if (ref.read(authProvider).profile?.id ==
+          ref.read(communityProvider).postsById[widget.postId]?.userId)
         AppActionSheetItem(
           key: const Key('community-post-edit'),
           label: '게시글 수정',
-          onTap: () => context.push('/community/write', extra: ref.read(communityProvider).postsById[widget.postId]),
+          onTap: () => context.push(
+            '/community/write',
+            extra: ref.read(communityProvider).postsById[widget.postId],
+          ),
         ),
-      if (ref.read(authProvider).profile?.id == ref.read(communityProvider).postsById[widget.postId]?.userId)
+      if (ref.read(authProvider).profile?.id ==
+          ref.read(communityProvider).postsById[widget.postId]?.userId)
         AppActionSheetItem(
           key: const Key('community-post-delete'),
           label: '게시글 삭제',
@@ -344,8 +350,14 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
         title: const Text('게시글 삭제'),
         content: const Text('게시글을 삭제할까요?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
         ],
       ),
     );
@@ -436,7 +448,7 @@ class _CommentLauncherState extends State<_CommentLauncher> {
                     ),
                   ),
                 ),
-                const Icon(
+                const AppIcon(
                   Icons.chat_bubble_outline_rounded,
                   size: 20,
                   color: AppV2Tokens.textSecondary,

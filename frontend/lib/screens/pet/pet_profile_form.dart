@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -551,7 +552,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
                                 color: AppColors.primary,
                               ),
                             ),
-                            Icon(
+                            AppIcon(
                               _extraExpanded
                                   ? Icons.expand_less
                                   : Icons.expand_more,

@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -65,9 +66,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             const _HomeHeader(),
+            if (pets.dataErrorText != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(pets.dataErrorText!),
+                    OutlinedButton(
+                      onPressed: _retryPetData,
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: pets.activePet == null
-                  ? const _EmptyHome()
+                  ? (pets.dataErrorText == null
+                        ? const _EmptyHome()
+                        : const SizedBox.shrink())
                   : RefreshIndicator(
                       onRefresh: _refresh,
                       child: CustomScrollView(
@@ -87,11 +103,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   controller: _pageController!,
                                   activeIndex: pageIndex,
                                   locked: _isRefreshing,
-                                  onChanged: (index) {
+                                  onChanged: (index) async {
                                     if (index >= pets.pets.length) return;
-                                    ref
-                                        .read(petProvider.notifier)
-                                        .setActivePet(pets.pets[index].id);
+                                    final petId = pets.pets[index].id;
+                                    if (ref.read(petProvider).activePetId ==
+                                        petId) {
+                                      return;
+                                    }
+                                    try {
+                                      await ref
+                                          .read(petProvider.notifier)
+                                          .setActivePet(petId);
+                                    } catch (_) {
+                                      // The persistent data error above offers retry.
+                                    }
                                   },
                                 ),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
@@ -110,7 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const _BottomBanner(),
                                 const SizedBox(
                                   key: Key('home-bottom-spacer'),
-                                  height: 96,
+                                  height: 24,
                                 ),
                               ],
                             ),
@@ -129,7 +154,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _isRefreshing = true);
     Object? error;
     await Future.wait([
-      ref.read(petProvider.notifier).refreshPets().catchError((e) {
+      (() async {
+        final notifier = ref.read(petProvider.notifier);
+        await notifier.refreshPets();
+        if (ref.read(petProvider).dataErrorText != null) {
+          await notifier.retryDataLoad();
+        }
+      })().catchError((e) {
         error = e;
       }),
       ref.read(homePopularPostsProvider.notifier).refresh().catchError((e) {
@@ -145,12 +176,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Future<void> _retryPetData() async {
+    try {
+      await ref.read(petProvider.notifier).retryDataLoad();
+    } catch (_) {
+      // Keep the provider's error visible for another retry.
+    }
+  }
+
   void _syncPage(int index) {
     final controller = _pageController;
-    if (controller == null || !controller.hasClients) return;
-    if ((controller.page?.round() ?? controller.initialPage) == index) return;
+    if (controller == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && controller.hasClients) controller.jumpToPage(index);
+      if (!mounted || !controller.hasClients) return;
+      if ((controller.page?.round() ?? controller.initialPage) != index) {
+        controller.jumpToPage(index);
+      }
     });
   }
 }
@@ -164,7 +205,7 @@ class _HomeHeader extends ConsumerWidget {
     return AppHeader(
       key: const Key('home-v2-header'),
       title: 'ForMyPet',
-      leading: const Icon(Icons.pets, color: AppV2Tokens.primary, size: 25),
+      leading: const AppIcon(Icons.pets, color: AppV2Tokens.primary, size: 25),
       actions: [
         IconButton(
           key: const Key('home-notification-button'),
@@ -173,7 +214,7 @@ class _HomeHeader extends ConsumerWidget {
           icon: Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_none_rounded),
+              const AppIcon(Icons.notifications_none_rounded),
               if (hasUnread)
                 const Positioned(
                   key: Key('home-notification-unread-dot'),
@@ -301,7 +342,7 @@ class _PetProfileCard extends StatelessWidget {
                     key: const Key('home-growth-button'),
                     tooltip: '성장 기록',
                     onPressed: () => context.push('/records/growth'),
-                    icon: const Icon(Icons.show_chart_rounded),
+                    icon: const AppIcon(Icons.show_chart_rounded),
                     color: AppV2Tokens.primary,
                   ),
                 ],
@@ -353,10 +394,7 @@ class _Fact extends StatelessWidget {
         value,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontFamily: AppV2Tokens.fontFamily,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
     ],
   );
@@ -405,16 +443,11 @@ class _QuickMenu extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
                   children: [
-                    Container(
+                    SizedBox(
                       width: 58,
                       height: 58,
-                      decoration: BoxDecoration(
-                        color: item.$4.withValues(alpha: .09),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: AppVisual(id: item.$3, color: item.$4, size: 25),
-                      ),
+
+                      child: Center(child: AppVisual(id: item.$3, size: 48)),
                     ),
                     const SizedBox(height: 7),
                     Text(
@@ -492,13 +525,10 @@ class _NewsCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Container(
+            SizedBox(
               width: 64,
               height: 64,
-              decoration: BoxDecoration(
-                color: AppV2Tokens.primarySoft,
-                borderRadius: BorderRadius.circular(16),
-              ),
+
               child: Center(
                 child: AppVisual(
                   id: visual,
@@ -527,9 +557,7 @@ class _PopularPostsSection extends ConsumerWidget {
         const _SectionHeader(title: '오늘의 인기글'),
         const SizedBox(height: 10),
         if (state.isInitialLoading)
-          for (var i = 0; i < 3; i++) ...[
-            const _PopularSkeleton(),
-          ]
+          for (var i = 0; i < 3; i++) ...[const _PopularSkeleton()]
         else if (state.initialError != null)
           _PopularMessage(
             message: '인기글을 불러오지 못했어요',
@@ -545,9 +573,7 @@ class _PopularPostsSection extends ConsumerWidget {
         else if (state.posts.isEmpty)
           const _PopularMessage(message: '아직 인기글이 없어요')
         else
-          for (final post in state.posts) ...[
-            _PopularPostCard(post: post),
-          ],
+          for (final post in state.posts) ...[_PopularPostCard(post: post)],
       ],
     );
   }
@@ -587,7 +613,9 @@ class _PopularPostCard extends StatelessWidget {
             const SizedBox(width: 10),
             _Metric(
               icon: post.liked ? Icons.favorite : Icons.favorite_border,
-              iconColor: post.liked ? AppV2Tokens.error : AppV2Tokens.textSecondary,
+              iconColor: post.liked
+                  ? AppV2Tokens.error
+                  : AppV2Tokens.textSecondary,
               value: post.likesCount,
             ),
             const SizedBox(width: 10),
@@ -609,15 +637,9 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 14, color: iconColor ?? AppV2Tokens.textSecondary),
+      AppIcon(icon, size: 14, color: iconColor ?? AppV2Tokens.textSecondary),
       const SizedBox(width: 3),
-      Text(
-        '$value',
-        style: const TextStyle(
-          fontFamily: AppV2Tokens.fontFamily,
-          fontSize: 11,
-        ),
-      ),
+      Text('$value', style: const TextStyle(fontSize: 11)),
     ],
   );
 }

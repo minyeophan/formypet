@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -116,10 +117,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       }
 
       try {
-        await ref.read(authProvider.notifier).uploadProfileImage(
-              bytes: bytes,
-              filename: selectedPhoto.name,
-            );
+        await ref
+            .read(authProvider.notifier)
+            .uploadProfileImage(bytes: bytes, filename: selectedPhoto.name);
       } catch (_) {
         photoUploadFailed = true;
         if (mounted) {
@@ -133,11 +133,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
     if (!mounted) return;
     setState(() => _isSaving = false);
-    _showSaveMessage(photoUploadFailed && shouldUpdateNickname
-        ? '닉네임은 저장했지만 사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
-        : photoUploadFailed
-        ? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
-        : '프로필을 저장했어요.');
+    _showSaveMessage(
+      photoUploadFailed && shouldUpdateNickname
+          ? '닉네임은 저장했지만 사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+          : photoUploadFailed
+          ? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+          : '프로필을 저장했어요.',
+    );
     await _goBack();
   }
 
@@ -145,10 +147,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
@@ -192,7 +191,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           : profile == null
           ? const Center(child: AppText('프로필 정보를 불러올 수 없어요'))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
               children: [
                 Center(
                   child: ClipOval(
@@ -262,7 +261,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     height: 96,
     color: AppColors.surfaceSoft,
     alignment: Alignment.center,
-    child: const Icon(
+    child: const AppIcon(
       Icons.person_outline_rounded,
       size: 42,
       color: AppColors.textSecondary,

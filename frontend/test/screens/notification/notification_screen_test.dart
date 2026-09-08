@@ -8,6 +8,51 @@ import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/services/notification_service.dart';
 
 void main() {
+  testWidgets('read all clears unread indicators and disables the action', (
+    tester,
+  ) async {
+    final service = _FakeNotificationService(
+      const NotificationFeed(
+        items: [
+          NotificationItem(
+            id: '1',
+            type: 'ROUTINE_REMINDER',
+            title: '루틴 알림',
+            body: '산책할 시간이에요',
+          ),
+          NotificationItem(
+            id: '2',
+            type: 'POST_LIKE',
+            postId: '9',
+            title: '좋아요 알림',
+            body: '게시글에 좋아요가 있어요',
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 2,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationServiceProvider.overrideWithValue(service)],
+        child: const MaterialApp(home: NotificationScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final readAll = find.widgetWithText(TextButton, '모두 읽음');
+    expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
+    expect(find.byType(CircleAvatar), findsNWidgets(2));
+    await tester.tap(readAll);
+    await tester.pumpAndSettle();
+
+    expect(service.markAllReadCalls, 1);
+    expect(find.byType(CircleAvatar), findsNothing);
+    expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+    expect(find.text('산책할 시간이에요'), findsOneWidget);
+    expect(find.text('게시글에 좋아요가 있어요'), findsOneWidget);
+  });
+
   testWidgets('notification screen renders unread notification and read action',
       (tester) async {
     final service = _FakeNotificationService(
@@ -120,6 +165,7 @@ void main() {
 class _FakeNotificationService extends NotificationService {
   final NotificationFeed feed;
   final markReadCalls = <String>[];
+  int markAllReadCalls = 0;
 
   _FakeNotificationService(this.feed);
 
@@ -128,4 +174,9 @@ class _FakeNotificationService extends NotificationService {
 
   @override
   Future<void> markRead(String id) async => markReadCalls.add(id);
+
+  @override
+  Future<void> markAllRead() async {
+    markAllReadCalls++;
+  }
 }

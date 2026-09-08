@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
+import '../../widgets/pet_data_status.dart';
 import 'record_support.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
@@ -67,7 +69,8 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                 ),
               ),
             ),
-            if (pet == null)
+            const SliverToBoxAdapter(child: PetDataStatus()),
+            if (pet == null && state.dataErrorText == null)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -322,7 +325,7 @@ class _CalendarNavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon),
+      icon: AppIcon(icon),
       color: AppColors.textSecondary,
       tooltip: '월 이동',
     );
@@ -465,7 +468,7 @@ class _RecordTypeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceSoft,
+      color: AppColors.background,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -483,14 +486,11 @@ class _RecordTypeCard extends StatelessWidget {
                 width: 38,
                 height: 38,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: type.color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+
                 child: AppVisual(
                   id: type.visualId,
                   color: type.color,
-                  size: 23,
+                  size: 32,
                 ),
               ),
               const SizedBox(height: 8),
@@ -607,10 +607,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: type.color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+
                 child: AppVisual(
                   id: type.visualId,
                   color: type.color,
@@ -655,7 +652,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              const AppIcon(
                 Icons.chevron_right_rounded,
                 color: AppColors.muted,
                 size: 22,

@@ -1,3 +1,4 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -48,7 +49,7 @@ class AppMoreButton extends StatelessWidget {
                   )
                 : null,
             alignment: Alignment.center,
-            child: Icon(
+            child: AppIcon(
               Icons.more_vert_rounded,
               size: 20,
               color: plainColor ?? AppColors.textSecondary,

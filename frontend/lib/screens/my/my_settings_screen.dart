@@ -6,7 +6,6 @@ import '../../core/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import '../../widgets/preparing_toast.dart';
 import 'my_widgets.dart';
 
 class MySettingsScreen extends ConsumerStatefulWidget {
@@ -50,7 +49,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
         onBack: () => _goBack(context),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           MyMenuCard(
             title: '계정',
@@ -73,21 +72,25 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
             title: '앱 설정',
             children: [
               MyMenuRow(
-                label: '알림 설정',
+                label: '알림 내역',
                 icon: Icons.notifications_none_rounded,
                 onTap: () => context.push('/notifications'),
               ),
-              MyMenuRow(
+              const MyMenuRow(
                 label: '테마 설정',
                 icon: Icons.palette_outlined,
                 showTopBorder: true,
-                onTap: () => showPreparingToast(context),
+                trailing: AppText(
+                  '준비중',
+                  fontSize: 12,
+                  color: AppColors.muted,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           MyMenuCard(
-            title: '위험 액션',
+            title: '계정 관리',
             danger: true,
             children: [
               MyMenuRow(

@@ -371,7 +371,7 @@ class _CommunityCommentsScreenState
           ? CommunityCommentsComposer(
               controller: _controller,
               focusNode: _focusNode,
-              enabled: !_resolvingTarget,
+              enabled: !_resolvingTarget && !_submitting,
               canSubmit:
                   _controller.text.trim().isNotEmpty &&
                   !_resolvingTarget &&
@@ -381,7 +381,9 @@ class _CommunityCommentsScreenState
                   ? null
                   : replyRoot?.authorNickname,
               editing: _editingCommentId != null,
-              onCancelReply: () => setState(_resetComposer),
+              onCancelReply: () {
+                if (!_submitting) setState(_resetComposer);
+              },
               onSubmit: _submit,
             )
           : null,
@@ -503,7 +505,7 @@ class _CommunityCommentsScreenState
   }
 
   void _startReply(PostComment root) {
-    if (root.deleted) return;
+    if (_submitting || root.deleted) return;
     setState(() {
       _editingCommentId = null;
       _replyToCommentId = root.id;
@@ -513,6 +515,7 @@ class _CommunityCommentsScreenState
   }
 
   void _startEdit(PostComment comment) {
+    if (_submitting) return;
     setState(() {
       _replyToCommentId = null;
       _editingCommentId = comment.id;
@@ -525,7 +528,9 @@ class _CommunityCommentsScreenState
   }
 
   Future<void> _confirmAndDelete(PostComment comment) async {
-    final confirmed = await showCommunityCommentDeleteConfirmationSheet(context);
+    final confirmed = await showCommunityCommentDeleteConfirmationSheet(
+      context,
+    );
     if (!mounted || confirmed != true) return;
     await _deleteComment(comment);
   }
@@ -542,7 +547,8 @@ class _CommunityCommentsScreenState
         _comments = _deleteCommentLocally(_comments, comment);
         _comments = _withCommentCounts(_comments, max(0, _displayedCount - 1));
         _displayedCount = max(0, _displayedCount - 1);
-        if (_replyToCommentId == comment.id || _editingCommentId == comment.id) {
+        if (_replyToCommentId == comment.id ||
+            _editingCommentId == comment.id) {
           _resetComposer();
         }
         _mutatingCommentIds.remove(comment.id);
@@ -613,10 +619,7 @@ class _CommunityCommentsScreenState
     }).toList();
   }
 
-  PostComment _mergeCommentScalars(
-    PostComment current,
-    PostComment updated,
-  ) {
+  PostComment _mergeCommentScalars(PostComment current, PostComment updated) {
     return current.copyWith(
       content: updated.content,
       updatedAt: updated.updatedAt,

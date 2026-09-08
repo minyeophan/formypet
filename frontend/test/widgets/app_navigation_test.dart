@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/app_colors.dart';
@@ -23,8 +24,8 @@ void main() {
     expect(finder, findsOneWidget);
     expect(tester.getSize(finder), const Size(44, 44));
 
-    final icon = tester.widget<Icon>(
-      find.descendant(of: finder, matching: find.byType(Icon)).first,
+    final icon = tester.widget<AppIcon>(
+      find.descendant(of: finder, matching: find.byType(AppIcon)).first,
     );
     expect(icon.icon, Icons.chevron_left_rounded);
     expect(icon.color, AppColors.text);
@@ -46,7 +47,7 @@ void main() {
       ),
     );
 
-    final icon = tester.widget<Icon>(find.byType(Icon));
+    final icon = tester.widget<AppIcon>(find.byType(AppIcon));
     expect(icon.icon, Icons.chevron_right_rounded);
     expect(icon.size, 24);
     expect(icon.color, color);

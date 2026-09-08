@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
+import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,34 @@ void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  testWidgets(
+    'category selection keeps white cards and moves the green border',
+    (tester) async {
+      await _pumpScreen(tester, _FakePetNotifier(_petState()));
+      BoxDecoration card(String type) =>
+          tester
+                  .widget<Container>(
+                    find
+                        .descendant(
+                          of: find.byKey(Key('routine-category-$type')),
+                          matching: find.byWidgetPredicate(
+                            (w) =>
+                                w is Container && w.decoration is BoxDecoration,
+                          ),
+                        )
+                        .first,
+                  )
+                  .decoration!
+              as BoxDecoration;
+      expect(card('meal').color, AppColors.surface);
+      await tester.tap(find.byKey(const Key('routine-category-meal')));
+      await tester.pumpAndSettle();
+      expect(card('meal').color, AppColors.surface);
+      expect((card('meal').border! as Border).top.color, AppColors.primary);
+      expect((card('medicine').border! as Border).top.color, AppColors.border);
+    },
+  );
 
   testWidgets('routine categories are inline with period fields', (
     tester,
@@ -39,7 +68,10 @@ void main() {
     expect(dailyChip.showCheckmark, isFalse);
     expect(dailyChip.selectedColor, AppColors.primary);
     expect(weeklyChip.backgroundColor, AppColors.white);
-    expect(find.byKey(const Key('routine-notification-button')), findsOneWidget);
+    expect(
+      find.byKey(const Key('routine-notification-button')),
+      findsOneWidget,
+    );
     expect(find.byType(Switch), findsNothing);
   });
 
@@ -112,15 +144,55 @@ void main() {
     expect(find.text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
     expect(find.byType(RoutineCreateScreen), findsOneWidget);
   });
+  testWidgets('editing routine explicitly clears memo and end date', (
+    tester,
+  ) async {
+    const routine = Routine(
+      id: 'r1',
+      petId: '1',
+      label: '급식',
+      typeId: 'meal',
+      repeatType: 'daily',
+      times: ['08:00'],
+      days: [],
+      startDate: '2026-05-01',
+      endDate: '2026-05-31',
+      note: '기존 메모',
+    );
+    final notifier = _FakePetNotifier(_petState());
+    await _pumpScreen(tester, notifier, editingRoutine: routine);
+    final clearEnd = find.byTooltip('종료일 제거');
+    await tester.ensureVisible(clearEnd);
+    await tester.pumpAndSettle();
+    await tester.tap(clearEnd);
+    await tester.ensureVisible(find.byKey(const Key('routine-note-field')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('routine-note-field')), '');
+    await tester.pump();
+    await tester.ensureVisible(find.text('저장'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(notifier.updatedRoutineBody?['note'], '');
+    expect(notifier.updatedRoutineBody?['clearEndDate'], isTrue);
+  });
 }
 
-Future<void> _pumpScreen(WidgetTester tester, _FakePetNotifier notifier) async {
+Future<void> _pumpScreen(
+  WidgetTester tester,
+  _FakePetNotifier notifier, {
+  Routine? editingRoutine,
+}) async {
   final router = GoRouter(
     initialLocation: '/routine/new',
     routes: [
       GoRoute(
         path: '/routine/new',
-        builder: (_, _) => const RoutineCreateScreen(),
+        builder: (_, _) => RoutineCreateScreen(editingRoutine: editingRoutine),
+      ),
+      GoRoute(
+        path: '/routine/:routineId',
+        builder: (_, _) => const Scaffold(body: Text('routine detail')),
       ),
       GoRoute(
         path: '/routine',
@@ -165,6 +237,12 @@ class _FakePetNotifier extends PetNotifier {
 
   final bool failAdd;
   Map<String, dynamic>? addedRoutineBody;
+  Map<String, dynamic>? updatedRoutineBody;
+
+  @override
+  Future<void> updateRoutine(String id, Map<String, dynamic> body) async {
+    updatedRoutineBody = body;
+  }
 
   @override
   Future<void> addRoutine(Map<String, dynamic> body) async {

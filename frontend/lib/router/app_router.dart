@@ -57,17 +57,24 @@ class _RouterNotifier extends ChangeNotifier {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = _ref.read(authProvider);
     final petState = _ref.read(petProvider);
+    final matchedPath = state.matchedLocation;
+
+    if (authState.initializationError != null) {
+      return matchedPath == '/' ? null : '/';
+    }
 
     if (authState.isLoading || petState.isLoading) return null;
 
     final isAuthenticated = authState.isAuthenticated;
     final hasOnboarded = petState.hasOnboarded;
-    final matchedPath = state.matchedLocation;
 
     if (!isAuthenticated) {
       return matchedPath == '/auth' ? null : '/auth';
     }
     if (!hasOnboarded) {
+      if (petState.dataErrorText != null) {
+        return matchedPath == '/home' ? null : '/home';
+      }
       return matchedPath == '/onboarding' ? null : '/onboarding';
     }
     if (matchedPath == '/auth' ||
@@ -88,7 +95,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
-      GoRoute(path: '/', builder: (c, s) => const SplashScreen()),
+      GoRoute(
+        path: '/',
+        builder: (c, s) => Consumer(
+          builder: (context, ref, child) {
+            final auth = ref.watch(authProvider);
+            return SplashScreen(
+              errorText: auth.initializationError,
+              onRetry: auth.isLoading
+                  ? null
+                  : () => ref.read(authProvider.notifier).retryInitialization(),
+            );
+          },
+        ),
+      ),
       GoRoute(path: '/auth', builder: (c, s) => const AuthScreen()),
       GoRoute(
         path: '/onboarding',
@@ -121,6 +141,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           sourceKey: s.uri.queryParameters['from'],
         ),
       ),
+      GoRoute(
+        path: '/notifications',
+        builder: (c, s) => const NotificationScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
@@ -146,10 +170,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
-          GoRoute(
-            path: '/notifications',
-            builder: (c, s) => const NotificationScreen(),
-          ),
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
@@ -232,13 +252,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/wallet/expenses/:expenseId/edit',
-        builder: (c, s) =>
-            ExpenseEditScreen(expenseId: s.pathParameters['expenseId']!),
+        builder: (c, s) => ExpenseEditScreen(
+          expenseId: s.pathParameters['expenseId']!,
+          petId: s.uri.queryParameters['petId'],
+        ),
       ),
       GoRoute(
         path: '/wallet/expenses/:expenseId',
-        builder: (c, s) =>
-            ExpenseDetailScreen(expenseId: s.pathParameters['expenseId']!),
+        builder: (c, s) => ExpenseDetailScreen(
+          expenseId: s.pathParameters['expenseId']!,
+          petId: s.uri.queryParameters['petId'],
+        ),
       ),
       GoRoute(
         path: '/records/:typeId/new',

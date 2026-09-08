@@ -10,11 +10,13 @@ import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import 'expense_detail_screen.dart';
 import 'expense_form.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseEditScreen extends ConsumerStatefulWidget {
   final String expenseId;
+  final String? petId;
 
-  const ExpenseEditScreen({super.key, required this.expenseId});
+  const ExpenseEditScreen({super.key, required this.expenseId, this.petId});
 
   @override
   ConsumerState<ExpenseEditScreen> createState() => _ExpenseEditScreenState();
@@ -24,12 +26,24 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
   var _submitting = false;
   String? _errorText;
   Future<WalletExpense>? _expenseFuture;
+  (int, String, String)? _expenseKey;
 
   @override
   Widget build(BuildContext context) {
-    final petId = ref.watch(petProvider).activePetId;
-    if (petId == null) {
+    final pets = ref.watch(petProvider);
+    final session = ref.watch(
+      walletExpenseProvider.select((state) => state.session),
+    );
+    final petId = widget.petId ?? pets.activePetId;
+    if (petId == null || !pets.pets.any((pet) => pet.id == petId)) {
       return const ExpenseDetailScreen(expenseId: '');
+    }
+    final expenseKey = (session, petId, widget.expenseId);
+    if (_expenseKey != expenseKey) {
+      _expenseKey = expenseKey;
+      _expenseFuture = null;
+      _submitting = false;
+      _errorText = null;
     }
     _expenseFuture ??= ref
         .read(walletExpenseProvider.notifier)
@@ -59,13 +73,16 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
                 ),
                 Expanded(
                   child: ExpenseFormBody(
-                    key: ValueKey(expense.id),
+                    key: ValueKey(expenseKey),
                     mode: ExpenseFormMode.edit,
                     initialData: ExpenseFormData.fromExpense(expense),
-                    petName: ref.watch(petProvider).activePet?.name,
+                    petName: pets.pets
+                        .where((pet) => pet.id == expense.petId)
+                        .firstOrNull
+                        ?.name,
                     submitting: _submitting,
                     errorText: _errorText,
-                    onSubmit: _save,
+                    onSubmit: (data) => _save(expense, data),
                   ),
                 ),
               ],
@@ -76,14 +93,15 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
     );
   }
 
-  Future<void> _save(ExpenseFormData data) async {
+  Future<void> _save(WalletExpense expense, ExpenseFormData data) async {
     if (_submitting) {
       return;
     }
-    final petId = ref.read(petProvider).activePetId;
-    if (petId == null) {
+    final petId = expense.petId;
+    if (!ref.read(petProvider).pets.any((pet) => pet.id == petId)) {
       return;
     }
+    final session = ref.read(walletExpenseProvider).session;
 
     setState(() {
       _submitting = true;
@@ -95,13 +113,20 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
           .read(walletExpenseProvider.notifier)
           .updateExpense(
             petId,
-            widget.expenseId,
+            expense.id,
             data.toWalletExpenseBody(includeNulls: true),
           );
-      if (!mounted) return;
-      context.go('/wallet/expenses/${widget.expenseId}');
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
+      context.go(
+        '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(petId)}',
+      );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       setState(() {
         _submitting = false;
         _errorText =
@@ -117,6 +142,9 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
       context.pop();
       return;
     }
-    context.go('/wallet/expenses/${widget.expenseId}');
+    final petId = _expenseKey?.$2 ?? widget.petId;
+    context.go(
+      '/wallet/expenses/${widget.expenseId}${petId == null ? '' : '?petId=${Uri.encodeQueryComponent(petId)}'}',
+    );
   }
 }

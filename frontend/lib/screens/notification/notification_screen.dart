@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../models/notification.dart';
 import '../../providers/notification_provider.dart';
+import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
@@ -18,7 +20,12 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(notificationProvider.notifier).loadFirstPage());
+    Future.microtask(() async {
+      if (!mounted) return;
+      await _handleAction(
+        ref.read(notificationProvider.notifier).loadFirstPage,
+      );
+    });
   }
 
   @override
@@ -30,12 +37,20 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         title: '알림',
         showBackButton: true,
         centerTitle: true,
-        onBack: () => Navigator.of(context).maybePop(),
+        onBack: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/home');
+          }
+        },
         actions: [
           TextButton(
-            onPressed: state.unreadCount == 0
+            onPressed: state.unreadCount == 0 || state.isMarkingAllRead
                 ? null
-                : () => ref.read(notificationProvider.notifier).markAllRead(),
+                : () => _handleAction(
+                    ref.read(notificationProvider.notifier).markAllRead,
+                  ),
             child: const Text('모두 읽음'),
           ),
         ],
@@ -54,47 +69,76 @@ class _NotificationBody extends ConsumerWidget {
     if (state.isLoading && state.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (state.errorText != null && state.items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(state.errorText!),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => ref.read(notificationProvider.notifier).loadFirstPage(),
-              child: const Text('다시 시도'),
+    final notifier = ref.read(notificationProvider.notifier);
+    return Column(
+      children: [
+        if (state.errorText != null)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(state.errorText!),
+                OutlinedButton(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _handleAction(notifier.loadFirstPage),
+                  child: const Text('다시 시도'),
+                ),
+              ],
             ),
-          ],
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => _handleAction(notifier.loadFirstPage),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                if (state.items.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: Text('새로운 알림이 없어요.')),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    sliver: SliverList.separated(
+                      itemCount: state.items.length + (state.hasMore ? 1 : 0),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        if (index == state.items.length) {
+                          return Center(
+                            child: TextButton(
+                              onPressed: state.isLoadingMore || state.isLoading
+                                  ? null
+                                  : () => _handleAction(notifier.loadMore),
+                              child: Text(
+                                state.isLoadingMore ? '불러오는 중...' : '더 보기',
+                              ),
+                            ),
+                          );
+                        }
+                        final item = state.items[index];
+                        return _NotificationTile(
+                          item: item,
+                          onTap: () => _openNotification(context, ref, item),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-      );
-    }
-    if (state.items.isEmpty) {
-      return const Center(child: Text('새로운 알림이 없어요.'));
-    }
-    return RefreshIndicator(
-      onRefresh: () => ref.read(notificationProvider.notifier).loadFirstPage(),
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        itemCount: state.items.length + (state.hasMore ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index == state.items.length) {
-            return Center(
-              child: TextButton(
-                onPressed: () => ref.read(notificationProvider.notifier).loadMore(),
-                child: const Text('더 보기'),
-              ),
-            );
-          }
-          final item = state.items[index];
-          return _NotificationTile(
-            item: item,
-            onTap: () => _openNotification(context, ref, item),
-          );
-        },
-      ),
+      ],
     );
+  }
+}
+
+Future<void> _handleAction(Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (_) {
+    // The notifier retains the list and exposes the error with a retry action.
   }
 }
 
@@ -103,20 +147,22 @@ Future<void> _openNotification(
   WidgetRef ref,
   NotificationItem item,
 ) async {
+  final notifications = ref.read(notificationProvider.notifier);
+  final session = notifications.sessionRevision;
   if (!item.isRead) {
     try {
-      await ref.read(notificationProvider.notifier).markRead(item.id);
+      await notifications.markRead(item.id);
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('알림을 읽음 처리하지 못했어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('알림을 읽음 처리하지 못했어요.')));
       }
       return;
     }
   }
 
-  if (!context.mounted) return;
+  if (!context.mounted || notifications.sessionRevision != session) return;
   if (GoRouter.maybeOf(context) == null) return;
   switch (item.type) {
     case 'COMMENT':
@@ -127,13 +173,34 @@ Future<void> _openNotification(
     case 'POLL_VOTE':
       _pushPost(context, item.postId);
     case 'ROUTINE_REMINDER':
-      context.push('/routine');
     case 'CARE_SCHEDULE_REMINDER':
       final sourceId = item.sourceId;
       if (sourceId == null || sourceId.isEmpty) {
         _showMissingTarget(context);
       } else {
-        context.push('/routine/schedule/$sourceId');
+        try {
+          final schedule = item.type == 'CARE_SCHEDULE_REMINDER';
+          final found = await ref
+              .read(petProvider.notifier)
+              .activateReminderTarget(sourceId: sourceId, isSchedule: schedule);
+          if (!context.mounted || notifications.sessionRevision != session) {
+            return;
+          }
+          if (!found) {
+            _showMissingTarget(context);
+            return;
+          }
+          context.push(
+            schedule ? '/routine/schedule/$sourceId' : '/routine/$sourceId',
+          );
+        } catch (_) {
+          if (!context.mounted || notifications.sessionRevision != session) {
+            return;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('연결된 내용을 불러오지 못했어요. 다시 시도해 주세요.')),
+          );
+        }
       }
     default:
       _showMissingTarget(context);
@@ -148,10 +215,17 @@ void _pushPost(BuildContext context, String? postId) {
   context.push('/community/posts/$postId');
 }
 
-void _pushComment(BuildContext context, NotificationItem item, {required bool reply}) {
+void _pushComment(
+  BuildContext context,
+  NotificationItem item, {
+  required bool reply,
+}) {
   final postId = item.postId;
   final commentId = item.commentId;
-  if (postId == null || postId.isEmpty || commentId == null || commentId.isEmpty) {
+  if (postId == null ||
+      postId.isEmpty ||
+      commentId == null ||
+      commentId.isEmpty) {
     _showMissingTarget(context);
     return;
   }
@@ -160,9 +234,9 @@ void _pushComment(BuildContext context, NotificationItem item, {required bool re
 }
 
 void _showMissingTarget(BuildContext context) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('연결된 내용을 찾을 수 없어요.')),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('연결된 내용을 찾을 수 없어요.')));
 }
 
 class _NotificationTile extends StatelessWidget {
@@ -175,7 +249,9 @@ class _NotificationTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
-      color: item.isRead ? AppColors.surface : AppColors.primary.withValues(alpha: .12),
+      color: item.isRead
+          ? AppColors.surface
+          : AppColors.primary.withValues(alpha: .12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -184,23 +260,36 @@ class _NotificationTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(item.isRead ? Icons.notifications_none : Icons.notifications_active,
-                  color: AppColors.primary),
+              AppIcon(
+                item.isRead
+                    ? Icons.notifications_none
+                    : Icons.notifications_active,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(
+                      item.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 4),
-                    Text(item.body, style: const TextStyle(color: AppColors.textSecondary)),
+                    Text(
+                      item.body,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
               ),
               if (!item.isRead)
                 const Padding(
                   padding: EdgeInsets.only(left: 8, top: 4),
-                  child: CircleAvatar(radius: 4, backgroundColor: AppColors.primary),
+                  child: CircleAvatar(
+                    radius: 4,
+                    backgroundColor: AppColors.primary,
+                  ),
                 ),
             ],
           ),

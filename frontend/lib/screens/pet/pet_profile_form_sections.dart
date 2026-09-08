@@ -404,7 +404,7 @@ class _PhotoPickerTile extends StatelessWidget {
                     ? Image.memory(
                         bytes!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Icon(
+                        errorBuilder: (_, _, _) => const AppIcon(
                           Icons.pets,
                           color: AppColors.textSecondary,
                         ),
@@ -412,7 +412,7 @@ class _PhotoPickerTile extends StatelessWidget {
                     : AuthenticatedNetworkImage(
                         url: existingUrl,
                         fit: BoxFit.cover,
-                        fallback: const Icon(
+                        fallback: const AppIcon(
                           Icons.add_a_photo_rounded,
                           color: AppColors.textSecondary,
                         ),

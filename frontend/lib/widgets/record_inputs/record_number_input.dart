@@ -1,3 +1,4 @@
+import '../app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -146,10 +147,7 @@ class _RecordNumberPadSheetState extends State<_RecordNumberPadSheet> {
         suffixText: widget.suffixText,
         placeholderText: widget.placeholderText,
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxHeight: RecordInputStyle.numberPadMaxHeight,
-        ),
+      child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             RecordInputStyle.sheetHorizontalPadding,
@@ -259,7 +257,7 @@ class _NumberKey extends StatelessWidget {
             border: Border.all(color: RecordInputStyle.borderColor),
           ),
           child: isBackspace
-              ? const Icon(
+              ? const AppIcon(
                   Icons.backspace_outlined,
                   size: 21,
                   color: AppColors.textSecondary,

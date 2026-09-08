@@ -10,7 +10,10 @@ void setAuthExpiredHandler(Future<void> Function()? handler) {
   _authExpiredHandler = handler;
 }
 
-Future<void> notifyAuthExpired() async {
+Future<void> notifyAuthExpired({int? expectedRevision}) async {
+  if (expectedRevision != null && credentialRevision != expectedRevision) {
+    return;
+  }
   await _authExpiredHandler?.call();
 }
 
@@ -40,7 +43,8 @@ class _TransientGetRetryInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final request = err.requestOptions;
-    final canRetry = request.method.toUpperCase() == 'GET' &&
+    final canRetry =
+        request.method.toUpperCase() == 'GET' &&
         request.extra['_noTransientRetry'] != true &&
         request.extra['_transientGetRetry'] != true &&
         _isTransient(err);
@@ -112,11 +116,10 @@ ApiException parseApiError(DioException e) {
   );
 }
 
-bool _isRefreshing = false;
-final _pendingQueue = <Completer<void>>[];
-
-class _AuthInterceptor extends QueuedInterceptorsWrapper {
+class _AuthInterceptor extends Interceptor {
   final Dio _dio;
+  int? _refreshRevision;
+  Future<({String access, int revision})>? _refreshing;
   _AuthInterceptor(this._dio);
 
   @override
@@ -124,9 +127,32 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await getAccessToken();
+    if (options.extra['_skipAuth'] == true) {
+      options.headers.remove('Authorization');
+      handler.next(options);
+      return;
+    }
+    final credentials = await readCredentials();
+    final token = credentials.access;
+    if (options.extra.containsKey('_requestAccess') &&
+        (options.extra['_requestAccess'] != token ||
+            options.extra['_requestCredentialRevision'] !=
+                credentials.revision)) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: 'Authentication session changed',
+        ),
+      );
+      return;
+    }
+    options.extra['_requestAccess'] = token;
+    options.extra['_requestCredentialRevision'] = credentials.revision;
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      options.headers.remove('Authorization');
     }
     handler.next(options);
   }
@@ -138,55 +164,41 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
   ) async {
     if (err.response?.statusCode == 401 &&
         !err.requestOptions.path.contains('/auth/')) {
-      if (_isRefreshing) {
-        final c = Completer<void>();
-        _pendingQueue.add(c);
-        await c.future;
-        final token = await getAccessToken();
-        err.requestOptions.headers['Authorization'] = 'Bearer $token';
-        try {
-          final res = await _dio.fetch(err.requestOptions);
-          handler.resolve(res);
-          return;
-        } catch (e) {
+      final request = err.requestOptions;
+      final access = request.extra['_requestAccess'] as String?;
+      final requestRevision =
+          request.extra['_requestCredentialRevision'] as int?;
+      if (access == null ||
+          requestRevision == null ||
+          request.extra['_authRetried'] == true) {
+        handler.reject(err);
+        return;
+      }
+      Future<({String access, int revision})>? pendingRefresh;
+      try {
+        if (_refreshRevision != requestRevision || _refreshing == null) {
+          if (credentialRevision != requestRevision) {
+            handler.reject(err);
+            return;
+          }
+          _refreshRevision = requestRevision;
+          _refreshing = _refreshTokens(access, requestRevision);
+        }
+        pendingRefresh = _refreshing!;
+        final renewed = await pendingRefresh;
+        if (credentialRevision != renewed.revision) {
           handler.reject(err);
           return;
         }
-      }
-
-      _isRefreshing = true;
-      try {
-        final refresh = await getRefreshToken();
-        if (refresh == null) throw Exception('no refresh token');
-
-        final res = await _dio.post(
-          '/api/v1/auth/refresh',
-          data: {'refreshToken': refresh},
-          options: Options(headers: {'Authorization': null}),
-        );
-
-        final newAccess = res.data['data']['accessToken'] as String;
-        final newRefresh = res.data['data']['refreshToken'] as String;
-        await saveTokens(access: newAccess, refresh: newRefresh);
-
-        for (final c in _pendingQueue) {
-          c.complete();
-        }
-        _pendingQueue.clear();
-
-        err.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
-        final retried = await _dio.fetch(err.requestOptions);
+        request.extra['_authRetried'] = true;
+        request.extra['_requestAccess'] = renewed.access;
+        request.extra['_requestCredentialRevision'] = renewed.revision;
+        request.headers['Authorization'] = 'Bearer ${renewed.access}';
+        final retried = await _dio.fetch(request);
         handler.resolve(retried);
       } catch (_) {
-        for (final c in _pendingQueue) {
-          c.completeError('refresh failed');
-        }
-        _pendingQueue.clear();
-        await clearTokens();
-        await notifyAuthExpired();
+        if (identical(_refreshing, pendingRefresh)) _refreshing = null;
         handler.reject(err);
-      } finally {
-        _isRefreshing = false;
       }
       return;
     }
@@ -198,6 +210,49 @@ class _AuthInterceptor extends QueuedInterceptorsWrapper {
         type: err.type,
       ),
     );
+  }
+
+  Future<({String access, int revision})> _refreshTokens(
+    String access,
+    int requestRevision,
+  ) async {
+    final credentials = await readCredentials();
+    if (credentials.access != access ||
+        credentials.revision != requestRevision) {
+      throw StateError('Authentication session changed');
+    }
+    final refresh = credentials.refresh;
+    if (refresh == null) {
+      await _expireCredentials(credentials.revision);
+      throw StateError('No refresh token');
+    }
+    try {
+      final response = await _dio.post(
+        '/api/v1/auth/refresh',
+        data: {'refreshToken': refresh},
+        options: Options(extra: {'_skipAuth': true}),
+      );
+      final newAccess = response.data['data']['accessToken'] as String;
+      final newRefresh = response.data['data']['refreshToken'] as String;
+      final revision = await replaceTokensIfCurrent(
+        expectedRevision: credentials.revision,
+        access: newAccess,
+        refresh: newRefresh,
+      );
+      if (revision == null) throw StateError('Authentication session changed');
+      return (access: newAccess, revision: revision);
+    } catch (error) {
+      if (error is DioException &&
+          {400, 401, 403}.contains(error.response?.statusCode)) {
+        await _expireCredentials(credentials.revision);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _expireCredentials(int expectedRevision) async {
+    final revision = await clearTokensIfCurrent(expectedRevision);
+    if (revision != null) await notifyAuthExpired(expectedRevision: revision);
   }
 }
 

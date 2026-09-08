@@ -382,6 +382,26 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void emptyMemoClearsSavedTextWhileOmittedMemoPreservesIt() throws Exception {
+        String token = registerAndGetToken("clear-record@example.com", "clear-record");
+        Long petId = createPet(token, "Nabi");
+        Long recordId = createRecord(token, petId, "walk", Map.of("distance", 1.5));
+        String url = recordsUrl(petId) + "/" + recordId;
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"Old memo\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.note").value("Old memo"));
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"time\":\"10:00\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.note").value("Old memo"));
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.note").value(""));
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.note").value(""))
+                .andExpect(jsonPath("$.data.detail.distance").value(1.5));
+    }
+
+    @Test
     void accessOtherUsersPetRecordsReturns403() throws Exception {
         String tokenA = registerAndGetToken("owner-record@example.com", "owner");
         String tokenB = registerAndGetToken("other-record@example.com", "other");

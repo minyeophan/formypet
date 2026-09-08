@@ -2,6 +2,23 @@ import '../core/api_client.dart';
 import '../models/wallet_expense.dart';
 
 class WalletExpenseService {
+  Future<List<WalletExpense>> listAllExpenses(String petId) async {
+    final items = <String, WalletExpense>{};
+    final cursors = <String>{};
+    String? cursor;
+    do {
+      final page = await listExpenses(petId, cursor: cursor);
+      for (final item in page.items) {
+        items[item.id] = item;
+      }
+      if (!page.hasMore) return items.values.toList();
+      cursor = page.nextCursor;
+      if (cursor == null || !cursors.add(cursor)) {
+        throw StateError('Wallet pagination did not advance');
+      }
+    } while (true);
+  }
+
   Future<WalletExpenseList> listExpenses(
     String petId, {
     String? cursor,

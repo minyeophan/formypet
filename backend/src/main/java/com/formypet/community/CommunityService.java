@@ -441,8 +441,8 @@ public class CommunityService {
         if (request.title().length() > 30) {
             throw new IllegalArgumentException("Post title must be 30 characters or fewer.");
         }
-        if (files.size() > 3) {
-            throw new IllegalArgumentException("A post can include up to 3 images.");
+        if (files.size() > 5) {
+            throw new IllegalArgumentException("A post can include up to 5 images.");
         }
         if (request.poll() == null) {
             return;

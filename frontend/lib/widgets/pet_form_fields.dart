@@ -1,3 +1,4 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -168,7 +169,7 @@ class PetDateField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  const AppIcon(
                     Icons.calendar_today_rounded,
                     size: 20,
                     color: AppColors.textSecondary,
@@ -234,7 +235,7 @@ class PetPickerField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  const AppIcon(
                     Icons.expand_more_rounded,
                     size: 22,
                     color: AppColors.textSecondary,

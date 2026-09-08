@@ -75,6 +75,12 @@ class CommunityState {
 
 class CommunityNotifier extends StateNotifier<CommunityState> {
   final CommunityService _svc;
+  int _mutationRevision = 0;
+  int _searchGeneration = 0;
+  bool _refreshPopularAfterLoad = false;
+  final Map<String, int> _postEditRevisions = {};
+  final Map<String, ({int revision, bool liked, int likesCount})> _likeResults =
+      {};
 
   CommunityNotifier(this._svc)
     : super(
@@ -126,6 +132,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     final cursor = kind == CommunityFeedRequestKind.loadMore
         ? state.cursorByFeedKey[key]
         : null;
+    final requestRevision = _mutationRevision;
 
     try {
       final feed = await _svc.getFeed(
@@ -133,20 +140,39 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         sort: _sortForKey(key),
         cursor: cursor,
       );
+      final items = feed.items
+          .map((post) => _reconcilePost(post, requestRevision))
+          .where((post) => _categoryForKey(key) == null || post.category == key)
+          .toList();
+      if (_categoryForKey(key) != null) {
+        // An older destination response may omit a post moved here while the
+        // request was pending, including the first load with no feed cache.
+        // Recover edited posts from the shared cache without duplicates.
+        final incomingIds = items.map((post) => post.id).toSet();
+        items.insertAll(
+          0,
+          state.postsById.values.where(
+            (post) =>
+                (_postEditRevisions[post.id] ?? 0) > requestRevision &&
+                post.category == key &&
+                !incomingIds.contains(post.id),
+          ),
+        );
+      }
       final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
       final cursors = Map<String, String?>.from(state.cursorByFeedKey);
 
       if (kind != CommunityFeedRequestKind.loadMore) {
-        posts[key] = feed.items;
+        posts[key] = items;
       } else {
-        final merged = [...(posts[key] ?? []), ...feed.items];
+        final merged = [...(posts[key] ?? []), ...items];
         posts[key] = [
           for (final id in merged.map((post) => post.id).toSet())
             merged.firstWhere((post) => post.id == id),
         ];
       }
       final postCache = Map<String, Post>.from(state.postsById);
-      for (final post in feed.items) {
+      for (final post in items) {
         postCache[post.id] = post;
       }
       cursors[key] = feed.nextCursor;
@@ -172,6 +198,10 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         failureByFeedKey: failures,
       );
     }
+    if (key == 'popular' && _refreshPopularAfterLoad) {
+      _refreshPopularAfterLoad = false;
+      await loadFeed(feedKey: 'popular', refresh: true);
+    }
   }
 
   Future<void> loadMore({String? feedKey}) async {
@@ -185,6 +215,11 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     state = state.copyWith(likingPostIds: {...state.likingPostIds, postId});
     try {
       final result = await _svc.toggleLike(postId);
+      _likeResults[postId] = (
+        revision: ++_mutationRevision,
+        liked: result['liked'] as bool,
+        likesCount: result['likesCount'] as int,
+      );
       final post = state.postsById[postId];
       if (post != null) {
         _replacePost(
@@ -202,9 +237,36 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   }
 
   Future<Post> loadPost(String postId) async {
-    final post = await _svc.getPost(postId);
+    final requestRevision = _mutationRevision;
+    final post = _reconcilePost(await _svc.getPost(postId), requestRevision);
     _replacePost(post);
     return post;
+  }
+
+  Future<List<Post>> searchPosts(String keyword) async {
+    final generation = ++_searchGeneration;
+    final requestRevision = _mutationRevision;
+    final feed = await _svc.getFeed(keyword: keyword, limit: 50);
+    final posts = feed.items
+        .map((post) => _reconcilePost(post, requestRevision))
+        .toList();
+    if (generation == _searchGeneration) {
+      for (final post in posts) {
+        _replacePost(post);
+      }
+    }
+    return posts;
+  }
+
+  Post _reconcilePost(Post post, int requestRevision) {
+    if ((_postEditRevisions[post.id] ?? 0) > requestRevision) {
+      // The shared copy includes the completed edit and any subsequent local
+      // changes; a read begun before that edit must not restore the old post.
+      post = state.postsById[post.id] ?? post;
+    }
+    final result = _likeResults[post.id];
+    if (result == null || result.revision <= requestRevision) return post;
+    return post.copyWith(liked: result.liked, likesCount: result.likesCount);
   }
 
   Future<Post> updatePost(
@@ -221,7 +283,8 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       category: category,
       petSpecies: petSpecies,
     );
-    _replacePost(post);
+    _postEditRevisions[post.id] = ++_mutationRevision;
+    _replacePost(post, moveCategory: true);
     return post;
   }
 
@@ -270,7 +333,9 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     await _svc.deleteComment(postId, commentId);
     final post = state.postsById[postId];
     if (post != null) {
-      _replacePost(post.copyWith(commentsCount: max(0, post.commentsCount - 1)));
+      _replacePost(
+        post.copyWith(commentsCount: max(0, post.commentsCount - 1)),
+      );
     }
   }
 
@@ -289,24 +354,43 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       poll: poll,
     );
     final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
-    for (final key in {state.activeFeedKey, 'all', post.category}) {
+    for (final key in {'all', post.category}) {
       if (posts.containsKey(key)) {
-        posts[key] = [post, ...(posts[key] ?? [])];
+        posts[key] = [post, ...posts[key]!.where((item) => item.id != post.id)];
       }
     }
     state = state.copyWith(postsByFeedKey: posts);
     final postCache = Map<String, Post>.from(state.postsById);
     postCache[post.id] = post;
     state = state.copyWith(postsById: postCache);
+    // Popular placement depends on server ranking, including posts outside the
+    // cached page. A refresh failure must not turn a saved post into a failure.
+    if (state.isLoadingFeed('popular')) {
+      _refreshPopularAfterLoad = true;
+    } else {
+      await loadFeed(feedKey: 'popular', refresh: true);
+    }
     return post;
   }
 
-  void _replacePost(Post updated) {
+  void _replacePost(Post updated, {bool moveCategory = false}) {
+    final categoryChanged =
+        moveCategory &&
+        state.postsById[updated.id]?.category != updated.category;
     final posts = <String, List<Post>>{
       for (final entry in state.postsByFeedKey.entries)
-        entry.key: entry.value
-            .map((post) => post.id == updated.id ? updated : post)
-            .toList(),
+        entry.key: [
+          if (categoryChanged &&
+              entry.key == updated.category &&
+              !entry.value.any((post) => post.id == updated.id))
+            updated,
+          for (final post in entry.value)
+            if (post.id != updated.id)
+              post
+            else if (_categoryForKey(entry.key) == null ||
+                entry.key == updated.category)
+              updated,
+        ],
     };
     final postCache = Map<String, Post>.from(state.postsById);
     postCache[updated.id] = updated;

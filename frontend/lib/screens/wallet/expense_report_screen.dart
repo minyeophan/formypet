@@ -10,6 +10,7 @@ import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseReportScreen extends ConsumerStatefulWidget {
   const ExpenseReportScreen({super.key});
@@ -27,13 +28,13 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
     final activePetId = ref.watch(petProvider).activePetId;
     if (activePetId != null && activePetId != _loadedPetId) {
       _loadedPetId = activePetId;
-      Future.microtask(
-        () async {
-          try {
-            await ref.read(walletExpenseProvider.notifier).loadFirstPage(activePetId);
-          } catch (_) {}
-        },
-      );
+      Future.microtask(() async {
+        try {
+          await ref
+              .read(walletExpenseProvider.notifier)
+              .loadFirstPage(activePetId);
+        } catch (_) {}
+      });
     }
 
     final state = ref.watch(walletExpenseProvider);
@@ -67,6 +68,8 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                             .loadFirstPage(activePetId!),
                       ),
                     const SizedBox(height: 8),
+                    if (state.refreshWarning != null)
+                      const WalletRefreshNotice(),
                     _ReportSummaryCard(
                       expenses: expenses,
                       totalAmount: state.summary.totalAmount,
@@ -109,8 +112,8 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                         onPressed: state.isLoadingMore
                             ? null
                             : () => ref
-                                .read(walletExpenseProvider.notifier)
-                                .loadMore(activePetId!),
+                                  .read(walletExpenseProvider.notifier)
+                                  .loadMore(activePetId!),
                         child: const Text('더 보기'),
                       ),
                   ],
@@ -253,7 +256,9 @@ class _ReportExpenseRowState extends State<_ReportExpenseRow> {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/wallet/expenses/${expense.id}'),
+        onTap: () => context.push(
+          '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(expense.petId)}',
+        ),
         onFocusChange: (isFocused) {
           if (_isFocused == isFocused) return;
           setState(() => _isFocused = isFocused);

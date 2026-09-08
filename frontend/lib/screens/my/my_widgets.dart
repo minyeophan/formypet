@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -89,7 +90,7 @@ class MyMenuRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: color),
+              AppIcon(icon, size: 20, color: color),
               const SizedBox(width: 12),
               Expanded(
                 child: AppText(
@@ -146,7 +147,7 @@ class MyPetCard extends StatelessWidget {
                   fallback: Container(
                     color: AppColors.surfaceSoft,
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: const AppIcon(
                       Icons.pets_rounded,
                       color: AppColors.textSecondary,
                     ),

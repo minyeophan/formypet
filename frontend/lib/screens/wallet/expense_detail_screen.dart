@@ -9,11 +9,13 @@ import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseDetailScreen extends ConsumerStatefulWidget {
   final String expenseId;
+  final String? petId;
 
-  const ExpenseDetailScreen({super.key, required this.expenseId});
+  const ExpenseDetailScreen({super.key, required this.expenseId, this.petId});
 
   @override
   ConsumerState<ExpenseDetailScreen> createState() =>
@@ -24,12 +26,22 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   var _deleting = false;
   String? _errorText;
   Future<WalletExpense>? _expenseFuture;
+  (int, String, String)? _expenseKey;
 
   @override
   Widget build(BuildContext context) {
-    final petId = ref.watch(petProvider).activePetId;
-    if (petId == null) {
+    final pets = ref.watch(petProvider);
+    final wallet = ref.watch(walletExpenseProvider);
+    final petId = widget.petId ?? pets.activePetId;
+    if (petId == null || !pets.pets.any((pet) => pet.id == petId)) {
       return const _ExpenseNotFoundScreen();
+    }
+    final expenseKey = (wallet.session, petId, widget.expenseId);
+    if (_expenseKey != expenseKey) {
+      _expenseKey = expenseKey;
+      _expenseFuture = null;
+      _deleting = false;
+      _errorText = null;
     }
     _expenseFuture ??= ref
         .read(walletExpenseProvider.notifier)
@@ -53,7 +65,14 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
             .where((pet) => pet.id == petId)
             .toList();
         return _ExpenseDetailBody(
-          expense: snapshot.data!,
+          expense:
+              [...?wallet.expensesByPet[petId], ...wallet.items]
+                  .where(
+                    (item) =>
+                        item.id == widget.expenseId && item.petId == petId,
+                  )
+                  .firstOrNull ??
+              snapshot.data!,
           petName: matchingPets.isEmpty ? null : matchingPets.first.name,
           deleting: _deleting,
           errorText: _errorText,
@@ -113,16 +132,17 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       },
     );
 
-    if (confirmed == true) {
+    if (mounted && confirmed == true) {
       await _delete(expense);
     }
   }
 
   Future<void> _delete(WalletExpense expense) async {
-    final petId = ref.read(petProvider).activePetId;
-    if (petId == null) {
+    final petId = expense.petId;
+    if (!ref.read(petProvider).pets.any((pet) => pet.id == petId)) {
       return;
     }
+    final session = ref.read(walletExpenseProvider).session;
     setState(() {
       _deleting = true;
       _errorText = null;
@@ -132,10 +152,15 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       await ref
           .read(walletExpenseProvider.notifier)
           .deleteExpense(petId, expense.id);
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
       context.go('/wallet');
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       setState(() {
         _deleting = false;
         _errorText =
@@ -178,8 +203,9 @@ class _ExpenseDetailBody extends StatelessWidget {
                   onBack: () => _goBack(context),
                   trailing: TextButton(
                     key: const Key('expense-detail-edit-button'),
-                    onPressed: () =>
-                        context.push('/wallet/expenses/${expense.id}/edit'),
+                    onPressed: () => context.push(
+                      '/wallet/expenses/${expense.id}/edit?petId=${Uri.encodeQueryComponent(expense.petId)}',
+                    ),
                     child: const AppText(
                       '\uC218\uC815',
                       fontSize: 13,

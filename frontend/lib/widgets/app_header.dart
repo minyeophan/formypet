@@ -1,6 +1,8 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_v2_tokens.dart';
 import 'app_navigation.dart';
 import 'app_text.dart';
 
@@ -41,22 +43,27 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       leading: leadingKey == null
-          ? (leading ?? (showBackButton
-                ? Align(child: AppBackButton(onPressed: onBack!))
-                : null))
+          ? (leading ??
+                (showBackButton
+                    ? Align(child: AppBackButton(onPressed: onBack!))
+                    : null))
           : KeyedSubtree(
               key: leadingKey,
-              child: leading ?? (showBackButton
-                  ? Align(child: AppBackButton(onPressed: onBack!))
-                  : const SizedBox.shrink()),
+              child:
+                  leading ??
+                  (showBackButton
+                      ? Align(child: AppBackButton(onPressed: onBack!))
+                      : const SizedBox.shrink()),
             ),
       centerTitle: centerTitle,
       title: AppText(
         title,
         key: titleKey,
-        fontSize: 22,
+        fontSize: AppV2Tokens.headerTitleSize,
         fontWeight: FontWeight.bold,
         color: AppColors.text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       backgroundColor: AppColors.background,
       surfaceTintColor: AppColors.background,
@@ -96,7 +103,7 @@ class AppInlineHeader extends StatelessWidget {
         children: [
           SizedBox(
             key: const Key('app-inline-header-leading-slot'),
-            width: 84,
+            width: trailing == null ? 44 : 84,
             height: 56,
             child: Align(
               alignment: Alignment.centerLeft,
@@ -106,7 +113,7 @@ class AppInlineHeader extends StatelessWidget {
           Expanded(
             child: AppText(
               title,
-              fontSize: 18,
+              fontSize: AppV2Tokens.headerTitleSize,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
               textAlign: TextAlign.center,
@@ -116,7 +123,7 @@ class AppInlineHeader extends StatelessWidget {
           ),
           SizedBox(
             key: const Key('app-inline-header-trailing-slot'),
-            width: 84,
+            width: trailing == null ? 44 : 84,
             height: 56,
             child: Align(alignment: Alignment.centerRight, child: trailing),
           ),
@@ -154,7 +161,7 @@ class AppFormHeader extends StatelessWidget {
         children: [
           SizedBox(
             key: const Key('app-form-header-leading-slot'),
-            width: 96,
+            width: trailing == null ? 44 : 96,
             height: 56,
             child: Align(
               alignment: Alignment.centerLeft,
@@ -164,7 +171,7 @@ class AppFormHeader extends StatelessWidget {
           Expanded(
             child: AppText(
               title,
-              fontSize: 18,
+              fontSize: AppV2Tokens.headerTitleSize,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
               textAlign: TextAlign.center,
@@ -174,7 +181,7 @@ class AppFormHeader extends StatelessWidget {
           ),
           SizedBox(
             key: const Key('app-form-header-trailing-slot'),
-            width: 96,
+            width: trailing == null ? 44 : 96,
             height: 56,
             child: Align(alignment: Alignment.centerRight, child: trailing),
           ),
@@ -184,7 +191,7 @@ class AppFormHeader extends StatelessWidget {
   }
 }
 
-class AppHeaderIconButton extends StatelessWidget {
+class AppHeaderIconButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
@@ -197,24 +204,48 @@ class AppHeaderIconButton extends StatelessWidget {
   });
 
   @override
+  State<AppHeaderIconButton> createState() => _AppHeaderIconButtonState();
+}
+
+class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
+  bool _pressed = false;
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tooltip,
+      message: widget.tooltip,
       child: Material(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
+          onHighlightChanged: (value) => setState(() => _pressed = value),
+          onFocusChange: (value) => setState(() => _focused = value),
           borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+          onTap: widget.onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: AppIcon(
+                  widget.icon,
+                  size: 20,
+                  color:
+                      (_pressed || _focused) &&
+                          widget.icon == Icons.search_rounded
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                ),
+              ),
             ),
-            child: Icon(icon, size: 20, color: AppColors.textSecondary),
           ),
         ),
       ),

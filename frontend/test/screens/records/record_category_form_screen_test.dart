@@ -432,6 +432,33 @@ void main() {
     expect(notifier.updatedRecords.single.$2['time'], '09:10');
     expect(notifier.updatedRecords.single.$2['detail'], {'weight': 4.7});
   });
+  for (final type in ['poop', 'walk']) {
+    testWidgets('editing $type sends empty note to clear memo', (tester) async {
+      final notifier = _CategoryTestPetNotifier(
+        records: [
+          ActivityRecord(
+            id: 'clear-$type',
+            petId: 'pet-1',
+            typeId: type,
+            date: '2026-05-09',
+            time: '09:10',
+            note: '기존 메모',
+            detail: type == 'walk'
+                ? {'distance': 1.2}
+                : {'poopShape': 'normal', 'poopColor': 'brown'},
+          ),
+        ],
+      );
+      await _pumpCategoryRoute(
+        tester,
+        '/records/clear-$type/edit',
+        notifier: notifier,
+      );
+      await tester.enterText(find.widgetWithText(TextField, '기존 메모'), '');
+      await _tapEditSave(tester);
+      expect(notifier.updatedRecords.single.$2['note'], '');
+    });
+  }
 }
 
 Future<void> _tapSave(WidgetTester tester) async {

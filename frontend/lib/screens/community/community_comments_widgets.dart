@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
@@ -38,7 +39,7 @@ class CommunityCommentsHeader extends StatelessWidget {
             child: IconButton(
               key: const Key('community-comments-back'),
               onPressed: onBack,
-              icon: const Icon(Icons.arrow_back_rounded),
+              icon: const AppIcon(Icons.arrow_back_rounded),
               color: AppV2Tokens.primary,
               tooltip: '뒤로가기',
             ),
@@ -51,9 +52,9 @@ class CommunityCommentsHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppV2Tokens.text,
-                fontFamily: AppV2Tokens.fontFamily,
-                fontSize: 24,
-                height: 32 / 24,
+
+                fontSize: AppV2Tokens.headerTitleSize,
+                height: 1.4,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -66,7 +67,7 @@ class CommunityCommentsHeader extends StatelessWidget {
                 : IconButton(
                     key: const Key('community-comments-more'),
                     onPressed: onMore,
-                    icon: const Icon(Icons.more_vert_rounded),
+                    icon: const AppIcon(Icons.more_vert_rounded),
                     color: AppV2Tokens.primary,
                     tooltip: '더보기',
                   ),
@@ -224,7 +225,6 @@ class _CommentRow extends StatelessWidget {
             child: Text(
               '삭제된 댓글입니다',
               style: TextStyle(
-                fontFamily: AppV2Tokens.fontFamily,
                 color: AppV2Tokens.textSecondary,
                 fontSize: bodySize,
                 height: 1.5,
@@ -236,73 +236,70 @@ class _CommentRow extends StatelessWidget {
       );
     }
     return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      CommunityCommentAvatar(
-        key: Key('community-comment-avatar-${comment.id}'),
-        url: comment.authorProfileImageUrl,
-        size: avatarSize,
-        fallbackColor: AppV2Tokens.surfaceSoft,
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    communityCommentAuthor(comment.authorNickname),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: AppV2Tokens.fontFamily,
-                      color: AppV2Tokens.text,
-                      fontSize: avatarSize == 40 ? 14 : 14,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CommunityCommentAvatar(
+          key: Key('community-comment-avatar-${comment.id}'),
+          url: comment.authorProfileImageUrl,
+          size: avatarSize,
+          fallbackColor: AppV2Tokens.surfaceSoft,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      communityCommentAuthor(comment.authorNickname),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppV2Tokens.text,
+                        fontSize: avatarSize == 40 ? 14 : 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  _CommentMoreButton(commentId: comment.id, onPressed: onMore),
+                ],
+              ),
+              Text(
+                comment.content,
+                style: TextStyle(
+                  color: AppV2Tokens.textSecondary,
+                  fontSize: bodySize,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    formatCommunityRelativeTime(comment.createdAt) ?? '',
+                    style: const TextStyle(
+                      color: AppV2Tokens.textSecondary,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                _CommentMoreButton(commentId: comment.id, onPressed: onMore),
-              ],
-            ),
-            Text(
-              comment.content,
-              style: TextStyle(
-                fontFamily: AppV2Tokens.fontFamily,
-                color: AppV2Tokens.textSecondary,
-                fontSize: bodySize,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(
-                  formatCommunityRelativeTime(comment.createdAt) ?? '',
-                  style: const TextStyle(
-                    fontFamily: AppV2Tokens.fontFamily,
-                    color: AppV2Tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (onReply != null) ...[
-                  const SizedBox(width: 16),
-                  _FocusAction(
-                    key: Key('community-comment-reply-${comment.id}'),
-                    label: '답글 달기',
-                    onPressed: onReply,
-                  ),
+                  if (onReply != null) ...[
+                    const SizedBox(width: 16),
+                    _FocusAction(
+                      key: Key('community-comment-reply-${comment.id}'),
+                      label: '답글 달기',
+                      onPressed: onReply,
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-    ],
+      ],
     );
   }
 }
@@ -392,7 +389,6 @@ class _FocusActionState extends State<_FocusAction> {
             : Text(
                 widget.label,
                 style: const TextStyle(
-                  fontFamily: AppV2Tokens.fontFamily,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -447,7 +443,7 @@ Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
             for (final action in actions)
               ListTile(
                 minTileHeight: 52,
-                leading: Icon(
+                leading: AppIcon(
                   action.$3,
                   color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
                 ),
@@ -455,7 +451,6 @@ Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
                   action.$2,
                   style: TextStyle(
                     color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
-                    fontFamily: AppV2Tokens.fontFamily,
                   ),
                 ),
                 onTap: () => Navigator.pop(sheetContext, action.$1),
@@ -486,7 +481,7 @@ Future<bool?> showCommunityCommentDeleteConfirmationSheet(
               '댓글을 삭제할까요?',
               style: TextStyle(
                 color: AppV2Tokens.text,
-                fontFamily: AppV2Tokens.fontFamily,
+
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -494,11 +489,7 @@ Future<bool?> showCommunityCommentDeleteConfirmationSheet(
             const SizedBox(height: 8),
             const Text(
               '삭제한 댓글은 다시 되돌릴 수 없어요.',
-              style: TextStyle(
-                color: AppV2Tokens.textSecondary,
-                fontFamily: AppV2Tokens.fontFamily,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: AppV2Tokens.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 18),
             FilledButton(
@@ -549,7 +540,7 @@ class CommunityCommentsStatus extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppV2Tokens.textSecondary,
-                    fontFamily: AppV2Tokens.fontFamily,
+
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -654,7 +645,6 @@ class CommunityCommentsComposer extends StatelessWidget {
                         child: Text(
                           editing ? '댓글 수정 중' : '$author님에게 답글',
                           style: const TextStyle(
-                            fontFamily: AppV2Tokens.fontFamily,
                             color: AppV2Tokens.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -664,7 +654,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                       IconButton(
                         key: const Key('community-reply-cancel'),
                         onPressed: onCancelReply,
-                        icon: const Icon(Icons.close_rounded, size: 18),
+                        icon: const AppIcon(Icons.close_rounded, size: 18),
                         tooltip: editing ? '수정 취소' : '답글 취소',
                       ),
                     ],
@@ -687,7 +677,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                         ),
                       ),
                       onPressed: () => showPreparingToast(context),
-                      icon: const Icon(Icons.photo_camera_outlined),
+                      icon: const AppIcon(Icons.photo_camera_outlined),
                       tooltip: '이미지 첨부',
                     ),
                   ),
@@ -700,9 +690,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                       enabled: enabled,
                       minLines: 1,
                       maxLines: 4,
-                      style: const TextStyle(
-                        fontFamily: AppV2Tokens.fontFamily,
-                      ),
+                      style: const TextStyle(),
                       decoration: InputDecoration(
                         hintText: author == null
                             ? editing
@@ -764,7 +752,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                                   color: AppV2Tokens.primary,
                                 ),
                               )
-                            : const Icon(Icons.send_rounded),
+                            : const AppIcon(Icons.send_rounded),
                         tooltip: '전송',
                       ),
                     ),

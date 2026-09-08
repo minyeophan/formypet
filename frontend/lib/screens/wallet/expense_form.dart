@@ -133,7 +133,9 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   @override
   void didUpdateWidget(covariant ExpenseFormBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialData != widget.initialData) {
+    // A new record gets a new widget key; parent progress/error rebuilds keep
+    // the current draft even when they recreate the initial data object.
+    if (oldWidget.mode != widget.mode) {
       final initial = widget.initialData;
       _date = initial.date;
       _time = initial.time;
@@ -298,7 +300,10 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   void _submit() {
     final amount = _amount;
     final category = _category;
-    if (amount == null || amount <= 0 || amount > 999999999 || category == null) {
+    if (amount == null ||
+        amount <= 0 ||
+        amount > 999999999 ||
+        category == null) {
       return;
     }
     FocusScope.of(context).unfocus();
@@ -661,7 +666,7 @@ class _InlineError extends StatelessWidget {
   }
 }
 
-class _SaveButton extends StatelessWidget {
+class _SaveButton extends StatefulWidget {
   final String label;
   final bool canSave;
   final bool submitting;
@@ -675,39 +680,52 @@ class _SaveButton extends StatelessWidget {
   });
 
   @override
+  State<_SaveButton> createState() => _SaveButtonState();
+}
+
+class _SaveButtonState extends State<_SaveButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final color = !widget.canSave
+        ? AppColors.surfaceSoft
+        : _pressed
+        ? AppColors.primaryPressed
+        : AppColors.primary;
     return Material(
       key: const Key('expense-save-button'),
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
+        onTap: widget.onTap,
+        onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: canSave ? AppColors.text : AppColors.surfaceSoft,
+            color: color,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: canSave ? AppColors.text : AppColors.border,
+              color: widget.canSave ? color : AppColors.border,
             ),
           ),
-          child: submitting
+          child: widget.submitting
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.white,
+                    color: AppColors.primary,
                   ),
                 )
               : AppText(
-                  label,
+                  widget.label,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: canSave ? AppColors.white : AppColors.muted,
+                  color: widget.canSave ? AppColors.white : AppColors.muted,
                 ),
         ),
       ),

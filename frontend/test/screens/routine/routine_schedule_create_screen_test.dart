@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/core/app_theme.dart';
 import 'package:frontend/models/care_schedule.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -18,6 +22,63 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
+
+  testWidgets('saving indicator remains visible on green button', (
+    tester,
+  ) async {
+    final service = _PendingScheduleService();
+    final notifier = PetNotifier.testWithServices(
+      _petNotifier().state,
+      scheduleService: service,
+    );
+    await _pumpScreen(tester, notifier: notifier);
+    await tester.tap(find.byKey(const Key('schedule-category-grooming')));
+    await tester.enterText(find.byKey(const Key('schedule-title-field')), '목욕');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-save-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final spinner = tester.widget<CircularProgressIndicator>(
+      find.descendant(
+        of: find.byKey(const Key('schedule-save-button')),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+    );
+    expect(spinner.color ?? spinner.valueColor?.value, AppColors.white);
+    await tester.pumpWidget(const SizedBox());
+    service.pending.complete(_schedule());
+    await tester.pump();
+  });
+
+  testWidgets(
+    'schedule categories use the same white and green selection rule',
+    (tester) async {
+      await _pumpScreen(tester);
+      BoxDecoration card(String type) =>
+          tester
+                  .widget<Container>(
+                    find
+                        .descendant(
+                          of: find.byKey(Key('schedule-category-$type')),
+                          matching: find.byWidgetPredicate(
+                            (w) =>
+                                w is Container && w.decoration is BoxDecoration,
+                          ),
+                        )
+                        .first,
+                  )
+                  .decoration!
+              as BoxDecoration;
+      expect(card('grooming').color, AppColors.surface);
+      await tester.tap(find.byKey(const Key('schedule-category-grooming')));
+      await tester.pumpAndSettle();
+      expect(card('grooming').color, AppColors.surface);
+      expect((card('grooming').border! as Border).top.color, AppColors.primary);
+      expect((card('hospital').border! as Border).top.color, AppColors.border);
+    },
+  );
 
   testWidgets('schedule form excludes photo and companion inputs', (
     tester,
@@ -269,7 +330,7 @@ Future<void> _pumpScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [petProvider.overrideWith((ref) => petNotifier)],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(routerConfig: router, theme: buildAppTheme()),
     ),
   );
   await tester.pumpAndSettle();
@@ -350,4 +411,12 @@ class _FakeCareScheduleService extends CareScheduleService {
 
   @override
   Future<void> deleteSchedule(String petId, String scheduleId) async {}
+}
+
+class _PendingScheduleService extends CareScheduleService {
+  final pending = Completer<CareSchedule>();
+
+  @override
+  Future<CareSchedule> createSchedule(String petId, CareSchedule schedule) =>
+      pending.future;
 }

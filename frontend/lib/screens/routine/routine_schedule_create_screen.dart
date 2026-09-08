@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,7 +166,7 @@ class _RoutineScheduleCreateScreenState
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () => showPreparingToast(context),
-                        icon: const Icon(Icons.map_outlined, size: 18),
+                        icon: const AppIcon(Icons.map_outlined, size: 18),
                         label: const AppText(
                           '지도에서 찾기',
                           fontSize: 13,
@@ -236,7 +237,10 @@ class _RoutineScheduleCreateScreenState
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
                           )
                         : AppText(
                             '저장',
@@ -496,19 +500,18 @@ class _CategoryButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: selected
-              ? category.color.withValues(alpha: 0.14)
-              : AppColors.surfaceSoft,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? category.color : AppColors.border,
+            color: selected ? AppColors.primary : AppColors.border,
+            width: selected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
             AppVisual(
               id: scheduleVisualId(category.id),
-              size: 18,
+              size: 24,
               color: category.color,
             ),
             const SizedBox(width: 7),

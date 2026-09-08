@@ -21,7 +21,7 @@ class MyPoliciesScreen extends StatelessWidget {
         onBack: () => _goBack(context, '/my'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           Container(
             decoration: BoxDecoration(
@@ -73,7 +73,7 @@ class MyPolicyDetailScreen extends StatelessWidget {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 Container(
                   padding: const EdgeInsets.all(18),
