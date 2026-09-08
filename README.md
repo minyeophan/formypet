@@ -92,6 +92,16 @@ MySQL
 
 ## 로컬 실행
 
+아래 명령은 각 터미널에서 저장소 루트를 기준으로 실행합니다. 비밀번호와 키는 해당 터미널 또는 IDE 실행 구성의 환경 변수로 설정하며, 로컬 파일에 보관할 경우 Git에 추가하지 않습니다.
+
+| 실행 대상 | 필요한 환경 변수 |
+| --- | --- |
+| MySQL | `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD` (필수), `MYSQL_DATABASE` (선택) |
+| 백엔드 | `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `JWT_SECRET` (필수), `SPRING_DATASOURCE_URL` (선택) |
+| Flutter | `KAKAO_NATIVE_APP_KEY` (필수) |
+
+백엔드의 DB 계정은 MySQL에 설정한 계정과 일치해야 합니다. 기존 로컬 DB 이름과 포트가 다르면 `SPRING_DATASOURCE_URL`도 지정합니다. 환경 파일을 생성하는 것만으로 Spring Boot나 Flutter에 값이 자동 전달되지는 않습니다.
+
 ### 1. MySQL 실행
 
 ```powershell
@@ -106,15 +116,17 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-운영 환경에서는 `JWT_SECRET` 환경 변수를 반드시 설정해야 합니다. 로컬 개발 설정에는 기본값이 있지만, 운영 배포에 그대로 사용하면 안 됩니다.
+`JWT_SECRET`은 로컬 개발에서도 직접 설정해야 하며, 저장소에 기본 비밀값을 제공하지 않습니다.
 
 ### 3. 프론트엔드 실행
 
 ```powershell
 cd frontend
 flutter pub get
-flutter run
+flutter run --dart-define="KAKAO_NATIVE_APP_KEY=$env:KAKAO_NATIVE_APP_KEY"
 ```
+
+Android 빌드는 같은 환경 변수를 URL 스킴에도 사용합니다. 위 명령은 터미널에 설정한 키를 Dart와 Android 설정에 동일하게 전달합니다.
 
 ## 검증 명령
 

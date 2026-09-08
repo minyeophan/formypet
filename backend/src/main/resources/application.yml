@@ -7,9 +7,9 @@ spring:
       enabled: true
 
   datasource:
-    url: jdbc:mysql://localhost:3307/petyilgi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: petyilgi
-    password: petyilgi123
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/petyilgi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -33,7 +33,7 @@ spring:
 
 app:
   jwt:
-    secret: "${JWT_SECRET:petyilgi-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}"
+    secret: ${JWT_SECRET}
     access-token-expiration: 1800000    # 30분 (ms)
     refresh-token-expiration: 2592000000 # 30일 (ms)
 

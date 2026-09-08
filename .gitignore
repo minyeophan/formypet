@@ -1,5 +1,15 @@
 node_modules
 
+# Local credentials and machine-specific configuration
+.env
+.env.*
+.idea/
+backend/local.properties
+backend/src/main/resources/application-local.yml
+backend/firebase-service-account.json
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+
 # local agent/config artifacts
 .codex/
 .claude/
@@ -21,6 +31,7 @@ hs_err_pid*.log
 
 # frontend local runtime artifacts
 frontend/.env
+frontend/.env.*
 frontend/*.log
 frontend/*.err.log
 frontend/devtools_options.yaml
