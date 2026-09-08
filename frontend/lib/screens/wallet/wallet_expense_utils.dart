@@ -21,6 +21,38 @@ class ExpenseCategoryOption {
   const ExpenseCategoryOption(this.key, this.label);
 }
 
+enum WalletPeriod { month, year, all }
+
+WalletPeriod walletPeriodFromValue(String? value) => switch (value) {
+  'year' => WalletPeriod.year,
+  'all' => WalletPeriod.all,
+  _ => WalletPeriod.month,
+};
+
+String walletPeriodValue(WalletPeriod period) => switch (period) {
+  WalletPeriod.month => 'month',
+  WalletPeriod.year => 'year',
+  WalletPeriod.all => 'all',
+};
+
+List<WalletExpense> filterWalletExpenses(
+  Iterable<WalletExpense> source, {
+  String? petId,
+  String? category,
+  WalletPeriod period = WalletPeriod.month,
+  DateTime? now,
+}) {
+  final today = now ?? DateTime.now();
+  return source.where((expense) {
+    if (petId != null && expense.petId != petId) return false;
+    if (category != null && expense.category != category) return false;
+    final date = DateTime.tryParse(expense.expenseDate);
+    if (date == null || period == WalletPeriod.all) return true;
+    if (period == WalletPeriod.year) return date.year == today.year;
+    return date.year == today.year && date.month == today.month;
+  }).toList()..sort(newestExpenseFirst);
+}
+
 int newestExpenseFirst(WalletExpense a, WalletExpense b) {
   final dateCompare = b.expenseDate.compareTo(a.expenseDate);
   if (dateCompare != 0) {

@@ -14,7 +14,11 @@ import 'wallet_expense_utils.dart';
 import 'wallet_refresh_notice.dart';
 
 class ExpenseCalendarScreen extends ConsumerStatefulWidget {
-  const ExpenseCalendarScreen({super.key});
+  final String? petId;
+  final String? category;
+  final String? period;
+
+  const ExpenseCalendarScreen({super.key, this.petId, this.category, this.period});
 
   @override
   ConsumerState<ExpenseCalendarScreen> createState() =>
@@ -27,6 +31,18 @@ class _ExpenseCalendarScreenState extends ConsumerState<ExpenseCalendarScreen> {
   String? _loadedPetsKey;
   String? _selectedPetId;
   String? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPetId = widget.petId;
+    _selectedCategory = widget.category;
+    final selectedPeriod = walletPeriodFromValue(widget.period);
+    if (selectedPeriod == WalletPeriod.year || selectedPeriod == WalletPeriod.all) {
+      _month = DateTime.now();
+      _selected = DateTime.now();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

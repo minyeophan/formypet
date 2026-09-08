@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../models/wallet_expense.dart';
-import '../../models/wallet_expense.dart' as wallet_model;
 import '../../providers/pet_provider.dart';
 import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
@@ -13,7 +12,11 @@ import 'wallet_expense_utils.dart';
 import 'wallet_refresh_notice.dart';
 
 class ExpenseReportScreen extends ConsumerStatefulWidget {
-  const ExpenseReportScreen({super.key});
+  final String? petId;
+  final String? category;
+  final String? period;
+
+  const ExpenseReportScreen({super.key, this.petId, this.category, this.period});
 
   @override
   ConsumerState<ExpenseReportScreen> createState() =>
@@ -21,25 +24,38 @@ class ExpenseReportScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
-  String? _loadedPetId;
+  String? _loadedPetsKey;
 
   @override
   Widget build(BuildContext context) {
-    final activePetId = ref.watch(petProvider).activePetId;
-    if (activePetId != null && activePetId != _loadedPetId) {
-      _loadedPetId = activePetId;
+    final petState = ref.watch(petProvider);
+    final pets = petState.pets;
+    final activePetId = widget.petId ?? petState.activePetId;
+    final petsKey = '${ref.watch(walletExpenseProvider).session}:${pets.map((p) => p.id).join(',')}';
+    if (petsKey != _loadedPetsKey) {
+      _loadedPetsKey = petsKey;
       Future.microtask(() async {
         try {
           await ref
               .read(walletExpenseProvider.notifier)
-              .loadFirstPage(activePetId);
+              .loadAllPets(pets.map((pet) => pet.id).toList());
         } catch (_) {}
       });
     }
 
     final state = ref.watch(walletExpenseProvider);
-    final expenses = state.items;
-    final categories = state.summary.categories;
+    final allExpenses = pets.expand((pet) => state.expensesByPet[pet.id] ?? const <WalletExpense>[]);
+    final expenses = filterWalletExpenses(
+      allExpenses,
+      petId: widget.petId,
+      category: widget.category,
+      period: walletPeriodFromValue(widget.period),
+    );
+    final totalAmount = expenses.fold<int>(0, (sum, expense) => sum + expense.amount);
+    final categories = <String, int>{};
+    for (final expense in expenses) {
+      categories.update(expense.category, (value) => value + expense.amount, ifAbsent: () => expense.amount);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,14 +81,14 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                       _ReportErrorPanel(
                         onRetry: () => ref
                             .read(walletExpenseProvider.notifier)
-                            .loadFirstPage(activePetId!),
+                            .loadAllPets(pets.map((pet) => pet.id).toList()),
                       ),
                     const SizedBox(height: 8),
                     if (state.refreshWarning != null)
                       const WalletRefreshNotice(),
-                    _ReportSummaryCard(
+                      _ReportSummaryCard(
                       expenses: expenses,
-                      totalAmount: state.summary.totalAmount,
+                      totalAmount: totalAmount,
                     ),
                     const SizedBox(height: 14),
                     const AppText(
@@ -88,8 +104,8 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                             '\uC694\uC57D\uD560 \uC9C0\uCD9C \uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694',
                       )
                     else
-                      for (final category in categories)
-                        _CategorySummaryRow(category: category),
+                      for (final entry in categories.entries)
+                        _CategorySummaryRow(categoryLabel: expenseCategoryDisplayLabel(entry.key), amount: entry.value),
                     const SizedBox(height: 14),
                     const AppText(
                       '\uC9C0\uCD9C \uB0B4\uC5ED',
@@ -197,9 +213,10 @@ class _ReportSummaryCard extends StatelessWidget {
 }
 
 class _CategorySummaryRow extends StatelessWidget {
-  final wallet_model.WalletExpenseCategorySummary category;
+  final String categoryLabel;
+  final int amount;
 
-  const _CategorySummaryRow({required this.category});
+  const _CategorySummaryRow({required this.categoryLabel, required this.amount});
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +232,7 @@ class _CategorySummaryRow extends StatelessWidget {
         children: [
           Expanded(
             child: AppText(
-              category.categoryLabel,
+              categoryLabel,
               fontSize: 13,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
@@ -224,7 +241,7 @@ class _CategorySummaryRow extends StatelessWidget {
             ),
           ),
           AppText(
-            formatWon(category.amount),
+            formatWon(amount),
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: AppColors.text,

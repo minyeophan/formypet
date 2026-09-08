@@ -29,7 +29,7 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
   String? _selectedPetId;
   String? _selectedCategory;
   int? _monthlyBudget;
-  String _totalPeriod = 'all';
+  String _totalPeriod = 'month';
 
   @override
   void initState() {
@@ -106,6 +106,10 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
     );
     final recent = selectedItems.take(5).toList();
     final total = selectedItems.fold<int>(0, (sum, item) => sum + item.amount);
+    final reportQuery = <String, String>{'period': _totalPeriod};
+    if (_selectedPetId != null) reportQuery['petId'] = _selectedPetId!;
+    if (_selectedCategory != null) reportQuery['category'] = _selectedCategory!;
+    final reportPath = Uri(path: '/wallet/report', queryParameters: reportQuery).toString();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -121,9 +125,24 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                     AppInlineHeader(
                       title: '\uC9D1\uC0AC\uC758 \uC9C0\uAC11',
                       onBack: () => _goBack(context),
-                      trailing: TextButton(
-                        onPressed: () => context.push('/wallet/report'),
-                        child: const Text('\uC804\uCCB4\uBCF4\uAE30'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: '\uC9C0\uCD9C \uCE98\uB9B0\uB354',
+                            onPressed: () => context.push(
+                              Uri(
+                                path: '/wallet/calendar',
+                                queryParameters: reportQuery,
+                              ).toString(),
+                            ),
+                            icon: const AppIcon(Icons.calendar_today_rounded, size: 20),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push(reportPath),
+                            child: const Text('\uB9AC\uD3EC\uD2B8'),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -190,10 +209,7 @@ class _ExpenseWalletScreenState extends ConsumerState<ExpenseWalletScreen> {
                             value: _totalPeriod,
                             isDense: true,
                             items: const [
-                              DropdownMenuItem(
-                                value: 'all',
-                                child: Text('\uC804\uCCB4 \uAE30\uAC04'),
-                              ),
+                              DropdownMenuItem(value: 'all', child: Text('\uC804\uCCB4 \uAE30\uAC04')),
                               DropdownMenuItem(
                                 value: 'year',
                                 child: Text('\uC62C\uD574 \uC9C0\uCD9C'),

@@ -30,7 +30,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            AppFormHeader(title: '비용 추가', onBack: _goBack),
+            AppFormHeader(title: '지출 추가', onBack: _goBack),
             Expanded(
               child: ExpenseFormBody(
                 key: ValueKey((
@@ -84,7 +84,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       }
       setState(() {
         _submitting = false;
-        _errorText = '비용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
+        _errorText = '지출을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
       });
     }
   }

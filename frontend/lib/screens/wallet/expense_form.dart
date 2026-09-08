@@ -214,7 +214,6 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
                 ),
               ),
               const SizedBox(width: 10),
-              const _CurrencyChip(value: 'KRW'),
             ],
           ),
         ),
@@ -266,7 +265,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           const SizedBox(height: 12),
         ],
         _SaveButton(
-          label: widget.mode == ExpenseFormMode.add ? '비용 저장' : '수정 완료',
+          label: widget.mode == ExpenseFormMode.add ? '지출 저장' : '수정 완료',
           canSave: _canSubmit,
           submitting: widget.submitting,
           onTap: _canSubmit ? _submit : null,
