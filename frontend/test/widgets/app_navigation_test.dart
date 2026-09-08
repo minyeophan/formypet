@@ -28,6 +28,7 @@ void main() {
       find.descendant(of: finder, matching: find.byType(AppIcon)).first,
     );
     expect(icon.icon, Icons.chevron_left_rounded);
+    expect(icon.size, 22);
     expect(icon.color, AppColors.text);
 
     await tester.tap(finder);

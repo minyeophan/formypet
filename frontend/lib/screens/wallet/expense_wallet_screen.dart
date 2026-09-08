@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/visuals/app_visual_id.dart';
 import '../../models/wallet_expense.dart';
 import '../../providers/pet_provider.dart';
 import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_underline_tabs.dart';
+import '../../widgets/app_visual.dart';
 import 'wallet_expense_utils.dart';
 import 'wallet_refresh_notice.dart';
 
@@ -529,9 +531,9 @@ class _ExpenseListRowState extends State<_ExpenseListRow> {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text(
-                  _walletExpenseEmoji(expense.category),
-                  style: const TextStyle(fontSize: 22),
+                child: AppVisual(
+                  id: walletExpenseVisualId(expense.category),
+                  size: 24,
                 ),
               ),
               const SizedBox(width: 10),
@@ -612,11 +614,11 @@ void _goBack(BuildContext context) {
   context.go('/home');
 }
 
-String _walletExpenseEmoji(String category) => switch (category) {
-  'food' => '🍚',
-  'snack' => '🦴',
-  'vet' || 'hospital' => '🏥',
-  'medicine' || 'medication' => '💊',
-  'grooming' => '✂️',
-  _ => '🧾',
+AppVisualId walletExpenseVisualId(String category) => switch (category) {
+  'food' => AppVisualId.recordMeal,
+  'snack' => AppVisualId.mealSnack,
+  'vet' || 'hospital' => AppVisualId.recordVet,
+  'medicine' || 'medication' => AppVisualId.recordMedicine,
+  'grooming' => AppVisualId.recordGroom,
+  _ => AppVisualId.recordEtc,
 };

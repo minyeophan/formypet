@@ -10,6 +10,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 
 class MyScreen extends ConsumerWidget {
@@ -47,8 +48,7 @@ class MyScreen extends ConsumerWidget {
                     isLoading: petState.isLoading,
                     onViewAll: () => context.push('/my/pets'),
                   ),
-                  for (final group in _menuGroups)
-                    _MenuGroup(group: group),
+                  for (final group in _menuGroups) _MenuGroup(group: group),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 4, 20, 24),
                     child: AppText(
@@ -236,11 +236,7 @@ class _PetPhotoTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
-      child: const AppIcon(
-        Icons.photo_camera_outlined,
-        size: 30,
-        color: AppColors.textSecondary,
-      ),
+      child: AppVisual(id: speciesVisualId(pet.species), size: 46),
     );
 
     return ClipRRect(
@@ -339,6 +335,9 @@ class _MenuGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -408,11 +407,7 @@ class _MenuRow extends StatelessWidget {
                 ),
               ),
               if (onTap == null)
-                const AppText(
-                  '준비중',
-                  fontSize: 12,
-                  color: AppColors.muted,
-                )
+                const AppText('준비중', fontSize: 12, color: AppColors.muted)
               else
                 const AppDisclosureChevron(),
             ],
@@ -481,7 +476,6 @@ class _CardSurface extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF3A2A18).withValues(alpha: 0.08),
@@ -489,6 +483,10 @@ class _CardSurface extends StatelessWidget {
             offset: const Offset(0, 6),
           ),
         ],
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: child,

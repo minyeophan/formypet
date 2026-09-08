@@ -1,3 +1,5 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M15 15L49 49M49 15L15 49" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10 10.0001)" opacity="1">
+<path d="M 0 0 L 43.9997 43.9997 M 43.9997 0 L 0 43.9997" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>

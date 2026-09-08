@@ -24,6 +24,26 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  testWidgets('place input stays usable on narrow screens after scrolling', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    for (final width in [360.0, 390.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      await _pumpScreen(tester);
+      final place = find.widgetWithText(TextField, '장소를 직접 입력하거나 검색하세요');
+      await tester.ensureVisible(place);
+      await tester.pumpAndSettle();
+      await tester.enterText(place, '반려동물 병원');
+      await tester.pumpAndSettle();
+      expect(find.text('반려동물 병원'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
   testWidgets('saving indicator remains visible on green button', (
     tester,
   ) async {

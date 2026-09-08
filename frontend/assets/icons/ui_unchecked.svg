@@ -1,3 +1,5 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M47 10H17C13.134 10 10 13.134 10 17V47C10 50.866 13.134 54 17 54H47C50.866 54 54 50.866 54 47V17C54 13.134 50.866 10 47 10Z" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10 10)" opacity="1">
+<path d="M 10.6142 0 L 33.3866 0 C 40.4628 0 44.0009 3.5381 44.0009 10.6142 L 44.0009 33.3866 C 44.0009 40.4628 40.4628 44.0009 33.3866 44.0009 L 10.6142 44.0009 C 3.5381 44.0009 0 40.4628 0 33.3866 L 0 10.6142 C 0 3.5381 3.5381 0 10.6142 0 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>

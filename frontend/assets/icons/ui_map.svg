@@ -1,3 +1,10 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M40 17L24 10L10 17V54L24 47M24 10V47M24 47L40 54L54 47V10L40 17M40 17V54" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10.9166 9)" opacity="1">
+<path d="M 21.0833 0 C 7.6666 0 0 7.6666 0 19.1666 C 0 30.6666 16.2916 43.1249 19.1666 45.0415 C 20.4444 46.3193 21.7222 46.3193 22.9999 45.0415 C 25.8749 43.1249 42.1665 30.6666 42.1665 19.1666 C 42.1665 7.6666 34.4999 0 21.0833 0 Z" fill-rule="nonzero" fill="#bee5cf" fill-opacity="1"/>
+<path d="M 21.0833 0 C 7.6666 0 0 7.6666 0 19.1666 C 0 30.6666 16.2916 43.1249 19.1666 45.0415 C 20.4444 46.3193 21.7222 46.3193 22.9999 45.0415 C 25.8749 43.1249 42.1665 30.6666 42.1665 19.1666 C 42.1665 7.6666 34.4999 0 21.0833 0 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 24.8125 20.0208)" opacity="1">
+<path d="M 14.3755 7.1878 C 14.3755 11.1575 11.1575 14.3755 7.1878 14.3755 C 3.2181 14.3755 0 11.1575 0 7.1878 C 0 3.2181 3.2181 0 7.1878 0 C 11.1575 0 14.3755 3.2181 14.3755 7.1878 Z" fill-rule="nonzero" fill="#ffffff" fill-opacity="1"/>
+<path d="M 14.3755 7.1878 C 14.3755 11.1575 11.1575 14.3755 7.1878 14.3755 C 3.2181 14.3755 0 11.1575 0 7.1878 C 0 3.2181 3.2181 0 7.1878 0 C 11.1575 0 14.3755 3.2181 14.3755 7.1878 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>

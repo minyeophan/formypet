@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="matrix(1 0 0 1 9 9)" opacity="1">
+<path d="M 22.9999 0 C 37.3749 0 45.9998 7.6666 45.9998 21.0833 C 45.9998 34.4999 36.4165 41.2082 22.9999 41.2082 L 17.2499 40.2499 L 5.75 45.9998 L 7.6666 35.4582 C 2.875 31.6249 0 26.8332 0 21.0833 C 0 7.6666 8.625 0 22.9999 0 Z" fill-rule="nonzero" fill="#c3e0f1" fill-opacity="1"/>
+<path d="M 22.9999 0 C 37.3749 0 45.9998 7.6666 45.9998 21.0833 C 45.9998 34.4999 36.4165 41.2082 22.9999 41.2082 L 17.2499 40.2499 L 5.75 45.9998 L 7.6666 35.4582 C 2.875 31.6249 0 26.8332 0 21.0833 C 0 7.6666 8.625 0 22.9999 0 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 25.7709 17.6251)" opacity="1">
+<path d="M 0 5.7502 C 0 -1.9167 12.938 -1.9167 12.938 5.7502 C 12.938 10.5421 6.2294 11.5005 6.2294 16.2924" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 29.8917 38.5167)" opacity="1">
+<path d="M 4.2165 2.1083 C 4.2165 3.2726 3.2726 4.2165 2.1083 4.2165 C 0.9439 4.2165 0 3.2726 0 2.1083 C 0 0.9439 0.9439 0 2.1083 0 C 3.2726 0 4.2165 0.9439 4.2165 2.1083 Z" fill-rule="nonzero" fill="#363a3d" fill-opacity="1"/>
+</g>
+</svg>

@@ -15,13 +15,11 @@ class MyNotice {
 class MyFaqCategory {
   final String id;
   final String title;
-  final String iconLabel;
   final String lead;
 
   const MyFaqCategory({
     required this.id,
     required this.title,
-    required this.iconLabel,
     required this.lead,
   });
 }
@@ -74,25 +72,21 @@ const myFaqCategories = [
   MyFaqCategory(
     id: 'account',
     title: '계정 관련',
-    iconLabel: '계',
     lead: '계정, 로그인, 공동집사, 약관 확인과 관련된 질문을 모았습니다.',
   ),
   MyFaqCategory(
     id: 'records',
     title: '기록 관련',
-    iconLabel: '기',
     lead: '반려동물 기록 작성, 날짜, 사진 첨부와 관련된 질문을 모았습니다.',
   ),
   MyFaqCategory(
     id: 'routine',
     title: '루틴 관련',
-    iconLabel: '루',
     lead: '루틴 반복, 완료 체크, 일정 저장과 관련된 질문을 모았습니다.',
   ),
   MyFaqCategory(
     id: 'community',
     title: '커뮤니티 관련',
-    iconLabel: '커',
     lead: '게시글, 이미지, 투표, 나의 활동과 관련된 질문을 모았습니다.',
   ),
 ];

@@ -1,5 +1,8 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M32 55C44.7025 55 55 44.7025 55 32C55 19.2975 44.7025 9 32 9C19.2975 9 9 19.2975 9 32C9 44.7025 19.2975 55 32 55Z" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M32 29V45" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M32 21.5C32.8284 21.5 33.5 20.8284 33.5 20C33.5 19.1716 32.8284 18.5 32 18.5C31.1716 18.5 30.5 19.1716 30.5 20C30.5 20.8284 31.1716 21.5 32 21.5Z" fill="#222222" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10 10)" opacity="1">
+<path d="M 22.0004 18.1407 L 22.0004 34.5445 M 44.0009 22.0004 C 44.0009 34.1509 34.1509 44.0009 22.0004 44.0009 C 9.8499 44.0009 0 34.1509 0 22.0004 C 0 9.8499 9.8499 0 22.0004 0 C 34.1509 0 44.0009 9.8499 44.0009 22.0004 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 30.2623 18.6839)" opacity="1">
+<path d="M 3.4745 1.7373 C 3.4745 2.6967 2.6967 3.4745 1.7373 3.4745 C 0.7778 3.4745 0 2.6967 0 1.7373 C 0 0.7778 0.7778 0 1.7373 0 C 2.6967 0 3.4745 0.7778 3.4745 1.7373 Z" fill-rule="nonzero" fill="#363a3d" fill-opacity="1"/>
+</g>
 </svg>

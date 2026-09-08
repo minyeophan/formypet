@@ -1,14 +1,17 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_242_52)">
-<path d="M27 46C36.9411 46 45 37.9411 45 28C45 18.0589 36.9411 10 27 10C17.0589 10 9 18.0589 9 28C9 37.9411 17.0589 46 27 46Z" fill="#DDF0EE" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M48 55C51.866 55 55 51.866 55 48C55 44.134 51.866 41 48 41C44.134 41 41 44.134 41 48C41 51.866 44.134 55 48 55Z" fill="#DCEEF2" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M27 55C28.6569 55 30 53.6569 30 52C30 50.3431 28.6569 49 27 49C25.3431 49 24 50.3431 24 52C24 53.6569 25.3431 55 27 55Z" fill="#DCEEF2" stroke="#4B4844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M15 27C15 21 19 17 24 16M44 47C44.6667 45 46 44 48 44" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 9 9.5)" opacity="1">
+<path d="M 36 18 C 36 27.9411 27.9411 36 18 36 C 8.0589 36 0 27.9411 0 18 C 0 8.0589 8.0589 0 18 0 C 27.9411 0 36 8.0589 36 18 Z" fill-rule="nonzero" fill="#ddf0ee" fill-opacity="1"/>
+<path d="M 36 18 C 36 27.9411 27.9411 36 18 36 C 8.0589 36 0 27.9411 0 18 C 0 8.0589 8.0589 0 18 0 C 27.9411 0 36 8.0589 36 18 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<defs>
-<clipPath id="clip0_242_52">
-<rect width="64" height="64" fill="white"/>
-</clipPath>
-</defs>
+<g transform="matrix(1 0 0 1 41 40.5)" opacity="1">
+<path d="M 14 7 C 14 10.866 10.866 14 7 14 C 3.134 14 0 10.866 0 7 C 0 3.134 3.134 0 7 0 C 10.866 0 14 3.134 14 7 Z" fill-rule="nonzero" fill="#dceef2" fill-opacity="1"/>
+<path d="M 14 7 C 14 10.866 10.866 14 7 14 C 3.134 14 0 10.866 0 7 C 0 3.134 3.134 0 7 0 C 10.866 0 14 3.134 14 7 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 24 48.5)" opacity="1">
+<path d="M 6 3 C 6 4.6569 4.6569 6 3 6 C 1.3431 6 0 4.6569 0 3 C 0 1.3431 1.3431 0 3 0 C 4.6569 0 6 1.3431 6 3 Z" fill-rule="nonzero" fill="#dceef2" fill-opacity="1"/>
+<path d="M 6 3 C 6 4.6569 4.6569 6 3 6 C 1.3431 6 0 4.6569 0 3 C 0 1.3431 1.3431 0 3 0 C 4.6569 0 6 1.3431 6 3 Z" fill-rule="nonzero" fill="none" stroke="#4b4844" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 15 15.5)" opacity="1">
+<path d="M 0 11 C 0 5 4 1 9 0 M 29 31 C 29.6667 29 31 28 33 28" fill-rule="nonzero" fill="none" stroke="#ffffff" stroke-opacity="1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
 </svg>
-

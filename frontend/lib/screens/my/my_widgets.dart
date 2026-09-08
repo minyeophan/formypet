@@ -7,6 +7,7 @@ import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 
 class MyMenuCard extends StatelessWidget {
@@ -147,10 +148,7 @@ class MyPetCard extends StatelessWidget {
                   fallback: Container(
                     color: AppColors.surfaceSoft,
                     alignment: Alignment.center,
-                    child: const AppIcon(
-                      Icons.pets_rounded,
-                      color: AppColors.textSecondary,
-                    ),
+                    child: AppVisual(id: speciesVisualId(pet.species), size: 42),
                   ),
                 ),
               ),

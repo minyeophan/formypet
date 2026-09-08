@@ -30,7 +30,6 @@ class MySupportCenterScreen extends StatelessWidget {
               for (var index = 0; index < myFaqCategories.length; index++)
                 MySupportRow(
                   title: myFaqCategories[index].title,
-                  iconLabel: myFaqCategories[index].iconLabel,
                   showTopBorder: index > 0,
                   onTap: () =>
                       context.push('/my/support/${myFaqCategories[index].id}'),

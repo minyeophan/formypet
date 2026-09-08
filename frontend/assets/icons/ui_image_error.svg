@@ -1,4 +1,8 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M46 11H18C14.134 11 11 14.134 11 18V46C11 49.866 14.134 53 18 53H46C49.866 53 53 49.866 53 46V18C53 14.134 49.866 11 46 11Z" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M13 43L24 32L35 41L43 34L52 43M10 10L54 54" stroke="#222222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="matrix(1 0 0 1 10 10)" opacity="1">
+<path d="M 12.3511 0.7719 L 36.4744 0.7719 C 40.9774 0.7719 43.2289 3.0235 43.2289 7.5265 L 43.2289 31.6498 M 0.7719 12.3511 L 0.7719 36.4744 C 0.7719 40.9774 3.0235 43.2289 7.5265 43.2289 L 31.6498 43.2289 M 1.7369 32.6147 L 13.3161 21.0355 L 23.9303 31.6498 M 0 0 L 44.0009 44.0009" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 36.8235 20.4206)" opacity="1">
+<path d="M 5.7896 2.8948 C 5.7896 4.4935 4.4935 5.7896 2.8948 5.7896 C 1.296 5.7896 0 4.4935 0 2.8948 C 0 1.296 1.296 0 2.8948 0 C 4.4935 0 5.7896 1.296 5.7896 2.8948 Z" fill-rule="nonzero" fill="#363a3d" fill-opacity="1"/>
+</g>
 </svg>

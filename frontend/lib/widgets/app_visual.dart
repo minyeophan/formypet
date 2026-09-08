@@ -239,7 +239,8 @@ class _SvgAssetVisualState extends State<_SvgAssetVisual> {
           width: widget.size,
           height: widget.size,
           fit: BoxFit.contain,
-          allowDrawingOutsideViewBox: bounds != null,
+          // An icon must never paint over adjacent fields or menu rows.
+          allowDrawingOutsideViewBox: false,
           colorMapper: widget.inkColor == null
               ? null
               : _InkColorMapper(widget.inkColor!),
