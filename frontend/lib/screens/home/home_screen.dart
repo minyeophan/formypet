@@ -342,7 +342,11 @@ class _PetProfileCard extends StatelessWidget {
                     key: const Key('home-growth-button'),
                     tooltip: '성장 기록',
                     onPressed: () => context.push('/records/growth'),
-                    icon: const AppIcon(Icons.show_chart_rounded),
+                    icon: const AppVisual(
+                      key: Key('home-growth-weight-icon'),
+                      id: AppVisualId.recordWeight,
+                      size: 24,
+                    ),
                     color: AppV2Tokens.primary,
                   ),
                 ],

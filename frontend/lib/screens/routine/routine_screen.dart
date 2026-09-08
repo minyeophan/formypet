@@ -715,7 +715,7 @@ class _ScheduleTile extends StatelessWidget {
 
                 child: AppVisual(
                   id: scheduleVisualId(schedule.categoryId),
-                  size: 24,
+                  size: 28,
                   color: accentColor,
                 ),
               ),

@@ -10,6 +10,7 @@ import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/services/care_schedule_service.dart';
+import 'package:frontend/widgets/app_visual.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,6 +80,19 @@ void main() {
       expect((card('hospital').border! as Border).top.color, AppColors.border);
     },
   );
+
+  testWidgets('schedule category icons use the enlarged category size', (
+    tester,
+  ) async {
+    await _pumpScreen(tester);
+    final icon = tester.widget<AppVisual>(
+      find.descendant(
+        of: find.byKey(const Key('schedule-category-grooming')),
+        matching: find.byType(AppVisual),
+      ),
+    );
+    expect(icon.size, 32);
+  });
 
   testWidgets('schedule form excludes photo and companion inputs', (
     tester,
