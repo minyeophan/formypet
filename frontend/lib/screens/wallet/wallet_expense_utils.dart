@@ -41,19 +41,26 @@ List<WalletExpense> filterWalletExpenses(
   String? category,
   WalletPeriod period = WalletPeriod.month,
   DateTime? now,
+  DateTime? baseMonth,
 }) {
   final today = now ?? DateTime.now();
+  final month = baseMonth ?? today;
   return source.where((expense) {
     if (petId != null && expense.petId != petId) return false;
     if (category != null && expense.category != category) return false;
-    final date = DateTime.tryParse(expense.expenseDate);
-    if (date == null || period == WalletPeriod.all) return true;
+    if (period == WalletPeriod.all) return true;
+    final date = walletExpenseDate(expense.expenseDate);
+    if (date == null) return false;
     if (period == WalletPeriod.year) return date.year == today.year;
-    return date.year == today.year && date.month == today.month;
+    return date.year == month.year && date.month == month.month;
   }).toList()..sort(newestExpenseFirst);
 }
 
 int newestExpenseFirst(WalletExpense a, WalletExpense b) {
+  final aDate = walletExpenseDate(a.expenseDate);
+  final bDate = walletExpenseDate(b.expenseDate);
+  if (aDate == null && bDate != null) return 1;
+  if (aDate != null && bDate == null) return -1;
   final dateCompare = b.expenseDate.compareTo(a.expenseDate);
   if (dateCompare != 0) {
     return dateCompare;
@@ -62,6 +69,79 @@ int newestExpenseFirst(WalletExpense a, WalletExpense b) {
     b.expenseTime,
   ).compareTo(normalizeExpenseTime(a.expenseTime));
 }
+
+DateTime? walletExpenseDate(String value) {
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return null;
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null || DateFormat('yyyy-MM-dd').format(parsed) != value) {
+    return null;
+  }
+  return parsed;
+}
+
+class WalletAggregation {
+  final List<WalletExpense> periodExpenses;
+  final List<WalletExpense> visible;
+  final int total;
+  final int budgetTotal;
+  final Map<String, int> categories;
+  const WalletAggregation({
+    required this.periodExpenses,
+    required this.visible,
+    required this.total,
+    required this.budgetTotal,
+    required this.categories,
+  });
+}
+
+WalletAggregation aggregateWalletExpenses(
+  Iterable<WalletExpense> source, {
+  String? petId,
+  String? category,
+  WalletPeriod period = WalletPeriod.month,
+  DateTime? baseMonth,
+  DateTime? now,
+}) {
+  final today = now ?? DateTime.now();
+  final items = source.toList();
+  final periodExpenses = filterWalletExpenses(
+    items,
+    petId: petId,
+    period: period,
+    baseMonth: baseMonth,
+    now: today,
+  );
+  final categories = <String, int>{};
+  for (final item in periodExpenses) {
+    categories.update(
+      item.category,
+      (sum) => sum + item.amount,
+      ifAbsent: () => item.amount,
+    );
+  }
+  return WalletAggregation(
+    periodExpenses: periodExpenses,
+    visible: periodExpenses
+        .where((e) => category == null || e.category == category)
+        .toList(),
+    total: periodExpenses.fold(0, (sum, e) => sum + e.amount),
+    budgetTotal: filterWalletExpenses(
+      items,
+      now: today,
+    ).fold(0, (sum, e) => sum + e.amount),
+    categories: categories,
+  );
+}
+
+String walletPeriodLabel(
+  WalletPeriod period,
+  DateTime month, {
+  DateTime? now,
+}) => switch (period) {
+  WalletPeriod.month => '${month.year}년 ${month.month}월',
+  WalletPeriod.year => '${(now ?? DateTime.now()).year}년 전체',
+  WalletPeriod.all => '전체 기간',
+};
 
 String walletExpenseAmountLabel(WalletExpense expense) =>
     formatWon(expense.amount);

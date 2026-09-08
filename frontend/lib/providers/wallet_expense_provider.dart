@@ -82,20 +82,29 @@ class WalletExpenseState {
 
 class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
   final WalletExpenseService _service;
+  final DateTime Function() _now;
+  DateTime? _allLoadedAt;
   int _session = 0;
   int _pageRequest = 0;
   int _allRequest = 0;
+  Future<void>? _ensuring;
+  String? _ensuringKey;
   int _revision = 0;
   final _summaryRevisions = <String, int>{};
   bool _authenticated = true;
   final _changes = <String, Map<String, (int, WalletExpense?)>>{};
 
-  WalletExpenseNotifier(this._service) : super(WalletExpenseState.initial());
+  WalletExpenseNotifier(this._service, {DateTime Function()? now})
+    : _now = now ?? DateTime.now,
+      super(WalletExpenseState.initial());
 
   void resetSession({required bool authenticated}) {
     _session++;
     _pageRequest++;
     _allRequest++;
+    _ensuring = null;
+    _ensuringKey = null;
+    _allLoadedAt = null;
     _authenticated = authenticated;
     _changes.clear();
     _summaryRevisions.clear();
@@ -122,6 +131,28 @@ class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
     return result.values.toList();
   }
 
+  Future<void> ensureAllPets(List<String> petIds) {
+    final ids = petIds.toSet().toList()..sort();
+    final key = '$_session:${ids.join(',')}';
+    if (_ensuringKey == key && _ensuring != null) return _ensuring!;
+    final loadedAt = _allLoadedAt;
+    if (ids.isEmpty ||
+        (ids.every(state.expensesByPet.containsKey) &&
+            loadedAt != null &&
+            _now().difference(loadedAt) < const Duration(seconds: 60))) {
+      return Future.value();
+    }
+    _ensuringKey = key;
+    final future = loadAllPets(ids);
+    _ensuring = future;
+    return future.whenComplete(() {
+      if (_ensuringKey == key) {
+        _ensuring = null;
+        _ensuringKey = null;
+      }
+    });
+  }
+
   Future<void> loadAllPets(List<String> petIds) async {
     if (!_authenticated) return;
     final session = _session;
@@ -136,6 +167,7 @@ class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
         ),
       );
       if (!_current(session) || request != _allRequest) return;
+      _allLoadedAt = _now();
       state = state.copyWith(
         isLoadingAll: false,
         expensesByPet: {
@@ -150,6 +182,18 @@ class WalletExpenseNotifier extends StateNotifier<WalletExpenseState> {
         errorText: 'wallet load failed',
       );
       rethrow;
+    }
+  }
+
+  Future<void> refreshWallet(List<String> petIds) async {
+    final session = _session;
+    await loadAllPets(petIds);
+    if (!_current(session)) return;
+    final petId = state.petId;
+    if (state.refreshWarning != null &&
+        petId != null &&
+        petIds.contains(petId)) {
+      await _refreshAfterCommit(petId, session);
     }
   }
 
