@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -350,7 +351,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           child: IconButton(
             key: const Key('auth-back-button'),
             onPressed: _isLoading ? null : () => _show(_AuthView.welcome),
-            icon: const Icon(Icons.arrow_back),
+            icon: const AppIcon(Icons.arrow_back),
           ),
         ),
         const SizedBox(height: 24),
@@ -422,7 +423,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ? null
                     : () =>
                           setState(() => _passwordVisible = !_passwordVisible),
-                icon: Icon(
+                icon: AppIcon(
                   _passwordVisible ? Icons.visibility_off : Icons.visibility,
                 ),
               ),

@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +11,6 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/authenticated_network_image.dart';
-import '../../widgets/preparing_toast.dart';
 
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
@@ -24,7 +24,7 @@ class MyScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppHeader(
         title: '마이페이지',
-        leading: const Icon(Icons.pets, color: AppColors.primary, size: 25),
+        leading: const AppIcon(Icons.pets, color: AppColors.primary, size: 25),
         actions: [
           AppHeaderIconButton(
             key: const Key('my-settings-button'),
@@ -48,12 +48,9 @@ class MyScreen extends ConsumerWidget {
                     onViewAll: () => context.push('/my/pets'),
                   ),
                   for (final group in _menuGroups)
-                    _MenuGroup(
-                      group: group,
-                      onRowTap: (item) => _handleMenuTap(context, item),
-                    ),
+                    _MenuGroup(group: group),
                   const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 4, 20, 112),
+                    padding: EdgeInsets.fromLTRB(20, 4, 20, 24),
                     child: AppText(
                       '앱 버전 v2.04',
                       fontSize: 12,
@@ -239,7 +236,7 @@ class _PetPhotoTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Icon(
+      child: const AppIcon(
         Icons.photo_camera_outlined,
         size: 30,
         color: AppColors.textSecondary,
@@ -320,7 +317,7 @@ class _AddIconTile extends StatelessWidget {
           color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(
+        child: const AppIcon(
           Icons.add_rounded,
           color: Color(0xFF41B883),
           size: 28,
@@ -332,9 +329,8 @@ class _AddIconTile extends StatelessWidget {
 
 class _MenuGroup extends StatelessWidget {
   final _MyMenuGroup group;
-  final void Function(_MyMenuItem item) onRowTap;
 
-  const _MenuGroup({required this.group, required this.onRowTap});
+  const _MenuGroup({required this.group});
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +358,9 @@ class _MenuGroup extends StatelessWidget {
             _MenuRow(
               item: group.items[index],
               showTopBorder: index > 0,
-              onTap: () => onRowTap(group.items[index]),
+              onTap: group.items[index].route == null
+                  ? null
+                  : () => context.push(group.items[index].route!),
             ),
         ],
       ),
@@ -373,7 +371,7 @@ class _MenuGroup extends StatelessWidget {
 class _MenuRow extends StatelessWidget {
   final _MyMenuItem item;
   final bool showTopBorder;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _MenuRow({
     required this.item,
@@ -409,7 +407,14 @@ class _MenuRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const AppDisclosureChevron(),
+              if (onTap == null)
+                const AppText(
+                  '준비중',
+                  fontSize: 12,
+                  color: AppColors.muted,
+                )
+              else
+                const AppDisclosureChevron(),
             ],
           ),
         ),
@@ -433,7 +438,7 @@ class _RowIcon extends StatelessWidget {
           color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(item.icon, size: 18, color: AppColors.textSecondary),
+        child: AppIcon(item.icon, size: 18, color: AppColors.textSecondary),
       ),
     );
   }
@@ -501,15 +506,20 @@ class _MyMenuGroup {
 class _MyMenuItem {
   final String label;
   final IconData icon;
+  final String? route;
 
-  const _MyMenuItem({required this.label, required this.icon});
+  const _MyMenuItem({required this.label, required this.icon, this.route});
 }
 
 const _menuGroups = [
   _MyMenuGroup(
     title: '정보',
     items: [
-      _MyMenuItem(label: '내 프로필 편집', icon: Icons.person_outline_rounded),
+      _MyMenuItem(
+        label: '내 프로필 편집',
+        icon: Icons.person_outline_rounded,
+        route: '/my/profile',
+      ),
       _MyMenuItem(label: '공동집사 관리', icon: Icons.group_outlined),
     ],
   ),
@@ -524,44 +534,44 @@ const _menuGroups = [
   _MyMenuGroup(
     title: '설정',
     items: [
-      _MyMenuItem(label: '일반 설정', icon: Icons.settings_outlined),
-      _MyMenuItem(label: '알림 설정', icon: Icons.notifications_none_rounded),
+      _MyMenuItem(
+        label: '일반 설정',
+        icon: Icons.settings_outlined,
+        route: '/my/settings',
+      ),
+      _MyMenuItem(
+        label: '알림 내역',
+        icon: Icons.notifications_none_rounded,
+        route: '/notifications',
+      ),
     ],
   ),
   _MyMenuGroup(
     title: '고객지원',
     items: [
-      _MyMenuItem(label: '공지사항', icon: Icons.campaign_outlined),
-      _MyMenuItem(label: '고객센터', icon: Icons.support_agent_rounded),
-      _MyMenuItem(label: '1대1 문의하기', icon: Icons.help_outline_rounded),
-      _MyMenuItem(label: '약관 및 정책', icon: Icons.description_outlined),
+      _MyMenuItem(
+        label: '공지사항',
+        icon: Icons.campaign_outlined,
+        route: '/my/notices',
+      ),
+      _MyMenuItem(
+        label: '고객센터',
+        icon: Icons.support_agent_rounded,
+        route: '/my/support',
+      ),
+      _MyMenuItem(
+        label: '1대1 문의하기',
+        icon: Icons.help_outline_rounded,
+        route: '/my/inquiry',
+      ),
+      _MyMenuItem(
+        label: '약관 및 정책',
+        icon: Icons.description_outlined,
+        route: '/my/policies',
+      ),
     ],
   ),
 ];
-
-void _handleMenuTap(BuildContext context, _MyMenuItem item) {
-  if (item.label == '내 프로필 편집') {
-    context.push('/my/profile');
-    return;
-  }
-  if (item.label == '공지사항') {
-    context.push('/my/notices');
-    return;
-  }
-  if (item.label == '고객센터') {
-    context.push('/my/support');
-    return;
-  }
-  if (item.label == '1대1 문의하기') {
-    context.push('/my/inquiry');
-    return;
-  }
-  if (item.label == '약관 및 정책') {
-    context.push('/my/policies');
-    return;
-  }
-  showPreparingToast(context);
-}
 
 String _petAgeLabel(String? birthDateIso) {
   final birth = DateTime.tryParse(birthDateIso ?? '');

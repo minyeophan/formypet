@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -109,46 +110,48 @@ class CommunityCommentTile extends StatelessWidget {
       child: comment.deleted
           ? const AppText('삭제된 댓글입니다', fontSize: 14)
           : Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CommunityCommentAvatar(
-                key: Key('community-comment-avatar-${comment.id}'),
-                url: comment.authorProfileImageUrl,
-                size: isReply ? 28 : 32,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: AppText(
-                  comment.authorNickname,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CommunityCommentAvatar(
+                      key: Key('community-comment-avatar-${comment.id}'),
+                      url: comment.authorProfileImageUrl,
+                      size: isReply ? 28 : 32,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: AppText(
+                        comment.authorNickname,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (canManage)
+                      AppMoreButton.plain(
+                        key:
+                            moreKey ??
+                            Key('community-comment-more-${comment.id}'),
+                        tooltip: '댓글 관리',
+                        onPressed: onMore,
+                      )
+                    else
+                      const SizedBox(width: 44, height: 44),
+                  ],
                 ),
-              ),
-              if (canManage)
-                AppMoreButton.plain(
-                  key: moreKey ?? Key('community-comment-more-${comment.id}'),
-                  tooltip: '댓글 관리',
-                  onPressed: onMore,
-                )
-              else
-                const SizedBox(width: 44, height: 44),
-            ],
-          ),
-          const SizedBox(height: 8),
-          AppText(comment.content, fontSize: 14),
-          if (!isReply && onReply != null) ...[
-            const SizedBox(height: 8),
-            TextButton.icon(
-              key: Key('community-comment-reply-${comment.id}'),
-              onPressed: onReply,
-              icon: const Icon(Icons.reply_rounded, size: 17),
-              label: const AppText('답글쓰기', fontSize: 12),
+                const SizedBox(height: 8),
+                AppText(comment.content, fontSize: 14),
+                if (!isReply && onReply != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    key: Key('community-comment-reply-${comment.id}'),
+                    onPressed: onReply,
+                    icon: const AppIcon(Icons.reply_rounded, size: 17),
+                    label: const AppText('답글쓰기', fontSize: 12),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
     ),
   );
 }

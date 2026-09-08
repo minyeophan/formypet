@@ -1,142 +1,437 @@
 import 'package:flutter/material.dart';
-
 import 'app_visual_id.dart';
 import 'app_visual_spec.dart';
 
 const Map<AppVisualId, AppVisualSpec> appVisualCatalog = {
-  AppVisualId.petDog: AppVisualSpec(source: EmojiVisualSource('🐶')),
-  AppVisualId.petCat: AppVisualSpec(source: EmojiVisualSource('🐱')),
-  AppVisualId.petSmallAnimal: AppVisualSpec(source: EmojiVisualSource('🐰')),
-  AppVisualId.petBird: AppVisualSpec(source: EmojiVisualSource('🐦')),
-  AppVisualId.petReptile: AppVisualSpec(source: EmojiVisualSource('🦎')),
-  AppVisualId.petFish: AppVisualSpec(source: EmojiVisualSource('🐟')),
-  AppVisualId.petExotic: AppVisualSpec(source: EmojiVisualSource('🐾')),
+  AppVisualId.petDog: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_dog.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petCat: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_cat.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petSmallAnimal: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_small_animal.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petBird: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_bird.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petReptile: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_reptile.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petFish: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_fish.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.petExotic: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_exotic.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
   AppVisualId.recordMeal: AppVisualSpec(
-    source: MaterialVisualSource(Icons.restaurant_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_meal.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordWater: AppVisualSpec(
-    source: MaterialVisualSource(Icons.water_drop_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_water.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordWalk: AppVisualSpec(
-    source: MaterialVisualSource(Icons.directions_walk_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_walk.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordPoop: AppVisualSpec(
-    source: MaterialVisualSource(Icons.pets_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_poop.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordMedicine: AppVisualSpec(
-    source: MaterialVisualSource(Icons.medication_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_medicine.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordWeight: AppVisualSpec(
-    source: MaterialVisualSource(Icons.monitor_weight_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_weight.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordVet: AppVisualSpec(
-    source: MaterialVisualSource(Icons.local_hospital_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_vet.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordBath: AppVisualSpec(
-    source: MaterialVisualSource(Icons.bathtub_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_bath.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordGroom: AppVisualSpec(
-    source: MaterialVisualSource(Icons.content_cut_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_groom.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordDiary: AppVisualSpec(
-    source: MaterialVisualSource(Icons.menu_book_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_diary.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.recordEtc: AppVisualSpec(
-    source: MaterialVisualSource(Icons.more_horiz_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_etc.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
-  AppVisualId.mealWet: AppVisualSpec(source: EmojiVisualSource('🥫')),
-  AppVisualId.mealDry: AppVisualSpec(source: EmojiVisualSource('🍚')),
-  AppVisualId.mealSnack: AppVisualSpec(source: EmojiVisualSource('🦴')),
-  AppVisualId.mealPrescription: AppVisualSpec(source: EmojiVisualSource('💊')),
-  AppVisualId.mealRaw: AppVisualSpec(source: EmojiVisualSource('🥩')),
-  AppVisualId.mealFreezeDried: AppVisualSpec(source: EmojiVisualSource('❄️')),
-  AppVisualId.mealConsumed25: AppVisualSpec(source: EmojiVisualSource('😭')),
-  AppVisualId.mealConsumed50: AppVisualSpec(source: EmojiVisualSource('😐')),
-  AppVisualId.mealConsumed75: AppVisualSpec(source: EmojiVisualSource('🙂')),
-  AppVisualId.mealConsumed100: AppVisualSpec(source: EmojiVisualSource('🥰')),
+  AppVisualId.mealWet: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_wet.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealDry: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_meal.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealSnack: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_snack.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealPrescription: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_prescription.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealRaw: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_raw.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealFreezeDried: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_freeze_dried.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealConsumed25: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_consumed_25.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealConsumed50: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_consumed_50.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealConsumed75: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_consumed_75.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.mealConsumed100: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_consumed_100.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
   AppVisualId.scheduleGrooming: AppVisualSpec(
-    source: MaterialVisualSource(Icons.content_cut_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_groom.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleHospital: AppVisualSpec(
-    source: MaterialVisualSource(Icons.local_hospital_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_vet.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleTravel: AppVisualSpec(
-    source: MaterialVisualSource(Icons.luggage_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_travel.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleHotel: AppVisualSpec(
-    source: MaterialVisualSource(Icons.home_work_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_hotel.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleOuting: AppVisualSpec(
-    source: MaterialVisualSource(Icons.local_cafe_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_outing.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleEvent: AppVisualSpec(
-    source: MaterialVisualSource(Icons.celebration_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_event.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.scheduleEtc: AppVisualSpec(
-    source: MaterialVisualSource(Icons.event_note_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_etc.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeRecords: AppVisualSpec(
-    source: MaterialVisualSource(Icons.edit_note_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/home_records.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeWallet: AppVisualSpec(
-    source: MaterialVisualSource(Icons.account_balance_wallet_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/home_wallet.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeRoutine: AppVisualSpec(
-    source: MaterialVisualSource(Icons.check_circle_outline_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/home_routine.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homePetLog: AppVisualSpec(
-    source: MaterialVisualSource(Icons.category_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/home_pet_log.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeNewsSnack: AppVisualSpec(
-    source: MaterialVisualSource(Icons.cookie_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/meal_snack.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeNewsWalk: AppVisualSpec(
-    source: MaterialVisualSource(Icons.directions_walk_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_walk.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.homeNewsDental: AppVisualSpec(
-    source: MaterialVisualSource(Icons.health_and_safety_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/home_dental.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
-  AppVisualId.homeBottomBanner: AppVisualSpec(source: EmojiVisualSource('🐾')),
+  AppVisualId.homeBottomBanner: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_exotic.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.navHome: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/nav_home.svg',
+      tintable: true,
+      strokeWidth: 2,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.navCommunity: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/nav_community.svg',
+      tintable: true,
+      strokeWidth: 2,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.navMy: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/nav_my.svg',
+      tintable: true,
+      strokeWidth: 2,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
   AppVisualId.communityAll: AppVisualSpec(
-    source: MaterialVisualSource(Icons.grid_view_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_all.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityPopular: AppVisualSpec(
-    source: MaterialVisualSource(Icons.trending_up_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_popular.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityCare: AppVisualSpec(
-    source: MaterialVisualSource(Icons.health_and_safety_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_care.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityFood: AppVisualSpec(
-    source: MaterialVisualSource(Icons.restaurant_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/record_meal.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityOuting: AppVisualSpec(
-    source: MaterialVisualSource(Icons.directions_walk_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_outing.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityShow: AppVisualSpec(
-    source: MaterialVisualSource(Icons.photo_camera_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/ui_camera.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityQuestion: AppVisualSpec(
-    source: MaterialVisualSource(Icons.help_outline_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/common_help.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityFree: AppVisualSpec(
-    source: MaterialVisualSource(Icons.chat_bubble_outline_rounded),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/common_comment.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityAdoption: AppVisualSpec(
-    source: MaterialVisualSource(Icons.volunteer_activism_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_adoption.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityRescue: AppVisualSpec(
-    source: MaterialVisualSource(Icons.emergency_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_rescue.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityNews: AppVisualSpec(
-    source: MaterialVisualSource(Icons.article_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/community_news.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
   AppVisualId.communityEvent: AppVisualSpec(
-    source: MaterialVisualSource(Icons.celebration_outlined),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/schedule_event.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
-  AppVisualId.communityPaw: AppVisualSpec(source: EmojiVisualSource('🐾')),
-  AppVisualId.communityTop: AppVisualSpec(source: EmojiVisualSource('🔝')),
+  AppVisualId.communityPaw: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/pet_exotic.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
+  AppVisualId.communityTop: AppVisualSpec(
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/ui_top.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
+  ),
   AppVisualId.genericUnknown: AppVisualSpec(
-    source: MaterialVisualSource(Icons.circle),
+    source: SvgAssetVisualSource.figma(
+      'assets/icons/ui_image_error.svg',
+      tintable: false,
+    ),
+    fallback: AppVisualFallback.material(Icons.image_not_supported),
   ),
 };
 

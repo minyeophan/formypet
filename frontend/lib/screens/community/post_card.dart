@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
@@ -12,12 +13,7 @@ TextStyle _communityTextStyle({
   double? fontSize,
   FontWeight? fontWeight,
   Color? color,
-}) => TextStyle(
-  fontFamily: AppV2Tokens.fontFamily,
-  fontSize: fontSize,
-  fontWeight: fontWeight,
-  color: color,
-);
+}) => TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -79,7 +75,11 @@ class _PostCardState extends State<PostCard> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppCategoryBadge(label: kCommunityCategoryLabels[post.category] ?? post.category),
+                    AppCategoryBadge(
+                      label:
+                          kCommunityCategoryLabels[post.category] ??
+                          post.category,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -88,13 +88,26 @@ class _PostCardState extends State<PostCard> {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     if (post.poll != null) ...[
-                      const Text('투표', style: TextStyle(color: AppV2Tokens.primary, fontWeight: FontWeight.w800, fontSize: 15)),
+                      const Text(
+                        '투표',
+                        style: TextStyle(
+                          color: AppV2Tokens.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(width: 6),
                     ],
                     Expanded(
                       child: Text(
                         headline,
-                        style: _communityTextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _isHovered ? AppV2Tokens.primary : AppV2Tokens.text),
+                        style: _communityTextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _isHovered
+                              ? AppV2Tokens.primary
+                              : AppV2Tokens.text,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -106,7 +119,15 @@ class _PostCardState extends State<PostCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(post.content.trim(), maxLines: 2, overflow: TextOverflow.ellipsis, style: _communityTextStyle(fontSize: 14, color: AppV2Tokens.textSecondary)),
+                      child: Text(
+                        post.content.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _communityTextStyle(
+                          fontSize: 14,
+                          color: AppV2Tokens.textSecondary,
+                        ),
+                      ),
                     ),
                     if (post.imageUrls.isNotEmpty) ...[
                       const SizedBox(width: 12),
@@ -125,7 +146,10 @@ class _PostCardState extends State<PostCard> {
                     Expanded(
                       child: Text(
                         '$author${relativeTime == null ? '' : ' · $relativeTime'}',
-                        style: _communityTextStyle(fontSize: 13, color: AppV2Tokens.textSecondary),
+                        style: _communityTextStyle(
+                          fontSize: 13,
+                          color: AppV2Tokens.textSecondary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -184,7 +208,7 @@ class _PostStat extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 18, color: color),
+      AppIcon(icon, size: 18, color: color),
       const SizedBox(width: 4),
       Text(
         '$count',
@@ -243,4 +267,3 @@ class _PostThumbnail extends StatelessWidget {
     ),
   );
 }
-

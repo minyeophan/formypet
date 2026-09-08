@@ -8,6 +8,36 @@ import '../core/secure_storage.dart';
 import '../models/user_profile.dart';
 
 class AuthService {
+  int _session = 0;
+  Future<void> _credentialWrite = Future.value();
+
+  void invalidatePendingAuthentication() => _session++;
+
+  void _requireSession(int session) {
+    if (session != _session) throw StateError('Authentication session changed');
+  }
+
+  Future<void> _writeCredentials(Future<void> Function() write) {
+    final pending = _credentialWrite.then((_) => write());
+    _credentialWrite = pending.catchError((_) {});
+    return pending;
+  }
+
+  Future<UserProfile> _acceptTokens(Response res, int session) async {
+    _requireSession(session);
+    final data = unwrap(res) as Map<String, dynamic>;
+    await _writeCredentials(() async {
+      _requireSession(session);
+      await saveTokens(
+        access: data['accessToken'] as String,
+        refresh: data['refreshToken'] as String,
+      );
+    });
+    _requireSession(session);
+    final profile = await getProfile();
+    _requireSession(session);
+    return profile;
+  }
   // TokenResponse only has {accessToken, refreshToken} — no user field.
   // Must call GET /api/v1/users/me separately after login/register.
 
@@ -16,36 +46,30 @@ class AuthService {
     required String password,
     required String nickname,
   }) async {
+    final session = ++_session;
     final res = await dio.post(
       '/api/v1/auth/register',
       data: {'email': email, 'password': password, 'nickname': nickname},
     );
-    final data = unwrap(res) as Map<String, dynamic>;
-    await saveTokens(
-      access: data['accessToken'] as String,
-      refresh: data['refreshToken'] as String,
-    );
-    return getProfile();
+    return _acceptTokens(res, session);
   }
 
   Future<UserProfile> login({
     required String email,
     required String password,
   }) async {
+    final session = ++_session;
     final res = await dio.post(
       '/api/v1/auth/login',
       data: {'email': email, 'password': password},
     );
-    final data = unwrap(res) as Map<String, dynamic>;
-    await saveTokens(
-      access: data['accessToken'] as String,
-      refresh: data['refreshToken'] as String,
-    );
-    return getProfile();
+    return _acceptTokens(res, session);
   }
 
   Future<UserProfile?> loginWithKakao() async {
+    final session = ++_session;
     final token = await _loginWithKakaoSdk();
+    _requireSession(session);
     if (token == null) {
       return null;
     }
@@ -54,12 +78,7 @@ class AuthService {
       '/api/v1/auth/kakao',
       data: {'accessToken': token.accessToken},
     );
-    final data = unwrap(res) as Map<String, dynamic>;
-    await saveTokens(
-      access: data['accessToken'] as String,
-      refresh: data['refreshToken'] as String,
-    );
-    return getProfile();
+    return _acceptTokens(res, session);
   }
 
   Future<OAuthToken?> _loginWithKakaoSdk() async {
@@ -88,6 +107,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    final session = ++_session;
     try {
       final refresh = await getRefreshToken();
       if (refresh != null) {
@@ -96,7 +116,9 @@ class AuthService {
     } catch (_) {
       // best-effort
     }
-    await clearTokens();
+    await _writeCredentials(() async {
+      if (session == _session) await clearTokens();
+    });
   }
 
   Future<UserProfile> getProfile() async {

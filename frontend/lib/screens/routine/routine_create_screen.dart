@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -397,9 +398,11 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
       'days': days,
       'startDate': _isoDate(_startDate),
       if (_endDate != null) 'endDate': _isoDate(_endDate!),
+      if (_endDate == null && widget.editingRoutine != null)
+        'clearEndDate': true,
       'notificationEnabled': _notificationEnabled,
       if (_repeatType == 'monthly') 'monthlyInterval': 1,
-      if (note.isNotEmpty) 'note': note,
+      if (note.isNotEmpty || widget.editingRoutine != null) 'note': note,
     };
   }
 
@@ -440,9 +443,8 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
   Future<void> _pickNotification() async {
     final picked = await showRecordPickerSheet<bool>(
       context,
-      builder: (context) => _NotificationPickerSheet(
-        initialValue: _notificationEnabled,
-      ),
+      builder: (context) =>
+          _NotificationPickerSheet(initialValue: _notificationEnabled),
     );
     if (picked != null && mounted) {
       setState(() => _notificationEnabled = picked);
@@ -606,12 +608,11 @@ class _RoutineCategoryButton extends StatelessWidget {
         height: 70,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.14)
-              : AppColors.surfaceSoft,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
+            width: selected ? 1.5 : 1,
           ),
         ),
         child: Column(
@@ -619,7 +620,7 @@ class _RoutineCategoryButton extends StatelessWidget {
           children: [
             AppVisual(
               id: recordTypeVisualId(option.typeId),
-              size: 22,
+              size: 24,
               color: selected ? AppColors.primary : AppColors.textSecondary,
             ),
             const SizedBox(height: 5),
@@ -672,7 +673,7 @@ class _RoutineDateField extends StatelessWidget {
           IconButton(
             tooltip: '종료일 제거',
             onPressed: onClear,
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: const AppIcon(Icons.close_rounded, size: 18),
           ),
         ],
       ],

@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -869,8 +870,18 @@ void main() {
         find.byKey(const Key('community-add-poll-button')),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.image_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.poll_outlined), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AppIcon && widget.icon == Icons.image_outlined,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AppIcon && widget.icon == Icons.poll_outlined,
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const Key('community-add-poll-button')));
       await tester.pumpAndSettle();
@@ -947,7 +958,7 @@ void _expectCommunityHeaderStyle(WidgetTester tester) {
     find.byKey(const Key('community-header-title')),
   );
   expect(title.color, AppV2Tokens.text);
-  expect(title.fontSize, 22);
+  expect(title.fontSize, 20);
 }
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
@@ -959,11 +970,12 @@ void _expectHeaderActionSurface(WidgetTester tester, String key) {
   );
   final decoration = container.decoration as BoxDecoration;
   expect(decoration.color, AppV2Tokens.surface);
-  expect(decoration.shape, BoxShape.circle);
+  expect(decoration.shape, BoxShape.rectangle);
+  expect(decoration.borderRadius, BorderRadius.circular(14));
   expect(decoration.border, Border.all(color: AppV2Tokens.border));
 
-  final icon = tester.widget<Icon>(
-    find.descendant(of: finder, matching: find.byType(Icon)).first,
+  final icon = tester.widget<AppIcon>(
+    find.descendant(of: finder, matching: find.byType(AppIcon)).first,
   );
   expect(icon.size, 20);
   expect(icon.color, AppV2Tokens.textSecondary);

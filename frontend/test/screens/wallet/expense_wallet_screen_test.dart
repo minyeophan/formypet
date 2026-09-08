@@ -11,10 +11,15 @@ import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('wallet screen shows summary and recent wallet expenses', (
@@ -27,11 +32,30 @@ void main() {
     expect(find.text('\uAC04\uC2DD'), findsWidgets);
     expect(find.byKey(const Key('wallet-pet-selector')), findsOneWidget);
     expect(find.text('\uC804\uCCB4\uBCF4\uAE30'), findsOneWidget);
-    expect(find.text('\uAE30\uAC04 \uC120\uD0DD'), findsOneWidget);
+    expect(find.text('\uC804\uCCB4 \uAE30\uAC04'), findsOneWidget);
     expect(
       find.byKey(const Key('wallet-expense-row-expense-food')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('wallet period selector displays each selected period', (
+    tester,
+  ) async {
+    await _pumpScreen(tester, const ExpenseWalletScreen());
+    final selector = find.byType(DropdownButton<String>);
+
+    for (final label in ['올해 지출', '이번 달 지출', '전체 기간']) {
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(of: selector, matching: find.text(label)).hitTestable(),
+        findsOneWidget,
+      );
+    }
   });
 
   testWidgets('wallet recent row opens expense detail route', (tester) async {
@@ -213,6 +237,7 @@ WalletExpenseState _walletState() {
     isLoading: false,
     isMutating: false,
     items: items,
+    expensesByPet: {'pet-1': items},
     summary: const WalletExpenseSummary(
       totalAmount: 35000,
       count: 2,

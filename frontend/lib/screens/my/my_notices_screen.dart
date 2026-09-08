@@ -20,7 +20,7 @@ class MyNoticesScreen extends StatelessWidget {
         onBack: () => goBackOrFallback(context, '/my'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           const MySupportLead('서비스 변경, 점검, 새 기능 소식을 시간순으로 확인합니다.'),
           const SizedBox(height: 14),
@@ -63,7 +63,7 @@ class MyNoticeDetailScreen extends StatelessWidget {
       body: notice == null
           ? const MySupportNotFound('공지사항을 찾을 수 없어요')
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 MySupportArticleCard(
                   title: notice.title,

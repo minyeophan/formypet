@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import '../../widgets/preparing_toast.dart';
 import 'my_support_widgets.dart';
 
 class MyInquiryScreen extends StatefulWidget {
@@ -16,7 +15,6 @@ class MyInquiryScreen extends StatefulWidget {
 class _MyInquiryScreenState extends State<MyInquiryScreen> {
   static const _types = ['계정/로그인', '기록/루틴', '커뮤니티', '오류 신고', '기타'];
 
-  String _selectedType = _types.first;
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
 
@@ -40,10 +38,10 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
           children: [
             const AppText(
-              '문의 내용을 남기면 확인 후 앱 알림 또는 이메일로 답변을 안내합니다.',
+              '1대1 문의는 준비중이에요. 현재 문의를 작성하거나 보낼 수 없어요.',
               fontSize: 13,
               color: AppColors.textSecondary,
             ),
@@ -61,15 +59,12 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
                   _FieldLabel(
                     label: '문의 유형',
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedType,
+                      initialValue: _types.first,
                       items: [
                         for (final type in _types)
                           DropdownMenuItem(value: type, child: Text(type)),
                       ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _selectedType = value);
-                      },
+                      onChanged: null,
                       decoration: _inputDecoration(),
                     ),
                   ),
@@ -77,6 +72,7 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
                   _FieldLabel(
                     label: '제목',
                     child: TextField(
+                      enabled: false,
                       controller: _titleController,
                       decoration: _inputDecoration(),
                     ),
@@ -86,21 +82,16 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
                     label: '문의 내용',
                     child: TextField(
                       key: const Key('my-inquiry-body-field'),
+                      enabled: false,
                       controller: _bodyController,
                       minLines: 5,
                       maxLines: 7,
                       decoration: _inputDecoration(),
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  const AppText(
-                    '개인정보나 민감한 건강 정보는 꼭 필요한 경우에만 입력해 주세요.',
-                    fontSize: 11,
-                    color: AppColors.muted,
-                  ),
                   const SizedBox(height: 18),
                   FilledButton(
-                    onPressed: () => showPreparingToast(context),
+                    onPressed: null,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(48),

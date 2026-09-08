@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/pet_data_status.dart';
 import 'routine_schedule_values.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
@@ -71,6 +73,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const PetDataStatus(),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: AppText(
@@ -329,7 +332,7 @@ class _CalendarNavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon),
+      icon: AppIcon(icon),
       color: AppColors.textSecondary,
       tooltip: '월 이동',
     );
@@ -616,13 +619,10 @@ class _RoutineTile extends StatelessWidget {
             decoration: _cardDecoration(),
             child: Row(
               children: [
-                Container(
+                SizedBox(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+
                   child: AppVisual(
                     id: recordTypeVisualId(routine.typeId),
                     size: 24,
@@ -651,7 +651,7 @@ class _RoutineTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
+                const AppIcon(
                   Icons.chevron_right_rounded,
                   color: AppColors.muted,
                   size: 22,
@@ -675,7 +675,7 @@ class _EmptyRoutineState extends StatelessWidget {
       decoration: _cardDecoration(),
       child: const Column(
         children: [
-          Icon(Icons.repeat_rounded, color: AppColors.muted, size: 36),
+          AppIcon(Icons.repeat_rounded, color: AppColors.muted, size: 36),
           SizedBox(height: 10),
           AppText(
             '아직 등록된 루틴이 없어요',
@@ -709,13 +709,10 @@ class _ScheduleTile extends StatelessWidget {
           decoration: _cardDecoration(),
           child: Row(
             children: [
-              Container(
+              SizedBox(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+
                 child: AppVisual(
                   id: scheduleVisualId(schedule.categoryId),
                   size: 24,
@@ -763,7 +760,7 @@ class _ScheduleDetailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(
+    return const AppIcon(
       Icons.chevron_right_rounded,
       color: AppColors.muted,
       size: 22,
@@ -781,7 +778,7 @@ class _EmptyCareState extends StatelessWidget {
       decoration: _cardDecoration(),
       child: const Column(
         children: [
-          Icon(Icons.event_note_rounded, color: AppColors.muted, size: 36),
+          AppIcon(Icons.event_note_rounded, color: AppColors.muted, size: 36),
           SizedBox(height: 10),
           AppText(
             '아직 등록된 일정이 없어요',
@@ -871,9 +868,8 @@ String _scheduleSubtitle(CareSchedule schedule) {
   final timeText = schedule.allDay
       ? '종일'
       : switch ((startTime?.isNotEmpty == true, endTime?.isNotEmpty == true)) {
-          (true, true) => startTime == endTime
-              ? startTime!
-              : '$startTime~$endTime',
+          (true, true) =>
+            startTime == endTime ? startTime! : '$startTime~$endTime',
           (true, false) => startTime!,
           (false, true) => endTime!,
           _ => '',

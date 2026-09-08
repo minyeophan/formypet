@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
+import 'package:frontend/core/secure_storage.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -75,70 +76,83 @@ void main() {
   });
 
   test(
-    'stored token validation failure clears pet state and signs out',
+    'profile outage preserves stored credentials without authenticating',
     () async {
-      FlutterSecureStorage.setMockInitialValues({'access_token': 'expired'});
+      FlutterSecureStorage.setMockInitialValues({
+        'access_token': 'saved-token',
+      });
       final petNotifier = _FakePetNotifier();
 
       final notifier = AuthNotifier(
-        _FakeAuthService(profileError: Exception('expired')),
+        _FakeAuthService(profileError: Exception('offline')),
         petNotifier: petNotifier,
       );
       await _waitUntil(() => !notifier.state.isLoading);
 
-      expect(petNotifier.clearCalls, 1);
+      expect(petNotifier.clearCalls, 0);
       expect(notifier.state.isAuthenticated, isFalse);
+      expect(notifier.state.initializationError, isNotNull);
+      expect(await getAccessToken(), 'saved-token');
     },
   );
 
-  test('updateProfile replaces the authenticated profile with the API response', () async {
-    final notifier = AuthNotifier.test(
-      _signedIn,
-      service: _FakeAuthService(updateProfileResult: _renamedProfile),
-    );
+  test(
+    'updateProfile replaces the authenticated profile with the API response',
+    () async {
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(updateProfileResult: _renamedProfile),
+      );
 
-    await notifier.updateProfile(nickname: 'Renamed');
+      await notifier.updateProfile(nickname: 'Renamed');
 
-    expect(notifier.state.isLoading, isFalse);
-    expect(notifier.state.profile, _renamedProfile);
-  });
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.profile, _renamedProfile);
+    },
+  );
 
-  test('uploadProfileImage replaces the authenticated profile with the API response', () async {
-    final notifier = AuthNotifier.test(
-      _signedIn,
-      service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
-    );
+  test(
+    'uploadProfileImage replaces the authenticated profile with the API response',
+    () async {
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
+      );
 
-    await notifier.uploadProfileImage(
-      bytes: Uint8List.fromList([1]),
-      filename: 'portrait.webp',
-    );
-
-    expect(notifier.state.isLoading, isFalse);
-    expect(notifier.state.profile, _photoProfile);
-  });
-
-  test('uploadProfileImage failure keeps the previously saved nickname and photo', () async {
-    final notifier = AuthNotifier.test(
-      _signedIn,
-      service: _FakeAuthService(
-        updateProfileResult: _renamedProfile,
-        uploadProfileImageError: Exception('upload failed'),
-      ),
-    );
-
-    await notifier.updateProfile(nickname: 'Renamed');
-    await expectLater(
-      notifier.uploadProfileImage(
+      await notifier.uploadProfileImage(
         bytes: Uint8List.fromList([1]),
         filename: 'portrait.webp',
-      ),
-      throwsException,
-    );
+      );
 
-    expect(notifier.state.isLoading, isFalse);
-    expect(notifier.state.profile, _renamedProfile);
-  });
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.profile, _photoProfile);
+    },
+  );
+
+  test(
+    'uploadProfileImage failure keeps the previously saved nickname and photo',
+    () async {
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(
+          updateProfileResult: _renamedProfile,
+          uploadProfileImageError: Exception('upload failed'),
+        ),
+      );
+
+      await notifier.updateProfile(nickname: 'Renamed');
+      await expectLater(
+        notifier.uploadProfileImage(
+          bytes: Uint8List.fromList([1]),
+          filename: 'portrait.webp',
+        ),
+        throwsException,
+      );
+
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.profile, _renamedProfile);
+    },
+  );
 }
 
 Future<void> _waitUntil(bool Function() predicate) async {

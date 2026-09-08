@@ -19,6 +19,7 @@ List<String> _removeRemovedQuickTypeIds(List<String> ids) =>
 
 class PetState {
   final bool isLoading;
+  final String? dataErrorText;
   final bool hasOnboarded;
   final List<Pet> pets;
   final String? activePetId;
@@ -35,6 +36,7 @@ class PetState {
 
   const PetState({
     required this.isLoading,
+    this.dataErrorText,
     required this.hasOnboarded,
     required this.pets,
     this.activePetId,
@@ -52,6 +54,8 @@ class PetState {
   // clearActivePetId: true이면 activePetId를 null로 강제 설정
   PetState copyWith({
     bool? isLoading,
+    String? dataErrorText,
+    bool clearDataError = false,
     bool? hasOnboarded,
     List<Pet>? pets,
     String? activePetId,
@@ -66,6 +70,9 @@ class PetState {
     List<String>? quickTypeIds,
   }) => PetState(
     isLoading: isLoading ?? this.isLoading,
+    dataErrorText: clearDataError
+        ? null
+        : (dataErrorText ?? this.dataErrorText),
     hasOnboarded: hasOnboarded ?? this.hasOnboarded,
     pets: pets ?? this.pets,
     activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
@@ -111,6 +118,15 @@ class PetNotifier extends StateNotifier<PetState> {
   final CareScheduleService? _scheduleSvc;
   late final Future<void> _preferencesReady;
   Future<void>? _refreshInFlight;
+  int _session = 0;
+  int _dataVersion = 0;
+
+  bool _isCurrent(int session) => mounted && session == _session;
+
+  bool _isCurrentPet(int session, int version, String petId) =>
+      _isCurrent(session) &&
+      version == _dataVersion &&
+      state.activePetId == petId;
 
   PetNotifier(
     this._petSvc,
@@ -178,18 +194,35 @@ class PetNotifier extends StateNotifier<PetState> {
   ) async {
     try {
       final quickTypeIds = _removeRemovedQuickTypeIds(await loader());
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, quickTypeIds: quickTypeIds);
     } catch (error) {
+      if (!mounted) return;
       debugPrint('Failed to load quick type ids: $error');
       state = state.copyWith(isLoading: false);
     }
   }
 
   Future<void> loadForAuthenticatedUser() async {
+    final session = ++_session;
+    _dataVersion++;
+    _refreshInFlight = null;
+    state = PetState(
+      isLoading: true,
+      hasOnboarded: false,
+      pets: const [],
+      records: const [],
+      routines: const [],
+      todayRoutineItems: const [],
+      routineCompletions: const {},
+      quickTypeIds: state.quickTypeIds,
+    );
     await _preferencesReady;
+    if (!_isCurrent(session)) return;
     state = state.copyWith(isLoading: true);
     try {
       final pets = await _petSvc.getPets();
+      if (!_isCurrent(session)) return;
       final activePetId = pets.isNotEmpty ? pets.first.id : null;
       if (activePetId == null) {
         state = PetState(
@@ -220,12 +253,20 @@ class PetNotifier extends StateNotifier<PetState> {
       );
       await _loadPetData(activePetId);
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (!_isCurrent(session)) return;
+      state = state.copyWith(
+        isLoading: false,
+        dataErrorText: '반려동물 정보를 불러오지 못했어요. 다시 시도해 주세요.',
+      );
       rethrow;
     }
   }
 
   Future<void> clearForSignedOutUser() async {
+    _session++;
+    _dataVersion++;
+    _refreshInFlight = null;
+    if (!mounted) return;
     state = PetState(
       isLoading: false,
       hasOnboarded: false,
@@ -271,18 +312,37 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> _loadPetData(String petId) async {
-    final data = await _fetchPetData(petId);
-    if (state.activePetId != petId) return;
-    state = data.applyTo(state);
+    final session = _session;
+    final version = ++_dataVersion;
+    state = state.copyWith(isLoading: true, clearDataError: true);
+    try {
+      final data = await _fetchPetData(petId);
+      if (!_isCurrentPet(session, version, petId)) return;
+      state = data
+          .applyTo(state)
+          .copyWith(isLoading: false, clearDataError: true);
+    } catch (_) {
+      if (!_isCurrentPet(session, version, petId)) return;
+      state = state.copyWith(
+        isLoading: false,
+        dataErrorText: '반려동물 기록을 불러오지 못했어요. 다시 시도해 주세요.',
+      );
+      rethrow;
+    }
   }
 
-  Future<void> refreshPets() =>
-      _refreshInFlight ??= _refreshPets().whenComplete(() {
-        _refreshInFlight = null;
-      });
+  Future<void> refreshPets() {
+    final session = _session;
+    return _refreshInFlight ??= _refreshPets().whenComplete(() {
+      if (_isCurrent(session)) _refreshInFlight = null;
+    });
+  }
 
   Future<void> _refreshPets() async {
+    final session = _session;
+    final version = _dataVersion;
     final pets = await _petSvc.getPets();
+    if (!_isCurrent(session) || version != _dataVersion) return;
     if (pets.isEmpty) {
       state = PetState(
         isLoading: false,
@@ -305,30 +365,61 @@ class PetNotifier extends StateNotifier<PetState> {
     }
 
     final nextId = pets.first.id;
-    try {
-      final data = await _fetchPetData(nextId);
-      state = data.applyTo(
-        state.copyWith(pets: pets, activePetId: nextId, hasOnboarded: true),
-      );
-    } catch (_) {
-      state = state.copyWith(
-        pets: pets,
-        activePetId: nextId,
-        hasOnboarded: true,
-        records: const [],
-        routines: const [],
-        schedules: const [],
-        todayRoutineItems: const [],
-        routineCompletions: const {},
-        clearTodaySummary: true,
-      );
-      rethrow;
-    }
+    state = state.copyWith(pets: pets, hasOnboarded: true);
+    await setActivePet(nextId);
   }
 
   Future<void> setActivePet(String petId) async {
-    state = state.copyWith(activePetId: petId);
+    if (!state.pets.any((pet) => pet.id == petId)) {
+      throw StateError('Pet not found');
+    }
+    state = state.copyWith(
+      activePetId: petId,
+      records: const [],
+      routines: const [],
+      schedules: const [],
+      todayRoutineItems: const [],
+      routineCompletions: const {},
+      clearTodaySummary: true,
+      clearDataError: true,
+    );
     await _loadPetData(petId);
+  }
+
+  Future<void> retryDataLoad() => state.activePetId == null
+      ? loadForAuthenticatedUser()
+      : _loadPetData(state.activePetId!);
+
+  Future<bool> activateReminderTarget({
+    required String sourceId,
+    required bool isSchedule,
+  }) async {
+    final session = _session;
+    final version = _dataVersion;
+    final pets = await _petSvc.getPets();
+    if (!_isCurrent(session) || version != _dataVersion) return false;
+    for (final pet in pets) {
+      final found = isSchedule
+          ? (await _requireScheduleService().getSchedules(
+              pet.id,
+            )).any((item) => item.id == sourceId && item.petId == pet.id)
+          : (await _routSvc.getRoutines(
+              pet.id,
+            )).any((item) => item.id == sourceId && item.petId == pet.id);
+      if (!_isCurrent(session) || version != _dataVersion) return false;
+      if (!found) continue;
+      state = state.copyWith(pets: pets, hasOnboarded: true);
+      await setActivePet(pet.id);
+      if (!_isCurrent(session) || state.activePetId != pet.id) return false;
+      return isSchedule
+          ? state.schedules.any(
+              (item) => item.id == sourceId && item.petId == pet.id,
+            )
+          : state.routines.any(
+              (item) => item.id == sourceId && item.petId == pet.id,
+            );
+    }
+    return false;
   }
 
   // Pet CRUD
@@ -336,8 +427,11 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     PetPhotoUpload? photo,
   }) async {
+    final session = _session;
     await _preferencesReady;
+    if (!_isCurrent(session)) return;
     final pet = await _petSvc.createPet(body);
+    if (!_isCurrent(session)) return;
     state = PetState(
       isLoading: false,
       hasOnboarded: state.hasOnboarded,
@@ -352,6 +446,7 @@ class PetNotifier extends StateNotifier<PetState> {
     );
     if (photo != null) {
       final savedPet = await _uploadSavedPetPhoto(pet, photo);
+      if (!_isCurrent(session)) return;
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == pet.id ? savedPet : p).toList(),
       );
@@ -362,7 +457,7 @@ class PetNotifier extends StateNotifier<PetState> {
       // Creation already succeeded; a refresh failure must not invite duplication.
       debugPrint('Failed to refresh new pet data: $error');
     }
-    state = state.copyWith(hasOnboarded: true);
+    if (_isCurrent(session)) state = state.copyWith(hasOnboarded: true);
   }
 
   Future<void> updatePet(
@@ -370,12 +465,15 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     PetPhotoUpload? photo,
   }) async {
+    final session = _session;
     final updated = await _petSvc.updatePet(petId, body);
+    if (!_isCurrent(session)) return;
     state = state.copyWith(
       pets: state.pets.map((p) => p.id == petId ? updated : p).toList(),
     );
     if (photo != null) {
       final savedPet = await _uploadSavedPetPhoto(updated, photo);
+      if (!_isCurrent(session)) return;
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == petId ? savedPet : p).toList(),
       );
@@ -401,7 +499,9 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> deletePet(String petId) async {
+    final session = _session;
     await _petSvc.deletePet(petId);
+    if (!_isCurrent(session)) return;
     final oldActivePetId = state.activePetId;
     final remaining = state.pets.where((p) => p.id != petId).toList();
     if (remaining.isEmpty) {
@@ -420,9 +520,14 @@ class PetNotifier extends StateNotifier<PetState> {
       final nextId = remaining.any((p) => p.id == state.activePetId)
           ? state.activePetId!
           : remaining.first.id;
-      state = state.copyWith(pets: remaining, activePetId: nextId);
+      state = state.copyWith(pets: remaining);
       if (nextId != oldActivePetId) {
-        await _loadPetData(nextId);
+        try {
+          await setActivePet(nextId);
+        } catch (error) {
+          // Deletion is committed; the next pet's data can be retried separately.
+          debugPrint('Failed to load the next pet after deletion: $error');
+        }
       }
     }
   }
@@ -432,6 +537,8 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     RecordPhotoUpload? photo,
   }) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final record = photo == null
         ? await _recSvc.createRecord(petId, body)
@@ -442,12 +549,16 @@ class PetNotifier extends StateNotifier<PetState> {
               RecordMediaUpload(bytes: photo.bytes, filename: photo.filename),
             ],
           );
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(records: [...state.records, record]);
   }
 
   Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final updated = await _recSvc.updateRecord(petId, recordId, body);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(
       records: state.records
           .map((r) => r.id == recordId ? updated : r)
@@ -456,8 +567,11 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> deleteRecord(String recordId) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     await _recSvc.deleteRecord(petId, recordId);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(
       records: state.records.where((r) => r.id != recordId).toList(),
     );
@@ -465,15 +579,20 @@ class PetNotifier extends StateNotifier<PetState> {
 
   // Routine CRUD
   Future<CareSchedule> addCareSchedule(CareSchedule schedule) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final scheduleSvc = _requireScheduleService();
     final saved = await scheduleSvc.createSchedule(petId, schedule);
+    if (!_isCurrentPet(session, version, petId)) return saved;
     final next = [...state.schedules, saved];
     state = state.copyWith(schedules: next);
     return saved;
   }
 
   Future<CareSchedule> updateCareSchedule(CareSchedule schedule) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId;
     final scheduleSvc = _requireScheduleService();
     if (petId == null || schedule.petId != petId) {
@@ -490,13 +609,17 @@ class PetNotifier extends StateNotifier<PetState> {
       schedule.id,
       schedule,
     );
-    final next = [...state.schedules];
-    next[index] = saved;
+    if (!_isCurrentPet(session, version, petId)) return saved;
+    final next = state.schedules
+        .map((item) => item.id == saved.id ? saved : item)
+        .toList();
     state = state.copyWith(schedules: next);
     return saved;
   }
 
   Future<void> deleteCareSchedule(String scheduleId) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId;
     if (petId == null) {
       throw StateError('Care schedule not found');
@@ -509,6 +632,7 @@ class PetNotifier extends StateNotifier<PetState> {
       throw StateError('Care schedule not found');
     }
     await scheduleSvc.deleteSchedule(petId, scheduleId);
+    if (!_isCurrentPet(session, version, petId)) return;
     final next = state.schedules
         .where((schedule) => schedule.id != scheduleId)
         .toList();
@@ -516,8 +640,11 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> addRoutine(Map<String, dynamic> body) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final routine = await _routSvc.createRoutine(petId, body);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(routines: [...state.routines, routine]);
     await _refreshTodayRoutinesBestEffort(petId);
   }
@@ -526,8 +653,11 @@ class PetNotifier extends StateNotifier<PetState> {
     String routineId,
     Map<String, dynamic> body,
   ) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final updated = await _routSvc.updateRoutine(petId, routineId, body);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(
       routines: state.routines
           .map((r) => r.id == routineId ? updated : r)
@@ -537,8 +667,11 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> deleteRoutine(String routineId) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     await _routSvc.deleteRoutine(petId, routineId);
+    if (!_isCurrentPet(session, version, petId)) return;
     final completions = Map<String, CompletionStatus>.from(
       state.routineCompletions,
     )..removeWhere((key, _) => key.startsWith('$routineId:'));
@@ -550,6 +683,8 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> toggleRoutineCompletion(String routineId, String date) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final key = '$routineId:$date';
     final current = state.routineCompletions[key] ?? CompletionStatus.pending;
@@ -563,6 +698,7 @@ class PetNotifier extends StateNotifier<PetState> {
       date: date,
       status: next,
     );
+    if (!_isCurrentPet(session, version, petId)) return;
     final newMap = Map<String, CompletionStatus>.from(state.routineCompletions);
     newMap[key] = completion.status;
     final isTodayItem = state.todayRoutineItems.any(
@@ -576,9 +712,11 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> _refreshTodayRoutinesBestEffort(String petId) async {
+    final session = _session;
+    final version = _dataVersion;
     try {
       final todayData = await _routSvc.getTodayRoutines(petId);
-      if (state.activePetId != petId) return;
+      if (!_isCurrentPet(session, version, petId)) return;
 
       final completions = Map<String, CompletionStatus>.from(
         state.routineCompletions,

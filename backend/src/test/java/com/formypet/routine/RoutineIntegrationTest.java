@@ -62,6 +62,40 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void updateCanClearEndDateAndMemoWithoutChangingOmittedValues() throws Exception {
+        String token = registerAndGetToken("clear-routine@example.com", "clear-routine");
+        Long petId = createPet(token, "Mochi");
+        MvcResult created = mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "label", "Meal", "typeId", "meal", "repeatType", "daily",
+                                "startDate", "2026-05-01", "endDate", "2026-05-31",
+                                "times", List.of("08:00"), "note", "Old memo"))))
+                .andExpect(status().isCreated()).andReturn();
+        String url = routinesUrl(petId) + "/" + readId(created);
+
+        // Omitted fields remain unchanged for existing partial-update clients.
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"New meal\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.endDate").value("2026-05-31"))
+                .andExpect(jsonPath("$.data.note").value("Old memo"));
+
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clearEndDate\":true,\"note\":\"\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.endDate").doesNotExist())
+                .andExpect(jsonPath("$.data.note").value(""));
+        mockMvc.perform(get(routinesUrl(petId)).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].endDate").doesNotExist())
+                .andExpect(jsonPath("$.data[0].note").value(""))
+                .andExpect(jsonPath("$.data[0].label").value("New meal"));
+    }
+
+    @Test
     void createAndUpdateRoutineTemplateSucceeds() throws Exception {
         String token = registerAndGetToken("template-routine@example.com", "template");
         Long petId = createPet(token, "Maro");

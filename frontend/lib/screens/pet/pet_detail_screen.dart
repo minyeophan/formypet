@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,12 +15,21 @@ import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'pet_confirm_dialog.dart';
 
-class PetDetailScreen extends ConsumerWidget {
+class PetDetailScreen extends ConsumerStatefulWidget {
   final String petId;
   const PetDetailScreen({super.key, required this.petId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PetDetailScreen> createState() => _PetDetailScreenState();
+}
+
+class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
+  bool _deleting = false;
+  bool _confirmingDelete = false;
+  String get petId => widget.petId;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(petProvider);
     final pet = state.pets.where((p) => p.id == petId).firstOrNull;
     final appBar = AppHeader(
@@ -27,7 +37,7 @@ class PetDetailScreen extends ConsumerWidget {
       showBackButton: true,
       centerTitle: true,
       onBack: () => _goBackToMy(context),
-      actions: pet == null
+      actions: pet == null || _deleting
           ? null
           : [
               AppHeaderIconButton(
@@ -132,33 +142,53 @@ class PetDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             _DangerCard(
-              onDelete: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => PetConfirmDialog(
-                    title: '반려동물 삭제',
-                    body: '${pet.name}을(를) 삭제하시겠습니까?',
-                    actions: [
-                      PetConfirmDialogAction(
-                        label: '취소',
-                        onPressed: () => Navigator.of(dialogContext).pop(false),
-                      ),
-                      PetConfirmDialogAction(
-                        label: '삭제',
-                        isDanger: true,
-                        onPressed: () => Navigator.of(dialogContext).pop(true),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  await ref.read(petProvider.notifier).deletePet(petId);
-                  if (!context.mounted) return;
-                  if (!ref.read(petProvider).hasOnboarded) return;
-                  _goBackToMy(context);
-                }
-              },
+              deleting: _deleting,
+              onDelete: _deleting || _confirmingDelete
+                  ? null
+                  : () async {
+                      setState(() => _confirmingDelete = true);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (dialogContext) => PetConfirmDialog(
+                          title: '반려동물 삭제',
+                          body: '${pet.name}을(를) 삭제하시겠습니까?',
+                          actions: [
+                            PetConfirmDialogAction(
+                              label: '취소',
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                            ),
+                            PetConfirmDialogAction(
+                              label: '삭제',
+                              isDanger: true,
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (!mounted) return;
+                      setState(() => _confirmingDelete = false);
+                      if (confirmed == true) {
+                        setState(() => _deleting = true);
+                        try {
+                          await ref.read(petProvider.notifier).deletePet(petId);
+                          if (!context.mounted) return;
+                          if (!ref.read(petProvider).hasOnboarded) return;
+                          _goBackToMy(context);
+                        } catch (_) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('반려동물을 삭제하지 못했어요. 다시 시도해 주세요.'),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) setState(() => _deleting = false);
+                        }
+                      }
+                    },
             ),
           ],
         ),
@@ -337,9 +367,10 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _DangerCard extends StatelessWidget {
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
+  final bool deleting;
 
-  const _DangerCard({required this.onDelete});
+  const _DangerCard({required this.onDelete, this.deleting = false});
 
   @override
   Widget build(BuildContext context) {
@@ -354,15 +385,28 @@ class _DangerCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onDelete,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(
               children: [
-                Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                SizedBox(width: 10),
+                if (deleting)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.danger,
+                    ),
+                  )
+                else
+                  const AppIcon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.danger,
+                  ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: AppText(
-                    '삭제',
+                    deleting ? '삭제 중...' : '삭제',
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.danger,

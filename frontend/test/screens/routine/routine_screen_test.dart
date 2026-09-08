@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,7 +105,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-button-s1')),
-        matching: find.byIcon(Icons.chevron_right_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppIcon && widget.icon == Icons.chevron_right_rounded,
+        ),
       ),
       findsOneWidget,
     );

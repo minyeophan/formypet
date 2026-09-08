@@ -114,7 +114,9 @@ public class RoutineService {
                 ? request.monthlyInterval()
                 : ((Number) current.get("monthly_interval")).intValue();
         LocalDate startDate = request.startDate() != null ? request.startDate() : normalizeDate(current.get("start_date"));
-        LocalDate endDate = request.endDate() != null ? request.endDate() : normalizeDate(current.get("end_date"));
+        LocalDate endDate = Boolean.TRUE.equals(request.clearEndDate())
+                ? null
+                : request.endDate() != null ? request.endDate() : normalizeDate(current.get("end_date"));
         validateRepeatRule(repeatType, days, monthlyInterval, startDate, endDate);
         List<String> times = request.times() != null ? request.times() : parseStringList(current.get("times"));
         validateTimes(times);

@@ -8,6 +8,7 @@ import '../../providers/pet_provider.dart';
 import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import 'expense_form.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseAddScreen extends ConsumerStatefulWidget {
   const ExpenseAddScreen({super.key});
@@ -32,6 +33,12 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
             AppFormHeader(title: '비용 추가', onBack: _goBack),
             Expanded(
               child: ExpenseFormBody(
+                key: ValueKey((
+                  activePet?.id,
+                  ref.watch(
+                    walletExpenseProvider.select((state) => state.session),
+                  ),
+                )),
                 mode: ExpenseFormMode.add,
                 initialData: ExpenseFormData.now(),
                 petName: activePet?.name,
@@ -55,6 +62,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       setState(() => _errorText = '반려동물을 등록한 뒤 저장할 수 있어요.');
       return;
     }
+    final session = ref.read(walletExpenseProvider).session;
 
     setState(() {
       _submitting = true;
@@ -65,10 +73,15 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       await ref
           .read(walletExpenseProvider.notifier)
           .createExpense(activePet.id, data.toWalletExpenseBody());
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
       context.go('/wallet');
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       setState(() {
         _submitting = false;
         _errorText = '비용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';

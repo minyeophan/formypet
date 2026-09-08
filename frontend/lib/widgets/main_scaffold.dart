@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../core/app_colors.dart';
 import '../core/keyboard_utils.dart';
+import '../core/visuals/app_visual_id.dart';
+import 'app_visual.dart';
 
 class MainScaffold extends StatelessWidget {
   final Widget child;
@@ -42,17 +44,29 @@ class MainScaffold extends StatelessWidget {
                 context.go('/my');
             }
           },
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
+              icon: AppVisual(
+                id: AppVisualId.navHome,
+                size: 24,
+                color: currentIndex == 0 ? AppColors.primary : AppColors.muted,
+              ),
               label: '홈',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.people_outlined),
+              icon: AppVisual(
+                id: AppVisualId.navCommunity,
+                size: 24,
+                color: currentIndex == 1 ? AppColors.primary : AppColors.muted,
+              ),
               label: '커뮤니티',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outlined),
+              icon: AppVisual(
+                id: AppVisualId.navMy,
+                size: 24,
+                color: currentIndex == 2 ? AppColors.primary : AppColors.muted,
+              ),
               label: '마이',
             ),
           ],

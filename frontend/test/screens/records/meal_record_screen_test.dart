@@ -309,6 +309,43 @@ void main() {
       'feedingMethod': 'served',
     });
   });
+  testWidgets('editing meal sends empty note to clear saved memo', (
+    tester,
+  ) async {
+    final notifier = _MealTestPetNotifier(
+      records: const [
+        ActivityRecord(
+          id: 'meal-clear',
+          petId: 'pet-1',
+          typeId: 'meal',
+          date: '2026-05-09',
+          time: '09:10',
+          note: '기존 메모',
+          detail: {
+            'foodType': 'dry',
+            'servedAmount': 50,
+            'product': '사료',
+            'consumedPercent': 100,
+            'feedingMethod': 'served',
+          },
+        ),
+      ],
+    );
+    await _pumpMealRoute(
+      tester,
+      notifier: notifier,
+      initialLocation: '/records/meal-clear/edit',
+    );
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.key == const Key('meal-note-field'),
+      ),
+      '',
+    );
+    await _tapEditSave(tester);
+    await tester.pumpAndSettle();
+    expect(notifier.updatedRecords.single.$2['note'], '');
+  });
 }
 
 Future<void> _tapSave(WidgetTester tester) async {

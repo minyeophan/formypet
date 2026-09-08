@@ -1,15 +1,19 @@
+import 'package:frontend/core/visuals/app_visual_id.dart';
+import 'package:frontend/widgets/app_visual.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/care_schedule.dart';
+import 'package:frontend/models/notification.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/router/app_router.dart';
@@ -23,8 +27,10 @@ import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
+import 'package:frontend/screens/my/my_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
+import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/wallet/expense_add_screen.dart';
 import 'package:frontend/screens/wallet/expense_detail_screen.dart';
@@ -37,6 +43,7 @@ import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:frontend/widgets/app_text.dart';
@@ -68,6 +75,47 @@ void main() {
 
     expect(find.byType(AuthScreen), findsOneWidget);
   });
+
+  testWidgets(
+    'startup outage keeps retry on splash without asking for login again',
+    (tester) async {
+      final notifier = _StartupRetryAuthNotifier();
+      await _pumpRouter(
+        tester,
+        authState: notifier.state,
+        authNotifier: notifier,
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1')],
+          activePetId: '1',
+        ),
+      );
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(AuthScreen), findsNothing);
+      await tester.tap(find.text('다시 시도'));
+      await tester.pumpAndSettle();
+      expect(notifier.retries, 1);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'pet loading failure does not misroute signed-in user to onboarding',
+    (tester) async {
+      await _pumpRouter(
+        tester,
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: false,
+        ).copyWith(dataErrorText: '반려동물 정보를 불러오지 못했어요.'),
+      );
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('다시 시도'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'actual community detail is authenticated and hides bottom navigation',
@@ -452,6 +500,40 @@ void main() {
     expect(find.byType(ExpenseEditScreen), findsOneWidget);
   });
 
+  testWidgets('expense detail and edit retain the owner from the URL', (
+    tester,
+  ) async {
+    for (final editing in [false, true]) {
+      await _pumpRouter(
+        tester,
+        initialLocation:
+            '/wallet/expenses/expense-1${editing ? '/edit' : ''}?petId=2',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1'), _pet('2')],
+          activePetId: '1',
+        ),
+      );
+      if (editing) {
+        expect(
+          tester
+              .widget<ExpenseEditScreen>(find.byType(ExpenseEditScreen))
+              .petId,
+          '2',
+        );
+      } else {
+        expect(
+          tester
+              .widget<ExpenseDetailScreen>(find.byType(ExpenseDetailScreen))
+              .petId,
+          '2',
+        );
+      }
+    }
+  });
+
   testWidgets('home wallet menu opens wallet route', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -466,7 +548,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.account_balance_wallet_rounded));
+    await tester.tap(find.byKey(const Key('home-menu-wallet')));
     await tester.pumpAndSettle();
 
     expect(find.byType(ExpenseWalletScreen), findsOneWidget);
@@ -770,7 +852,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-hero')),
-        matching: find.byIcon(Icons.content_cut_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppVisual && widget.id == AppVisualId.scheduleGrooming,
+        ),
       ),
       findsOneWidget,
     );
@@ -1102,6 +1187,120 @@ void main() {
     expect(bottomNavigationBar.currentIndex, 1);
   });
 
+  for (final origin in {
+    '/my': MyScreen,
+    '/my/settings': MySettingsScreen,
+  }.entries) {
+    for (final systemBack in [false, true]) {
+      testWidgets(
+        'notifications from ${origin.key} hide tabs and ${systemBack ? 'system' : 'header'} back restores the origin',
+        (tester) async {
+          final pet = _pet('1');
+          await _pumpRouter(
+            tester,
+            initialLocation: origin.key,
+            authState: const AuthState(isLoading: false, isAuthenticated: true),
+            petState: _petState(
+              isLoading: false,
+              hasOnboarded: true,
+              pets: [pet],
+              activePetId: pet.id,
+            ),
+            notificationService: _EmptyNotificationService(),
+          );
+
+          final inboxLink = find.text('알림 내역');
+          await tester.ensureVisible(inboxLink);
+          await tester.pumpAndSettle();
+          await tester.tap(inboxLink);
+          await tester.pumpAndSettle();
+
+          expect(find.byType(NotificationScreen), findsOneWidget);
+          expect(find.byType(BottomNavigationBar), findsNothing);
+
+          if (systemBack) {
+            await tester.binding.handlePopRoute();
+          } else {
+            await tester.tap(find.byTooltip('뒤로가기'));
+          }
+          await tester.pumpAndSettle();
+
+          expect(find.byType(NotificationScreen), findsNothing);
+          expect(find.byType(origin.value), findsOneWidget);
+          expect(
+            tester
+                .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+                .currentIndex,
+            2,
+          );
+        },
+      );
+    }
+  }
+
+  testWidgets('notifications direct entry back falls back to home', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/notifications',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      notificationService: _EmptyNotificationService(),
+      communityService: _FakeCommunityService(),
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NotificationScreen)),
+    );
+    expect(container.read(routerProvider).canPop(), isFalse);
+    await tester.tap(find.byTooltip('뒤로가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NotificationScreen), findsNothing);
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(
+      container.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/home',
+    );
+    expect(
+      tester
+          .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+          .currentIndex,
+      0,
+    );
+  });
+
+  for (final authenticated in [false, true]) {
+    testWidgets(
+      'notifications direct entry preserves ${authenticated ? 'onboarding' : 'auth'} guard',
+      (tester) async {
+        await _pumpRouter(
+          tester,
+          initialLocation: '/notifications',
+          authState: AuthState(
+            isLoading: false,
+            isAuthenticated: authenticated,
+          ),
+          petState: _petState(isLoading: false, hasOnboarded: false),
+          notificationService: _EmptyNotificationService(),
+        );
+
+        expect(find.byType(NotificationScreen), findsNothing);
+        expect(
+          find.byType(authenticated ? OnboardingScreen : AuthScreen),
+          findsOneWidget,
+        );
+      },
+    );
+  }
+
   testWidgets('my subroutes keep bottom navigation and direct URL fallbacks', (
     tester,
   ) async {
@@ -1194,6 +1393,7 @@ Future<void> _pumpRouter(
   required AuthState authState,
   required PetState petState,
   CommunityService? communityService,
+  NotificationService? notificationService,
   AuthNotifier? authNotifier,
   PetNotifier? petNotifier,
 }) async {
@@ -1210,6 +1410,8 @@ Future<void> _pumpRouter(
         ),
         if (communityService != null)
           communityServiceProvider.overrideWithValue(communityService),
+        if (notificationService != null)
+          notificationServiceProvider.overrideWithValue(notificationService),
         walletExpenseProvider.overrideWith((ref) => _RouterWalletNotifier()),
       ],
       child: Consumer(
@@ -1342,6 +1544,12 @@ class _FakeCommunityService extends CommunityService {
   }) async => const PostCommentFeed(items: []);
 }
 
+class _EmptyNotificationService extends NotificationService {
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async =>
+      const NotificationFeed(items: [], hasMore: false, unreadCount: 0);
+}
+
 class _RouterWalletNotifier extends WalletExpenseNotifier {
   _RouterWalletNotifier() : super(_FakeWalletExpenseService()) {
     state = WalletExpenseState(
@@ -1362,7 +1570,20 @@ class _RouterWalletNotifier extends WalletExpenseNotifier {
   Future<void> loadFirstPage(String petId) async {}
 }
 
-class _FakeWalletExpenseService extends WalletExpenseService {}
+class _FakeWalletExpenseService extends WalletExpenseService {
+  @override
+  Future<WalletExpense> getExpense(String petId, String expenseId) async =>
+      WalletExpense(
+        id: expenseId,
+        petId: petId,
+        expenseDate: '2026-05-09',
+        expenseTime: '09:10',
+        amount: 12000,
+        currency: 'KRW',
+        category: 'snack',
+        categoryLabel: '간식',
+      );
+}
 
 WalletExpense _walletExpense() => const WalletExpense(
   id: 'expense-1',
@@ -1374,6 +1595,23 @@ WalletExpense _walletExpense() => const WalletExpense(
   category: 'snack',
   categoryLabel: '\uAC04\uC2DD',
 );
+
+class _StartupRetryAuthNotifier extends AuthNotifier {
+  _StartupRetryAuthNotifier()
+    : super.test(
+        const AuthState(
+          isLoading: false,
+          isAuthenticated: false,
+          initializationError: '연결을 확인해 주세요.',
+        ),
+      );
+  int retries = 0;
+  @override
+  Future<void> retryInitialization() async {
+    retries++;
+    state = const AuthState(isLoading: false, isAuthenticated: true);
+  }
+}
 
 class _MutableAuthNotifier extends AuthNotifier {
   _MutableAuthNotifier(super.initialState) : super.test();

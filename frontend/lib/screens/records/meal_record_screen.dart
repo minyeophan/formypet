@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -377,7 +378,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
       'typeId': 'meal',
       'date': DateFormat('yyyy-MM-dd').format(_date),
       'time': _apiTime,
-      if (note.isNotEmpty) 'note': note,
+      if (note.isNotEmpty || widget.editingRecord != null) 'note': note,
       'detail': detail,
     };
   }
@@ -747,7 +748,7 @@ class _MoreSection extends StatelessWidget {
                     color: AppColors.text,
                   ),
                 ),
-                Icon(
+                AppIcon(
                   expanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.keyboard_arrow_down_rounded,
@@ -884,7 +885,7 @@ class _PhotoButton extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
+          AppIcon(
             hasPhoto ? Icons.check_circle_rounded : Icons.add_a_photo_rounded,
             color: hasPhoto ? AppColors.primaryPressed : AppColors.muted,
             size: 22,

@@ -215,10 +215,7 @@ class _RecordCategoryFormScreenState
           hintText: '오늘의 반려일기를 남겨 주세요',
         );
       case 'etc':
-        return _buildNoteOnlyBody(
-          typeId: 'etc',
-          hintText: '오늘의 기록을 남겨 주세요',
-        );
+        return _buildNoteOnlyBody(typeId: 'etc', hintText: '오늘의 기록을 남겨 주세요');
       default:
         return const _SectionBlock(
           title: '준비중',
@@ -620,7 +617,9 @@ class _RecordCategoryFormScreenState
     switch (widget.typeId) {
       case 'poop':
         final note = _noteCtrl.text.trim();
-        if (note.isNotEmpty) payload['note'] = note;
+        if (note.isNotEmpty || widget.editingRecord != null) {
+          payload['note'] = note;
+        }
         payload['typeId'] = 'poop';
         payload['detail'] = {
           'poopShape': _poopKind == 'urine' ? 'urine' : _poopShape,
@@ -632,7 +631,9 @@ class _RecordCategoryFormScreenState
         break;
       case 'walk':
         final note = _noteCtrl.text.trim();
-        if (note.isNotEmpty) payload['note'] = note;
+        if (note.isNotEmpty || widget.editingRecord != null) {
+          payload['note'] = note;
+        }
         payload['detail'] = {'distance': _positiveDouble(_distanceCtrl.text)};
         break;
       case 'weight':

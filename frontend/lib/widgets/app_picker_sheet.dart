@@ -1,3 +1,4 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -79,7 +80,7 @@ class AppSelectField<T> extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(icon, size: 22, color: AppColors.textSecondary),
+              AppIcon(icon, size: 22, color: AppColors.textSecondary),
             ],
           ),
         ),
@@ -194,7 +195,7 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: '검색',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      prefixIcon: const AppIcon(Icons.search_rounded, size: 20),
                       filled: true,
                       fillColor: AppColors.surfaceSoft,
                       border: OutlineInputBorder(
@@ -370,7 +371,7 @@ class _AppMultiPickerSheetState<T> extends State<AppMultiPickerSheet<T>> {
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: '검색',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      prefixIcon: const AppIcon(Icons.search_rounded, size: 20),
                       filled: true,
                       fillColor: AppColors.surfaceSoft,
                       border: OutlineInputBorder(

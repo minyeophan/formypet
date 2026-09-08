@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
@@ -16,7 +17,6 @@ TextStyle communityV2Style({
   Color? color,
   double? height,
 }) => TextStyle(
-  fontFamily: AppV2Tokens.fontFamily,
   fontSize: size,
   fontWeight: weight,
   color: color ?? AppV2Tokens.text,
@@ -312,7 +312,7 @@ class _CommunityPollCardState extends State<CommunityPollCard> {
                   child: Row(
                     children: [
                       if (pending == option.id) ...[
-                        const Icon(
+                        const AppIcon(
                           Icons.check_rounded,
                           size: 18,
                           color: AppV2Tokens.primary,
@@ -540,56 +540,56 @@ class _FlatComment extends StatelessWidget {
       );
     }
     return Container(
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
-    ),
-    padding: const EdgeInsets.symmetric(vertical: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CommunityCommentAvatar(
-          key: Key('community-comment-avatar-${comment.id}'),
-          url: comment.authorProfileImageUrl,
-          size: reply ? 28 : 32,
-          fallbackColor: AppV2Tokens.surfaceSoft,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                comment.authorNickname.trim().isEmpty
-                    ? '익명집사'
-                    : comment.authorNickname,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: communityV2Style(size: 14, weight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(comment.content, style: communityV2Style(size: 14)),
-              if (onReply != null)
-                _LinkButton(
-                  key: Key('community-comment-reply-${comment.id}'),
-                  label: '답글쓰기',
-                  onPressed: onReply!,
-                ),
-            ],
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CommunityCommentAvatar(
+            key: Key('community-comment-avatar-${comment.id}'),
+            url: comment.authorProfileImageUrl,
+            size: reply ? 28 : 32,
+            fallbackColor: AppV2Tokens.surfaceSoft,
           ),
-        ),
-        if (canManage)
-          AppMoreButton.plain(
-            key: Key('community-comment-more-${comment.id}'),
-            tooltip: '댓글 관리',
-            onPressed: onManage,
-            plainColor: AppV2Tokens.textSecondary,
-            plainSplashColor: AppV2Tokens.primarySoft,
-          )
-        else
-          const SizedBox(width: 44),
-      ],
-    ),
-  );
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  comment.authorNickname.trim().isEmpty
+                      ? '익명집사'
+                      : comment.authorNickname,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: communityV2Style(size: 14, weight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(comment.content, style: communityV2Style(size: 14)),
+                if (onReply != null)
+                  _LinkButton(
+                    key: Key('community-comment-reply-${comment.id}'),
+                    label: '답글쓰기',
+                    onPressed: onReply!,
+                  ),
+              ],
+            ),
+          ),
+          if (canManage)
+            AppMoreButton.plain(
+              key: Key('community-comment-more-${comment.id}'),
+              tooltip: '댓글 관리',
+              onPressed: onManage,
+              plainColor: AppV2Tokens.textSecondary,
+              plainSplashColor: AppV2Tokens.primarySoft,
+            )
+          else
+            const SizedBox(width: 44),
+        ],
+      ),
+    );
   }
 }
 
@@ -648,7 +648,7 @@ class _StatButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: iconColor),
+              AppIcon(icon, size: 20, color: iconColor),
               const SizedBox(width: 5),
               Text(
                 label,

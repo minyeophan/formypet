@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_v2_tokens.dart';
-
 enum AppBadgeType { category, popular }
 
 class AppCategoryBadge extends StatelessWidget {
-  const AppCategoryBadge({super.key, required this.label, this.type = AppBadgeType.category});
+  const AppCategoryBadge({
+    super.key,
+    required this.label,
+    this.type = AppBadgeType.category,
+  });
 
   final String label;
   final AppBadgeType type;
@@ -20,9 +22,16 @@ class AppCategoryBadge extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE0E3E1)),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontFamily: AppV2Tokens.fontFamily, fontSize: 10, fontWeight: FontWeight.w700,
-          color: const Color(0xFF37413C))),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF37413C),
+        ),
+      ),
     );
   }
 }

@@ -21,7 +21,7 @@ class MySupportCenterScreen extends StatelessWidget {
         onBack: () => goBackOrFallback(context, '/my'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           const MySupportLead('궁금한 점을 빠르게 찾을 수 있도록 주제별 도움말을 제공합니다.'),
           const SizedBox(height: 14),
@@ -108,7 +108,7 @@ class MyFaqCategoryScreen extends StatelessWidget {
       body: category == null
           ? const MySupportNotFound('카테고리를 찾을 수 없어요')
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 MySupportLead(category.lead),
                 const SizedBox(height: 14),
@@ -152,7 +152,7 @@ class MyFaqDetailScreen extends StatelessWidget {
       body: faq == null
           ? const MySupportNotFound('질문을 찾을 수 없어요')
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 MySupportArticleCard(
                   title: faq.title,

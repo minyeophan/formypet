@@ -134,10 +134,7 @@ class _DetailHero extends StatelessWidget {
                 width: 52,
                 height: 52,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+
                 child: AppVisual(
                   id: scheduleVisualId(schedule.categoryId),
                   size: 28,

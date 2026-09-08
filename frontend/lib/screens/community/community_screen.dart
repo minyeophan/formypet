@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,12 +23,7 @@ TextStyle _communityStyle({
   double? fontSize,
   FontWeight? fontWeight,
   Color? color,
-}) => TextStyle(
-  fontFamily: AppV2Tokens.fontFamily,
-  fontSize: fontSize,
-  fontWeight: fontWeight,
-  color: color,
-);
+}) => TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
@@ -57,7 +53,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         backgroundColor: AppV2Tokens.primary,
         foregroundColor: Colors.white,
         onPressed: () => context.push('/community/write'),
-        child: const Icon(Icons.edit),
+        child: const AppIcon(Icons.edit),
       ),
     );
   }
@@ -116,7 +112,7 @@ class _CommunityCategoryScreenState
         backgroundColor: AppV2Tokens.primary,
         foregroundColor: Colors.white,
         onPressed: () => context.push('/community/write'),
-        child: const Icon(Icons.edit),
+        child: const AppIcon(Icons.edit),
       ),
     );
   }
@@ -184,9 +180,7 @@ class _CommunityCategoryBody extends ConsumerWidget {
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: _FeedWidth(
-                        child: const _CategorySectionHeader(),
-                      ),
+                      child: _FeedWidth(child: const _CategorySectionHeader()),
                     ),
                     if (!activated && posts.isEmpty)
                       SliverList(
@@ -230,49 +224,49 @@ class _CommunityHeader extends StatelessWidget {
       key: const Key('community-header'),
       decoration: const BoxDecoration(color: AppV2Tokens.background),
       child: AppHeader(
-      title: '커뮤니티',
-      titleKey: const Key('community-header-title'),
-      leadingKey: const Key('community-header-leading-slot'),
-      showBackButton: showBack,
-      onBack: () {
-        if (Navigator.of(context).canPop()) {
-          context.pop();
-          return;
-        }
-        context.go('/community');
-      },
-      leading: showBack
-          ? null
-          : const Icon(Icons.pets, size: 25, color: AppV2Tokens.primary),
-      actions: [
-        _CommunityHeaderButton(
-          key: const Key('community-search-button'),
-          icon: Icons.search_rounded,
-          tooltip: '검색',
-          onTap: () {
-            final router = GoRouter.maybeOf(context);
-            if (router == null) {
-              showPreparingToast(context);
-            } else {
-              router.push('/community/search');
-            }
-          },
-        ),
-        _CommunityHeaderButton(
-          key: const Key('community-notification-button'),
-          icon: Icons.notifications_none_rounded,
-          tooltip: '알림',
-          onTap: () {
-            final router = GoRouter.maybeOf(context);
-            if (router == null) {
-              showPreparingToast(context);
-            } else {
-              router.push('/notifications');
-            }
-          },
-        ),
-        const SizedBox(width: 12),
-      ],
+        title: '커뮤니티',
+        titleKey: const Key('community-header-title'),
+        leadingKey: const Key('community-header-leading-slot'),
+        showBackButton: showBack,
+        onBack: () {
+          if (Navigator.of(context).canPop()) {
+            context.pop();
+            return;
+          }
+          context.go('/community');
+        },
+        leading: showBack
+            ? null
+            : const AppIcon(Icons.pets, size: 25, color: AppV2Tokens.primary),
+        actions: [
+          AppHeaderIconButton(
+            key: const Key('community-search-button'),
+            icon: Icons.search_rounded,
+            tooltip: '검색',
+            onTap: () {
+              final router = GoRouter.maybeOf(context);
+              if (router == null) {
+                showPreparingToast(context);
+              } else {
+                router.push('/community/search');
+              }
+            },
+          ),
+          AppHeaderIconButton(
+            key: const Key('community-notification-button'),
+            icon: Icons.notifications_none_rounded,
+            tooltip: '알림',
+            onTap: () {
+              final router = GoRouter.maybeOf(context);
+              if (router == null) {
+                showPreparingToast(context);
+              } else {
+                router.push('/notifications');
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
       ),
     );
   }
@@ -441,19 +435,11 @@ class _CategoryTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppV2Tokens.surfaceSoft,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: AppVisual(
-                    id: communityVisualId(category),
-                    color: accent,
-                    size: 21,
-                  ),
+              Center(
+                child: AppVisual(
+                  id: communityVisualId(category),
+                  color: accent,
+                  size: 32,
                 ),
               ),
               const SizedBox(height: 5),
@@ -570,8 +556,12 @@ class _CategoryTabsState extends State<_CategoryTabs> {
                       kCommunityCategoryLabels[tab] ?? tab,
                       style: _communityStyle(
                         fontSize: 14,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                        color: isActive ? AppV2Tokens.text : AppV2Tokens.textSecondary,
+                        fontWeight: isActive
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isActive
+                            ? AppV2Tokens.text
+                            : AppV2Tokens.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -622,7 +612,7 @@ class _GuidePanelState extends State<_GuidePanel> {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    const AppIcon(
                       Icons.info_outline_rounded,
                       size: 18,
                       color: AppV2Tokens.textSecondary,
@@ -631,11 +621,7 @@ class _GuidePanelState extends State<_GuidePanel> {
                     const Expanded(
                       child: Text(
                         '커뮤니티 이용 가이드',
-                        style: TextStyle(
-                          fontFamily: AppV2Tokens.fontFamily,
-                          fontSize: 16,
-                          color: AppV2Tokens.text,
-                        ),
+                        style: TextStyle(fontSize: 16, color: AppV2Tokens.text),
                       ),
                     ),
                     AnimatedRotation(
@@ -1062,46 +1048,4 @@ void _showCommunityToast(BuildContext context, String message) {
         duration: const Duration(milliseconds: 1200),
       ),
     );
-}
-
-class _CommunityHeaderButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _CommunityHeaderButton({
-    super.key,
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: SizedBox(
-      width: 44,
-      height: 44,
-      child: Center(
-        child: Material(
-          color: AppV2Tokens.surface,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: onTap,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppV2Tokens.surface,
-                border: Border.all(color: AppV2Tokens.border),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 20, color: AppV2Tokens.textSecondary),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }

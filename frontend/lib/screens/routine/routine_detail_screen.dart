@@ -114,13 +114,10 @@ class _RoutineHero extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
+          SizedBox(
             width: 52,
             height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
+
             child: AppVisual(
               id: recordTypeVisualId(routine.typeId),
               size: 28,

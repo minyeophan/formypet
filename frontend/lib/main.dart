@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import 'core/api_client.dart';
@@ -99,14 +98,14 @@ class FormypetApp extends ConsumerWidget {
     final pending = _pendingMessage;
     if (pending != null) {
       _pendingMessage = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openPushTarget(pending));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openPushTarget(pending),
+      );
     }
     return MaterialApp.router(
       title: '포마펫',
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme().copyWith(
-        textTheme: GoogleFonts.notoSansKrTextTheme(),
-      ),
+      theme: buildAppTheme(),
       routerConfig: router,
     );
   }
