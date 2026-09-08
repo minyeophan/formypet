@@ -28,6 +28,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] =
+            providers.environmentVariable("KAKAO_NATIVE_APP_KEY").orElse("").get()
     }
 
     buildTypes {
