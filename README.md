@@ -101,6 +101,8 @@ cd backend/docker
 docker compose up -d
 ```
 
+MySQL 실행 전 `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD` 환경 변수를 설정해야 합니다.
+
 ### 2. 백엔드 실행
 
 ```powershell
@@ -108,7 +110,7 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-운영 환경에서는 `JWT_SECRET` 환경 변수를 반드시 설정해야 합니다. 로컬 개발 설정에는 기본값이 있지만, 운영 배포에 그대로 사용하면 안 됩니다.
+백엔드 실행 전 `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `JWT_SECRET` 환경 변수를 설정해야 합니다. 비밀번호와 JWT 비밀값은 저장소에 기록하지 않습니다.
 
 ### 3. 프론트엔드 실행
 
