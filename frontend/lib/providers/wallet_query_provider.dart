@@ -62,6 +62,8 @@ class WalletQueryNotifier extends StateNotifier<WalletQueryState> {
   void setCategory(String? value) =>
       state = state.copyWith(category: value, clearCategory: value == null);
   void setPeriod(WalletPeriod value) => state = state.copyWith(period: value);
+  void applyPeriod(WalletPeriod period, DateTime month) => state = state
+      .copyWith(period: period, baseMonth: DateTime(month.year, month.month));
   void setMonth(DateTime value) =>
       state = state.copyWith(baseMonth: DateTime(value.year, value.month));
 

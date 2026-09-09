@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_v2_tokens.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../widgets/app_visual.dart';
 import '../../models/wallet_expense.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import 'wallet_expense_utils.dart';
+import 'wallet_budget_amount_input.dart';
+import 'wallet_amount_layout.dart';
 
 enum ExpenseFormMode { add, edit }
 
@@ -130,7 +134,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
     _time = initial.time;
     _category = initial.category.isEmpty ? null : initial.category;
     _amountCtrl = TextEditingController(
-      text: initial.amount > 0 ? initial.amount.toString() : '',
+      text: initial.amount > 0 ? formatWon(initial.amount) : '',
     );
     _itemNameCtrl = TextEditingController(text: initial.itemName);
     _memoCtrl = TextEditingController(text: initial.note);
@@ -146,7 +150,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
       _date = initial.date;
       _time = initial.time;
       _category = initial.category.isEmpty ? null : initial.category;
-      _amountCtrl.text = initial.amount > 0 ? initial.amount.toString() : '';
+      _amountCtrl.text = initial.amount > 0 ? formatWon(initial.amount) : '';
       _itemNameCtrl.text = initial.itemName;
       _memoCtrl.text = initial.note;
     }
@@ -160,18 +164,21 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
     super.dispose();
   }
 
-  int? get _amount => int.tryParse(_amountCtrl.text.trim());
+  int? get _amount => walletAmountValue(_amountCtrl.text);
 
   bool get _canSubmit =>
       !widget.submitting &&
       (widget.validTarget ?? (widget.petName != null)) &&
       (_amount ?? 0) > 0 &&
-      (_amount ?? 0) <= 999999999 &&
-      _category != null;
+      (_amount ?? 0) <= walletMaxAmount &&
+      expenseCategoryOptions.any((option) => option.key == _category) &&
+      _itemNameCtrl.text.trim().length <= 100 &&
+      _memoCtrl.text.trim().length <= 500;
 
   @override
   Widget build(BuildContext context) {
     return RecordFormScrollBody(
+      padding: const EdgeInsets.all(20),
       submitButton: SafeArea(
         top: false,
         child: _SaveButton(
@@ -182,17 +189,60 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
         ),
       ),
       children: [
-        _SectionBlock(
-          title: '금액',
-          child: RecordNumberInput(
-            key: const Key('expense-amount-input'),
-            controller: _amountCtrl,
-            mode: RecordNumberInputMode.integer,
-            hintText: '0',
-            suffixText: '원',
-            onChanged: (_) => setState(() {}),
+        WalletAmountLayout(
+          controller: _amountCtrl,
+          illustrationWidth: 140,
+          amountBuilder: (style) => _SectionBlock(
+            title: '얼마를 썼나요?',
+            child: TextField(
+              key: const Key('expense-amount-input'),
+              controller: _amountCtrl,
+              readOnly: true,
+              showCursor: false,
+              enableInteractiveSelection: false,
+              onTap: widget.submitting ? null : _pickAmount,
+              style: style,
+              decoration: const InputDecoration(
+                filled: false,
+                hintText: '0원',
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                disabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                errorBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                focusedErrorBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+              ),
+            ),
+          ),
+          illustration: SvgPicture.asset(
+            'assets/illustrations/wallet_puppy_cheek.svg',
+            width: 140,
+            height: 112,
+            fit: BoxFit.contain,
           ),
         ),
+        if ((_amount ?? 0) > walletMaxAmount)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: AppText(
+              '금액이 너무 커요. 1억 원 이하로 입력해 주세요.',
+              fontSize: 12,
+              color: Colors.red,
+            ),
+          ),
         const SizedBox(height: 24),
         _SectionBlock(
           title: '반려동물',
@@ -210,26 +260,39 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           title: '카테고리',
           child: _CategoryGrid(
             selectedValue: _category,
-            onSelected: (value) => setState(() => _category = value),
+            onSelected: (value) {
+              if (!widget.submitting) setState(() => _category = value);
+            },
           ),
         ),
         const SizedBox(height: 24),
         _SectionBlock(
           title: '날짜/시간',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 300 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20;
+              return Flex(
+                direction: stacked ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: stacked
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
+                  Flexible(
+                    flex: stacked ? 0 : 1,
+                    fit: FlexFit.tight,
                     child: _InputBox(
                       key: const Key('expense-date-button'),
                       text: DateFormat('yyyy-MM-dd').format(_date),
                       onTap: _pickDate,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
+                  SizedBox(width: stacked ? 0 : 10, height: stacked ? 10 : 0),
+                  Flexible(
+                    flex: stacked ? 0 : 1,
+                    fit: FlexFit.tight,
                     child: _InputBox(
                       key: const Key('expense-time-button'),
                       text: _timeLabel,
@@ -237,10 +300,8 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 24),
@@ -251,17 +312,21 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
             controller: _itemNameCtrl,
             maxLength: 100,
             hintText: '선택',
+            enabled: !widget.submitting,
+            onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(height: 24),
         _SectionBlock(
-          title: '메모',
+          title: '메모 (선택)',
           child: _TextInput(
             key: const Key('expense-memo-field'),
             controller: _memoCtrl,
             maxLength: 500,
-            hintText: '선택',
-            maxLines: 4,
+            hintText: '간단한 메모를 남겨보세요',
+            maxLines: 1,
+            enabled: !widget.submitting,
+            onChanged: (_) => setState(() {}),
           ),
         ),
         if (widget.errorText != null) ...[
@@ -273,6 +338,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   }
 
   Future<void> _pickDate() async {
+    if (widget.submitting) return;
     final picked = await showRecordDatePickerSheet(context, initialDate: _date);
     if (mounted && picked != null) {
       setState(() => _date = DateTime(picked.year, picked.month, picked.day));
@@ -280,18 +346,27 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   }
 
   Future<void> _pickTime() async {
+    if (widget.submitting) return;
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
     if (mounted && picked != null) {
       setState(() => _time = picked);
     }
   }
 
-  void _setNow() {
-    final now = DateTime.now();
-    setState(() {
-      _date = DateTime(now.year, now.month, now.day);
-      _time = TimeOfDay(hour: now.hour, minute: now.minute);
-    });
+  Future<void> _pickAmount() async {
+    final value = await showRecordNumberPadSheet(
+      context,
+      initialValue: _amount?.toString() ?? '',
+      mode: RecordNumberInputMode.integer,
+      suffixText: '원',
+      placeholderText: '0',
+    );
+    if (!mounted || value == null || widget.submitting) return;
+    setState(
+      () => _amountCtrl.text = int.tryParse(value) == null
+          ? value
+          : formatWon(int.parse(value)),
+    );
   }
 
   void _submit() {
@@ -300,7 +375,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
     final category = _category;
     if (amount == null ||
         amount <= 0 ||
-        amount > 999999999 ||
+        amount > walletMaxAmount ||
         category == null) {
       return;
     }
@@ -335,11 +410,11 @@ class _SectionBlock extends StatelessWidget {
       children: [
         AppText(
           title,
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
           color: AppColors.text,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         child,
       ],
     );
@@ -356,56 +431,23 @@ class _InputBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
           child: AppText(
             text,
             fontSize: 14,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.normal,
             color: AppColors.text,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SubtleButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _SubtleButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
           ),
         ),
       ),
@@ -421,25 +463,18 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: expenseCategoryOptions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisExtent: 78,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemBuilder: (context, index) {
-        final option = expenseCategoryOptions[index];
-        return _CategoryCard(
-          key: Key('expense-category-${option.key}'),
-          option: option,
-          selected: selectedValue == option.key,
-          onTap: () => onSelected(option.key),
-        );
-      },
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final option in expenseCategoryOptions)
+          _CategoryCard(
+            key: Key('expense-category-${option.key}'),
+            option: option,
+            selected: selectedValue == option.key,
+            onTap: () => onSelected(option.key),
+          ),
+      ],
     );
   }
 }
@@ -459,15 +494,17 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(20),
+      color: selected ? AppV2Tokens.mintSurface : AppColors.white,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
+          width: 62,
+          height: 76,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.border,
             ),
@@ -477,13 +514,13 @@ class _CategoryCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ExpenseCategoryVisual(category: option.key, size: 28),
+                ExpenseCategoryVisual(category: option.key, size: 32),
                 const SizedBox(height: 6),
                 AppText(
                   option.label,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: selected ? AppColors.primary : AppColors.text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.text,
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -503,17 +540,16 @@ class _PetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: AppText(
         label,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: AppColors.text,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.white,
       ),
     );
   }
@@ -549,6 +585,8 @@ class _TextInput extends StatelessWidget {
   final String hintText;
   final int maxLines;
   final int? maxLength;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
 
   const _TextInput({
     super.key,
@@ -556,6 +594,8 @@ class _TextInput extends StatelessWidget {
     required this.hintText,
     this.maxLines = 1,
     this.maxLength,
+    required this.enabled,
+    required this.onChanged,
   });
 
   @override
@@ -563,13 +603,15 @@ class _TextInput extends StatelessWidget {
     return TextField(
       key: key,
       controller: controller,
+      enabled: enabled,
+      onChanged: onChanged,
       maxLines: maxLines,
       maxLength: maxLength,
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: const TextStyle(
         fontSize: 14,
         color: AppColors.text,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.normal,
       ),
       decoration: InputDecoration(
         hintText: hintText,
@@ -577,15 +619,15 @@ class _TextInput extends StatelessWidget {
         fillColor: AppColors.white,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
+          horizontal: 16,
           vertical: 13,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary),
         ),
       ),
@@ -675,8 +717,8 @@ class _SaveButtonState extends State<_SaveButton> {
                 )
               : AppText(
                   widget.label,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
                   color: widget.canSave ? AppColors.white : AppColors.muted,
                 ),
         ),

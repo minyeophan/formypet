@@ -49,12 +49,11 @@ void main() {
       query.setPeriod(WalletPeriod.year);
       query.setCategory('food');
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('리포트'));
-      await tester.tap(find.text('리포트'));
+      await tester.ensureVisible(find.text('전체보기'));
+      await tester.tap(find.text('전체보기'));
       await tester.pumpAndSettle();
       expect(find.text('3,000원'), findsWidgets);
-      await tester.ensureVisible(find.text('캘린더에서 보기'));
-      await tester.tap(find.text('캘린더에서 보기'));
+      await tester.tap(find.byTooltip('캘린더'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('이전 달'));
       await tester.pumpAndSettle();
@@ -73,26 +72,39 @@ void main() {
   ) async {
     WalletTestApi([]);
     await pumpWallet(tester, const ExpenseWalletScreen());
-    await tester.tap(find.text('예산 변경'));
+    await tester.tap(find.text('예산 설정'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('wallet-budget-input')),
       '-100',
     );
-    await tester.tap(find.text('저장'));
+    await tester.ensureVisible(find.byKey(const Key('wallet-budget-save')));
+    await tester.tap(find.byKey(const Key('wallet-budget-save')));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byKey(const Key('wallet-budget-input')), findsOneWidget);
+    expect(find.text('예산은 0원보다 크게 입력해 주세요.'), findsOneWidget);
+    final now = DateTime.now();
+    final month = '${now.year}-${now.month.toString().padLeft(2, '0')}';
     expect(
-      (await SharedPreferences.getInstance()).getInt('wallet_monthly_budget'),
+      (await SharedPreferences.getInstance()).getInt(
+        'wallet_monthly_budget_v2:wallet-test-user:$month',
+      ),
       50000,
     );
     await tester.enterText(
       find.byKey(const Key('wallet-budget-input')),
       '25000',
     );
-    await tester.tap(find.text('저장'));
+    await tester.ensureVisible(find.byKey(const Key('wallet-budget-save')));
+    await tester.tap(find.byKey(const Key('wallet-budget-save')));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byKey(const Key('wallet-budget-input')), findsNothing);
+    expect(
+      (await SharedPreferences.getInstance()).getInt(
+        'wallet_monthly_budget_v2:wallet-test-user:$month',
+      ),
+      25000,
+    );
     expect(find.text('월 예산 25,000원'), findsOneWidget);
   });
   testWidgets(
@@ -114,7 +126,9 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('사용 35,000원'), findsOneWidget);
+      expect(find.textContaining('사용 35,000원'), findsOneWidget);
+      expect(find.text('월 예산 50,000원'), findsOneWidget);
+      expect(find.text('잔액 15,000원'), findsOneWidget);
       expect(find.text('vet'), findsNothing);
       expect(tester.takeException(), isNull);
     },

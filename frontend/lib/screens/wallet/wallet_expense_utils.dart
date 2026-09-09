@@ -4,6 +4,8 @@ import '../../models/wallet_expense.dart';
 
 final _wonFormat = NumberFormat('#,###');
 
+const walletMaxAmount = 100000000;
+
 const expenseCategoryOptions = [
   ExpenseCategoryOption('food', '\uC0AC\uB8CC'),
   ExpenseCategoryOption('snack', '\uAC04\uC2DD'),
@@ -139,7 +141,7 @@ String walletPeriodLabel(
   DateTime? now,
 }) => switch (period) {
   WalletPeriod.month => '${month.year}년 ${month.month}월',
-  WalletPeriod.year => '${(now ?? DateTime.now()).year}년 전체',
+  WalletPeriod.year => '${(now ?? DateTime.now()).year}년',
   WalletPeriod.all => '전체 기간',
 };
 

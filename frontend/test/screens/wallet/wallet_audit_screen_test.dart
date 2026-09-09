@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/pet.dart';
+import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
@@ -296,7 +297,15 @@ Future<ProviderContainer> pumpWallet(
     overrides: [
       authProvider.overrideWith(
         (ref) => AuthNotifier.test(
-          const AuthState(isLoading: false, isAuthenticated: true),
+          const AuthState(
+            isLoading: false,
+            isAuthenticated: true,
+            profile: UserProfile(
+              id: 'wallet-test-user',
+              email: 'wallet@test.local',
+              nickname: '집사',
+            ),
+          ),
         ),
       ),
       petProvider.overrideWith((ref) => PetNotifier.test(walletPets())),

@@ -32,8 +32,8 @@ void main() {
     expect(find.text('35,000\uC6D0'), findsOneWidget);
     expect(find.text('\uAC04\uC2DD'), findsWidgets);
     expect(find.byKey(const Key('wallet-pet-selector')), findsOneWidget);
-    expect(find.text('리포트'), findsOneWidget);
-    expect(find.text('\uC804\uCCB4 \uAE30\uAC04'), findsOneWidget);
+    expect(find.text('전체보기'), findsOneWidget);
+    expect(find.byTooltip('기간 설정'), findsOneWidget);
     expect(
       find.byKey(const Key('wallet-expense-row-expense-food')),
       findsOneWidget,
@@ -45,10 +45,21 @@ void main() {
   ) async {
     await _pumpScreen(tester, const ExpenseWalletScreen());
     for (final label in ['올해', '월별', '전체 기간']) {
-      final selector = find.widgetWithText(ChoiceChip, label);
-      await tester.tap(selector);
+      await tester.tap(find.byTooltip('기간 설정'));
       await tester.pumpAndSettle();
-      expect(tester.widget<ChoiceChip>(selector).selected, isTrue);
+      await tester.tap(find.text(label));
+      await tester.tap(find.text('적용하기'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          label == '올해'
+              ? '${DateTime.now().year}년'
+              : label == '월별'
+              ? '2026년 5월'
+              : '전체 기간',
+        ),
+        findsOneWidget,
+      );
     }
   });
 

@@ -273,20 +273,28 @@ void main() {
   );
 
   testWidgets(
-    'successful wallet exposes refresh and error state has only one refresh',
+    'successful wallet hides refresh but failure exposes one working retry',
     (tester) async {
       final api = WalletTestApi([expenseJson('e1', 'p1')]);
-      await pumpReview(tester);
-      expect(find.widgetWithText(TextButton, '새로고침'), findsOneWidget);
+      final (container, _) = await pumpReview(tester);
+      expect(find.widgetWithText(TextButton, '새로고침'), findsNothing);
       api.rows.add(expenseJson('e2', 'p1', amount: 2000));
-      await tester.tap(find.widgetWithText(TextButton, '새로고침'));
-      await tester.pumpAndSettle();
-      expect(find.text('3,000원'), findsWidgets);
       api.listFails = true;
-      await tester.tap(find.widgetWithText(TextButton, '새로고침'));
+      await tester.runAsync(() async {
+        try {
+          await container.read(walletExpenseProvider.notifier).refreshWallet([
+            'p1',
+          ]);
+        } catch (_) {}
+      });
       await tester.pumpAndSettle();
       expect(find.widgetWithText(TextButton, '새로고침'), findsOneWidget);
+      expect(find.text('1,000원'), findsWidgets);
+      api.listFails = false;
+      await tester.tap(find.widgetWithText(TextButton, '새로고침'));
+      await tester.pumpAndSettle();
       expect(find.text('3,000원'), findsWidgets);
+      expect(find.widgetWithText(TextButton, '새로고침'), findsNothing);
     },
   );
 

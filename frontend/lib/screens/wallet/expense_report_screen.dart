@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../providers/wallet_view_provider.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
 import 'wallet_widgets.dart';
@@ -32,62 +33,44 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
       _queryKey = key;
       _visibleCount = 20;
     }
-    final entries =
-        data.amounts.categories.entries
-            .where((e) => query.category == null || e.key == query.category)
-            .toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
     return WalletDataScope(
       petId: widget.petId,
       category: widget.category,
       period: widget.period,
       child: WalletPage(
         title: '지출 리포트',
+        trailing: IconButton(
+          tooltip: '캘린더',
+          onPressed: () => context.push('/wallet/calendar'),
+          icon: const AppIcon(Icons.calendar_today_rounded, size: 24),
+        ),
         children: [
           const WalletFilters(),
-          const SizedBox(height: 24),
-          WalletTotal(data: data),
+          const SizedBox(height: 16),
+          const AppText('전체 지출 내역', fontSize: 13, fontWeight: FontWeight.w500),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              AppText(
+                data.available ? formatWon(data.amounts.total) : '—',
+                key: const Key('wallet-period-total'),
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+              if (data.available)
+                AppText(
+                  '· ${data.amounts.periodExpenses.length}건',
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+            ],
+          ),
           const WalletLoadStatus(),
           const SizedBox(height: 24),
-          const AppText('카테고리별 지출', fontSize: 18, fontWeight: FontWeight.bold),
-          const SizedBox(height: 12),
           const WalletFilters(showCategory: true),
           if (data.available) ...[
-            for (final entry in entries)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 4,
-                      children: [
-                        AppText(
-                          expenseCategoryDisplayLabel(entry.key),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        AppText(
-                          '${formatWon(entry.value)} · ${data.amounts.total == 0 ? '0' : (entry.value * 100 / data.amounts.total).toStringAsFixed(1)}%',
-                          color: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: data.amounts.total <= 0
-                          ? 0
-                          : (entry.value / data.amounts.total).clamp(0.0, 1.0),
-                      color: AppColors.primary,
-                      backgroundColor: AppColors.primary.withValues(alpha: .08),
-                      minHeight: 8,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 24),
-            const AppText('지출 내역', fontSize: 18, fontWeight: FontWeight.bold),
             if (data.amounts.visible.isEmpty)
               WalletEmpty(noPets: data.pets.isEmpty),
             ...walletDatedRows(
@@ -95,18 +78,24 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
               data,
               keyPrefix: 'wallet-report-expense-row',
             ),
-            if (_visibleCount < data.amounts.visible.length)
-              TextButton(
+            if (_visibleCount < data.amounts.visible.length) ...[
+              const SizedBox(height: 20),
+              OutlinedButton(
                 key: const Key('wallet-load-more-button'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: AppColors.surfaceSoft,
+                  foregroundColor: AppColors.text,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () => setState(() => _visibleCount += 20),
                 child: const Text('더 보기'),
               ),
+            ],
           ],
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => context.push('/wallet/calendar'),
-            child: const Text('캘린더에서 보기'),
-          ),
         ],
       ),
     );

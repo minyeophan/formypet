@@ -89,8 +89,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<RecordNumberInput>(find.byType(RecordNumberInput))
-            .controller
+            .widget<TextField>(find.byKey(const Key('expense-amount-input')))
+            .controller!
             .text,
         isEmpty,
       );
@@ -116,22 +116,23 @@ void main() {
   ) async {
     final api = WalletTestApi([])..mutationFails = true;
     await pumpForm(tester, singlePet: true);
-    await enterAmount(tester, '999999999');
+    await enterAmount(tester, '100000000');
     await tester.tap(find.byKey(const Key('expense-category-food')));
     await tester.enterText(find.byType(TextField).last, 'retry memo');
     await tapSave(tester);
     expect(find.byKey(const Key('expense-form-error')), findsOneWidget);
     expect(
       tester
-          .widget<RecordNumberInput>(find.byType(RecordNumberInput))
-          .controller
+          .widget<TextField>(find.byKey(const Key('expense-amount-input')))
+          .controller!
           .text,
-      '999999999',
+      '100,000,000원',
     );
     api.mutationFails = false;
     await tapSave(tester);
     expect(api.requests.where((r) => r.method == 'POST'), hasLength(2));
     expect(api.rows.single['note'], 'retry memo');
+    expect(api.rows.single['amount'], 100000000);
     expect(find.text('wallet-home'), findsOneWidget);
   });
 
@@ -270,10 +271,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<RecordNumberInput>(find.byType(RecordNumberInput))
-            .controller
+            .widget<TextField>(find.byKey(const Key('expense-amount-input')))
+            .controller!
             .text,
-        '12000',
+        '12,000원',
       );
       expect(
         tester.widget<TextField>(find.byType(TextField).last).controller!.text,

@@ -589,7 +589,7 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.text('리포트'),
+      find.text('전체보기'),
       250,
       scrollable: find
           .byWidgetPredicate(
@@ -597,7 +597,11 @@ void main() {
           )
           .first,
     );
-    await tester.tap(find.text('리포트'));
+    // scrollUntilVisible can finish with an ensureVisible jump; lay it out
+    // before computing the tap position (the fixed add action is below it).
+    await tester.pumpAndSettle();
+    expect(find.text('전체보기').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('전체보기'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseReportScreen), findsOneWidget);
   });

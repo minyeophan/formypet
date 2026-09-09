@@ -41,7 +41,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
     if (!_initializedPet && !pets.isLoading) {
       _selectedPetId = pets.pets.any((pet) => pet.id == _initialWalletPetId)
           ? _initialWalletPetId
-          : _initialWalletPetId == null && pets.pets.length == 1
+          : pets.pets.length == 1
           ? pets.pets.single.id
           : null;
       _initializedPet = true;
@@ -81,8 +81,8 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
                               child: Text('지출을 기록할 반려동물을 선택해 주세요'),
                             ),
                           Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               for (final pet in pets.pets)
                                 ChoiceChip(
@@ -90,8 +90,19 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
                                   label: Text(pet.name),
                                   selected: selectedPet?.id == pet.id,
                                   selectedColor: AppColors.primary,
-                                  backgroundColor: AppColors.white,
+                                  backgroundColor: AppColors.surfaceSoft,
+                                  showCheckmark: false,
+                                  side: BorderSide.none,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding: EdgeInsets.zero,
                                   labelStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                     color: selectedPet?.id == pet.id
                                         ? AppColors.white
                                         : AppColors.text,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/app_colors.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/wallet_expense.dart';
@@ -14,6 +15,7 @@ import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import 'wallet_expense_utils.dart';
 import 'wallet_refresh_notice.dart';
+import 'wallet_period_sheet.dart';
 
 class WalletDataScope extends ConsumerStatefulWidget {
   final Widget child;
@@ -94,12 +96,14 @@ class WalletPage extends StatelessWidget {
   final String fallbackRoute;
   final List<Widget> children;
   final Widget? bottom;
+  final Widget? trailing;
   const WalletPage({
     super.key,
     required this.title,
     this.fallbackRoute = '/wallet',
     required this.children,
     this.bottom,
+    this.trailing,
   });
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -112,6 +116,7 @@ class WalletPage extends StatelessWidget {
             children: [
               AppInlineHeader(
                 title: title,
+                trailing: trailing,
                 onBack: () => walletBack(context, fallbackRoute: fallbackRoute),
               ),
               Expanded(
@@ -144,11 +149,17 @@ void walletBack(BuildContext context, {String fallbackRoute = '/wallet'}) {
 class WalletCard extends StatelessWidget {
   final Widget child;
   final bool highlighted;
-  const WalletCard({super.key, required this.child, this.highlighted = false});
+  final EdgeInsetsGeometry padding;
+  const WalletCard({
+    super.key,
+    required this.child,
+    this.highlighted = false,
+    this.padding = const EdgeInsets.all(20),
+  });
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: padding,
     decoration: BoxDecoration(
       color: highlighted
           ? AppColors.primary.withValues(alpha: 0.07)
@@ -173,97 +184,238 @@ class WalletFilters extends ConsumerWidget {
     final data = ref.watch(walletViewProvider);
     final query = data.query;
     final notifier = ref.read(walletQueryProvider.notifier);
+    if (showCategory) {
+      return WalletCategorySelector(
+        selected: query.category,
+        onSelected: notifier.setCategory,
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!showCategory) ...[
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              key: const Key('wallet-pet-selector'),
-              children: [
-                _Choice(
-                  label: '전체',
-                  selected: query.petId == null,
-                  onTap: () => notifier.setPet(null),
+        Row(
+          children: [
+            if (showPeriod) ...[
+              SizedBox(
+                key: const Key('wallet-period-button'),
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: IconButton(
+                    tooltip: '기간 설정',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 36,
+                      height: 36,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.surfaceSoft,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () async {
+                      final session = ref.read(walletExpenseProvider).session;
+                      final selection = await showWalletPeriodSheet(
+                        context,
+                        period: query.period,
+                        month: query.baseMonth,
+                      );
+                      if (!context.mounted ||
+                          selection == null ||
+                          ref.read(walletExpenseProvider).session != session) {
+                        return;
+                      }
+                      notifier.applyPeriod(selection.period, selection.month);
+                    },
+                    icon: SvgPicture.asset(
+                      'assets/icons/ui_poll.svg',
+                      width: 16,
+                      height: 16,
+                    ),
+                  ),
                 ),
-                for (final pet in data.pets)
-                  _Choice(
-                    label: pet.name,
-                    selected: query.petId == pet.id,
-                    onTap: () => notifier.setPet(pet.id),
-                  ),
-              ],
-            ),
-          ),
-          if (showPeriod) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final entry in const {
-                  WalletPeriod.month: '월별',
-                  WalletPeriod.year: '올해',
-                  WalletPeriod.all: '전체 기간',
-                }.entries)
-                  _Choice(
-                    label: entry.value,
-                    selected: query.period == entry.key,
-                    onTap: () => notifier.setPeriod(entry.key),
-                  ),
-              ],
-            ),
-            if (query.period == WalletPeriod.month)
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: '이전 달',
-                    onPressed: () => notifier.setMonth(
-                      DateTime(query.baseMonth.year, query.baseMonth.month - 1),
-                    ),
-                    icon: const AppIcon(Icons.chevron_left_rounded, size: 20),
-                  ),
-                  Expanded(
-                    child: AppText(
-                      walletPeriodLabel(query.period, query.baseMonth),
-                      textAlign: TextAlign.center,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: '다음 달',
-                    onPressed: () => notifier.setMonth(
-                      DateTime(query.baseMonth.year, query.baseMonth.month + 1),
-                    ),
-                    icon: const AppIcon(Icons.chevron_right_rounded, size: 20),
-                  ),
-                ],
               ),
-          ],
-        ],
-        if (showCategory)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _Choice(
-                  label: '전체 카테고리',
-                  selected: query.category == null,
-                  onTap: () => notifier.setCategory(null),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  key: const Key('wallet-pet-selector'),
+                  children: [
+                    _Choice(
+                      label: '전체',
+                      selected: query.petId == null,
+                      onTap: () => notifier.setPet(null),
+                    ),
+                    for (final pet in data.pets)
+                      _Choice(
+                        label: pet.name,
+                        selected: query.petId == pet.id,
+                        onTap: () => notifier.setPet(pet.id),
+                      ),
+                  ],
                 ),
-                for (final option in expenseCategoryOptions)
-                  _Choice(
-                    label: option.label,
-                    selected: query.category == option.key,
-                    onTap: () => notifier.setCategory(option.key),
-                  ),
-              ],
+              ),
             ),
+          ],
+        ),
+        if (showPeriod) ...[
+          const SizedBox(height: 8),
+          WalletMonthNavigation(
+            label: walletPeriodLabel(query.period, query.baseMonth),
+            onPrevious: query.period == WalletPeriod.month
+                ? () => notifier.setMonth(
+                    DateTime(query.baseMonth.year, query.baseMonth.month - 1),
+                  )
+                : null,
+            onNext: query.period == WalletPeriod.month
+                ? () => notifier.setMonth(
+                    DateTime(query.baseMonth.year, query.baseMonth.month + 1),
+                  )
+                : null,
           ),
+        ],
       ],
     );
   }
+}
+
+class WalletMonthNavigation extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPrevious, onNext;
+  final VoidCallback? onLabelTap;
+  const WalletMonthNavigation({
+    super.key,
+    required this.label,
+    this.onPrevious,
+    this.onNext,
+    this.onLabelTap,
+  });
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      if (onPrevious != null)
+        IconButton(
+          tooltip: '이전 달',
+          onPressed: onPrevious,
+          icon: const AppIcon(Icons.chevron_left_rounded, size: 20),
+        ),
+      Expanded(
+        child: InkWell(
+          key: onLabelTap == null ? null : const Key('wallet-month-label'),
+          onTap: onLabelTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: AppText(
+              label,
+              textAlign: TextAlign.center,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+      if (onNext != null)
+        IconButton(
+          tooltip: '다음 달',
+          onPressed: onNext,
+          icon: const AppIcon(Icons.chevron_right_rounded, size: 20),
+        ),
+    ],
+  );
+}
+
+class WalletCategorySelector extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+  final bool includeAll;
+  const WalletCategorySelector({
+    super.key,
+    required this.selected,
+    required this.onSelected,
+    this.includeAll = true,
+  });
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        if (includeAll)
+          _CategoryChoice(
+            label: '전체',
+            id: AppVisualId.communityAll,
+            selected: selected == null,
+            onTap: () => onSelected(null),
+          ),
+        // Keep every server category reachable; the design illustrates the first four.
+        for (final key in const [
+          'food',
+          'snack',
+          'hospital',
+          'etc',
+          'medicine',
+          'grooming',
+          'supplies',
+        ])
+          _CategoryChoice(
+            label: expenseCategoryDisplayLabel(key),
+            id: walletExpenseVisualId(key),
+            selected: selected == key,
+            onTap: () => onSelected(key),
+          ),
+      ],
+    ),
+  );
+}
+
+class _CategoryChoice extends StatelessWidget {
+  final String label;
+  final AppVisualId id;
+  final bool selected;
+  final VoidCallback onTap;
+  const _CategoryChoice({
+    required this.label,
+    required this.id,
+    required this.selected,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 10),
+    child: Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: Material(
+        color: selected ? const Color(0xFFEAF7F0) : AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 62, minHeight: 64),
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppVisual(id: id, size: 24),
+                const SizedBox(height: 2),
+                AppText(label, fontSize: 12, fontWeight: FontWeight.w500),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Choice extends StatelessWidget {
@@ -277,7 +429,7 @@ class _Choice extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 6),
+    padding: const EdgeInsets.only(right: 8),
     child: ChoiceChip(
       label: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 170),
@@ -286,11 +438,17 @@ class _Choice extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onTap(),
       showCheckmark: false,
-      selectedColor: AppColors.primary.withValues(alpha: .10),
-      backgroundColor: AppColors.surface,
-      side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
+      selectedColor: AppColors.primary,
+      backgroundColor: AppColors.surfaceSoft,
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
       labelStyle: TextStyle(
-        color: selected ? AppColors.primary : AppColors.text,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: selected ? AppColors.white : AppColors.text,
       ),
     ),
   );
@@ -346,31 +504,7 @@ class WalletLoadStatus extends ConsumerWidget {
               ),
             ],
           ),
-        if (wallet.refreshWarning == null && wallet.errorText == null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: data.loading || data.petError != null
-                  ? null
-                  : () async {
-                      try {
-                        await ref
-                            .read(walletExpenseProvider.notifier)
-                            .refreshWallet(
-                              ref
-                                  .read(petProvider)
-                                  .pets
-                                  .map((pet) => pet.id)
-                                  .toList(),
-                            );
-                      } catch (_) {
-                        // Retain the cached values and expose the existing retry notice.
-                      }
-                    },
-              child: const Text('새로고침'),
-            ),
-          )
-        else
+        if (wallet.refreshWarning != null || wallet.errorText != null)
           AbsorbPointer(
             absorbing: data.loading || data.petError != null,
             child: const WalletRefreshNotice(),
@@ -380,112 +514,94 @@ class WalletLoadStatus extends ConsumerWidget {
   }
 }
 
-class WalletTotal extends StatelessWidget {
-  final WalletViewData data;
-  const WalletTotal({super.key, required this.data});
-  @override
-  Widget build(BuildContext context) => WalletCard(
-    highlighted: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppText(
-          '${walletPeriodLabel(data.query.period, data.query.baseMonth)} · ${data.query.petId == null ? '전체 반려동물' : data.petName(data.query.petId!) ?? ''}',
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(height: 8),
-        const AppText('선택 기간 전체 지출', fontWeight: FontWeight.w600),
-        const SizedBox(height: 8),
-        if (data.available)
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: AppText(
-              formatWon(data.amounts.total),
-              key: const Key('wallet-period-total'),
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (!data.available) const AppText('—', fontSize: 32),
-        if (data.available)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: AppText(
-              '${data.amounts.periodExpenses.length}건의 지출',
-              color: AppColors.textSecondary,
-            ),
-          ),
-      ],
-    ),
-  );
-}
-
 class WalletExpenseRow extends StatelessWidget {
   final WalletExpense expense;
   final String? petName;
   final String keyPrefix;
+  final bool showDate;
   const WalletExpenseRow({
     super.key,
     required this.expense,
     this.petName,
     this.keyPrefix = 'wallet-expense-row',
+    this.showDate = false,
   });
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
-    child: InkWell(
-      key: Key('$keyPrefix-${expense.id}'),
-      onTap: () => context.push(
-        '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(expense.petId)}',
-      ),
-      focusColor: AppColors.primary.withValues(alpha: .10),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            AppVisual(id: walletExpenseVisualId(expense.category), size: 32),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final date = walletExpenseDate(expense.expenseDate);
+    final subtitle = [
+      ?petName,
+      if (showDate)
+        date == null ? '날짜 확인 필요' : '${date.month}월 ${date.day}일'
+      else
+        walletExpenseCategoryLabel(expense),
+    ].join(' · ');
+    return Material(
+      color: AppColors.surface,
+      child: InkWell(
+        key: Key('$keyPrefix-${expense.id}'),
+        onTap: () => context.push(
+          '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(expense.petId)}',
+        ),
+        focusColor: AppColors.primary.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 300 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20;
+              final amount = AppText(
+                walletExpenseAmountLabel(expense),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              );
+              return Row(
                 children: [
-                  AppText(
-                    walletExpenseTitle(expense),
-                    fontWeight: FontWeight.w600,
+                  AppVisual(
+                    id: walletExpenseVisualId(expense.category),
+                    size: 24,
                   ),
-                  const SizedBox(height: 4),
-                  AppText(
-                    [
-                      ?petName,
-                      walletExpenseCategoryLabel(expense),
-                      if (normalizeExpenseTime(expense.expenseTime).isNotEmpty)
-                        normalizeExpenseTime(expense.expenseTime),
-                    ].join(' · '),
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(
+                          walletExpenseTitle(expense),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        const SizedBox(height: 2),
+                        AppText(subtitle, color: AppColors.muted, fontSize: 12),
+                        if (stacked) ...[const SizedBox(height: 4), amount],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  AppText(
-                    walletExpenseAmountLabel(expense),
-                    fontWeight: FontWeight.bold,
+                  if (!stacked) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: amount,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  const AppIcon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.muted,
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            const AppIcon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: AppColors.muted,
-            ),
-          ],
+              );
+            },
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 List<Widget> walletDatedRows(
@@ -494,6 +610,14 @@ List<Widget> walletDatedRows(
   String keyPrefix = 'wallet-expense-row',
 }) {
   final result = <Widget>[];
+  final dailyTotals = <String, int>{};
+  for (final expense in data.amounts.visible) {
+    dailyTotals.update(
+      expense.expenseDate,
+      (sum) => sum + expense.amount,
+      ifAbsent: () => expense.amount,
+    );
+  }
   String? previous;
   for (final expense in expenses) {
     final date = walletExpenseDate(expense.expenseDate);
@@ -503,7 +627,7 @@ List<Widget> walletDatedRows(
         Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 4),
           child: AppText(
-            date == null ? label : '${date.year}년 $label',
+            '${date == null ? label : '${date.year}년 $label'} · ${formatWon(dailyTotals[expense.expenseDate] ?? 0)}',
             color: AppColors.textSecondary,
             fontSize: 13,
             fontWeight: FontWeight.w600,
