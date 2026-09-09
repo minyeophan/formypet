@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -249,10 +250,11 @@ class _NotificationTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      clipBehavior: Clip.antiAlias,
       color: item.isRead
           ? AppColors.surface
           : AppColors.primary.withValues(alpha: .12),
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(

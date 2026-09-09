@@ -1,5 +1,7 @@
+import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 
 import '../../core/app_v2_tokens.dart';
 import '../../core/visuals/app_visual_id.dart';
@@ -300,15 +302,11 @@ class _CommunityPollCardState extends State<CommunityPollCard> {
                       : () => setState(() => pending = option.id),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(44),
-                    backgroundColor: pending == option.id
-                        ? AppV2Tokens.primarySoft
-                        : Colors.transparent,
-                    side: BorderSide(
-                      color: pending == option.id
-                          ? AppV2Tokens.primary
-                          : AppV2Tokens.border,
+                    backgroundColor: Colors.white,
+                    side: AppInteractionStyle.selectionBorder(
+                      pending == option.id,
                     ),
-                  ),
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                   child: Row(
                     children: [
                       if (pending == option.id) ...[
@@ -362,7 +360,7 @@ class _CommunityPollCardState extends State<CommunityPollCard> {
                 minimumSize: const Size.fromHeight(44),
                 backgroundColor: AppV2Tokens.primary,
                 foregroundColor: Colors.white,
-              ),
+              ).copyWith(overlayColor: AppInteractionStyle.overlay()),
               child: Text(
                 voted && pending != server ? '투표 변경' : '투표하기',
                 style: communityV2Style(
@@ -598,24 +596,25 @@ class _LinkButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   @override
-  Widget build(BuildContext context) => _FocusOutline(
-    focusKey: _derivedFocusKey(key),
-    child: TextButton(
-      key: key,
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: AppV2Tokens.textSecondary,
-        backgroundColor: Colors.transparent,
-        minimumSize: const Size(44, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-      ),
-      child: Text(
-        label,
-        style: communityV2Style(
-          size: 12,
-          weight: FontWeight.w600,
-          color: AppV2Tokens.textSecondary,
+  Widget build(BuildContext context) => TextButton(
+    key: key,
+    onPressed: onPressed,
+    style:
+        TextButton.styleFrom(
+          foregroundColor: AppV2Tokens.textSecondary,
+          backgroundColor: Colors.transparent,
+          minimumSize: const Size(44, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+        ).copyWith(
+          overlayColor: AppInteractionStyle.overlay(),
+          backgroundBuilder: AppFocusRing.buttonBuilder,
         ),
+    child: Text(
+      label,
+      style: communityV2Style(
+        size: 12,
+        weight: FontWeight.w600,
+        color: AppV2Tokens.textSecondary,
       ),
     ),
   );
@@ -634,67 +633,31 @@ class _StatButton extends StatelessWidget {
   final Color iconColor;
   final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => _FocusOutline(
-    focusKey: _derivedFocusKey(key),
-    child: Semantics(
-      button: true,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        splashColor: AppV2Tokens.primary.withValues(alpha: .08),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AppIcon(icon, size: 20, color: iconColor),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: communityV2Style(
-                  size: 13,
-                  color: AppV2Tokens.textSecondary,
-                ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    child: AppInkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      splashColor: AppV2Tokens.primary.withValues(alpha: .08),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppIcon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: communityV2Style(
+                size: 13,
+                color: AppV2Tokens.textSecondary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ),
-  );
-}
-
-Key? _derivedFocusKey(Key? key) {
-  if (key is ValueKey<String>) return Key('${key.value}-focus');
-  return null;
-}
-
-class _FocusOutline extends StatefulWidget {
-  const _FocusOutline({required this.child, this.focusKey});
-  final Widget child;
-  final Key? focusKey;
-
-  @override
-  State<_FocusOutline> createState() => _FocusOutlineState();
-}
-
-class _FocusOutlineState extends State<_FocusOutline> {
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) => Focus(
-    skipTraversal: true,
-    onFocusChange: (focused) => setState(() => _focused = focused),
-    child: Container(
-      key: _focused ? widget.focusKey : null,
-      decoration: _focused
-          ? BoxDecoration(
-              border: Border.all(color: AppV2Tokens.primary, width: 2),
-              borderRadius: BorderRadius.circular(8),
-            )
-          : null,
-      child: widget.child,
     ),
   );
 }

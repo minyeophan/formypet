@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -236,7 +237,7 @@ class _PeriodSheetState extends State<_PeriodSheet> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                ),
+                ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 onPressed: () =>
                     Navigator.pop(context, (period: _period, month: _month)),
                 child: const Text('적용하기'),
@@ -271,7 +272,7 @@ class _SheetChoice extends StatelessWidget {
         foregroundColor: selected ? AppColors.white : AppColors.text,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-      ),
+      ).copyWith(overlayColor: AppInteractionStyle.overlay()),
       child: AppText(
         label,
         fontSize: 12,

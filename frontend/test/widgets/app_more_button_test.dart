@@ -30,8 +30,8 @@ void main() {
       findsOneWidget,
     );
 
-    final container = tester.widget<Container>(
-      find.descendant(of: finder, matching: find.byType(Container)).first,
+    final container = tester.widget<Ink>(
+      find.descendant(of: finder, matching: find.byType(Ink)).first,
     );
     final decoration = container.decoration as BoxDecoration;
     expect(decoration.color, AppColors.surface);
@@ -70,8 +70,8 @@ void main() {
       findsOneWidget,
     );
 
-    final container = tester.widget<Container>(
-      find.descendant(of: finder, matching: find.byType(Container)).first,
+    final container = tester.widget<Ink>(
+      find.descendant(of: finder, matching: find.byType(Ink)).first,
     );
     expect(container.decoration, isNull);
   });

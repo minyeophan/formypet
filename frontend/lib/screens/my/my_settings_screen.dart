@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_interaction_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -80,11 +81,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 label: '테마 설정',
                 icon: Icons.palette_outlined,
                 showTopBorder: true,
-                trailing: AppText(
-                  '준비중',
-                  fontSize: 12,
-                  color: AppColors.muted,
-                ),
+                trailing: AppText('준비중', fontSize: 12, color: AppColors.muted),
               ),
             ],
           ),
@@ -145,7 +142,10 @@ Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
             const SizedBox(height: 18),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
               child: const AppText('로그아웃', color: AppColors.white),
             ),
             TextButton(

@@ -1,5 +1,6 @@
 import 'app_icon.dart';
 import 'package:flutter/material.dart';
+import 'app_ink_well.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_v2_tokens.dart';
@@ -218,7 +219,7 @@ class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
       child: Material(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        child: InkWell(
+        child: AppInkWell(
           onHighlightChanged: (value) => setState(() => _pressed = value),
           onFocusChange: (value) => setState(() => _focused = value),
           borderRadius: BorderRadius.circular(14),
@@ -227,7 +228,7 @@ class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
             width: 44,
             height: 44,
             child: Center(
-              child: Container(
+              child: Ink(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(

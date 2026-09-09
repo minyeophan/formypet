@@ -1,5 +1,6 @@
 import 'app_icon.dart';
 import 'package:flutter/material.dart';
+import 'app_ink_well.dart';
 
 import '../core/app_colors.dart';
 
@@ -34,11 +35,11 @@ class AppMoreButton extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: AppInkWell(
           onTap: onPressed,
           splashColor: isSurface ? null : plainSplashColor,
           borderRadius: BorderRadius.circular(isSurface ? 14 : 22),
-          child: Container(
+          child: Ink(
             width: size,
             height: size,
             decoration: isSurface
@@ -48,11 +49,12 @@ class AppMoreButton extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                   )
                 : null,
-            alignment: Alignment.center,
-            child: AppIcon(
-              Icons.more_vert_rounded,
-              size: 20,
-              color: plainColor ?? AppColors.textSecondary,
+            child: Center(
+              child: AppIcon(
+                Icons.more_vert_rounded,
+                size: 20,
+                color: plainColor ?? AppColors.textSecondary,
+              ),
             ),
           ),
         ),

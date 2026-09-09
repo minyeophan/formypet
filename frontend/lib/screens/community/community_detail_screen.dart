@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -410,8 +411,6 @@ class _CommentLauncher extends StatefulWidget {
 }
 
 class _CommentLauncherState extends State<_CommentLauncher> {
-  bool _focused = false;
-
   @override
   Widget build(BuildContext context) => SafeArea(
     top: false,
@@ -424,37 +423,28 @@ class _CommentLauncherState extends State<_CommentLauncher> {
         ),
         constraints: const BoxConstraints(minHeight: 52),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        child: Container(
-          key: _focused ? const Key('community-detail-launcher-focus') : null,
-          decoration: _focused
-              ? BoxDecoration(
-                  border: Border.all(color: AppV2Tokens.primary, width: 2),
-                  borderRadius: BorderRadius.circular(8),
-                )
-              : null,
-          child: InkWell(
-            key: const Key('community-detail-comment-launcher'),
-            onTap: widget.onPressed,
-            onFocusChange: (focused) => setState(() => _focused = focused),
-            splashColor: AppV2Tokens.primarySoft,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '소중한 댓글을 남겨주세요',
-                    style: communityV2Style(
-                      size: 14,
-                      color: AppV2Tokens.textSecondary,
-                    ),
+        child: AppInkWell(
+          key: const Key('community-detail-comment-launcher'),
+          onTap: widget.onPressed,
+          borderRadius: BorderRadius.circular(8),
+          splashColor: AppV2Tokens.primarySoft,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '소중한 댓글을 남겨주세요',
+                  style: communityV2Style(
+                    size: 14,
+                    color: AppV2Tokens.textSecondary,
                   ),
                 ),
-                const AppIcon(
-                  Icons.chat_bubble_outline_rounded,
-                  size: 20,
-                  color: AppV2Tokens.textSecondary,
-                ),
-              ],
-            ),
+              ),
+              const AppIcon(
+                Icons.chat_bubble_outline_rounded,
+                size: 20,
+                color: AppV2Tokens.textSecondary,
+              ),
+            ],
           ),
         ),
       ),

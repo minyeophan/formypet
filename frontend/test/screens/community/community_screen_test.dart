@@ -1,5 +1,6 @@
 import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,11 +16,91 @@ import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../support/ui_test_fonts.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  for (final category in [false, true]) {
+    testWidgets(
+      'community FAB keeps circle and route with hover and Tab category=$category',
+      (tester) async {
+        await installUiTestFonts();
+        final router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => category
+                  ? const CommunityCategoryScreen(initialCategory: 'CARE')
+                  : const CommunityScreen(),
+            ),
+            GoRoute(
+              path: '/community/write',
+              builder: (_, _) =>
+                  const Scaffold(body: Text('write destination')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await _pumpRouter(tester, router, service: _FakeCommunityService());
+        await tester.pumpAndSettle();
+        final fab = find.byKey(const Key('community-write-fab'));
+        expect(tester.getSize(fab), const Size(56, 56));
+        final control = tester.widget<FloatingActionButton>(fab);
+        expect(control.shape, const CircleBorder());
+        expect(control.hoverColor, Colors.transparent);
+        expect(control.focusColor, Colors.transparent);
+        final indicator = find
+            .ancestor(of: fab, matching: find.byType(AppFocusIndicator))
+            .first;
+        final ring = find
+            .descendant(of: indicator, matching: find.byType(AppFocusRing))
+            .first;
+        expect(tester.widget<AppFocusRing>(ring).shape, const CircleBorder());
+        expect(tester.widget<AppFocusRing>(ring).filled, isTrue);
+        CustomPainter? painter() => tester
+            .widget<CustomPaint>(
+              find
+                  .descendant(of: ring, matching: find.byType(CustomPaint))
+                  .first,
+            )
+            .foregroundPainter;
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        await mouse.moveTo(tester.getCenter(fab));
+        await tester.pumpAndSettle();
+        expect(painter(), isNull);
+        final ink = tester.widget<InkWell>(
+          find.descendant(of: fab, matching: find.byType(InkWell)).first,
+        );
+        expect(ink.hoverColor, Colors.transparent);
+        expect(ink.focusColor, Colors.transparent);
+        expect(
+          Theme.of(tester.element(fab)).highlightColor,
+          Colors.transparent,
+        );
+        for (
+          var i = 0;
+          i < 60 && !tester.widget<AppFocusRing>(ring).focused;
+          i++
+        ) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+        }
+        expect(tester.widget<AppFocusRing>(ring).focused, isTrue);
+        expect(painter(), isNotNull);
+        await mouse.moveTo(tester.getCenter(fab) + const Offset(1, 0));
+        await tester.pump();
+        expect(painter(), isNull);
+        await tester.tap(fab);
+        await tester.pumpAndSettle();
+        expect(find.text('write destination'), findsOneWidget);
+      },
+    );
+  }
 
   testWidgets('main community screen shows popular feed, carousel, and FAB', (
     tester,
@@ -195,27 +276,18 @@ void main() {
     expect(inkWell.focusColor, Colors.transparent);
     expect(inkWell.highlightColor, Colors.transparent);
     expect(inkWell.splashColor, AppV2Tokens.primary.withValues(alpha: 0.10));
-    expect(inkWell.onFocusChange, isNotNull);
-
     final sizeBeforeFocus = tester.getSize(cardFinder);
-    inkWell.onFocusChange!(true);
-    await tester.pump();
-
-    final focused = tester.widget<DecoratedBox>(
-      find
-          .descendant(of: cardFinder, matching: find.byType(DecoratedBox))
-          .first,
+    inkWell.focusNode!.requestFocus();
+    await tester.pumpAndSettle();
+    final rings = find.descendant(
+      of: cardFinder,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is AppFocusRing && widget.focused,
+      ),
     );
-    final focusedDecoration = focused.decoration as BoxDecoration;
-    expect(focusedDecoration.border!.top.width, 2);
-    expect(focusedDecoration.border!.top.color, AppV2Tokens.primary);
+    expect(rings, findsOneWidget);
     expect(tester.getSize(cardFinder), sizeBeforeFocus);
-
-    tester
-        .widget<InkWell>(
-          find.descendant(of: cardFinder, matching: find.byType(InkWell)).first,
-        )
-        .onFocusChange!(false);
+    FocusManager.instance.primaryFocus!.unfocus();
     await tester.pump();
   });
 
@@ -965,8 +1037,8 @@ void _expectHeaderActionSurface(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
   expect(tester.getSize(finder), const Size(44, 44));
 
-  final container = tester.widget<Container>(
-    find.descendant(of: finder, matching: find.byType(Container)).first,
+  final container = tester.widget<Ink>(
+    find.descendant(of: finder, matching: find.byType(Ink)).first,
   );
   final decoration = container.decoration as BoxDecoration;
   expect(decoration.color, AppV2Tokens.surface);

@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -90,7 +91,7 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                ),
+                ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 onPressed: () => setState(() => _visibleCount += 20),
                 child: const Text('더 보기'),
               ),

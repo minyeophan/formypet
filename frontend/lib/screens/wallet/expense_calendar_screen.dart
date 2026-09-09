@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -60,7 +62,7 @@ class ExpenseCalendarScreen extends ConsumerWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-            ),
+            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
             onPressed: data.pets.isEmpty
                 ? null
                 : () => context.push('/wallet/expenses/new'),
@@ -134,57 +136,66 @@ class ExpenseCalendarScreen extends ConsumerWidget {
                           '${day.month}월 ${day.day}일${dates.contains(iso) ? ', 지출 있음' : ''}',
                       selected: active,
                       button: true,
-                      child: InkWell(
-                        key: Key('wallet-day-$iso'),
-                        onTap: () => notifier.selectDate(day),
+                      child: Material(
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(24),
-                        child: Center(
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              minHeight: 44,
-                              minWidth: 36,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? AppColors.primary
-                                  : Colors.transparent,
-                              border: isToday && !active
-                                  ? Border.all(color: AppColors.primary)
-                                  : null,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: AppText(
-                                    '${day.day}',
-                                    maxLines: 1,
-                                    fontSize: 13,
-                                    color: active
-                                        ? Colors.white
-                                        : day.month == query.calendarMonth.month
-                                        ? AppColors.text
-                                        : AppColors.muted,
-                                  ),
+                        child: AppInkWell(
+                          key: Key('wallet-day-$iso'),
+                          onTap: () => notifier.selectDate(day),
+                          borderRadius: BorderRadius.circular(24),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 44,
+                                minWidth: 36,
+                              ),
+                              child: Ink(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
                                 ),
-                                const SizedBox(height: 2),
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: dates.contains(iso)
-                                        ? (active
-                                              ? Colors.white
-                                              : AppColors.primary)
-                                        : Colors.transparent,
-                                  ),
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? AppColors.primary
+                                      : Colors.transparent,
+                                  border: isToday && !active
+                                      ? Border.all(color: AppColors.primary)
+                                      : null,
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: AppText(
+                                        '${day.day}',
+                                        maxLines: 1,
+                                        fontSize: 13,
+                                        color: active
+                                            ? Colors.white
+                                            : day.month ==
+                                                  query.calendarMonth.month
+                                            ? AppColors.text
+                                            : AppColors.muted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: dates.contains(iso)
+                                            ? (active
+                                                  ? Colors.white
+                                                  : AppColors.primary)
+                                            : Colors.transparent,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),

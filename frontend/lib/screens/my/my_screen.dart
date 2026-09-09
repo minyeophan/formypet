@@ -1,5 +1,7 @@
+import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -110,7 +112,7 @@ class _MyPetsSection extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(44, 32),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+                ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 child: const AppText(
                   '모두보기',
                   fontSize: 12,
@@ -373,7 +375,7 @@ class _MenuRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 52),
@@ -448,7 +450,11 @@ class _CardInk extends StatelessWidget {
       minHeight: minHeight,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(onTap: onTap, child: child),
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: child,
+        ),
       ),
     );
   }

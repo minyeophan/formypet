@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/app_theme.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/services/auth_service.dart';
@@ -16,6 +17,55 @@ void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  testWidgets(
+    'local auth button colors retain press feedback without hover or focus fills',
+    (tester) async {
+      await _pumpAuth(tester);
+      void check(ButtonStyle style) {
+        expect(
+          style.overlayColor!.resolve({WidgetState.hovered}),
+          Colors.transparent,
+        );
+        expect(
+          style.overlayColor!.resolve({WidgetState.focused}),
+          Colors.transparent,
+        );
+        expect(
+          style.overlayColor!.resolve({WidgetState.pressed}),
+          AppColors.primary.withValues(alpha: .10),
+        );
+        expect(
+          style.overlayColor!.resolve({
+            WidgetState.disabled,
+            WidgetState.pressed,
+          }),
+          Colors.transparent,
+        );
+      }
+
+      check(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, '카카오로 시작하기'),
+            )
+            .style!,
+      );
+      check(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '이메일로 로그인'),
+            )
+            .style!,
+      );
+      await _openLogin(tester);
+      check(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('auth-submit-button')))
+            .style!,
+      );
+    },
+  );
 
   testWidgets('kakao failure stays visible on welcome and allows retry', (
     tester,

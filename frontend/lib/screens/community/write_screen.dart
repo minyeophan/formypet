@@ -1,6 +1,8 @@
+import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -223,7 +225,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                             horizontal: 14,
                             vertical: 8,
                           ),
-                        ),
+                        ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -681,30 +683,47 @@ class _SelectedAttachmentState extends State<_SelectedAttachment> {
                 label: '사진 ${widget.index + 1} 미리보기',
                 button: snapshot.hasData,
                 enabled: widget.onRemove != null,
-                child: InkWell(
-                  onTap: snapshot.hasData && widget.onRemove != null
-                      ? () => _preview(snapshot.data!)
-                      : null,
-                  borderRadius: BorderRadius.circular(12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 72,
-                      height: 72,
-                      child: snapshot.hasData
-                          ? Image.memory(
-                              snapshot.data!,
-                              fit: BoxFit.cover,
-                              excludeFromSemantics: true,
-                              errorBuilder: (_, _, _) =>
-                                  const _AttachmentUnavailable(),
-                            )
-                          : snapshot.hasError
-                          ? const _AttachmentUnavailable()
-                          : const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                    ),
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: snapshot.hasData
+                              ? Image.memory(
+                                  snapshot.data!,
+                                  fit: BoxFit.cover,
+                                  excludeFromSemantics: true,
+                                  errorBuilder: (_, _, _) =>
+                                      const _AttachmentUnavailable(),
+                                )
+                              : snapshot.hasError
+                              ? const _AttachmentUnavailable()
+                              : const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      Material(
+                        type: MaterialType.transparency,
+                        borderRadius: BorderRadius.circular(12),
+                        clipBehavior: Clip.antiAlias,
+                        child: AppInkWell(
+                          onTap: snapshot.hasData && widget.onRemove != null
+                              ? () => _preview(snapshot.data!)
+                              : null,
+                          borderRadius: BorderRadius.circular(12),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -753,21 +772,26 @@ class _ToolButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: AppIcon(
-          icon,
-          color: onTap == null ? AppColors.muted : AppColors.textSecondary,
-          size: 22,
+      child: AppInkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: AppIcon(
+              icon,
+              color: onTap == null ? AppColors.muted : AppColors.textSecondary,
+              size: 22,
+            ),
+          ),
         ),
       ),
     );
@@ -859,7 +883,7 @@ class _PollPanel extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(44, 36),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+              ).copyWith(overlayColor: AppInteractionStyle.overlay()),
               icon: const AppIcon(Icons.add, size: 18),
               label: const AppText(
                 '항목 추가',

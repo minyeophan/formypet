@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -87,13 +88,20 @@ class _DialogActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: action.onPressed,
-      style: TextButton.styleFrom(
-        backgroundColor: AppColors.surfaceSoft,
-        foregroundColor: action.isDanger ? AppColors.danger : AppColors.text,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-        minimumSize: const Size(64, 42),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-      ),
+      style:
+          TextButton.styleFrom(
+            backgroundColor: AppColors.surfaceSoft,
+            foregroundColor: action.isDanger
+                ? AppColors.danger
+                : AppColors.text,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+            minimumSize: const Size(64, 42),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ).copyWith(
+            overlayColor: AppInteractionStyle.overlay(danger: action.isDanger),
+          ),
       child: AppText(
         action.label,
         fontSize: 14,
