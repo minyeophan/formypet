@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 
 import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
@@ -34,7 +35,6 @@ class PostCard extends StatefulWidget {
 }
 
 class _PostCardState extends State<PostCard> {
-  bool _isFocused = false;
   bool _isHovered = false;
 
   @override
@@ -46,24 +46,16 @@ class _PostCardState extends State<PostCard> {
         ? '익명집사'
         : post.authorNickname.trim();
     final relativeTime = formatCommunityRelativeTime(post.createdAt);
-    final border = _isFocused
-        ? Border.all(color: AppV2Tokens.primary, width: 2)
-        : const Border(bottom: BorderSide(color: AppV2Tokens.border));
+    const border = Border(bottom: BorderSide(color: AppV2Tokens.border));
 
     return Material(
       key: ValueKey('community-post-card-${post.id}'),
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         onTap: widget.onOpen,
         onHover: (isHovered) {
           if (_isHovered != isHovered) setState(() => _isHovered = isHovered);
         },
-        onFocusChange: (isFocused) {
-          if (_isFocused != isFocused) setState(() => _isFocused = isFocused);
-        },
-        hoverColor: Colors.transparent,
-        focusColor: Colors.transparent,
-        highlightColor: Colors.transparent,
         splashColor: AppV2Tokens.primary.withValues(alpha: 0.10),
         child: DecoratedBox(
           decoration: BoxDecoration(border: border),
@@ -157,7 +149,7 @@ class _PostCardState extends State<PostCard> {
                       label: widget.isLiking ? '좋아요 처리 중' : '좋아요',
                       button: true,
                       enabled: !widget.isLiking,
-                      child: InkWell(
+                      child: AppInkWell(
                         key: ValueKey('community-like-button-${post.id}'),
                         borderRadius: BorderRadius.circular(12),
                         onTap: widget.isLiking

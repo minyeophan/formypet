@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_interaction_style.dart';
 
 import '../../core/app_colors.dart';
 import '../../widgets/app_header.dart';
@@ -98,7 +99,7 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
+                    ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                     child: const AppText(
                       '문의 접수',
                       fontSize: 14,
@@ -118,7 +119,7 @@ class _MyInquiryScreenState extends State<MyInquiryScreen> {
   InputDecoration _inputDecoration() {
     return InputDecoration(
       filled: true,
-      fillColor: AppColors.surface,
+      fillColor: AppInteractionStyle.inputFill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),

@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -69,7 +70,7 @@ class MySupportCenterScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                  ),
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                   child: const AppText(
                     '1대1 문의하기',
                     fontSize: 14,

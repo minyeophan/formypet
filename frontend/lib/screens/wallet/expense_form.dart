@@ -1,9 +1,10 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/app_v2_tokens.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../widgets/app_visual.dart';
 import '../../models/wallet_expense.dart';
@@ -194,35 +195,47 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           illustrationWidth: 140,
           amountBuilder: (style) => _SectionBlock(
             title: '얼마를 썼나요?',
-            child: TextField(
-              key: const Key('expense-amount-input'),
-              controller: _amountCtrl,
-              readOnly: true,
-              showCursor: false,
-              enableInteractiveSelection: false,
-              onTap: widget.submitting ? null : _pickAmount,
-              style: style,
-              decoration: const InputDecoration(
-                filled: false,
-                hintText: '0원',
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-                disabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-                border: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-                errorBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-                focusedErrorBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+            child: ColoredBox(
+              color: AppInteractionStyle.inputFillFor(
+                AppInputAccess.picker,
+                enabled: !widget.submitting,
+              ),
+              // Paint outside the decorator to preserve the full-width underline
+              // and avoid Material 3's extra inset for filled amount fields.
+              child: TextField(
+                key: const Key('expense-amount-input'),
+                controller: _amountCtrl,
+                readOnly: true,
+                showCursor: false,
+                enableInteractiveSelection: false,
+                onTap: widget.submitting ? null : _pickAmount,
+                style: style,
+                decoration: InputDecoration(
+                  filled: false,
+                  fillColor: AppInteractionStyle.inputFillFor(
+                    AppInputAccess.picker,
+                    enabled: !widget.submitting,
+                  ),
+                  hintText: '0원',
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  disabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  errorBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  focusedErrorBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
               ),
             ),
@@ -432,7 +445,7 @@ class _InputBox extends StatelessWidget {
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
@@ -494,9 +507,9 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppV2Tokens.mintSurface : AppColors.white,
+      color: AppColors.white,
       borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
@@ -507,6 +520,7 @@ class _CategoryCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.border,
+              width: 1.5,
             ),
           ),
           child: Semantics(
@@ -616,7 +630,7 @@ class _TextInput extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hintText,
         filled: true,
-        fillColor: AppColors.white,
+        fillColor: AppInteractionStyle.inputFill,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -691,7 +705,9 @@ class _SaveButtonState extends State<_SaveButton> {
       key: const Key('expense-save-button'),
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(20),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
+        suppressPressOverlay: true,
         borderRadius: BorderRadius.circular(20),
         onTap: widget.onTap,
         onHighlightChanged: (pressed) => setState(() => _pressed = pressed),

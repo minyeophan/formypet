@@ -2,6 +2,8 @@ import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 import '../../widgets/app_more_button.dart';
@@ -304,40 +306,20 @@ class _CommentRow extends StatelessWidget {
   }
 }
 
-class _CommentMoreButton extends StatefulWidget {
+class _CommentMoreButton extends StatelessWidget {
   const _CommentMoreButton({required this.commentId, required this.onPressed});
   final String commentId;
   final VoidCallback onPressed;
 
   @override
-  State<_CommentMoreButton> createState() => _CommentMoreButtonState();
-}
-
-class _CommentMoreButtonState extends State<_CommentMoreButton> {
-  bool focused = false;
-
-  @override
-  Widget build(BuildContext context) => Focus(
-    onFocusChange: (value) => setState(() => focused = value),
-    child: Container(
-      key: Key('community-comment-more-${widget.commentId}-focus'),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: focused ? AppV2Tokens.primary : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: AppMoreButton.plain(
-        key: Key('community-comment-more-${widget.commentId}'),
-        tooltip: '댓글 메뉴',
-        onPressed: widget.onPressed,
-      ),
-    ),
+  Widget build(BuildContext context) => AppMoreButton.plain(
+    key: Key('community-comment-more-$commentId'),
+    tooltip: '댓글 메뉴',
+    onPressed: onPressed,
   );
 }
 
-class _FocusAction extends StatefulWidget {
+class _FocusAction extends StatelessWidget {
   const _FocusAction({
     super.key,
     required this.label,
@@ -351,50 +333,29 @@ class _FocusAction extends StatefulWidget {
   final bool loading;
 
   @override
-  State<_FocusAction> createState() => _FocusActionState();
-}
-
-class _FocusActionState extends State<_FocusAction> {
-  bool focused = false;
-
-  @override
-  Widget build(BuildContext context) => Focus(
-    onFocusChange: (value) => setState(() => focused = value),
-    child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: focused ? AppV2Tokens.primary : Colors.transparent,
-          width: 2,
-        ),
+  Widget build(BuildContext context) => TextButton(
+    style: ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 4),
       ),
-      child: TextButton(
-        style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 4),
-          ),
-          overlayColor: const WidgetStatePropertyAll(AppV2Tokens.primarySoft),
-          foregroundColor: WidgetStatePropertyAll(
-            widget.selected ? AppV2Tokens.primary : AppV2Tokens.textSecondary,
-          ),
-        ),
-        onPressed: widget.onPressed ?? (widget.selected ? () {} : null),
-        child: widget.loading
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                widget.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      overlayColor: AppInteractionStyle.overlay(),
+      backgroundBuilder: AppFocusRing.buttonBuilder,
+      foregroundColor: WidgetStatePropertyAll(
+        selected ? AppV2Tokens.primary : AppV2Tokens.textSecondary,
       ),
     ),
+    onPressed: onPressed ?? (selected ? () {} : null),
+    child: loading
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
   );
 }
 
@@ -441,19 +402,31 @@ Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final action in actions)
-              ListTile(
-                minTileHeight: 52,
-                leading: AppIcon(
-                  action.$3,
-                  color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
-                ),
-                title: Text(
-                  action.$2,
-                  style: TextStyle(
-                    color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
+              AppFocusIndicator(
+                child: Theme(
+                  data: Theme.of(sheetContext).copyWith(
+                    hoverColor: Colors.transparent,
+                    focusColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    splashColor:
+                        (action.$4 ? AppV2Tokens.error : AppV2Tokens.primary)
+                            .withValues(alpha: .10),
+                  ),
+                  child: ListTile(
+                    minTileHeight: 52,
+                    leading: AppIcon(
+                      action.$3,
+                      color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
+                    ),
+                    title: Text(
+                      action.$2,
+                      style: TextStyle(
+                        color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(sheetContext, action.$1),
                   ),
                 ),
-                onTap: () => Navigator.pop(sheetContext, action.$1),
               ),
           ],
         ),
@@ -495,7 +468,10 @@ Future<bool?> showCommunityCommentDeleteConfirmationSheet(
             FilledButton(
               key: const Key('community-comment-delete-confirm'),
               onPressed: () => Navigator.pop(sheetContext, true),
-              style: FilledButton.styleFrom(backgroundColor: AppV2Tokens.error),
+              style: FilledButton.styleFrom(backgroundColor: AppV2Tokens.error)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
               child: const Text('삭제'),
             ),
             TextButton(
@@ -698,7 +674,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                                   : '댓글을 해주세요'
                             : '$author님에게 답글 하기',
                         filled: true,
-                        fillColor: AppV2Tokens.surfaceSoft,
+                        fillColor: AppInteractionStyle.inputFill,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,

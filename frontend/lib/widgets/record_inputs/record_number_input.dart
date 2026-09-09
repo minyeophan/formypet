@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../app_ink_well.dart';
 import '../app_icon.dart';
 import 'package:flutter/material.dart';
 
@@ -50,7 +52,7 @@ class RecordNumberInput extends StatelessWidget {
         hintText: hintText,
         suffixText: suffixText,
         filled: true,
-        fillColor: AppColors.white,
+        fillColor: AppInteractionStyle.inputFill,
         hintStyle: const TextStyle(color: AppColors.muted),
         suffixStyle: const TextStyle(
           color: AppColors.textSecondary,
@@ -245,7 +247,7 @@ class _NumberKey extends StatelessWidget {
     return Material(
       color: keyValue == '.' ? AppColors.surfaceSoft : AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         key: Key('record-number-key-$keyName'),
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,

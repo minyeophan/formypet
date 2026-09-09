@@ -1,5 +1,7 @@
+import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -439,7 +441,7 @@ class _QuickMenu extends StatelessWidget {
       children: [
         for (final item in items)
           Expanded(
-            child: InkWell(
+            child: AppInkWell(
               key: Key('home-menu-${item.$1}'),
               borderRadius: BorderRadius.circular(16),
               onTap: item.$5,
@@ -509,7 +511,7 @@ class _NewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
-    child: InkWell(
+    child: AppInkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -590,7 +592,7 @@ class _PopularPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
-    child: InkWell(
+    child: AppInkWell(
       onTap: () => context.push('/community/posts/${post.id}?source=popular'),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -686,7 +688,9 @@ class _SectionHeader extends StatelessWidget {
       if (action != null)
         TextButton(
           onPressed: onTap,
-          style: TextButton.styleFrom(foregroundColor: AppV2Tokens.primary),
+          style: TextButton.styleFrom(
+            foregroundColor: AppV2Tokens.primary,
+          ).copyWith(overlayColor: AppInteractionStyle.overlay()),
           child: Text(action!),
         ),
     ],

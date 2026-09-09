@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../app_ink_well.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -44,8 +46,9 @@ class RecordEditActionBar extends StatelessWidget {
         Material(
           color: saveActive ? AppColors.primary : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             key: saveKey,
+            filled: true,
             borderRadius: BorderRadius.circular(16),
             onTap: canSave ? onSave : null,
             child: Container(
@@ -70,8 +73,9 @@ class RecordEditActionBar extends StatelessWidget {
         Material(
           color: AppColors.dangerSoft,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             key: deleteKey,
+            danger: true,
             borderRadius: BorderRadius.circular(16),
             onTap: canDelete ? onDelete : null,
             child: Container(
@@ -135,7 +139,10 @@ Future<bool?> showDeleteConfirmationSheet(
             FilledButton(
               key: confirmKey,
               onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
               child: AppText(confirmLabel, color: AppColors.white),
             ),
             TextButton(

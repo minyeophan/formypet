@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'dart:typed_data';
 
@@ -220,7 +221,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     onPressed: _isSaving ? null : _pickPhoto,
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                    ),
+                    ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                     child: const AppText('사진 선택'),
                   ),
                 ),
@@ -235,7 +236,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   controller: _email,
                   enabled: !_isSaving,
                   readOnly: true,
-                  decoration: const InputDecoration(labelText: '이메일'),
+                  decoration: const InputDecoration(
+                    labelText: '이메일',
+                    fillColor: AppColors.surfaceSoft,
+                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 10),
@@ -248,7 +252,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
-                  ),
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                   child: const AppText('저장', color: AppColors.white),
                 ),
               ],

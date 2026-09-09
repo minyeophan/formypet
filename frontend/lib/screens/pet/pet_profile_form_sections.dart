@@ -339,7 +339,7 @@ class _BottomSubmitButton extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                ),
+                ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 child: isLoading
                     ? const SizedBox(
                         width: 22,
@@ -378,58 +378,62 @@ class _PhotoPickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        height: 88,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: bytes != null
-                    ? Image.memory(
-                        bytes!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const AppIcon(
-                          Icons.pets,
-                          color: AppColors.textSecondary,
+      child: AppInkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          height: 88,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: bytes != null
+                      ? Image.memory(
+                          bytes!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const AppIcon(
+                            Icons.pets,
+                            color: AppColors.textSecondary,
+                          ),
+                        )
+                      : AuthenticatedNetworkImage(
+                          url: existingUrl,
+                          fit: BoxFit.cover,
+                          fallback: const AppIcon(
+                            Icons.add_a_photo_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      )
-                    : AuthenticatedNetworkImage(
-                        url: existingUrl,
-                        fit: BoxFit.cover,
-                        fallback: const AppIcon(
-                          Icons.add_a_photo_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: AppText(
-                photo?.name ?? (existingUrl == null ? '대표 사진 선택' : '사진 변경'),
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 14),
+              Expanded(
+                child: AppText(
+                  photo?.name ?? (existingUrl == null ? '대표 사진 선택' : '사진 변경'),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

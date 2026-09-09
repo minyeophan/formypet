@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import 'app_ink_well.dart';
 import 'app_text.dart';
 
 class AppActionSheetItem {
@@ -39,23 +40,51 @@ Future<void> showAppActionSheet(
             AppText(title, fontWeight: FontWeight.w700),
             const SizedBox(height: 18),
             for (final action in actions)
-              ListTile(
-                key: action.key,
-                title: Center(
-                  child: AppText(
-                    action.label,
-                    color: action.destructive ? AppColors.danger : null,
+              Theme(
+                data: Theme.of(sheetContext).copyWith(
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  splashColor:
+                      (action.destructive
+                              ? AppColors.danger
+                              : AppColors.primary)
+                          .withValues(alpha: .10),
+                ),
+                child: AppFocusIndicator(
+                  child: ListTile(
+                    key: action.key,
+                    hoverColor: Colors.transparent,
+                    focusColor: Colors.transparent,
+                    title: Center(
+                      child: AppText(
+                        action.label,
+                        color: action.destructive ? AppColors.danger : null,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      action.onTap?.call();
+                    },
                   ),
                 ),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  action.onTap?.call();
-                },
               ),
-            ListTile(
-              key: const Key('app-action-sheet-close'),
-              title: Center(child: AppText(closeLabel)),
-              onTap: () => Navigator.of(sheetContext).pop(),
+            Theme(
+              data: Theme.of(sheetContext).copyWith(
+                hoverColor: Colors.transparent,
+                focusColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                splashColor: AppColors.primary.withValues(alpha: .10),
+              ),
+              child: AppFocusIndicator(
+                child: ListTile(
+                  key: const Key('app-action-sheet-close'),
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  title: Center(child: AppText(closeLabel)),
+                  onTap: () => Navigator.of(sheetContext).pop(),
+                ),
+              ),
             ),
           ],
         ),

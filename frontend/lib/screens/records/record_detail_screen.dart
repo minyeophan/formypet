@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,7 +106,8 @@ class _RecordDetailEditButton extends StatelessWidget {
     return Material(
       color: AppColors.primary,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
         key: const Key('record-detail-edit-button'),
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,

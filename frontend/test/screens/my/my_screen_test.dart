@@ -162,8 +162,8 @@ void main() {
     final finder = find.byKey(const Key('my-settings-button'));
     expect(tester.getSize(finder), const Size(44, 44));
 
-    final container = tester.widget<Container>(
-      find.descendant(of: finder, matching: find.byType(Container)).first,
+    final container = tester.widget<Ink>(
+      find.descendant(of: finder, matching: find.byType(Ink)).first,
     );
     final decoration = container.decoration as BoxDecoration;
     expect(decoration.borderRadius, BorderRadius.circular(14));
@@ -176,9 +176,7 @@ void main() {
     expect(icon.color, AppColors.textSecondary);
   });
 
-  testWidgets('settings and profile controls open real routes', (
-    tester,
-  ) async {
+  testWidgets('settings and profile controls open real routes', (tester) async {
     await _pumpMyScreen(tester);
     await tester.tap(find.byKey(const Key('my-settings-button')));
     await tester.pumpAndSettle();
@@ -189,7 +187,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MyProfileScreen), findsOneWidget);
   });
-
 }
 
 Future<void> _pumpMyScreen(

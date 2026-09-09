@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -457,7 +459,7 @@ class _InputBox extends StatelessWidget {
     if (onTap == null) {
       return DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
         ),
         child: content,
@@ -467,7 +469,7 @@ class _InputBox extends StatelessWidget {
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: content,
@@ -487,7 +489,7 @@ class _SubtleButton extends StatelessWidget {
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
@@ -589,35 +591,39 @@ class _VisualOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _selectedFill : AppColors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AppVisual(id: visualId, size: 24),
-              const SizedBox(height: 6),
-              AppText(
-                label,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
               ),
-            ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AppVisual(id: visualId, size: 24),
+                const SizedBox(height: 6),
+                AppText(
+                  label,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -691,7 +697,7 @@ class _TextInput extends StatelessWidget {
         hintText: hintText,
         counterText: '',
         filled: true,
-        fillColor: AppColors.white,
+        fillColor: AppInteractionStyle.inputFill,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -732,7 +738,7 @@ class _MoreSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
+        AppInkWell(
           key: const Key('meal-more-toggle'),
           borderRadius: BorderRadius.circular(12),
           onTap: onToggle,
@@ -771,7 +777,7 @@ class _MoreSection extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _selectedFill,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: AppColors.primary),
               ),
@@ -833,28 +839,33 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _selectedFill : AppColors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
+              ),
             ),
-          ),
-          child: AppText(
-            label,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: selected ? AppColors.primaryPressed : AppColors.text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            child: AppText(
+              label,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: selected ? AppColors.primaryPressed : AppColors.text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       ),
@@ -875,11 +886,11 @@ class _PhotoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
+    final content = Ink(
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: hasPhoto ? _selectedFill : AppColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: hasPhoto ? Border.all(color: AppColors.primary) : null,
       ),
@@ -908,7 +919,7 @@ class _PhotoButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
         key: const Key('meal-photo-button'),
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -1037,8 +1048,6 @@ class _IntOption {
 
   const _IntOption(this.value, this.visualId);
 }
-
-const _selectedFill = Color(0xFFFFF7EF);
 
 const _foodTypeOptions = [
   _StringOption('wet', '습식', AppVisualId.mealWet),

@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -382,7 +383,8 @@ class _DangerCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: AppInkWell(
+          danger: true,
           borderRadius: BorderRadius.circular(20),
           onTap: onDelete,
           child: Padding(

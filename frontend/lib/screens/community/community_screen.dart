@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -47,13 +48,23 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     return Scaffold(
       backgroundColor: AppV2Tokens.background,
       body: const _CommunityMainBody(),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('community-write-fab'),
+      floatingActionButton: AppFocusIndicator(
+        filled: true,
         shape: const CircleBorder(),
-        backgroundColor: AppV2Tokens.primary,
-        foregroundColor: Colors.white,
-        onPressed: () => context.push('/community/write'),
-        child: const AppIcon(Icons.edit),
+        child: Theme(
+          data: Theme.of(context).copyWith(highlightColor: Colors.transparent),
+          child: FloatingActionButton(
+            key: const Key('community-write-fab'),
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            splashColor: AppColors.primary.withValues(alpha: .10),
+            shape: const CircleBorder(),
+            backgroundColor: AppV2Tokens.primary,
+            foregroundColor: Colors.white,
+            onPressed: () => context.push('/community/write'),
+            child: const AppIcon(Icons.edit),
+          ),
+        ),
       ),
     );
   }
@@ -106,13 +117,23 @@ class _CommunityCategoryScreenState
         routeFeedKey: _routeFeedKey,
         activated: _activated,
       ),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('community-write-fab'),
+      floatingActionButton: AppFocusIndicator(
+        filled: true,
         shape: const CircleBorder(),
-        backgroundColor: AppV2Tokens.primary,
-        foregroundColor: Colors.white,
-        onPressed: () => context.push('/community/write'),
-        child: const AppIcon(Icons.edit),
+        child: Theme(
+          data: Theme.of(context).copyWith(highlightColor: Colors.transparent),
+          child: FloatingActionButton(
+            key: const Key('community-write-fab'),
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            splashColor: AppColors.primary.withValues(alpha: .10),
+            shape: const CircleBorder(),
+            backgroundColor: AppV2Tokens.primary,
+            foregroundColor: Colors.white,
+            onPressed: () => context.push('/community/write'),
+            child: const AppIcon(Icons.edit),
+          ),
+        ),
       ),
     );
   }
@@ -424,7 +445,7 @@ class _CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _communityAccentFor(category);
-    return InkWell(
+    return AppInkWell(
       key: Key('community-category-tile-$category'),
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/community/category/$category'),
@@ -530,7 +551,7 @@ class _CategoryTabsState extends State<_CategoryTabs> {
               child: Semantics(
                 button: true,
                 selected: isActive,
-                child: InkWell(
+                child: AppInkWell(
                   key: Key('community-tab-$tab'),
                   borderRadius: BorderRadius.zero,
                   onTap: isActive
@@ -589,65 +610,66 @@ class _GuidePanelState extends State<_GuidePanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       key: const Key('community-guide-panel'),
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Material(
         color: AppV2Tokens.surfaceSoft,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Semantics(
-        button: true,
-        expanded: _expanded,
-        child: InkWell(
-          key: const Key('community-guide-toggle'),
-          onTap: () => setState(() => _expanded = !_expanded),
-          hoverColor: Colors.transparent,
-          focusColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    const AppIcon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: AppV2Tokens.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        '커뮤니티 이용 가이드',
-                        style: TextStyle(fontSize: 16, color: AppV2Tokens.text),
+        clipBehavior: Clip.antiAlias,
+        child: Semantics(
+          button: true,
+          expanded: _expanded,
+          child: AppInkWell(
+            key: const Key('community-guide-toggle'),
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const AppIcon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: AppV2Tokens.textSecondary,
                       ),
-                    ),
-                    AnimatedRotation(
-                      turns: _expanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: const AppDisclosureChevron(size: 20),
-                    ),
-                  ],
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  child: _expanded
-                      ? const Padding(
-                          padding: EdgeInsets.only(top: 10),
-                          child: Column(
-                            children: [
-                              _GuideBullet('서로를 존중하는 따뜻한 언어 사용'),
-                              _GuideBullet('건강 상담은 수의사 문의 권장'),
-                              _GuideBullet('상업적 광고·홍보 제한'),
-                              _GuideBullet('사진과 함께 일상 공유 권장'),
-                            ],
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          '커뮤니티 이용 가이드',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppV2Tokens.text,
                           ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const AppDisclosureChevron(size: 20),
+                      ),
+                    ],
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 180),
+                    child: _expanded
+                        ? const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Column(
+                              children: [
+                                _GuideBullet('서로를 존중하는 따뜻한 언어 사용'),
+                                _GuideBullet('건강 상담은 수의사 문의 권장'),
+                                _GuideBullet('상업적 광고·홍보 제한'),
+                                _GuideBullet('사진과 함께 일상 공유 권장'),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

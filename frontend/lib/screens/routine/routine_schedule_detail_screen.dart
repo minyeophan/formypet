@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -191,7 +192,8 @@ class _ScheduleDetailEditButton extends StatelessWidget {
     return Material(
       color: AppColors.primary,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
         key: const Key('schedule-detail-edit-button'),
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,

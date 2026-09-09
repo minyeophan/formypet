@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
@@ -189,13 +190,13 @@ void main() {
     await tester.tap(_likeButton());
     await tester.pumpAndSettle();
     expect(_card(tester).isLiking, isTrue);
-    expect(tester.widget<InkWell>(_likeButton()).onTap, isNull);
+    expect(tester.widget<AppInkWell>(_likeButton()).onTap, isNull);
     expect(likeRequests, 1);
 
     response.complete(_json({'liked': true, 'likesCount': 8}));
     await tester.pumpAndSettle();
     expect(_card(tester).isLiking, isFalse);
-    expect(tester.widget<InkWell>(_likeButton()).onTap, isNotNull);
+    expect(tester.widget<AppInkWell>(_likeButton()).onTap, isNotNull);
     expect(_card(tester).post.likesCount, 8);
   });
 
@@ -222,7 +223,7 @@ void main() {
     expect(find.text('산책 정보'), findsOneWidget);
     expect(_card(tester).post.liked, isFalse);
     expect(_card(tester).post.likesCount, 7);
-    expect(tester.widget<InkWell>(_likeButton()).onTap, isNotNull);
+    expect(tester.widget<AppInkWell>(_likeButton()).onTap, isNotNull);
     expect(tester.takeException(), isNull);
 
     await tester.tap(_likeButton());

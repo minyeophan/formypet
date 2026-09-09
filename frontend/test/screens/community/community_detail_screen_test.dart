@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:frontend/widgets/app_ink_well.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -65,59 +66,27 @@ void main() {
   ) async {
     await _pumpDetail(tester);
 
-    for (var i = 0; i < 12; i++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      if (find
-          .byKey(const Key('community-detail-launcher-focus'))
-          .evaluate()
-          .isNotEmpty) {
-        break;
-      }
-    }
-
-    final focus = tester.widget<Container>(
-      find.byKey(const Key('community-detail-launcher-focus')),
+    await _expectKeyboardRing(
+      tester,
+      const Key('community-detail-comment-launcher'),
     );
-    final decoration = focus.decoration as BoxDecoration;
-    expect(decoration.border!.top.width, 2);
-    expect(decoration.border!.top.color, AppV2Tokens.primary);
   });
 
-  testWidgets('like statistic shows a two pixel outline on keyboard focus', (
+  testWidgets('like statistic shows a keyboard ring without shifting', (
     tester,
   ) async {
     await _pumpDetail(tester);
-
-    await _tabUntilFound(tester, const Key('community-detail-like-focus'));
-
-    final focus = tester.widget<Container>(
-      find.byKey(const Key('community-detail-like-focus')),
-    );
-    final decoration = focus.decoration as BoxDecoration;
-    expect(decoration.border!.top.width, 2);
-    expect(decoration.border!.top.color, AppV2Tokens.primary);
+    await _expectKeyboardRing(tester, const Key('community-detail-like'));
   });
 
-  testWidgets('reply link shows a two pixel outline on keyboard focus', (
+  testWidgets('reply link shows a keyboard ring without shifting', (
     tester,
   ) async {
     await _pumpDetail(
       tester,
       comments: [_comment(id: 'one', userId: 'user-1')],
     );
-
-    await _tabUntilFound(
-      tester,
-      const Key('community-comment-reply-one-focus'),
-    );
-
-    final focus = tester.widget<Container>(
-      find.byKey(const Key('community-comment-reply-one-focus')),
-    );
-    final decoration = focus.decoration as BoxDecoration;
-    expect(decoration.border!.top.width, 2);
-    expect(decoration.border!.top.color, AppV2Tokens.primary);
+    await _expectKeyboardRing(tester, const Key('community-comment-reply-one'));
   });
 
   testWidgets('requests a three-root two-reply preview', (tester) async {
@@ -365,12 +334,30 @@ void main() {
   });
 }
 
-Future<void> _tabUntilFound(WidgetTester tester, Key key) async {
-  for (var i = 0; i < 16; i++) {
+Future<void> _expectKeyboardRing(WidgetTester tester, Key key) async {
+  final target = find.byKey(key).first;
+  final before = tester.getSize(target);
+  final ring = find.descendant(
+    of: target,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is AppFocusRing && widget.focused,
+    ),
+  );
+  for (var i = 0; i < 24 && ring.evaluate().isEmpty; i++) {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
-    if (find.byKey(key).evaluate().isNotEmpty) return;
   }
+  expect(ring, findsOneWidget);
+  expect(tester.getSize(target), before);
+  expect(
+    find.descendant(
+      of: ring,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is CustomPaint && widget.foregroundPainter != null,
+      ),
+    ),
+    findsOneWidget,
+  );
 }
 
 Future<void> _pumpDetail(

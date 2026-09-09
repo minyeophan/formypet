@@ -5,11 +5,13 @@ import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/app_theme.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import 'package:google_fonts/google_fonts.dart';
 // Exercise ImagePicker itself, replacing only the native/browser picker boundary.
 // ignore: depend_on_referenced_packages
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import '../../support/ui_test_fonts.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +50,47 @@ void main() {
     name: name,
     mimeType: 'image/png',
   );
+
+  testWidgets('toolbar tool paints its grey surface and visible pressed ink', (
+    tester,
+  ) async {
+    await installUiTestFonts();
+    await _pump(tester);
+    await tester.runAsync(() => GoogleFonts.pendingFonts());
+    await tester.pumpAndSettle();
+    final tool = find.byKey(const Key('community-add-image-button'));
+    expect(tester.getSize(tool), const Size(44, 44));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.ancestor(of: tool, matching: find.byType(RepaintBoundary)).first,
+    );
+    Future<Color?> sampleSurface() => tester.runAsync(() async {
+      final image = await boundary.toImage(pixelRatio: 1);
+      final bytes = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      final point = boundary.globalToLocal(
+        tester.getTopLeft(tool) + const Offset(8, 8),
+      );
+      final offset = (point.dy.floor() * image.width + point.dx.floor()) * 4;
+      final color = Color.fromARGB(
+        bytes.getUint8(offset + 3),
+        bytes.getUint8(offset),
+        bytes.getUint8(offset + 1),
+        bytes.getUint8(offset + 2),
+      );
+      image.dispose();
+      return color;
+    });
+    final idle = await sampleSurface();
+    expect(idle, AppColors.surfaceSoft);
+    final press = await tester.startGesture(tester.getCenter(tool));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(await sampleSurface(), isNot(idle));
+    await press.cancel();
+    await tester.pumpAndSettle();
+    expect(await sampleSurface(), idle);
+  });
 
   for (final validOptions in [0, 1]) {
     testWidgets(

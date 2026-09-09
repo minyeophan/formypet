@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/pet/pet_profile_form.dart';
@@ -31,6 +32,64 @@ const pet = Pet(
 
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
+
+  testWidgets(
+    'pet text access and picker enabled state determine input fills',
+    (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      for (final readOnly in [false, true]) {
+        for (final picker in [false, true]) {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: PetTextField(
+                  label: 'access',
+                  controller: controller,
+                  readOnly: readOnly,
+                  onTap: picker ? () {} : null,
+                ),
+              ),
+            ),
+          );
+          final field = tester.widget<TextField>(find.byType(TextField));
+          expect(
+            WidgetStateProperty.resolveAs<Color>(
+              field.decoration!.fillColor!,
+              {},
+            ),
+            readOnly && !picker ? AppColors.surfaceSoft : AppColors.white,
+          );
+        }
+      }
+      for (final enabled in [false, true]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: PetPickerField(
+                label: 'picker',
+                value: 'value',
+                enabled: enabled,
+                onTap: () {},
+              ),
+            ),
+          ),
+        );
+        final material = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(PetPickerField),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(
+          WidgetStateProperty.resolveAs<Color>(material.color!, {}),
+          enabled ? AppColors.white : AppColors.surfaceSoft,
+        );
+      }
+    },
+  );
 
   for (final label in ['생년월일', '함께한 날']) {
     testWidgets('$label never saves a future date', (tester) async {

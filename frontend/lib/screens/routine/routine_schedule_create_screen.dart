@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -175,7 +177,7 @@ class _RoutineScheduleCreateScreenState
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
-                        ),
+                        ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                       ),
                     ),
                   ],
@@ -194,11 +196,15 @@ class _RoutineScheduleCreateScreenState
               const SizedBox(height: 12),
               _FormSection(
                 label: '알림 시점',
-                child: InkWell(
-                  key: const Key('schedule-reminder-button'),
+                child: Material(
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                  onTap: _pickReminder,
-                  child: _ValueField(value: _reminder),
+                  child: AppInkWell(
+                    key: const Key('schedule-reminder-button'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: _pickReminder,
+                    child: _ValueField(value: _reminder),
+                  ),
                 ),
               ),
               if (_error != null) ...[
@@ -232,7 +238,7 @@ class _RoutineScheduleCreateScreenState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
+                    ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                     child: _saving
                         ? const SizedBox(
                             width: 18,
@@ -453,10 +459,14 @@ class _ValueButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: _ValueField(value: value),
+      child: AppInkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: _ValueField(value: value),
+      ),
     );
   }
 }
@@ -468,11 +478,11 @@ class _ValueField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Ink(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
       ),
       child: AppText(value, fontSize: 13, color: AppColors.text),
@@ -493,37 +503,45 @@ class _CategoryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: Key('schedule-category-${category.id}'),
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: AppInkWell(
+          key: Key('schedule-category-${category.id}'),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            AppVisual(
-              id: scheduleVisualId(category.id),
-              size: 32,
-              color: category.color,
-            ),
-            const SizedBox(width: 7),
-            Expanded(
-              child: AppText(
-                category.label,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
               ),
             ),
-          ],
+            child: Row(
+              children: [
+                AppVisual(
+                  id: scheduleVisualId(category.id),
+                  size: 32,
+                  color: category.color,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: AppText(
+                    category.label,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -731,7 +749,7 @@ InputDecoration _inputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,
     filled: true,
-    fillColor: AppColors.surfaceSoft,
+    fillColor: AppInteractionStyle.inputFill,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide.none,

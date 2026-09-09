@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -506,16 +507,16 @@ class _DetailActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       key: const Key('expense-delete-button'),
-      color: Colors.transparent,
+      color: const Color(0xFFFFF1F2),
       borderRadius: BorderRadius.circular(20),
-      child: InkWell(
+      child: AppInkWell(
+        danger: true,
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
           height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF1F2),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFFECACA)),
           ),
@@ -554,7 +555,8 @@ class _SheetButton extends StatelessWidget {
     return Material(
       color: danger ? const Color(0xFFFFF1F2) : AppColors.surfaceSoft,
       borderRadius: BorderRadius.circular(20),
-      child: InkWell(
+      child: AppInkWell(
+        danger: danger,
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(

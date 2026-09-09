@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
@@ -116,7 +117,7 @@ class _PolicyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      child: InkWell(
+      child: AppInkWell(
         onTap: () => context.push('/my/policies/${policy.id}'),
         child: Container(
           constraints: const BoxConstraints(minHeight: 54),

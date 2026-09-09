@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -727,7 +729,7 @@ class _InputBox extends StatelessWidget {
     if (onTap == null) {
       return DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
         ),
         child: content,
@@ -737,7 +739,7 @@ class _InputBox extends StatelessWidget {
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: content,
@@ -757,7 +759,7 @@ class _SubtleButton extends StatelessWidget {
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
@@ -841,7 +843,7 @@ class _TextInput extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hintText,
         filled: true,
-        fillColor: AppColors.white,
+        fillColor: AppInteractionStyle.inputFill,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -913,33 +915,33 @@ class _OptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _selectedFill : AppColors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        hoverColor: Colors.transparent,
-        focusColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: AppColors.primary.withValues(alpha: 0.10),
-        onTap: onTap,
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: selected ? 1.5 : 1,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
+              ),
             ),
-          ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            child: AppText(
+              label,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       ),
@@ -961,26 +963,31 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? _selectedFill : AppColors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
+              ),
             ),
-          ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: selected ? AppColors.primaryPressed : AppColors.text,
+            child: AppText(
+              label,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: selected ? AppColors.primaryPressed : AppColors.text,
+            ),
           ),
         ),
       ),
@@ -1051,8 +1058,6 @@ class _Option {
 
   const _Option(this.value, this.label);
 }
-
-const _selectedFill = Color(0xFFFFF7EF);
 
 const _poopShapeOptions = [
   _Option('normal', '보통 변'),

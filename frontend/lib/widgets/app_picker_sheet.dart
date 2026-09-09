@@ -1,7 +1,9 @@
 import 'app_icon.dart';
 import 'package:flutter/material.dart';
+import 'app_ink_well.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_interaction_style.dart';
 import 'app_text.dart';
 
 class AppSelectOption<T> {
@@ -34,7 +36,7 @@ class AppSelectField<T> extends StatelessWidget {
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
           final selected = await showAppPickerSheet<T>(
@@ -151,90 +153,106 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 56,
-                child: Row(
-                  children: [
-                    const SizedBox(width: 72),
-                    Expanded(
-                      child: Center(
-                        child: AppText(
-                          widget.title,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              splashColor: AppColors.primary.withValues(alpha: .10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 56,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 72),
+                      Expanded(
+                        child: Center(
+                          child: AppText(
+                            widget.title,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(
-                      width: 72,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(null),
-                        child: const AppText(
-                          '닫기',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary,
+                      SizedBox(
+                        width: 72,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(null),
+                          child: const AppText(
+                            '닫기',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1, color: AppColors.border),
-              if (widget.searchable) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: TextField(
-                    controller: _queryCtrl,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: '검색',
-                      prefixIcon: const AppIcon(Icons.search_rounded, size: 20),
-                      filled: true,
-                      fillColor: AppColors.surfaceSoft,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+                const Divider(height: 1, color: AppColors.border),
+                if (widget.searchable) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: _queryCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: '검색',
+                        prefixIcon: const AppIcon(
+                          Icons.search_rounded,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: AppInteractionStyle.inputFill,
+                        hoverColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
-                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: options.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (context, index) {
+                      final option = options[index];
+                      return AppFocusIndicator(
+                        child: ListTile(
+                          hoverColor: Colors.transparent,
+                          focusColor: Colors.transparent,
+                          dense: true,
+                          minTileHeight: 48,
+                          title: AppText(
+                            option.label,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                          ),
+                          onTap: () => Navigator.of(context).pop(option.value),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: options.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.border),
-                  itemBuilder: (context, index) {
-                    final option = options[index];
-                    return ListTile(
-                      dense: true,
-                      minTileHeight: 48,
-                      title: AppText(
-                        option.label,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
-                      ),
-                      onTap: () => Navigator.of(context).pop(option.value),
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -316,109 +334,125 @@ class _AppMultiPickerSheetState<T> extends State<AppMultiPickerSheet<T>> {
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 56,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 72,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(null),
-                        child: const AppText(
-                          '취소',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary,
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              splashColor: AppColors.primary.withValues(alpha: .10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 56,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(null),
+                          child: const AppText(
+                            '취소',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: AppText(
-                          widget.title,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: Center(
+                          child: AppText(
+                            widget.title,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(
-                      width: 72,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(_selected),
-                        child: const AppText(
-                          '완료',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
+                      SizedBox(
+                        width: 72,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(_selected),
+                          child: const AppText(
+                            '완료',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.border),
-              if (widget.searchable)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: TextField(
-                    controller: _queryCtrl,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: '검색',
-                      prefixIcon: const AppIcon(Icons.search_rounded, size: 20),
-                      filled: true,
-                      fillColor: AppColors.surfaceSoft,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    onChanged: (_) => setState(() {}),
+                    ],
                   ),
                 ),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: options.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.border),
-                  itemBuilder: (context, index) {
-                    final option = options[index];
-                    final selected = _selected.contains(option.value);
-                    return CheckboxListTile(
-                      dense: true,
-                      value: selected,
-                      title: AppText(
-                        option.label,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
+                const Divider(height: 1, color: AppColors.border),
+                if (widget.searchable)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: _queryCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: '검색',
+                        prefixIcon: const AppIcon(
+                          Icons.search_rounded,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: AppInteractionStyle.inputFill,
+                        hoverColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
-                      activeColor: AppColors.text,
-                      controlAffinity: ListTileControlAffinity.trailing,
-                      onChanged: (_) => setState(() {
-                        if (selected) {
-                          _selected.remove(option.value);
-                        } else {
-                          _selected.add(option.value);
-                        }
-                      }),
-                    );
-                  },
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: options.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (context, index) {
+                      final option = options[index];
+                      final selected = _selected.contains(option.value);
+                      return AppFocusIndicator(
+                        child: CheckboxListTile(
+                          hoverColor: Colors.transparent,
+                          overlayColor: AppInteractionStyle.overlay(),
+                          dense: true,
+                          value: selected,
+                          title: AppText(
+                            option.label,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                          ),
+                          activeColor: AppColors.text,
+                          controlAffinity: ListTileControlAffinity.trailing,
+                          onChanged: (_) => setState(() {
+                            if (selected) {
+                              _selected.remove(option.value);
+                            } else {
+                              _selected.add(option.value);
+                            }
+                          }),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

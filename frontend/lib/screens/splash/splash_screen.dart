@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_interaction_style.dart';
 import '../../widgets/brand_logo.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -43,7 +44,7 @@ class SplashScreen extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black87,
-                    ),
+                    ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                     child: const Text('다시 시도'),
                   ),
                 ],

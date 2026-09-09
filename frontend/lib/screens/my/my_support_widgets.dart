@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
@@ -102,7 +103,7 @@ class MySupportRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 56),
@@ -199,34 +200,6 @@ class MySupportNotFound extends StatelessWidget {
         fontWeight: FontWeight.bold,
         color: AppColors.textSecondary,
         textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _TextIconTile extends StatelessWidget {
-  final String label;
-
-  const _TextIconTile({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 34,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: AppText(
-            label,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
       ),
     );
   }

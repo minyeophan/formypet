@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +107,13 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final chipShape =
+        ChipTheme.of(context).shape ??
+        (Theme.of(context).useMaterial3
+            ? const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              )
+            : const StadiumBorder());
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeader(
@@ -176,11 +185,15 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
               const SizedBox(height: 12),
               _FormSection(
                 label: '시간',
-                child: InkWell(
-                  key: const Key('routine-time-field'),
+                child: Material(
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                  onTap: _pickTime,
-                  child: _ValueField(value: _formatTime(_time)),
+                  child: AppInkWell(
+                    key: const Key('routine-time-field'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: _pickTime,
+                    child: _ValueField(value: _formatTime(_time)),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -194,23 +207,35 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                       runSpacing: 8,
                       children: _repeatOptions.entries
                           .map(
-                            (entry) => ChoiceChip(
-                              label: AppText(
-                                entry.value,
-                                color: _repeatType == entry.key
-                                    ? AppColors.white
-                                    : AppColors.text,
+                            (entry) => AppFocusIndicator(
+                              filled: _repeatType == entry.key,
+                              shape: chipShape,
+                              child: ChoiceChip(
+                                label: AppText(
+                                  entry.value,
+                                  color: _repeatType == entry.key
+                                      ? AppColors.white
+                                      : AppColors.text,
+                                ),
+                                selected: _repeatType == entry.key,
+                                showCheckmark: false,
+                                backgroundColor: AppColors.white,
+                                selectedColor: AppColors.primary,
+                                color: WidgetStateProperty.resolveWith(
+                                  (states) =>
+                                      states.contains(WidgetState.disabled)
+                                      ? AppColors.surfaceSoft
+                                      : states.contains(WidgetState.selected)
+                                      ? AppColors.primary
+                                      : AppColors.white,
+                                ),
+                                side: BorderSide(
+                                  color: _repeatType == entry.key
+                                      ? AppColors.primary
+                                      : AppColors.border,
+                                ),
+                                onSelected: (_) => _changeRepeatType(entry.key),
                               ),
-                              selected: _repeatType == entry.key,
-                              showCheckmark: false,
-                              backgroundColor: AppColors.white,
-                              selectedColor: AppColors.primary,
-                              side: BorderSide(
-                                color: _repeatType == entry.key
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                              ),
-                              onSelected: (_) => _changeRepeatType(entry.key),
                             ),
                           )
                           .toList(),
@@ -221,14 +246,26 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                         spacing: 6,
                         children: List.generate(
                           _weekDays.length,
-                          (index) => ChoiceChip(
-                            key: Key('routine-day-$index'),
-                            label: AppText(_weekDays[index]),
-                            selected: _days.contains(index),
-                            selectedColor: AppColors.primary.withValues(
-                              alpha: 0.22,
+                          (index) => AppFocusIndicator(
+                            filled: false,
+                            shape: chipShape,
+                            child: ChoiceChip(
+                              key: Key('routine-day-$index'),
+                              label: AppText(_weekDays[index]),
+                              selected: _days.contains(index),
+                              color: WidgetStateProperty.resolveWith(
+                                (states) =>
+                                    states.contains(WidgetState.disabled)
+                                    ? AppColors.surfaceSoft
+                                    : states.contains(WidgetState.selected)
+                                    ? AppColors.primary.withValues(alpha: 0.22)
+                                    : AppColors.white,
+                              ),
+                              selectedColor: AppColors.primary.withValues(
+                                alpha: 0.22,
+                              ),
+                              onSelected: (_) => _toggleDay(index),
                             ),
-                            onSelected: (_) => _toggleDay(index),
                           ),
                         ),
                       ),
@@ -239,12 +276,16 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
               const SizedBox(height: 12),
               _FormSection(
                 label: '알림',
-                child: InkWell(
-                  key: const Key('routine-notification-button'),
+                child: Material(
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                  onTap: _pickNotification,
-                  child: _ValueField(
-                    value: _notificationEnabled ? '알림 사용' : '알림 없음',
+                  child: AppInkWell(
+                    key: const Key('routine-notification-button'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: _pickNotification,
+                    child: _ValueField(
+                      value: _notificationEnabled ? '알림 사용' : '알림 없음',
+                    ),
                   ),
                 ),
               ),
@@ -291,13 +332,18 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                   child: OutlinedButton(
                     key: const Key('routine-delete-button'),
                     onPressed: _saving ? null : _deleteRoutine,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
-                      side: const BorderSide(color: Colors.redAccent),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                    style:
+                        OutlinedButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          side: const BorderSide(color: Colors.redAccent),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ).copyWith(
+                          overlayColor: AppInteractionStyle.overlay(
+                            danger: true,
+                          ),
+                        ),
                     child: const AppText(
                       '루틴 삭제',
                       color: Colors.redAccent,
@@ -522,11 +568,11 @@ class _ValueField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Ink(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
       ),
       child: AppText(value, fontSize: 14, color: AppColors.text),
@@ -600,37 +646,45 @@ class _RoutineCategoryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: Key('routine-category-${option.typeId}'),
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        height: 70,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: AppInkWell(
+          key: Key('routine-category-${option.typeId}'),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
+          onTap: onTap,
+          child: Ink(
+            height: 70,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AppVisual(
+                  id: recordTypeVisualId(option.typeId),
+                  size: 24,
+                  color: selected ? AppColors.primary : AppColors.textSecondary,
+                ),
+                const SizedBox(height: 5),
+                AppText(
+                  _routineTypeLabel(option.typeId),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppVisual(
-              id: recordTypeVisualId(option.typeId),
-              size: 24,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(height: 5),
-            AppText(
-              _routineTypeLabel(option.typeId),
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-            ),
-          ],
         ),
       ),
     );
@@ -661,11 +715,15 @@ class _RoutineDateField extends StatelessWidget {
           child: AppText(label, fontSize: 12, color: AppColors.textSecondary),
         ),
         Expanded(
-          child: InkWell(
-            key: fieldKey,
+          child: Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: _ValueField(value: value),
+            child: AppInkWell(
+              key: fieldKey,
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTap,
+              child: _ValueField(value: value),
+            ),
           ),
         ),
         if (onClear != null) ...[
@@ -733,7 +791,7 @@ InputDecoration _inputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,
     filled: true,
-    fillColor: AppColors.surfaceSoft,
+    fillColor: AppInteractionStyle.inputFill,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide.none,

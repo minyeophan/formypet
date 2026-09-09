@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -85,34 +87,39 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
                             runSpacing: 8,
                             children: [
                               for (final pet in pets.pets)
-                                ChoiceChip(
-                                  key: Key('expense-pet-${pet.id}'),
-                                  label: Text(pet.name),
-                                  selected: selectedPet?.id == pet.id,
-                                  selectedColor: AppColors.primary,
-                                  backgroundColor: AppColors.surfaceSoft,
-                                  showCheckmark: false,
-                                  side: BorderSide.none,
+                                AppFocusIndicator(
+                                  enabled: !_submitting,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  visualDensity: VisualDensity.compact,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  padding: EdgeInsets.zero,
-                                  labelStyle: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: selectedPet?.id == pet.id
-                                        ? AppColors.white
-                                        : AppColors.text,
+                                  child: ChoiceChip(
+                                    key: Key('expense-pet-${pet.id}'),
+                                    label: Text(pet.name),
+                                    selected: selectedPet?.id == pet.id,
+                                    color: AppInteractionStyle.inputFill,
+                                    showCheckmark: false,
+                                    side: AppInteractionStyle.selectionBorder(
+                                      selectedPet?.id == pet.id,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    padding: EdgeInsets.zero,
+                                    labelStyle: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.text,
+                                    ),
+                                    onSelected: _submitting
+                                        ? null
+                                        : (_) => setState(() {
+                                            _selectedPetId = pet.id;
+                                            _errorText = null;
+                                          }),
                                   ),
-                                  onSelected: _submitting
-                                      ? null
-                                      : (_) => setState(() {
-                                          _selectedPetId = pet.id;
-                                          _errorText = null;
-                                        }),
                                 ),
                             ],
                           ),

@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
@@ -75,7 +76,7 @@ class MyMenuRow extends StatelessWidget {
     final color = danger ? AppColors.danger : AppColors.text;
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 54),
@@ -127,7 +128,7 @@ class MyPetCard extends StatelessWidget {
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap ?? () => context.push('/pet/${pet.id}'),
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -148,7 +149,10 @@ class MyPetCard extends StatelessWidget {
                   fallback: Container(
                     color: AppColors.surfaceSoft,
                     alignment: Alignment.center,
-                    child: AppVisual(id: speciesVisualId(pet.species), size: 42),
+                    child: AppVisual(
+                      id: speciesVisualId(pet.species),
+                      size: 42,
+                    ),
                   ),
                 ),
               ),

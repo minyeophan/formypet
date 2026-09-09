@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_interaction_style.dart';
 import '../../core/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
@@ -301,7 +302,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               backgroundColor: const Color(0xFFFEE500),
               foregroundColor: const Color(0xFF191919),
               minimumSize: const Size.fromHeight(52),
-            ),
+            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
             onPressed: _isLoading ? null : _loginWithKakao,
             child: _isLoading
                 ? const SizedBox(
@@ -326,7 +327,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(14)),
               ),
-            ),
+            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
             onPressed: _isLoading ? null : () => _show(_AuthView.login),
             child: const Text('이메일로 로그인'),
           ),
@@ -442,7 +443,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             foregroundColor: Colors.white,
             disabledBackgroundColor: AppColors.primary,
             disabledForegroundColor: Colors.white,
-          ),
+          ).copyWith(overlayColor: AppInteractionStyle.overlay()),
           onPressed: _isLoading ? null : _submit,
           child: _isLoading
               ? const SizedBox(

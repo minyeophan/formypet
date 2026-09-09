@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,21 +220,27 @@ class _SegmentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: selected ? AppColors.text : AppColors.textSecondary,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Ink(
+            height: 36,
+
+            decoration: BoxDecoration(
+              color: selected ? AppColors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: AppText(
+                label,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: selected ? AppColors.text : AppColors.textSecondary,
+              ),
+            ),
           ),
         ),
       ),
@@ -392,11 +400,11 @@ class _RoutineCalendarDayCell extends StatelessWidget {
         : AppColors.muted;
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Center(
-          child: Container(
+          child: Ink(
             width: 38,
             height: 42,
             decoration: BoxDecoration(
@@ -487,7 +495,7 @@ class _AddButton extends StatelessWidget {
         foregroundColor: AppColors.white,
         backgroundColor: AppColors.primary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
+      ).copyWith(overlayColor: AppInteractionStyle.overlay()),
       child: AppText(
         label,
         fontSize: 13,
@@ -610,7 +618,7 @@ class _RoutineTile extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(22),
-        child: InkWell(
+        child: AppInkWell(
           key: Key('routine-item-${routine.id}'),
           borderRadius: BorderRadius.circular(22),
           onTap: () => context.push('/routine/${routine.id}'),
@@ -700,7 +708,7 @@ class _ScheduleTile extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(22),
-      child: InkWell(
+      child: AppInkWell(
         key: Key('schedule-detail-button-${schedule.id}'),
         borderRadius: BorderRadius.circular(22),
         onTap: () => context.push('/routine/schedule/${schedule.id}'),

@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -364,11 +365,11 @@ class _CalendarDayCell extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Center(
-          child: Container(
+          child: Ink(
             width: 38,
             height: 42,
             decoration: BoxDecoration(
@@ -470,7 +471,7 @@ class _RecordTypeCard extends StatelessWidget {
     return Material(
       color: AppColors.background,
       borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
@@ -597,7 +598,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
     return Material(
       key: Key('selected-date-record-${record.id}'),
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         onTap: () => context.push('/records/${record.id}'),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
