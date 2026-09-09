@@ -1,6 +1,7 @@
 import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/widgets/app_visual.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
@@ -46,6 +47,7 @@ import 'package:frontend/services/community_service.dart';
 import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1151,6 +1153,119 @@ void main() {
     final decoration = decoratedBox.decoration as BoxDecoration;
     expect(decoration.color, AppColors.surface);
     expect(decoration.border!.top.color, AppColors.border);
+  });
+
+  testWidgets('actual home navigation retains three existing focus targets', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/home',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      communityService: _FakeCommunityService(),
+      notificationService: _EmptyNotificationService(),
+    );
+    final nav = find.byType(BottomNavigationBar);
+    var navNodes = find
+        .descendant(of: nav, matching: find.byType(AppVisual))
+        .evaluate()
+        .map((element) => Focus.of(element))
+        .toSet()
+        .toList();
+    expect(navNodes, hasLength(3));
+    expect(
+      navNodes.every((node) => node.canRequestFocus && !node.skipTraversal),
+      isTrue,
+    );
+
+    // Traverse the actual page and shell, not a simplified empty ShellRoute.
+    // Mount each direction fresh so manual refocusing after auto-scroll does
+    // not change ReadingOrderTraversalPolicy's geometry-based starting order.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    var first = FocusManager.instance.primaryFocus!;
+    for (final reverse in [false, true]) {
+      if (reverse) {
+        await _pumpRouter(
+          tester,
+          initialLocation: '/home',
+          authState: const AuthState(isLoading: false, isAuthenticated: true),
+          petState: _petState(
+            isLoading: false,
+            hasOnboarded: true,
+            pets: [pet],
+            activePetId: pet.id,
+          ),
+          communityService: _FakeCommunityService(),
+          notificationService: _EmptyNotificationService(),
+        );
+        navNodes = find
+            .descendant(of: nav, matching: find.byType(AppVisual))
+            .evaluate()
+            .map((element) => Focus.of(element))
+            .toSet()
+            .toList();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        first = FocusManager.instance.primaryFocus!;
+      }
+      first.requestFocus();
+      await tester.pumpAndSettle();
+      final reachedNavNodes = <FocusNode>{};
+      for (var step = 0; step < 80; step++) {
+        if (reverse) {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        if (reverse) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        final node = FocusManager.instance.primaryFocus!;
+        if (navNodes.contains(node)) reachedNavNodes.add(node);
+        if (reachedNavNodes.length == 3) break;
+      }
+      expect(
+        reachedNavNodes,
+        unorderedEquals(navNodes),
+        reason:
+            '${reverse ? 'Shift+Tab' : 'Tab'} from actual home must reach every navigation target',
+      );
+    }
+
+    // Existing shell/page traversal policy is independent of the ring. Once
+    // an existing nav node is focused, keyboard traversal must not gain stops.
+    navNodes.first.requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(navNodes[1].hasPrimaryFocus, isTrue);
+    final focusedRing = find.descendant(
+      of: nav,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is AppFocusRing && widget.focused,
+      ),
+    );
+    expect(focusedRing, findsOneWidget);
+    expect(
+      find.descendant(
+        of: focusedRing,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is CustomPaint && widget.foregroundPainter != null,
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(navNodes.first.hasPrimaryFocus, isTrue);
   });
 
   testWidgets('/community/category/:category opens inside main scaffold', (
