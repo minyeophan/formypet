@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -185,9 +186,14 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
                                     FocusScope.of(context).unfocus(),
                                 style: style,
                                 decoration: const InputDecoration(
-                                  filled: false,
+                                  filled: true,
+                                  fillColor: AppInteractionStyle.inputFill,
                                   hintText: '0원',
-                                  contentPadding: EdgeInsets.all(18),
+                                  // Filled Material 3 fields add 4px on each side.
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 18,
+                                  ),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
@@ -227,19 +233,22 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
                                   child: SizedBox(
                                     height: 48,
                                     child: OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor:
-                                            AppColors.primaryPressed,
-                                        padding: EdgeInsets.zero,
-                                        side: const BorderSide(
-                                          color: AppColors.border,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
+                                      style:
+                                          OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.primaryPressed,
+                                            padding: EdgeInsets.zero,
+                                            side: const BorderSide(
+                                              color: AppColors.border,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                          ).copyWith(
+                                            overlayColor:
+                                                AppInteractionStyle.overlay(),
                                           ),
-                                        ),
-                                      ),
                                       onPressed:
                                           _saving ||
                                               !_initialized ||

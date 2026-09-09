@@ -6,6 +6,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/app_theme.dart';
+import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/core/app_v2_tokens.dart';
 import 'package:frontend/screens/wallet/expense_form.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/models/wallet_expense.dart';
@@ -188,6 +190,37 @@ void main() {
                 layoutFont: true,
               );
               await openBudget(tester);
+              final budgetField = tester.widget<TextField>(
+                find.byKey(const Key('wallet-budget-input')),
+              );
+              expect(budgetField.decoration!.filled, isTrue);
+              expect(
+                WidgetStateProperty.resolveAs<Color>(
+                  budgetField.decoration!.fillColor!,
+                  {},
+                ),
+                AppColors.white,
+              );
+              expect(
+                WidgetStateProperty.resolveAs<Color>(
+                  budgetField.decoration!.fillColor!,
+                  {WidgetState.disabled},
+                ),
+                AppColors.surfaceSoft,
+              );
+              expect(
+                find.ancestor(
+                  of: find.byKey(const Key('wallet-budget-input')),
+                  matching: find.byWidgetPredicate(
+                    (w) =>
+                        w is Container &&
+                        w.decoration is BoxDecoration &&
+                        (w.decoration! as BoxDecoration).color ==
+                            AppV2Tokens.mintSurface,
+                  ),
+                ),
+                findsOneWidget,
+              );
               await tester.enterText(
                 find.byKey(const Key('wallet-budget-input')),
                 '100000000',
@@ -273,23 +306,31 @@ void main() {
     painter.dispose();
   });
 
-  testWidgets('app theme does not fill or outline the budget amount field', (
-    tester,
-  ) async {
-    await pumpBudget(tester);
-    await tester.tap(find.text('예산 설정'));
-    await tester.pumpAndSettle();
-    final decorator = tester.widget<InputDecorator>(
-      find.descendant(
-        of: find.byKey(const Key('wallet-budget-input')),
-        matching: find.byType(InputDecorator),
-      ),
-    );
-    expect(decorator.decoration.filled, false);
-    expect(decorator.decoration.enabledBorder, InputBorder.none);
-    expect(decorator.decoration.focusedBorder, InputBorder.none);
-    expect(decorator.decoration.disabledBorder, InputBorder.none);
-  });
+  testWidgets(
+    'app theme fills budget amount white and preserves its frameless border',
+    (tester) async {
+      await pumpBudget(tester);
+      await tester.tap(find.text('예산 설정'));
+      await tester.pumpAndSettle();
+      final decorator = tester.widget<InputDecorator>(
+        find.descendant(
+          of: find.byKey(const Key('wallet-budget-input')),
+          matching: find.byType(InputDecorator),
+        ),
+      );
+      expect(decorator.decoration.filled, true);
+      expect(
+        WidgetStateProperty.resolveAs<Color>(
+          decorator.decoration.fillColor!,
+          {},
+        ),
+        AppColors.white,
+      );
+      expect(decorator.decoration.enabledBorder, InputBorder.none);
+      expect(decorator.decoration.focusedBorder, InputBorder.none);
+      expect(decorator.decoration.disabledBorder, InputBorder.none);
+    },
+  );
 
   testWidgets('app theme keeps expense amount white with a green underline', (
     tester,
@@ -317,6 +358,22 @@ void main() {
       ),
     );
     expect(decorator.decoration.filled, false);
+    final surface = tester.widget<ColoredBox>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('expense-amount-input')),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(
+      WidgetStateProperty.resolveAs<Color>(surface.color, {}),
+      AppColors.white,
+    );
+    expect(
+      WidgetStateProperty.resolveAs<Color>(decorator.decoration.fillColor!, {}),
+      AppColors.white,
+    );
     expect(decorator.decoration.enabledBorder, isA<UnderlineInputBorder>());
   });
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -124,6 +125,8 @@ void main() {
         .toList();
     expect(fields[0].controller!.text, '보호자');
     expect(fields[1].controller!.text, 'user@example.com');
+    expect(fields[1].readOnly, isTrue);
+    expect(fields[1].decoration!.fillColor, AppColors.surfaceSoft);
 
     await tester.tap(find.text('사진 선택'));
     await tester.pumpAndSettle();
@@ -421,6 +424,12 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(2));
     for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(field.enabled, isFalse);
+      expect(
+        WidgetStateProperty.resolveAs(field.decoration!.fillColor!, {
+          WidgetState.disabled,
+        }),
+        AppColors.surfaceSoft,
+      );
     }
 
     await tester.tap(find.byType(TextField).first, warnIfMissed: false);

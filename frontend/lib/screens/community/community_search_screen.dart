@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_interaction_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -121,7 +122,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                   icon: const AppIcon(Icons.close_rounded),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppInteractionStyle.inputFill,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -148,7 +149,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 key: const Key('community-search-submit-button'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppV2Tokens.primary,
-                ),
+                ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 onPressed: _loading ? null : _search,
                 child: const Text('검색'),
               ),
