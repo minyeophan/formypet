@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'app_interaction_style.dart';
+import '../widgets/app_ink_well.dart';
 
 ThemeData buildAppTheme() => ThemeData(
   colorScheme: ColorScheme.fromSeed(
@@ -11,6 +13,9 @@ ThemeData buildAppTheme() => ThemeData(
     surface: Colors.white,
   ),
   scaffoldBackgroundColor: Colors.white,
+  hoverColor: Colors.transparent,
+  splashColor: AppColors.primary.withValues(alpha: .10),
+  highlightColor: Colors.transparent,
   textTheme: GoogleFonts.notoSansKrTextTheme(),
   textSelectionTheme: TextSelectionThemeData(
     cursorColor: AppColors.primary,
@@ -27,6 +32,9 @@ ThemeData buildAppTheme() => ThemeData(
             borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
         ).copyWith(
+          // The existing pressed background already supplies the feedback.
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          backgroundBuilder: AppFocusRing.buttonBuilder,
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
               return AppColors.surfaceSoft;
@@ -43,9 +51,18 @@ ThemeData buildAppTheme() => ThemeData(
           ),
         ),
   ),
+  textButtonTheme: TextButtonThemeData(style: _interactionButtonStyle()),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: _interactionButtonStyle(),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: _interactionButtonStyle(),
+  ),
+  iconButtonTheme: IconButtonThemeData(style: _interactionButtonStyle()),
   inputDecorationTheme: const InputDecorationTheme(
     filled: true,
-    fillColor: Color(0xFFF5F6F5),
+    fillColor: AppInteractionStyle.inputFill,
+    hoverColor: Colors.transparent,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.all(Radius.circular(14)),
       borderSide: BorderSide(color: Color(0xFFE1E5E2)),
@@ -62,4 +79,9 @@ ThemeData buildAppTheme() => ThemeData(
     errorMaxLines: 3,
   ),
   useMaterial3: true,
+);
+
+ButtonStyle _interactionButtonStyle() => ButtonStyle(
+  overlayColor: AppInteractionStyle.overlay(),
+  backgroundBuilder: AppFocusRing.buttonBuilder,
 );
