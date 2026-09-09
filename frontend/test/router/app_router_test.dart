@@ -48,8 +48,10 @@ import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
@@ -554,7 +556,7 @@ void main() {
     expect(find.byType(ExpenseWalletScreen), findsOneWidget);
   });
 
-  testWidgets('wallet actions open expense add route and reset filters', (
+  testWidgets('wallet actions open expense add and report routes', (
     tester,
   ) async {
     final pet = _pet('1');
@@ -570,7 +572,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('\uBE44\uC6A9 \uCD94\uAC00'));
+    await tester.tap(find.byKey(const Key('wallet-add-button')));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseAddScreen), findsOneWidget);
 
@@ -586,7 +588,20 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('\uC804\uCCB4\uBCF4\uAE30'));
+    await tester.scrollUntilVisible(
+      find.text('전체보기'),
+      250,
+      scrollable: find
+          .byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+          )
+          .first,
+    );
+    // scrollUntilVisible can finish with an ensureVisible jump; lay it out
+    // before computing the tap position (the fixed add action is below it).
+    await tester.pumpAndSettle();
+    expect(find.text('전체보기').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('전체보기'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseReportScreen), findsOneWidget);
   });
@@ -1571,6 +1586,11 @@ class _RouterWalletNotifier extends WalletExpenseNotifier {
 }
 
 class _FakeWalletExpenseService extends WalletExpenseService {
+  @override
+  Future<List<WalletExpense>> listAllExpenses(String petId) async => [
+    _walletExpense().copyWith(petId: petId),
+  ];
+
   @override
   Future<WalletExpense> getExpense(String petId, String expenseId) async =>
       WalletExpense(

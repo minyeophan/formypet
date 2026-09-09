@@ -68,12 +68,13 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('theme settings is visibly preparing and disabled', (tester) async {
+  testWidgets('theme settings is visibly preparing and disabled', (
+    tester,
+  ) async {
     await _pump(tester, const MySettingsScreen());
-    final row = find.ancestor(
-      of: find.text('테마 설정'),
-      matching: find.byType(InkWell),
-    ).first;
+    final row = find
+        .ancestor(of: find.text('테마 설정'), matching: find.byType(InkWell))
+        .first;
 
     expect(
       find.descendant(of: row, matching: find.text('준비중')),
@@ -354,16 +355,19 @@ void main() {
     expect(find.text('공지사항을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('support center shows four faq categories', (tester) async {
-    await _pumpSupportRouter(tester, '/my/support');
+  testWidgets(
+    'support center shows four faq categories without letter badges',
+    (tester) async {
+      await _pumpSupportRouter(tester, '/my/support');
 
-    for (final category in ['계정 관련', '기록 관련', '루틴 관련', '커뮤니티 관련']) {
-      expect(find.text(category), findsOneWidget);
-    }
-    for (final icon in ['계', '기', '루', '커']) {
-      expect(find.text(icon), findsOneWidget);
-    }
-  });
+      for (final category in ['계정 관련', '기록 관련', '루틴 관련', '커뮤니티 관련']) {
+        expect(find.text(category), findsOneWidget);
+      }
+      for (final icon in ['계', '기', '루', '커']) {
+        expect(find.text(icon), findsNothing);
+      }
+    },
+  );
 
   testWidgets('faq category route shows its three questions', (tester) async {
     await _pumpSupportRouter(tester, '/my/support/records');
@@ -388,7 +392,9 @@ void main() {
     expect(find.text('질문을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('inquiry explains unavailability before the form', (tester) async {
+  testWidgets('inquiry explains unavailability before the form', (
+    tester,
+  ) async {
     await _pumpSupportRouter(tester, '/my/inquiry');
 
     final notice = find.textContaining('준비중');

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_v2_tokens.dart';
+import '../../core/visuals/app_visual_id.dart';
+import '../../widgets/app_visual.dart';
 import '../../models/wallet_expense.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import 'wallet_expense_utils.dart';
+import 'wallet_budget_amount_input.dart';
+import 'wallet_amount_layout.dart';
 
 enum ExpenseFormMode { add, edit }
 
@@ -90,6 +96,8 @@ class ExpenseFormBody extends StatefulWidget {
   final ExpenseFormMode mode;
   final ExpenseFormData initialData;
   final String? petName;
+  final Widget? petSelector;
+  final bool? validTarget;
   final bool submitting;
   final String? errorText;
   final ValueChanged<ExpenseFormData> onSubmit;
@@ -99,6 +107,8 @@ class ExpenseFormBody extends StatefulWidget {
     required this.mode,
     required this.initialData,
     required this.petName,
+    this.petSelector,
+    this.validTarget,
     required this.submitting,
     required this.errorText,
     required this.onSubmit,
@@ -124,7 +134,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
     _time = initial.time;
     _category = initial.category.isEmpty ? null : initial.category;
     _amountCtrl = TextEditingController(
-      text: initial.amount > 0 ? initial.amount.toString() : '',
+      text: initial.amount > 0 ? formatWon(initial.amount) : '',
     );
     _itemNameCtrl = TextEditingController(text: initial.itemName);
     _memoCtrl = TextEditingController(text: initial.note);
@@ -140,7 +150,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
       _date = initial.date;
       _time = initial.time;
       _category = initial.category.isEmpty ? null : initial.category;
-      _amountCtrl.text = initial.amount > 0 ? initial.amount.toString() : '';
+      _amountCtrl.text = initial.amount > 0 ? formatWon(initial.amount) : '';
       _itemNameCtrl.text = initial.itemName;
       _memoCtrl.text = initial.note;
     }
@@ -154,37 +164,135 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
     super.dispose();
   }
 
-  int? get _amount => int.tryParse(_amountCtrl.text.trim());
+  int? get _amount => walletAmountValue(_amountCtrl.text);
 
   bool get _canSubmit =>
       !widget.submitting &&
-      widget.petName != null &&
+      (widget.validTarget ?? (widget.petName != null)) &&
       (_amount ?? 0) > 0 &&
-      (_amount ?? 0) <= 999999999 &&
-      _category != null;
+      (_amount ?? 0) <= walletMaxAmount &&
+      expenseCategoryOptions.any((option) => option.key == _category) &&
+      _itemNameCtrl.text.trim().length <= 100 &&
+      _memoCtrl.text.trim().length <= 500;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+    return RecordFormScrollBody(
+      padding: const EdgeInsets.all(20),
+      submitButton: SafeArea(
+        top: false,
+        child: _SaveButton(
+          label: widget.mode == ExpenseFormMode.add ? '지출 저장' : '수정 완료',
+          canSave: _canSubmit,
+          submitting: widget.submitting,
+          onTap: _canSubmit ? _submit : null,
+        ),
+      ),
       children: [
+        WalletAmountLayout(
+          controller: _amountCtrl,
+          illustrationWidth: 140,
+          amountBuilder: (style) => _SectionBlock(
+            title: '얼마를 썼나요?',
+            child: TextField(
+              key: const Key('expense-amount-input'),
+              controller: _amountCtrl,
+              readOnly: true,
+              showCursor: false,
+              enableInteractiveSelection: false,
+              onTap: widget.submitting ? null : _pickAmount,
+              style: style,
+              decoration: const InputDecoration(
+                filled: false,
+                hintText: '0원',
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                disabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                errorBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                focusedErrorBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+              ),
+            ),
+          ),
+          illustration: SvgPicture.asset(
+            'assets/illustrations/wallet_puppy_cheek.svg',
+            width: 140,
+            height: 112,
+            fit: BoxFit.contain,
+          ),
+        ),
+        if ((_amount ?? 0) > walletMaxAmount)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: AppText(
+              '금액이 너무 커요. 1억 원 이하로 입력해 주세요.',
+              fontSize: 12,
+              color: Colors.red,
+            ),
+          ),
+        const SizedBox(height: 24),
+        _SectionBlock(
+          title: '반려동물',
+          child:
+              widget.petSelector ??
+              (widget.petName == null
+                  ? const _InfoPanel(text: '반려동물을 등록해 주세요')
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: _PetChip(label: widget.petName!),
+                    )),
+        ),
+        const SizedBox(height: 24),
+        _SectionBlock(
+          title: '카테고리',
+          child: _CategoryGrid(
+            selectedValue: _category,
+            onSelected: (value) {
+              if (!widget.submitting) setState(() => _category = value);
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
         _SectionBlock(
           title: '날짜/시간',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 300 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20;
+              return Flex(
+                direction: stacked ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: stacked
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
+                  Flexible(
+                    flex: stacked ? 0 : 1,
+                    fit: FlexFit.tight,
                     child: _InputBox(
                       key: const Key('expense-date-button'),
                       text: DateFormat('yyyy-MM-dd').format(_date),
                       onTap: _pickDate,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
+                  SizedBox(width: stacked ? 0 : 10, height: stacked ? 10 : 0),
+                  Flexible(
+                    flex: stacked ? 0 : 1,
+                    fit: FlexFit.tight,
                     child: _InputBox(
                       key: const Key('expense-time-button'),
                       text: _timeLabel,
@@ -192,117 +300,82 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              _SubtleButton(label: '현재 시간으로 설정', onTap: _setNow),
-            ],
+              );
+            },
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
         _SectionBlock(
-          title: '금액',
-          child: Row(
-            children: [
-              Expanded(
-                child: RecordNumberInput(
-                  key: const Key('expense-amount-input'),
-                  controller: _amountCtrl,
-                  mode: RecordNumberInputMode.integer,
-                  hintText: '0',
-                  suffixText: '원',
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const _CurrencyChip(value: 'KRW'),
-            ],
+          title: '항목명',
+          child: _TextInput(
+            key: const Key('expense-item-name-field'),
+            controller: _itemNameCtrl,
+            maxLength: 100,
+            hintText: '선택',
+            enabled: !widget.submitting,
+            onChanged: (_) => setState(() {}),
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
         _SectionBlock(
-          title: '카테고리',
-          child: _CategoryGrid(
-            selectedValue: _category,
-            onSelected: (value) => setState(() => _category = value),
-          ),
-        ),
-        const SizedBox(height: 22),
-        _SectionBlock(
-          title: '반려동물',
-          child: widget.petName == null
-              ? const _InfoPanel(text: '반려동물을 등록해 주세요')
-              : Align(
-                  alignment: Alignment.centerLeft,
-                  child: _PetChip(label: widget.petName!),
-                ),
-        ),
-        const SizedBox(height: 22),
-        _SectionBlock(
-          title: '기본 정보',
-          child: _LabeledRow(
-            label: '항목명',
-            child: _TextInput(
-              key: const Key('expense-item-name-field'),
-              controller: _itemNameCtrl,
-              maxLength: 100,
-              hintText: '선택',
-            ),
-          ),
-        ),
-        const SizedBox(height: 22),
-        _SectionBlock(
-          title: '메모',
+          title: '메모 (선택)',
           child: _TextInput(
             key: const Key('expense-memo-field'),
             controller: _memoCtrl,
             maxLength: 500,
-            hintText: '선택',
-            maxLines: 4,
+            hintText: '간단한 메모를 남겨보세요',
+            maxLines: 1,
+            enabled: !widget.submitting,
+            onChanged: (_) => setState(() {}),
           ),
         ),
-        const SizedBox(height: 24),
         if (widget.errorText != null) ...[
+          const SizedBox(height: 24),
           _InlineError(text: widget.errorText!),
-          const SizedBox(height: 12),
         ],
-        _SaveButton(
-          label: widget.mode == ExpenseFormMode.add ? '비용 저장' : '수정 완료',
-          canSave: _canSubmit,
-          submitting: widget.submitting,
-          onTap: _canSubmit ? _submit : null,
-        ),
       ],
     );
   }
 
   Future<void> _pickDate() async {
+    if (widget.submitting) return;
     final picked = await showRecordDatePickerSheet(context, initialDate: _date);
-    if (picked != null) {
+    if (mounted && picked != null) {
       setState(() => _date = DateTime(picked.year, picked.month, picked.day));
     }
   }
 
   Future<void> _pickTime() async {
+    if (widget.submitting) return;
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
-    if (picked != null) {
+    if (mounted && picked != null) {
       setState(() => _time = picked);
     }
   }
 
-  void _setNow() {
-    final now = DateTime.now();
-    setState(() {
-      _date = DateTime(now.year, now.month, now.day);
-      _time = TimeOfDay(hour: now.hour, minute: now.minute);
-    });
+  Future<void> _pickAmount() async {
+    final value = await showRecordNumberPadSheet(
+      context,
+      initialValue: _amount?.toString() ?? '',
+      mode: RecordNumberInputMode.integer,
+      suffixText: '원',
+      placeholderText: '0',
+    );
+    if (!mounted || value == null || widget.submitting) return;
+    setState(
+      () => _amountCtrl.text = int.tryParse(value) == null
+          ? value
+          : formatWon(int.parse(value)),
+    );
   }
 
   void _submit() {
+    if (!_canSubmit) return;
     final amount = _amount;
     final category = _category;
     if (amount == null ||
         amount <= 0 ||
-        amount > 999999999 ||
+        amount > walletMaxAmount ||
         category == null) {
       return;
     }
@@ -337,11 +410,11 @@ class _SectionBlock extends StatelessWidget {
       children: [
         AppText(
           title,
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
           color: AppColors.text,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         child,
       ],
     );
@@ -358,84 +431,25 @@ class _InputBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
           child: AppText(
             text,
             fontSize: 14,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.normal,
             color: AppColors.text,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SubtleButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _SubtleButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CurrencyChip extends StatelessWidget {
-  final String value;
-
-  const _CurrencyChip({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      width: 76,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: AppText(
-        value,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: AppColors.text,
       ),
     );
   }
@@ -449,25 +463,18 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: expenseCategoryOptions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisExtent: 78,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemBuilder: (context, index) {
-        final option = expenseCategoryOptions[index];
-        return _CategoryCard(
-          key: Key('expense-category-${option.key}'),
-          option: option,
-          selected: selectedValue == option.key,
-          onTap: () => onSelected(option.key),
-        );
-      },
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final option in expenseCategoryOptions)
+          _CategoryCard(
+            key: Key('expense-category-${option.key}'),
+            option: option,
+            selected: selectedValue == option.key,
+            onTap: () => onSelected(option.key),
+          ),
+      ],
     );
   }
 }
@@ -487,25 +494,37 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.text : AppColors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: selected ? AppV2Tokens.mintSurface : AppColors.white,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
+          width: 62,
+          height: 76,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? AppColors.text : AppColors.border,
+              color: selected ? AppColors.primary : AppColors.border,
             ),
           ),
-          child: AppText(
-            option.label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: selected ? AppColors.white : AppColors.text,
-            textAlign: TextAlign.center,
+          child: Semantics(
+            selected: selected,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ExpenseCategoryVisual(category: option.key, size: 32),
+                const SizedBox(height: 6),
+                AppText(
+                  option.label,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.text,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -521,17 +540,16 @@ class _PetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: AppText(
         label,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: AppColors.text,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.white,
       ),
     );
   }
@@ -549,7 +567,7 @@ class _InfoPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
       child: AppText(
@@ -562,41 +580,13 @@ class _InfoPanel extends StatelessWidget {
   }
 }
 
-class _LabeledRow extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _LabeledRow({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 92,
-          height: 48,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: AppText(
-              label,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-            ),
-          ),
-        ),
-        Expanded(child: child),
-      ],
-    );
-  }
-}
-
 class _TextInput extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final int maxLines;
   final int? maxLength;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
 
   const _TextInput({
     super.key,
@@ -604,6 +594,8 @@ class _TextInput extends StatelessWidget {
     required this.hintText,
     this.maxLines = 1,
     this.maxLength,
+    required this.enabled,
+    required this.onChanged,
   });
 
   @override
@@ -611,13 +603,15 @@ class _TextInput extends StatelessWidget {
     return TextField(
       key: key,
       controller: controller,
+      enabled: enabled,
+      onChanged: onChanged,
       maxLines: maxLines,
       maxLength: maxLength,
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: const TextStyle(
         fontSize: 14,
         color: AppColors.text,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.normal,
       ),
       decoration: InputDecoration(
         hintText: hintText,
@@ -625,16 +619,16 @@ class _TextInput extends StatelessWidget {
         fillColor: AppColors.white,
         hintStyle: const TextStyle(color: AppColors.muted),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
+          horizontal: 16,
           vertical: 13,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.text),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
       ),
     );
@@ -653,7 +647,7 @@ class _InlineError extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: AppText(
@@ -696,9 +690,9 @@ class _SaveButtonState extends State<_SaveButton> {
     return Material(
       key: const Key('expense-save-button'),
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         onTap: widget.onTap,
         onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
         child: AnimatedContainer(
@@ -707,7 +701,7 @@ class _SaveButtonState extends State<_SaveButton> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: widget.canSave ? color : AppColors.border,
             ),
@@ -723,12 +717,37 @@ class _SaveButtonState extends State<_SaveButton> {
                 )
               : AppText(
                   widget.label,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
                   color: widget.canSave ? AppColors.white : AppColors.muted,
                 ),
         ),
       ),
     );
   }
+}
+
+/// Wallet categories reuse the app's registered SVG assets.
+class ExpenseCategoryVisual extends StatelessWidget {
+  final String category;
+  final double size;
+  const ExpenseCategoryVisual({
+    super.key,
+    required this.category,
+    this.size = 32,
+  });
+
+  @override
+  Widget build(BuildContext context) => AppVisual(
+    id: switch (category) {
+      'food' => AppVisualId.mealDry,
+      'snack' => AppVisualId.mealSnack,
+      'hospital' => AppVisualId.recordVet,
+      'medicine' => AppVisualId.recordMedicine,
+      'grooming' => AppVisualId.recordGroom,
+      'supplies' => AppVisualId.recordBath,
+      _ => AppVisualId.recordEtc,
+    },
+    size: size,
+  );
 }

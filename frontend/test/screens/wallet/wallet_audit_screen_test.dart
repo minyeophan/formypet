@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/pet.dart';
+import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
+import 'package:frontend/providers/wallet_query_provider.dart';
+import 'package:frontend/screens/wallet/wallet_expense_utils.dart';
 import 'package:frontend/screens/wallet/expense_calendar_screen.dart';
 import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
 import 'package:frontend/screens/wallet/expense_detail_screen.dart';
@@ -73,14 +76,14 @@ void main() {
         );
         expect(find.textContaining('새로고침'), findsWidgets);
         if (screen is ExpenseWalletScreen) {
-          expect(find.text('총 지출'), findsNothing);
+          expect(find.byKey(const Key('wallet-period-total')), findsNothing);
         } else {
           expect(find.text('—'), findsOneWidget);
         }
         await tester.tap(find.text('A'));
         await tester.pumpAndSettle();
         if (screen is ExpenseWalletScreen) {
-          expect(find.text('총 지출'), findsOneWidget);
+          expect(find.byKey(const Key('wallet-period-total')), findsOneWidget);
         } else {
           expect(find.text('—'), findsNothing);
         }
@@ -163,6 +166,7 @@ void main() {
       final router = ownerRouter('/wallet/expenses/new');
       addTearDown(router.dispose);
       await pumpWallet(tester, null, router: router);
+      await tester.tap(find.byKey(const Key('expense-pet-p1')));
       await tester.tap(find.byKey(const Key('expense-amount-input')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('record-number-key-5')));
@@ -246,7 +250,9 @@ void main() {
     WalletTestApi([
       expenseJson('historical', 'p1', date: '2020-01-01', amount: 9000),
     ]);
-    await pumpWallet(tester, const ExpenseWalletScreen());
+    final container = await pumpWallet(tester, const ExpenseWalletScreen());
+    container.read(walletQueryProvider.notifier).setPeriod(WalletPeriod.all);
+    await tester.pumpAndSettle();
     expect(find.text('9,000원'), findsWidgets);
     expect(find.textContaining('초과'), findsNothing);
   });
@@ -291,7 +297,15 @@ Future<ProviderContainer> pumpWallet(
     overrides: [
       authProvider.overrideWith(
         (ref) => AuthNotifier.test(
-          const AuthState(isLoading: false, isAuthenticated: true),
+          const AuthState(
+            isLoading: false,
+            isAuthenticated: true,
+            profile: UserProfile(
+              id: 'wallet-test-user',
+              email: 'wallet@test.local',
+              nickname: '집사',
+            ),
+          ),
         ),
       ),
       petProvider.overrideWith((ref) => PetNotifier.test(walletPets())),

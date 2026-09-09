@@ -240,11 +240,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
       GoRoute(
         path: '/wallet/calendar',
-        builder: (c, s) => const ExpenseCalendarScreen(),
+        builder: (c, s) => ExpenseCalendarScreen(
+          petId: s.uri.queryParameters['petId'],
+          category: s.uri.queryParameters['category'],
+          period: s.uri.queryParameters['period'],
+        ),
       ),
       GoRoute(
         path: '/wallet/report',
-        builder: (c, s) => const ExpenseReportScreen(),
+        builder: (c, s) => ExpenseReportScreen(
+          petId: s.uri.queryParameters['petId'],
+          category: s.uri.queryParameters['category'],
+          period: s.uri.queryParameters['period'],
+        ),
       ),
       GoRoute(
         path: '/wallet/expenses/new',
