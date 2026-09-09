@@ -204,31 +204,3 @@ class MySupportNotFound extends StatelessWidget {
     );
   }
 }
-
-class _TextIconTile extends StatelessWidget {
-  final String label;
-
-  const _TextIconTile({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 34,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: AppText(
-            label,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
