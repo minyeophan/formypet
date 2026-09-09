@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
@@ -54,37 +57,123 @@ void main() {
     }
   });
 
-  testWidgets('poop option cards do not retain gray web interaction colors', (
-    tester,
-  ) async {
-    await _pumpCategoryRoute(tester, '/records/poop/new');
+  testWidgets(
+    'poop options stay white with visible focus and selection borders',
+    (tester) async {
+      await _pumpCategoryRoute(tester, '/records/poop/new');
 
-    final looseInkWell = tester.widget<InkWell>(
-      find.descendant(
-        of: find.byKey(const Key('category-poop-shape-loose')),
-        matching: find.byType(InkWell),
-      ),
-    );
-    expect(looseInkWell.hoverColor, Colors.transparent);
-    expect(looseInkWell.focusColor, Colors.transparent);
-    expect(looseInkWell.highlightColor, Colors.transparent);
-    expect(
-      find.byKey(const ValueKey('category-poop-color-stool')),
-      findsOneWidget,
-    );
+      final looseInkWell = tester.widget<InkWell>(
+        find.descendant(
+          of: find.byKey(const Key('category-poop-shape-loose')),
+          matching: find.byType(InkWell),
+        ),
+      );
+      expect(looseInkWell.hoverColor, Colors.transparent);
+      expect(looseInkWell.focusColor, Colors.transparent);
+      expect(looseInkWell.highlightColor, Colors.transparent);
+      final normalInkWell = tester.widget<InkWell>(
+        find.descendant(
+          of: find.byKey(const Key('category-poop-shape-normal')),
+          matching: find.byType(InkWell),
+        ),
+      );
+      normalInkWell.focusNode!.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      final option = find.byKey(const Key('category-poop-shape-loose'));
+      final focus = find.descendant(
+        of: option,
+        matching: find.byType(AppFocusRing),
+      );
+      expect(tester.widget<AppFocusRing>(focus).focused, isTrue);
+      expect(
+        tester
+            .widget<CustomPaint>(
+              find
+                  .descendant(of: focus, matching: find.byType(CustomPaint))
+                  .first,
+            )
+            .foregroundPainter,
+        isNotNull,
+      );
+      for (final selected in [false, true]) {
+        if (selected) {
+          await tester.tap(option);
+          await tester.pump();
+          expect(
+            tester
+                .widget<CustomPaint>(
+                  find
+                      .descendant(of: focus, matching: find.byType(CustomPaint))
+                      .first,
+                )
+                .foregroundPainter,
+            isNull,
+          );
+        }
+        expect(
+          tester
+              .widget<Material>(
+                find
+                    .descendant(of: option, matching: find.byType(Material))
+                    .first,
+              )
+              .color,
+          AppColors.white,
+        );
+        final decoration =
+            tester
+                    .widget<Container>(
+                      find
+                          .descendant(
+                            of: option,
+                            matching: find.byWidgetPredicate(
+                              (w) =>
+                                  w is Container &&
+                                  w.decoration is BoxDecoration,
+                            ),
+                          )
+                          .first,
+                    )
+                    .decoration!
+                as BoxDecoration;
+        final border = decoration.border! as Border;
+        expect(border.top.width, 1.5);
+        expect(
+          border.top.color,
+          selected ? AppColors.primary : AppColors.border,
+        );
+        expect(
+          tester
+              .widget<Semantics>(
+                find
+                    .descendant(of: option, matching: find.byType(Semantics))
+                    .first,
+              )
+              .properties
+              .selected,
+          selected,
+        );
+      }
+      expect(
+        find.byKey(const ValueKey('category-poop-color-stool')),
+        findsOneWidget,
+      );
 
-    await tester.tap(find.byKey(const Key('category-poop-kind-urine')));
-    await tester.pump();
+      await tester.tap(find.byKey(const Key('category-poop-kind-urine')));
+      await tester.pump();
 
-    expect(
-      find.byKey(const ValueKey('category-poop-color-urine')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('category-poop-color-stool')),
-      findsNothing,
-    );
-  });
+      expect(
+        find.byKey(const ValueKey('category-poop-color-urine')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('category-poop-color-stool')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('poop warning appears for risky stool or urine selections', (
     tester,

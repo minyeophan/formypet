@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -303,7 +305,7 @@ class WalletMonthNavigation extends StatelessWidget {
           icon: const AppIcon(Icons.chevron_left_rounded, size: 20),
         ),
       Expanded(
-        child: InkWell(
+        child: AppInkWell(
           key: onLabelTap == null ? null : const Key('wallet-month-label'),
           onTap: onLabelTap,
           borderRadius: BorderRadius.circular(12),
@@ -390,14 +392,15 @@ class _CategoryChoice extends StatelessWidget {
       button: true,
       label: label,
       child: Material(
-        color: selected ? const Color(0xFFEAF7F0) : AppColors.surface,
+        color: AppColors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
             color: selected ? AppColors.primary : AppColors.border,
+            width: 1.5,
           ),
         ),
-        child: InkWell(
+        child: AppInkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Container(
@@ -430,25 +433,27 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(right: 8),
-    child: ChoiceChip(
-      label: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 170),
-        child: Text(label, overflow: TextOverflow.ellipsis),
-      ),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      showCheckmark: false,
-      selectedColor: AppColors.primary,
-      backgroundColor: AppColors.surfaceSoft,
-      side: BorderSide.none,
+    child: AppFocusIndicator(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: selected ? AppColors.white : AppColors.text,
+      child: ChoiceChip(
+        label: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 170),
+          child: Text(label, overflow: TextOverflow.ellipsis),
+        ),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        showCheckmark: false,
+        color: AppInteractionStyle.inputFill,
+        side: AppInteractionStyle.selectionBorder(selected),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
       ),
     ),
   );
@@ -538,12 +543,11 @@ class WalletExpenseRow extends StatelessWidget {
     ].join(' · ');
     return Material(
       color: AppColors.surface,
-      child: InkWell(
+      child: AppInkWell(
         key: Key('$keyPrefix-${expense.id}'),
         onTap: () => context.push(
           '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(expense.petId)}',
         ),
-        focusColor: AppColors.primary.withValues(alpha: .10),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 18),

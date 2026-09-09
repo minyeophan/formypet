@@ -1,3 +1,5 @@
+import '../core/app_interaction_style.dart';
+import 'app_ink_well.dart';
 import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
@@ -92,7 +94,13 @@ class PetTextField extends StatelessWidget {
             ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.surfaceSoft,
+            fillColor: AppInteractionStyle.inputFillFor(
+              readOnly
+                  ? (onTap == null
+                        ? AppInputAccess.readOnly
+                        : AppInputAccess.picker)
+                  : AppInputAccess.editable,
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 13,
@@ -145,9 +153,12 @@ class PetDateField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.surfaceSoft,
+          color: AppInteractionStyle.inputFillFor(
+            AppInputAccess.picker,
+            enabled: onTap != null,
+          ),
           borderRadius: BorderRadius.circular(14),
-          child: InkWell(
+          child: AppInkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: onTap,
             child: Container(
@@ -209,9 +220,12 @@ class PetPickerField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.surfaceSoft,
+          color: AppInteractionStyle.inputFillFor(
+            AppInputAccess.picker,
+            enabled: enabled && onTap != null,
+          ),
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: enabled ? onTap : null,
             child: Container(
@@ -278,43 +292,47 @@ class PetChoiceButton extends StatelessWidget {
     final fontSize = dense ? 12.0 : 14.0;
     return Opacity(
       opacity: enabled ? 1 : 0.56,
-      child: Material(
-        color: selected ? AppColors.primary : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: Material(
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          onTap: enabled ? onTap : null,
-          child: Container(
-            constraints: BoxConstraints(
-              minHeight: minHeight,
-              minWidth: minWidth,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: verticalPadding,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: selected ? AppColors.primary : AppColors.border,
-                width: 1,
+          child: AppInkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: enabled ? onTap : null,
+            child: Container(
+              constraints: BoxConstraints(
+                minHeight: minHeight,
+                minWidth: minWidth,
               ),
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (leading != null) ...[leading!, const SizedBox(height: 4)],
-                AppText(
-                  label,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: selected ? AppColors.white : textColor,
-                  textAlign: TextAlign.center,
-                  maxLines: leading == null ? 1 : null,
-                  overflow: leading == null ? TextOverflow.ellipsis : null,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.border,
+                  width: 1.5,
                 ),
-              ],
+              ),
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (leading != null) ...[leading!, const SizedBox(height: 4)],
+                  AppText(
+                    label,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    textAlign: TextAlign.center,
+                    maxLines: leading == null ? 1 : null,
+                    overflow: leading == null ? TextOverflow.ellipsis : null,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

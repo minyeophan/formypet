@@ -42,6 +42,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final editableField = tester.widget<TextField>(
+        find.byWidgetPredicate(
+          (w) => w is TextField && w.key == const Key('expense-memo-field'),
+        ),
+      );
+      expect(
+        WidgetStateProperty.resolveAs<Color>(
+          editableField.decoration!.fillColor!,
+          {},
+        ),
+        AppColors.white,
+      );
       await tester.enterText(
         find.byKey(const Key('expense-memo-field')),
         'unsaved memo',
@@ -52,6 +64,26 @@ void main() {
       );
       rebuild(() => submitting = true);
       await tester.pump();
+      final disabledField = tester.widget<TextField>(
+        find.byWidgetPredicate(
+          (w) => w is TextField && w.key == const Key('expense-memo-field'),
+        ),
+      );
+      expect(disabledField.enabled, isFalse);
+      expect(
+        WidgetStateProperty.resolveAs<Color>(
+          disabledField.decoration!.fillColor!,
+          {WidgetState.disabled},
+        ),
+        AppColors.surfaceSoft,
+      );
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('expense-amount-input')))
+            .decoration!
+            .fillColor,
+        AppColors.surfaceSoft,
+      );
       expect(
         tester
             .widget<TextField>(

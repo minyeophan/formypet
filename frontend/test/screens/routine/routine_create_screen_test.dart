@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/routine.dart';
 import 'package:frontend/providers/pet_provider.dart';
@@ -14,19 +15,49 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
+  testWidgets('repeat and day focus rings follow the rendered chip corners', (
+    tester,
+  ) async {
+    await _pumpScreen(tester, _FakePetNotifier(_petState()));
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '매주'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '매주'));
+    await tester.pumpAndSettle();
+    final chips = tester
+        .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+        .toList();
+    expect(chips.length, 11);
+    for (final chip in chips) {
+      final finder = find.byWidget(chip);
+      final indicator = tester.widget<AppFocusIndicator>(
+        find
+            .ancestor(of: finder, matching: find.byType(AppFocusIndicator))
+            .first,
+      );
+      final material = tester.widget<Material>(
+        find.descendant(of: finder, matching: find.byType(Material)).first,
+      );
+      final actualShape = material.shape! as RoundedRectangleBorder;
+      expect(
+        (indicator.shape as RoundedRectangleBorder).borderRadius,
+        actualShape.borderRadius,
+      );
+      expect(actualShape.borderRadius, BorderRadius.circular(8));
+    }
+  });
+
   testWidgets(
     'category selection keeps white cards and moves the green border',
     (tester) async {
       await _pumpScreen(tester, _FakePetNotifier(_petState()));
       BoxDecoration card(String type) =>
           tester
-                  .widget<Container>(
+                  .widget<Ink>(
                     find
                         .descendant(
                           of: find.byKey(Key('routine-category-$type')),
                           matching: find.byWidgetPredicate(
-                            (w) =>
-                                w is Container && w.decoration is BoxDecoration,
+                            (w) => w is Ink && w.decoration is BoxDecoration,
                           ),
                         )
                         .first,
@@ -39,6 +70,8 @@ void main() {
       expect(card('meal').color, AppColors.surface);
       expect((card('meal').border! as Border).top.color, AppColors.primary);
       expect((card('medicine').border! as Border).top.color, AppColors.border);
+      expect((card('meal').border! as Border).top.width, 1.5);
+      expect((card('medicine').border! as Border).top.width, 1.5);
     },
   );
 
@@ -68,6 +101,11 @@ void main() {
     expect(dailyChip.showCheckmark, isFalse);
     expect(dailyChip.selectedColor, AppColors.primary);
     expect(weeklyChip.backgroundColor, AppColors.white);
+    expect(
+      dailyChip.color!.resolve({WidgetState.selected, WidgetState.hovered}),
+      AppColors.primary,
+    );
+    expect(weeklyChip.color!.resolve({WidgetState.hovered}), AppColors.white);
     expect(
       find.byKey(const Key('routine-notification-button')),
       findsOneWidget,
@@ -161,6 +199,17 @@ void main() {
     );
     final notifier = _FakePetNotifier(_petState());
     await _pumpScreen(tester, notifier, editingRoutine: routine);
+    final delete = tester.widget<OutlinedButton>(
+      find.byKey(const Key('routine-delete-button')),
+    );
+    expect(
+      delete.style!.overlayColor!.resolve({WidgetState.pressed}),
+      AppColors.danger.withValues(alpha: .10),
+    );
+    expect(
+      delete.style!.overlayColor!.resolve({WidgetState.hovered}),
+      Colors.transparent,
+    );
     final clearEnd = find.byTooltip('종료일 제거');
     await tester.ensureVisible(clearEnd);
     await tester.pumpAndSettle();

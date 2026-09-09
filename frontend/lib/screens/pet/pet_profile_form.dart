@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -543,7 +545,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
                             setState(() => _extraExpanded = !_extraExpanded),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
-                        ),
+                        ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                         child: Row(
                           children: [
                             const Expanded(

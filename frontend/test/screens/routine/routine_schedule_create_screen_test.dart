@@ -79,13 +79,12 @@ void main() {
       await _pumpScreen(tester);
       BoxDecoration card(String type) =>
           tester
-                  .widget<Container>(
+                  .widget<Ink>(
                     find
                         .descendant(
                           of: find.byKey(Key('schedule-category-$type')),
                           matching: find.byWidgetPredicate(
-                            (w) =>
-                                w is Container && w.decoration is BoxDecoration,
+                            (w) => w is Ink && w.decoration is BoxDecoration,
                           ),
                         )
                         .first,
@@ -98,6 +97,8 @@ void main() {
       expect(card('grooming').color, AppColors.surface);
       expect((card('grooming').border! as Border).top.color, AppColors.primary);
       expect((card('hospital').border! as Border).top.color, AppColors.border);
+      expect((card('grooming').border! as Border).top.width, 1.5);
+      expect((card('hospital').border! as Border).top.width, 1.5);
     },
   );
 
