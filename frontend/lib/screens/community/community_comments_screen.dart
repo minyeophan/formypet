@@ -21,6 +21,7 @@ class CommunityCommentsScreen extends ConsumerStatefulWidget {
     this.autofocus = false,
     this.initialThreadId,
     this.initialReplyToCommentId,
+    this.targetCommentId,
   });
 
   final String postId;
@@ -28,6 +29,7 @@ class CommunityCommentsScreen extends ConsumerStatefulWidget {
   final bool autofocus;
   final String? initialThreadId;
   final String? initialReplyToCommentId;
+  final String? targetCommentId;
 
   @override
   ConsumerState<CommunityCommentsScreen> createState() =>
@@ -40,6 +42,7 @@ class _CommunityCommentsScreenState
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
   final Map<String, GlobalKey> _threadKeys = {};
+  final _targetCommentKey = GlobalKey();
   final Set<String> _loadingReplies = {};
 
   List<PostComment> _comments = const [];
@@ -152,6 +155,12 @@ class _CommunityCommentsScreenState
       await _resolveInitialTarget(generation);
     } else {
       _resolvingTarget = false;
+      if (_postUnavailable && widget.targetCommentId != null && mounted) {
+        _showError('삭제되었거나 볼 수 없는 게시글이에요.');
+        if (context.canPop()) {
+          context.pop(CommunityActivityResult.postUnavailable);
+        }
+      }
     }
   }
 
@@ -170,6 +179,10 @@ class _CommunityCommentsScreenState
         root = thread;
       } catch (error) {
         if (!mounted || generation != _generation) return;
+        if (widget.targetCommentId != null && _isUnavailable(error)) {
+          _missingActivityComment();
+          return;
+        }
         _replyToCommentId = null;
         _resolvingTarget = false;
         setState(() {});
@@ -182,6 +195,54 @@ class _CommunityCommentsScreenState
       }
     }
     if (!mounted || generation != _generation) return;
+    final requestedComment = widget.targetCommentId;
+    if (requestedComment != null) {
+      try {
+        final seen = <String>{};
+        while (root!.id != requestedComment &&
+            !root.replies.any(
+              (reply) => reply.id == requestedComment && !reply.deleted,
+            ) &&
+            root.repliesNextCursor != null &&
+            seen.add(root.repliesNextCursor!)) {
+          final page = await ref
+              .read(communityServiceProvider)
+              .getReplies(
+                widget.postId,
+                root.id,
+                cursor: root.repliesNextCursor,
+              );
+          if (!mounted || generation != _generation) return;
+          root = root.copyWith(
+            replies: [...page.items, ...root.replies],
+            repliesNextCursor: page.nextCursor,
+            clearRepliesNextCursor: page.nextCursor == null,
+          );
+        }
+        if ((root.id == requestedComment && root.deleted) ||
+            (root.id != requestedComment &&
+                !root.replies.any(
+                  (r) => r.id == requestedComment && !r.deleted,
+                ))) {
+          _missingActivityComment();
+          return;
+        }
+        final resolved = root;
+        // Place the selected thread first so even an old target is laid out
+        // before ensureVisible runs in the lazily built comment list.
+        _comments = [resolved, ..._comments.where((r) => r.id != resolved.id)];
+      } catch (error) {
+        if (!mounted || generation != _generation) return;
+        if (_isUnavailable(error)) {
+          _missingActivityComment();
+          return;
+        }
+        _resolvingTarget = false;
+        setState(() {});
+        _showError('댓글 위치를 불러오지 못했어요. 다시 시도해 주세요.');
+        return;
+      }
+    }
     _resolvingTarget = false;
     if (widget.initialReplyToCommentId != null && !root.deleted) {
       _replyToCommentId = root.id;
@@ -190,17 +251,28 @@ class _CommunityCommentsScreenState
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || generation != _generation) return;
-      final targetContext = _threadKeys[root!.id]?.currentContext;
+      final targetContext =
+          _targetCommentKey.currentContext ??
+          _threadKeys[root!.id]?.currentContext;
       if (targetContext != null) {
         Scrollable.ensureVisible(
           targetContext,
           duration: const Duration(milliseconds: 220),
         );
       }
-      if (widget.initialReplyToCommentId != null && !root.deleted) {
+      if (widget.initialReplyToCommentId != null && !root!.deleted) {
         _focusNode.requestFocus();
       }
     });
+  }
+
+  void _missingActivityComment() {
+    _showError('댓글이 삭제되어 게시글로 이동합니다.');
+    if (context.canPop()) {
+      context.pop(CommunityActivityResult.openPost);
+    } else {
+      context.replace('/community/posts/${widget.postId}');
+    }
   }
 
   Future<void> _loadMore() async {
@@ -437,6 +509,8 @@ class _CommunityCommentsScreenState
               for (var i = 0; i < _comments.length; i++) ...[
                 if (i > 0) const SizedBox(height: 24),
                 CommunityCommentGroup(
+                  targetCommentId: widget.targetCommentId,
+                  targetCommentKey: _targetCommentKey,
                   threadKey: _threadKeys.putIfAbsent(
                     _comments[i].id,
                     GlobalKey.new,

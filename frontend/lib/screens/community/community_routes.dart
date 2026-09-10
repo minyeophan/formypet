@@ -1,5 +1,7 @@
 import 'community_constants.dart';
 
+enum CommunityActivityResult { openPost, postUnavailable }
+
 String communityPostPath(String postId, String? sourceKey) {
   final source = normalizeCommunitySourceKey(sourceKey);
   return Uri(

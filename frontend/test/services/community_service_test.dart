@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/my_community_activity.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -53,6 +54,56 @@ void main() {
     expect(captured?.queryParameters['category'], 'CARE');
   });
 
+  test(
+    'my activities sends authenticated-user filters and decodes reply metadata',
+    () async {
+      RequestOptions? captured;
+      dio.httpClientAdapter = _CannedAdapter((options) {
+        captured = options;
+        return _jsonResponse(options, 200, {
+          'data': {
+            'items': [
+              {
+                'post': {
+                  'id': 12,
+                  'userId': 9,
+                  'authorNickname': 'author',
+                  'title': 'post',
+                  'content': 'body',
+                  'category': 'FREE',
+                  'mediaUrls': [],
+                  'likesCount': 1,
+                  'commentsCount': 2,
+                  'liked': true,
+                  'createdAt': '2026-09-09T12:00:00',
+                },
+                'activityAt': '2026-09-10T12:00:00',
+                'comment': {'id': 32, 'parentId': 21, 'content': 'reply'},
+              },
+            ],
+            'nextCursor': 'next-page',
+          },
+        });
+      });
+      final page = await CommunityService().getMyActivities(
+        MyActivityType.commented,
+        cursor: 'previous-page',
+      );
+      expect(captured?.path, '/api/v1/me/community/activities');
+      expect(captured?.queryParameters, {
+        'type': 'commented',
+        'limit': 20,
+        'cursor': 'previous-page',
+      });
+      expect(page.items.single.post.id, '12');
+      expect(page.items.single.activityAt, '2026-09-10T12:00:00');
+      expect(page.items.single.commentId, '32');
+      expect(page.items.single.parentId, '21');
+      expect(page.items.single.commentContent, 'reply');
+      expect(page.nextCursor, 'next-page');
+    },
+  );
+
   test('update and delete post use the backend contract', () async {
     final requests = <RequestOptions>[];
     dio.httpClientAdapter = _CannedAdapter((options) {
@@ -60,21 +111,32 @@ void main() {
       if (options.method == 'PUT') {
         return _jsonResponse(options, 200, {
           'data': {
-            'id': 'post-1', 'userId': 'user-1', 'authorNickname': 'Momo',
-            'title': 'updated', 'content': 'body', 'category': 'FREE',
-            'mediaUrls': [], 'createdAt': '2026-06-24T00:00:00',
+            'id': 'post-1',
+            'userId': 'user-1',
+            'authorNickname': 'Momo',
+            'title': 'updated',
+            'content': 'body',
+            'category': 'FREE',
+            'mediaUrls': [],
+            'createdAt': '2026-06-24T00:00:00',
           },
         });
       }
       return _jsonResponse(options, 204, {});
     });
 
-    await CommunityService().updatePost('post-1', title: ' updated ',
-        content: ' body ', category: 'free');
+    await CommunityService().updatePost(
+      'post-1',
+      title: ' updated ',
+      content: ' body ',
+      category: 'free',
+    );
     await CommunityService().deletePost('post-1');
 
-    expect(requests.map((r) => '${r.method} ${r.path}'),
-        ['PUT /api/v1/posts/post-1', 'DELETE /api/v1/posts/post-1']);
+    expect(requests.map((r) => '${r.method} ${r.path}'), [
+      'PUT /api/v1/posts/post-1',
+      'DELETE /api/v1/posts/post-1',
+    ]);
     expect((requests.first.data as Map)['category'], 'FREE');
     expect((requests.first.data as Map)['title'], 'updated');
   });

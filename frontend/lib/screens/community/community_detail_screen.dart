@@ -41,6 +41,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   String? _commentsCursor;
   Object? _commentsError;
   bool _unavailable = false;
+  bool _unavailableExitPending = false;
   bool _postLoading = true;
   bool _commentsLoading = true;
   bool _reloading = false;
@@ -89,12 +90,13 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
       if (!mounted || generation != _postGeneration) return;
       final status = error is DioException ? error.response?.statusCode : null;
       setState(() {
-        if (status == 400 || status == 404) {
+        if (status == 400 || status == 403 || status == 404) {
           _unavailable = true;
         }
       });
       if (ref.read(communityProvider).postsById[widget.postId] != null &&
           status != 400 &&
+          status != 403 &&
           status != 404) {
         _snack('게시글을 불러오지 못했습니다');
       }
@@ -184,8 +186,30 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     context,
   ).showSnackBar(SnackBar(content: Text(message)));
 
+  void _returnUnavailableWhenCurrent() {
+    if (_unavailableExitPending) return;
+    _unavailableExitPending = true;
+    // A response belonging to a covered detail must never pop a newer route.
+    // ModalRoute.of in build subscribes to isCurrent changes, so returning
+    // from the covering route schedules the exit when detail is on top again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_unavailable ||
+          ModalRoute.of(context)?.isCurrent != true ||
+          !context.canPop()) {
+        _unavailableExitPending = false;
+        return;
+      }
+      _snack('삭제되었거나 볼 수 없는 게시글이에요.');
+      context.pop(CommunityActivityResult.postUnavailable);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_unavailable && ModalRoute.of(context)?.isCurrent == true) {
+      _returnUnavailableWhenCurrent();
+    }
     final state = ref.watch(communityProvider);
     final post = state.postsById[widget.postId];
     final currentUserId = ref.watch(
@@ -365,7 +389,12 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await ref.read(communityProvider.notifier).deletePost(widget.postId);
-      if (mounted) context.go(communityFallbackPath(widget.sourceKey));
+      if (!mounted) return;
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(communityFallbackPath(widget.sourceKey));
+      }
     } catch (_) {
       if (mounted) _snack('게시글 삭제에 실패했습니다.');
     }

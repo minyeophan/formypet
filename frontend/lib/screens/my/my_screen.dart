@@ -208,9 +208,21 @@ const _menuGroups = [
   _MyMenuGroup(
     title: '나의 활동',
     items: [
-      _MyMenuItem(label: '내가 쓴 글', icon: Icons.edit_note_rounded),
-      _MyMenuItem(label: '내가 공감한 글', icon: Icons.favorite_border_rounded),
-      _MyMenuItem(label: '내가 댓글 남긴 글', icon: Icons.chat_bubble_outline_rounded),
+      _MyMenuItem(
+        label: '내가 쓴 글',
+        icon: Icons.edit_note_rounded,
+        route: '/my/activity?tab=written',
+      ),
+      _MyMenuItem(
+        label: '내가 공감한 글',
+        icon: Icons.favorite_border_rounded,
+        route: '/my/activity?tab=liked',
+      ),
+      _MyMenuItem(
+        label: '내가 댓글 남긴 글',
+        icon: Icons.chat_bubble_outline_rounded,
+        route: '/my/activity?tab=commented',
+      ),
     ],
   ),
   _MyMenuGroup(
