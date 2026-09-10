@@ -263,6 +263,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     final generation = ++_searchGeneration;
     final requestRevision = _mutationRevision;
     final feed = await _svc.getFeed(keyword: keyword, limit: 50);
+    if (!mounted) return const [];
     final posts = feed.items
         .map((post) => _reconcilePost(post, requestRevision))
         .toList();
