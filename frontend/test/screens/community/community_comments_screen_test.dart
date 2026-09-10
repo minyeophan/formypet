@@ -12,6 +12,21 @@ import 'package:frontend/services/community_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('activity target loads older reply under a deleted parent', (
+    tester,
+  ) async {
+    final root = _comment(
+      '1',
+      deleted: true,
+      replies: [_comment('30')],
+    ).copyWith(repliesNextCursor: '30');
+    final service = _FakeService(comments: [root]);
+    await _pump(tester, service, initialThreadId: '1', targetCommentId: '11');
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(find.byKey(const Key('community-reply-11')), findsOneWidget);
+    expect(service.replyCursors, ['30']);
+    expect(tester.takeException(), isNull);
+  });
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
   testWidgets('uses V2 shell and requests root replies with twenty limit', (
@@ -205,7 +220,11 @@ void main() {
   ) async {
     final service = _FakeService(
       comments: [
-        _comment('1', userId: 'me', replies: [_comment('2', userId: 'other')]),
+        _comment(
+          '1',
+          userId: 'me',
+          replies: [_comment('2', userId: 'other')],
+        ),
       ],
     );
     await _pump(tester, service);
@@ -266,6 +285,7 @@ Future<void> _pump(
   _FakeService service, {
   String? initialThreadId,
   String? initialReplyToCommentId,
+  String? targetCommentId,
   String currentUserId = 'me',
 }) async {
   await tester.pumpWidget(
@@ -291,6 +311,7 @@ Future<void> _pump(
           postId: 'post-1',
           initialThreadId: initialThreadId,
           initialReplyToCommentId: initialReplyToCommentId,
+          targetCommentId: targetCommentId,
         ),
       ),
     ),
@@ -326,7 +347,8 @@ PostComment _comment(
   authorNickname: author,
   content: content ?? '댓글 $id',
   createdAt: '2026-07-08T00:00:00Z',
-  commentsCount: commentsCount ?? (deleted ? replies.length : 1 + replies.length),
+  commentsCount:
+      commentsCount ?? (deleted ? replies.length : 1 + replies.length),
   replies: replies,
   replyCount: replies.length,
   deleted: deleted,
@@ -341,6 +363,18 @@ DioException _dioError(int status) => DioException(
 );
 
 class _FakeService extends CommunityService {
+  final replyCursors = <String?>[];
+  @override
+  Future<PostCommentFeed> getReplies(
+    String postId,
+    String commentId, {
+    String? cursor,
+    int limit = 20,
+  }) async {
+    replyCursors.add(cursor);
+    return PostCommentFeed(items: [_comment('11')]);
+  }
+
   _FakeService({this.comments = const [], this.commentsError});
 
   final List<PostComment> comments;

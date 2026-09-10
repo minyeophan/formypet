@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/post.dart';
 import '../services/community_service.dart';
 import '../screens/community/community_constants.dart';
+import 'auth_provider.dart';
 
 enum CommunityFeedRequestKind { initial, refresh, loadMore }
 
@@ -140,6 +141,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         sort: _sortForKey(key),
         cursor: cursor,
       );
+      if (!mounted) return;
       final items = feed.items
           .map((post) => _reconcilePost(post, requestRevision))
           .where((post) => _categoryForKey(key) == null || post.category == key)
@@ -187,6 +189,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         postsById: postCache,
       );
     } catch (error) {
+      if (!mounted) return;
       final done = Map<String, CommunityFeedRequestKind>.from(
         state.requestKindByFeedKey,
       )..remove(key);
@@ -215,6 +218,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     state = state.copyWith(likingPostIds: {...state.likingPostIds, postId});
     try {
       final result = await _svc.toggleLike(postId);
+      if (!mounted) return;
       _likeResults[postId] = (
         revision: ++_mutationRevision,
         liked: result['liked'] as bool,
@@ -230,23 +234,36 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
         );
       }
     } finally {
-      state = state.copyWith(
-        likingPostIds: {...state.likingPostIds}..remove(postId),
-      );
+      if (mounted) {
+        state = state.copyWith(
+          likingPostIds: {...state.likingPostIds}..remove(postId),
+        );
+      }
     }
   }
 
   Future<Post> loadPost(String postId) async {
     final requestRevision = _mutationRevision;
-    final post = _reconcilePost(await _svc.getPost(postId), requestRevision);
+    final fetched = await _svc.getPost(postId);
+    if (!mounted) return fetched;
+    final post = _reconcilePost(fetched, requestRevision);
     _replacePost(post);
     return post;
+  }
+
+  int get mutationRevision => _mutationRevision;
+
+  Post acceptActivityPost(Post post, int requestRevision) {
+    final reconciled = _reconcilePost(post, requestRevision);
+    _replacePost(reconciled);
+    return reconciled;
   }
 
   Future<List<Post>> searchPosts(String keyword) async {
     final generation = ++_searchGeneration;
     final requestRevision = _mutationRevision;
     final feed = await _svc.getFeed(keyword: keyword, limit: 50);
+    if (!mounted) return const [];
     final posts = feed.items
         .map((post) => _reconcilePost(post, requestRevision))
         .toList();
@@ -283,6 +300,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       category: category,
       petSpecies: petSpecies,
     );
+    if (!mounted) return post;
     _postEditRevisions[post.id] = ++_mutationRevision;
     _replacePost(post, moveCategory: true);
     return post;
@@ -290,6 +308,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   Future<void> deletePost(String postId) async {
     await _svc.deletePost(postId);
+    if (!mounted) return;
     final posts = <String, List<Post>>{
       for (final entry in state.postsByFeedKey.entries)
         entry.key: entry.value.where((post) => post.id != postId).toList(),
@@ -300,6 +319,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   Future<Post> vote(String postId, String optionId) async {
     final post = await _svc.vote(postId, optionId);
+    if (!mounted) return post;
     _replacePost(post);
     return post;
   }
@@ -314,6 +334,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       content,
       parentCommentId: parentCommentId,
     );
+    if (!mounted) return comment;
     final post = state.postsById[postId];
     if (post != null) {
       _replacePost(post.copyWith(commentsCount: comment.commentsCount));
@@ -331,6 +352,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   Future<void> deleteComment(String postId, String commentId) async {
     await _svc.deleteComment(postId, commentId);
+    if (!mounted) return;
     final post = state.postsById[postId];
     if (post != null) {
       _replacePost(
@@ -353,6 +375,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       files: files,
       poll: poll,
     );
+    if (!mounted) return post;
     final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
     for (final key in {'all', post.category}) {
       if (posts.containsKey(key)) {
@@ -417,5 +440,8 @@ final communityServiceProvider = Provider<CommunityService>(
 
 final communityProvider =
     StateNotifierProvider<CommunityNotifier, CommunityState>((ref) {
+      ref.watch(
+        authProvider.select((s) => s.isAuthenticated ? s.profile?.id : null),
+      );
       return CommunityNotifier(ref.read(communityServiceProvider));
     });

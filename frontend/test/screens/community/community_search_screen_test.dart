@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/models/user_profile.dart';
+import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/community_search_screen.dart';
 import 'package:frontend/screens/community/post_card.dart';
@@ -122,6 +124,119 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('새 결과'), findsOneWidget);
     expect(find.text('산책 정보'), findsNothing);
+  });
+
+  for (final fails in [false, true]) {
+    for (final searchAsB in [false, true]) {
+      testWidgets(
+        'account switch ignores pending search ${fails ? 'failure' : 'success'} '
+        '(B searching: $searchAsB)',
+        (tester) async {
+          final responseA = Completer<ResponseBody>();
+          final responseB = Completer<ResponseBody>();
+          dio.httpClientAdapter = _SearchAdapter((request) async {
+            final keyword = request.queryParameters['keyword'];
+            if (keyword == null) return _feed([]);
+            return keyword == '새 검색' ? responseB.future : responseA.future;
+          });
+          final auth = _SwitchingAuth();
+          await _pumpSearch(tester, auth: auth);
+          final screenState = tester.state(find.byType(CommunitySearchScreen));
+          await tester.enterText(
+            find.byKey(const Key('community-search-field')),
+            '산책',
+          );
+          await tester.tap(
+            find.byKey(const Key('community-search-submit-button')),
+          );
+          await tester.pump();
+          expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+          auth.signInAs('user-b');
+          await tester.pump();
+          expect(
+            tester.state(find.byType(CommunitySearchScreen)),
+            same(screenState),
+          );
+          expect(find.byType(CircularProgressIndicator), findsNothing);
+          expect(find.text('궁금한 내용을 검색해 보세요.'), findsOneWidget);
+          expect(
+            tester
+                .widget<TextField>(
+                  find.byKey(const Key('community-search-field')),
+                )
+                .controller!
+                .text,
+            isEmpty,
+          );
+          expect(
+            tester
+                .widget<FilledButton>(
+                  find.byKey(const Key('community-search-submit-button')),
+                )
+                .onPressed,
+            isNotNull,
+          );
+
+          if (searchAsB) {
+            await tester.enterText(
+              find.byKey(const Key('community-search-field')),
+              '새 검색',
+            );
+            await tester.tap(
+              find.byKey(const Key('community-search-submit-button')),
+            );
+            await tester.pump();
+          }
+          responseA.complete(
+            fails
+                ? _json({'title': 'Unavailable'}, status: 503)
+                : _feed([_post()]),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(find.byType(PostCard), findsNothing);
+          expect(find.text('검색 결과를 불러오지 못했어요.'), findsNothing);
+          expect(find.text('검색 결과가 없어요.'), findsNothing);
+          if (searchAsB) {
+            expect(find.byType(CircularProgressIndicator), findsOneWidget);
+            responseB.complete(_feed([_post(title: '새 결과')]));
+            await tester.pumpAndSettle();
+            expect(find.text('새 결과'), findsOneWidget);
+            expect(find.text('산책 정보'), findsNothing);
+          } else {
+            await tester.pumpAndSettle();
+            expect(find.text('궁금한 내용을 검색해 보세요.'), findsOneWidget);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  testWidgets('account switch clears loaded search results while mounted', (
+    tester,
+  ) async {
+    dio.httpClientAdapter = _SearchAdapter((request) async {
+      if (request.queryParameters['keyword'] == null) return _feed([]);
+      return _feed([_post()]);
+    });
+    final auth = _SwitchingAuth();
+    final container = await _pumpSearch(tester, auth: auth);
+    final screenState = tester.state(find.byType(CommunitySearchScreen));
+    await _search(tester);
+    expect(find.text('산책 정보'), findsOneWidget);
+
+    auth.signInAs('user-b');
+    await tester.pumpAndSettle();
+
+    expect(tester.state(find.byType(CommunitySearchScreen)), same(screenState));
+    expect(container.read(communityProvider).postsById, isEmpty);
+    expect(find.byType(PostCard), findsNothing);
+    expect(find.text('궁금한 내용을 검색해 보세요.'), findsOneWidget);
+    await _search(tester);
+    expect(find.text('산책 정보'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('search like uses server values and can be toggled off', (
@@ -336,9 +451,13 @@ void main() {
   });
 }
 
-Future<ProviderContainer> _pumpSearch(WidgetTester tester) async {
+Future<ProviderContainer> _pumpSearch(
+  WidgetTester tester, {
+  AuthNotifier? auth,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [if (auth != null) authProvider.overrideWith((ref) => auth)],
       child: MaterialApp(
         theme: ThemeData(
           inputDecorationTheme: InputDecorationTheme(
@@ -407,6 +526,25 @@ ResponseBody _json(Map<String, dynamic> data, {int status = 200}) =>
         Headers.contentTypeHeader: ['application/json'],
       },
     );
+
+class _SwitchingAuth extends AuthNotifier {
+  _SwitchingAuth()
+    : super.test(const AuthState(isLoading: false, isAuthenticated: false)) {
+    signInAs('user-a');
+  }
+
+  void signInAs(String userId) {
+    state = AuthState(
+      isLoading: false,
+      isAuthenticated: true,
+      profile: UserProfile(
+        id: userId,
+        email: '$userId@example.test',
+        nickname: userId,
+      ),
+    );
+  }
+}
 
 class _SearchAdapter implements HttpClientAdapter {
   final Future<ResponseBody> Function(RequestOptions) handler;

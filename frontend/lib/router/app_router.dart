@@ -36,6 +36,7 @@ import '../screens/pet/pet_edit_screen.dart';
 import '../screens/my/my_inquiry_screen.dart';
 import '../screens/my/my_notices_screen.dart';
 import '../screens/my/my_screen.dart';
+import '../screens/my/my_activity_screen.dart';
 import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
@@ -128,6 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             postId: s.pathParameters['postId']!,
             sourceKey: s.uri.queryParameters['from'],
             initialThreadId: thread,
+            targetCommentId: s.uri.queryParameters['targetComment'],
             initialReplyToCommentId: replyTo,
             autofocus:
                 s.uri.queryParameters['focus'] == 'true' || replyTo != null,
@@ -175,6 +177,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) => const MySettingsScreen(),
           ),
           GoRoute(path: '/my/pets', builder: (c, s) => const MyPetsScreen()),
+          GoRoute(
+            path: '/my/activity',
+            builder: (c, s) => MyActivityScreen(
+              initialTab: s.uri.queryParameters['tab'] ?? 'written',
+            ),
+          ),
           GoRoute(
             path: '/my/profile',
             builder: (c, s) => const MyProfileScreen(),

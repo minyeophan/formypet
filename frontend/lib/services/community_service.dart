@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
 import '../models/post.dart';
+import '../models/my_community_activity.dart';
 
 class PollDraft {
   final String question;
@@ -24,6 +25,17 @@ enum CommunityFeedSort {
 }
 
 class CommunityService {
+  Future<MyActivityPage> getMyActivities(
+    MyActivityType type, {
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/api/v1/me/community/activities',
+      queryParameters: {'type': type.name, 'limit': 20, 'cursor': ?cursor},
+    );
+    return MyActivityPage.fromJson(unwrap(response) as Map<String, dynamic>);
+  }
+
   Future<PostFeed> getFeed({
     String? category,
     CommunityFeedSort sort = CommunityFeedSort.latest,
@@ -33,7 +45,10 @@ class CommunityService {
   }) async {
     final normalizedCategory = category?.toUpperCase();
     final normalizedKeyword = keyword?.trim();
-    final params = <String, dynamic>{'limit': _pageLimit(limit), 'sort': sort.apiValue};
+    final params = <String, dynamic>{
+      'limit': _pageLimit(limit),
+      'sort': sort.apiValue,
+    };
     if (normalizedCategory != null &&
         normalizedCategory != 'ALL' &&
         normalizedCategory != 'POPULAR') {

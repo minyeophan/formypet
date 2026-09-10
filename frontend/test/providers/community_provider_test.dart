@@ -6,6 +6,21 @@ import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/services/community_service.dart';
 
 void main() {
+  test(
+    'disposed account search cannot return personalized results to a caller',
+    () async {
+      final service = _ControlledService();
+      final notifier = CommunityNotifier(service);
+      service.requests.removeAt(0).complete(const PostFeed(items: []));
+      await Future<void>.delayed(Duration.zero);
+      final pending = notifier.searchPosts('search');
+      notifier.dispose();
+      service.requests
+          .removeAt(0)
+          .complete(PostFeed(items: [_post('private-like')]));
+      expect(await pending, isEmpty);
+    },
+  );
   test('tracks initial request and failure per feed', () async {
     final service = _ControlledService();
     final notifier = CommunityNotifier(service);
@@ -90,9 +105,11 @@ void main() {
   test('comment update preserves cached post count', () async {
     final service = _ControlledService();
     final notifier = CommunityNotifier(service);
-    service.requests.removeAt(0).complete(
-      PostFeed(items: [_post('one', commentsCount: 2)], nextCursor: null),
-    );
+    service.requests
+        .removeAt(0)
+        .complete(
+          PostFeed(items: [_post('one', commentsCount: 2)], nextCursor: null),
+        );
     await Future<void>.delayed(Duration.zero);
 
     final update = notifier.updateComment('one', 'c1', ' updated ');
@@ -114,37 +131,47 @@ void main() {
     expect(notifier.state.postsById['one']!.commentsCount, 2);
   });
 
-  test('comment delete decrements cached post count without going below zero', () async {
-    final service = _ControlledService();
-    final notifier = CommunityNotifier(service);
-    service.requests.removeAt(0).complete(
-      PostFeed(items: [_post('one', commentsCount: 1)], nextCursor: null),
-    );
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'comment delete decrements cached post count without going below zero',
+    () async {
+      final service = _ControlledService();
+      final notifier = CommunityNotifier(service);
+      service.requests
+          .removeAt(0)
+          .complete(
+            PostFeed(items: [_post('one', commentsCount: 1)], nextCursor: null),
+          );
+      await Future<void>.delayed(Duration.zero);
 
-    final first = notifier.deleteComment('one', 'c1');
-    expect(service.commentDeletes.single, ('one', 'c1'));
-    service.commentDeleteResponses.single.complete();
-    await first;
+      final first = notifier.deleteComment('one', 'c1');
+      expect(service.commentDeletes.single, ('one', 'c1'));
+      service.commentDeleteResponses.single.complete();
+      await first;
 
-    expect(notifier.state.postsById['one']!.commentsCount, 0);
+      expect(notifier.state.postsById['one']!.commentsCount, 0);
 
-    final second = notifier.deleteComment('one', 'c2');
-    service.commentDeleteResponses.last.complete();
-    await second;
+      final second = notifier.deleteComment('one', 'c2');
+      service.commentDeleteResponses.last.complete();
+      await second;
 
-    expect(notifier.state.postsById['one']!.commentsCount, 0);
-  });
+      expect(notifier.state.postsById['one']!.commentsCount, 0);
+    },
+  );
 
   test('post update replaces cache and delete removes it from feeds', () async {
     final service = _ControlledService();
     final notifier = CommunityNotifier(service);
-    service.requests.removeAt(0).complete(
-      PostFeed(items: [_post('one')], nextCursor: null),
-    );
+    service.requests
+        .removeAt(0)
+        .complete(PostFeed(items: [_post('one')], nextCursor: null));
     await Future<void>.delayed(Duration.zero);
 
-    final update = notifier.updatePost('one', title: 'updated', content: 'body', category: 'FREE');
+    final update = notifier.updatePost(
+      'one',
+      title: 'updated',
+      content: 'body',
+      category: 'FREE',
+    );
     service.postUpdateResponse.complete(_post('one'));
     await update;
     expect(notifier.state.postsById.containsKey('one'), isTrue);
@@ -222,7 +249,13 @@ class _ControlledService extends CommunityService {
   }
 
   @override
-  Future<Post> updatePost(String postId, {required String title, required String content, required String category, String? petSpecies}) => postUpdateResponse.future;
+  Future<Post> updatePost(
+    String postId, {
+    required String title,
+    required String content,
+    required String category,
+    String? petSpecies,
+  }) => postUpdateResponse.future;
 
   @override
   Future<void> deletePost(String postId) => postDeleteResponse.future;

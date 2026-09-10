@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("24", flyway.info().current().getVersion().getVersion());
+        assertEquals("26", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -46,6 +46,7 @@ class FlywayMigrationTest {
                       AND table_name = 'media_cleanup_queue'
                     """));
             assertCommentManagementSchema(connection);
+            assertActivityIndexes(connection);
             assertNotificationsSchema(connection);
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'notification_enabled'"));
         }
@@ -59,7 +60,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("24", flyway.info().current().getVersion().getVersion());
+        assertEquals("26", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);
@@ -157,6 +158,13 @@ class FlywayMigrationTest {
                   AND table_name = 'post_comment_reports'
                   AND index_name = 'uk_post_comment_reporter'
                 """));
+    }
+
+    private void assertActivityIndexes(Connection connection) throws Exception {
+        for (String index : new String[]{"idx_posts_user_activity", "idx_likes_user_activity", "idx_comments_user_activity"}) {
+            assertEquals(1, count(connection, "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics "
+                    + "WHERE table_schema = DATABASE() AND index_name = '" + index + "'"));
+        }
     }
 
     private void assertNotificationsSchema(Connection connection) throws Exception {

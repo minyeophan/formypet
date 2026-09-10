@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/app_header.dart';
 import 'community_routes.dart';
@@ -29,9 +30,33 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
   String? _lastKeyword;
 
   @override
+  void initState() {
+    super.initState();
+    ref.listenManual(
+      authProvider.select(
+        (state) => state.isAuthenticated ? state.profile?.id : null,
+      ),
+      (_, _) => _clearSearch(),
+    );
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _clearSearch() {
+    _controller.clear();
+    setState(() {
+      // Invalidate completions as well as cached results from the old account.
+      _searchGeneration++;
+      _loading = false;
+      _posts = const [];
+      _error = null;
+      _searched = false;
+      _lastKeyword = null;
+    });
   }
 
   Future<void> _search() async {
@@ -108,17 +133,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 ),
                 suffixIcon: IconButton(
                   tooltip: '검색어 지우기',
-                  onPressed: () {
-                    _controller.clear();
-                    setState(() {
-                      _searchGeneration++;
-                      _loading = false;
-                      _posts = const [];
-                      _error = null;
-                      _searched = false;
-                      _lastKeyword = null;
-                    });
-                  },
+                  onPressed: _clearSearch,
                   icon: const AppIcon(Icons.close_rounded),
                 ),
                 filled: true,

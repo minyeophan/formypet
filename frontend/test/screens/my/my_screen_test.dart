@@ -4,6 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/pet.dart';
+import 'package:frontend/models/post.dart';
+import 'package:frontend/models/my_community_activity.dart';
+import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/screens/my/my_activity_screen.dart';
+import 'package:frontend/services/community_service.dart';
 import 'package:frontend/models/notification.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
@@ -23,6 +28,19 @@ import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  for (final entry in {
+    '내가 쓴 글': '아직 작성한 글이 없어요.',
+    '내가 공감한 글': '아직 공감한 글이 없어요.',
+    '내가 댓글 남긴 글': '아직 댓글을 남긴 글이 없어요.',
+  }.entries) {
+    testWidgets('${entry.key} opens its real activity tab', (tester) async {
+      await _pumpMyScreen(tester);
+      await _tapMenuRow(tester, entry.key);
+      await tester.pumpAndSettle();
+      expect(find.byType(MyActivityScreen), findsOneWidget);
+      expect(find.text(entry.value), findsOneWidget);
+    });
+  }
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
@@ -103,7 +121,7 @@ void main() {
     );
   }
 
-  for (final label in ['공동집사 관리', '내가 쓴 글', '내가 공감한 글', '내가 댓글 남긴 글']) {
+  for (final label in ['공동집사 관리']) {
     testWidgets('$label is visibly preparing and disabled', (tester) async {
       await _pumpMyScreen(tester);
       await _expectTextVisible(tester, label);
@@ -202,6 +220,7 @@ Future<void> _pumpMyScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        communityServiceProvider.overrideWithValue(_EmptyActivityService()),
         notificationServiceProvider.overrideWithValue(
           _EmptyNotificationService(),
         ),
@@ -244,6 +263,22 @@ Future<void> _pumpMyScreen(
     return;
   }
   await tester.pumpAndSettle();
+}
+
+class _EmptyActivityService extends CommunityService {
+  @override
+  Future<PostFeed> getFeed({
+    String? category,
+    CommunityFeedSort sort = CommunityFeedSort.latest,
+    String? cursor,
+    int limit = 20,
+    String? keyword,
+  }) async => const PostFeed(items: []);
+  @override
+  Future<MyActivityPage> getMyActivities(
+    MyActivityType type, {
+    String? cursor,
+  }) async => const MyActivityPage([], null);
 }
 
 Future<void> _expectTextVisible(WidgetTester tester, String text) async {

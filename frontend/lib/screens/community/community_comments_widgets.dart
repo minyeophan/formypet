@@ -131,6 +131,8 @@ class CommunityCommentGroup extends StatelessWidget {
     this.onLoadEarlierReplies,
     this.loadingReplies = false,
     this.threadKey,
+    this.targetCommentId,
+    this.targetCommentKey,
   });
 
   final PostComment root;
@@ -140,6 +142,8 @@ class CommunityCommentGroup extends StatelessWidget {
   final VoidCallback? onLoadEarlierReplies;
   final bool loadingReplies;
   final Key? threadKey;
+  final String? targetCommentId;
+  final Key? targetCommentKey;
 
   @override
   Widget build(BuildContext context) => KeyedSubtree(
@@ -153,6 +157,7 @@ class CommunityCommentGroup extends StatelessWidget {
       child: Column(
         children: [
           _CommentRow(
+            key: root.id == targetCommentId ? targetCommentKey : null,
             comment: root,
             avatarSize: 40,
             bodySize: 16,
@@ -181,12 +186,17 @@ class CommunityCommentGroup extends StatelessWidget {
                     for (var i = 0; i < root.replies.length; i++) ...[
                       if (i > 0 || onLoadEarlierReplies != null)
                         const SizedBox(height: 16),
-                      _CommentRow(
-                        key: Key('community-reply-${root.replies[i].id}'),
-                        comment: root.replies[i],
-                        avatarSize: 32,
-                        bodySize: 14,
-                        onMore: () => onReplyMore(root.replies[i]),
+                      KeyedSubtree(
+                        key: root.replies[i].id == targetCommentId
+                            ? targetCommentKey
+                            : null,
+                        child: _CommentRow(
+                          key: Key('community-reply-${root.replies[i].id}'),
+                          comment: root.replies[i],
+                          avatarSize: 32,
+                          bodySize: 14,
+                          onMore: () => onReplyMore(root.replies[i]),
+                        ),
                       ),
                     ],
                   ],
