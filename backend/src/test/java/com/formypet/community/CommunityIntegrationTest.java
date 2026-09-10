@@ -900,6 +900,116 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void myActivitiesArePrivateAndUseStableCursor() throws Exception {
+        String token = registerAndGetToken("activity@example.com", "activity");
+        String other = registerAndGetToken("activity-other@example.com", "other");
+        Long first = createPost(token, "first", "FREE", "body");
+        Long second = createPost(token, "second", "FREE", "body");
+        createPost(other, "private", "FREE", "body");
+        jdbcTemplate.update("UPDATE posts SET created_at = '2026-09-10 12:00:00' WHERE id IN (?, ?)", first, second);
+        String url = "/api/v1/me/community/activities";
+        mockMvc.perform(get(url).param("type", "written")).andExpect(status().isUnauthorized());
+        var response = mockMvc.perform(get(url).header("Authorization", "Bearer " + token)
+                        .param("type", "written").param("limit", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].post.id").value(second)).andReturn();
+        String cursor = objectMapper.readTree(response.getResponse().getContentAsString()).path("data").path("nextCursor").asText();
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token)
+                        .param("type", "written").param("cursor", cursor))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].post.id").value(first));
+        for (String type : List.of("liked", "commented")) {
+            mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", type))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(0)));
+        }
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "bad"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked").param("cursor", cursor))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "written").param("cursor", "bad"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "written").param("limit", "51"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void myActivitiesTrackLikesAndLatestSurvivingComments() throws Exception {
+        String token = registerAndGetToken("activity-mutations@example.com", "activity");
+        String other = registerAndGetToken("activity-author@example.com", "author");
+        Long postId = createPost(other, "activity", "FREE", "body");
+        Long userId = userRepository.findByEmail("activity-mutations@example.com").orElseThrow().getId();
+        String url = "/api/v1/me/community/activities";
+        communityService.toggleLike("activity-mutations@example.com", postId);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
+                .andExpect(jsonPath("$.data.items[0].post.id").value(postId));
+        communityService.toggleLike("activity-mutations@example.com", postId);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+        communityService.toggleLike("activity-mutations@example.com", postId);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
+                .andExpect(jsonPath("$.data.items", hasSize(1)));
+        jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'root','2026-09-10 12:00:00')", postId, userId);
+        Long root = jdbcTemplate.queryForObject("SELECT MAX(id) FROM post_comments WHERE post_id = ?", Long.class, postId);
+        jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,parent_comment_id,content,created_at) VALUES (?,?,?,'reply','2026-09-10 13:00:00')", postId, userId, root);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "commented"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].comment.content").value("reply"));
+        jdbcTemplate.update("UPDATE post_comments SET deleted_at=NOW() WHERE id=?", root);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "commented"))
+                .andExpect(jsonPath("$.data.items[0].comment.parentId").value(root));
+        jdbcTemplate.update("UPDATE post_comments SET deleted_at=NULL WHERE id=?", root);
+        jdbcTemplate.update("UPDATE post_comments SET deleted_at=NOW() WHERE parent_comment_id=?", root);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "commented"))
+                .andExpect(jsonPath("$.data.items[0].comment.content").value("root"));
+        jdbcTemplate.update("UPDATE post_comments SET deleted_at=NOW() WHERE id=?", root);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "commented"))
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + other).param("type", "commented"))
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+        communityService.delete("activity-author@example.com", postId);
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+    }
+
+    @Test
+    void myActivityCursorsHandleLikeAndCommentTiesAndRelikes() throws Exception {
+        String email = "activity-order@example.com";
+        String token = registerAndGetToken(email, "order");
+        Long first = createPost(token, "first", "FREE", "body");
+        Long second = createPost(token, "second", "FREE", "body");
+        Long userId = userRepository.findByEmail(email).orElseThrow().getId();
+        for (Long postId : List.of(first, second)) {
+            communityService.toggleLike(email, postId);
+            jdbcTemplate.update("UPDATE post_likes SET created_at='2000-01-01 12:00:00' WHERE user_id=? AND post_id=?", userId, postId);
+            jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'first comment','2000-01-01 12:00:00')", postId, userId);
+        }
+        jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'tie winner','2000-01-01 12:00:00')", first, userId);
+        Long lastComment = jdbcTemplate.queryForObject("SELECT MAX(id) FROM post_comments WHERE post_id=?", Long.class, first);
+        for (String type : List.of("liked", "commented")) {
+            var page = communityService.myActivities(email, type, null, 1);
+            assertEquals(second, page.items().getFirst().post().id());
+            var next = communityService.myActivities(email, type, page.nextCursor(), 1);
+            assertEquals(first, next.items().getFirst().post().id());
+            assertEquals(null, next.nextCursor());
+            if (type.equals("commented")) {
+                assertEquals(lastComment, next.items().getFirst().comment().id());
+            }
+        }
+        var beforeEdit = communityService.myActivities(email, "commented", null, 20);
+        jdbcTemplate.update("UPDATE post_comments SET content='edited', updated_at=NOW() WHERE id=?", lastComment);
+        var afterEdit = communityService.myActivities(email, "commented", null, 20);
+        assertEquals(beforeEdit.items().stream().map(i -> i.post().id()).toList(),
+                afterEdit.items().stream().map(i -> i.post().id()).toList());
+        assertEquals(beforeEdit.items().get(1).activityAt(), afterEdit.items().get(1).activityAt());
+        assertEquals("edited", afterEdit.items().get(1).comment().content());
+        jdbcTemplate.update("UPDATE post_comments SET deleted_at=NOW() WHERE id=?", lastComment);
+        assertEquals("first comment", communityService.myActivities(email, "commented", null, 20).items().get(1).comment().content());
+        communityService.toggleLike(email, first);
+        communityService.toggleLike(email, first);
+        assertEquals(first, communityService.myActivities(email, "liked", null, 20).items().getFirst().post().id());
+    }
+
     private Long createPost(String token, String title, String category, String content) throws Exception {
         MvcResult result = mockMvc.perform(multipartPost(token, Map.of(
                         "title", title,

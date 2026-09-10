@@ -42,6 +42,82 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CommunityService {
 
+    @Transactional(readOnly = true)
+    public com.formypet.community.dto.MyActivityResponse myActivities(
+            String email, String type, String cursor, int limit) {
+        User user = findUser(email);
+        if (type == null || !Set.of("written", "liked", "commented").contains(type)
+                || limit < 1 || limit > 50) throw InvalidInputException.invalidInput();
+        String activity = switch (type) {
+            case "written" -> """
+                SELECT id AS post_id, created_at AS activity_at,
+                       NULL AS comment_id, NULL AS parent_id, NULL AS comment_content
+                FROM posts WHERE user_id = ?
+                """;
+            case "liked" -> """
+                SELECT post_id, created_at AS activity_at,
+                       NULL AS comment_id, NULL AS parent_id, NULL AS comment_content
+                FROM post_likes WHERE user_id = ?
+                """;
+            default -> """
+                SELECT post_id, created_at AS activity_at, id AS comment_id,
+                       parent_comment_id AS parent_id, content AS comment_content
+                FROM (
+                    SELECT pc.*, ROW_NUMBER() OVER (
+                        PARTITION BY post_id ORDER BY created_at DESC, id DESC) AS rn
+                    FROM post_comments pc WHERE user_id = ? AND deleted_at IS NULL
+                ) ranked WHERE rn = 1
+                """;
+        };
+        StringBuilder sql = new StringBuilder("""
+            SELECT p.id, p.user_id, u.nickname AS author_nickname, p.title, p.category,
+                   p.pet_species, p.content, p.likes_count, p.comments_count, p.created_at,
+                   u.profile_media_id, a.activity_at, a.comment_id, a.parent_id, a.comment_content,
+                   EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS liked
+            FROM (
+            """).append(activity).append("""
+            ) a JOIN posts p ON p.id = a.post_id JOIN users u ON u.id = p.user_id WHERE 1 = 1
+            """);
+        List<Object> params = new ArrayList<>(List.of(user.getId(), user.getId()));
+        if (cursor != null) {
+            try {
+                if (cursor.length() > 256) throw new IllegalArgumentException();
+                String[] parts = new String(Base64.getUrlDecoder().decode(cursor),
+                        java.nio.charset.StandardCharsets.UTF_8).split("\\|", -1);
+                if (parts.length != 3 || !parts[0].equals(type)) throw new IllegalArgumentException();
+                LocalDateTime at = LocalDateTime.parse(parts[1]);
+                long id = Long.parseLong(parts[2]);
+                if (id <= 0) throw new IllegalArgumentException();
+                sql.append(" AND (a.activity_at < ? OR (a.activity_at = ? AND p.id < ?))");
+                params.addAll(List.of(at, at, id));
+            } catch (RuntimeException ex) {
+                throw InvalidInputException.invalidInput();
+            }
+        }
+        sql.append(" ORDER BY a.activity_at DESC, p.id DESC LIMIT ?");
+        params.add(limit + 1);
+        var rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        boolean more = rows.size() > limit;
+        var items = rows.stream().limit(limit).map(row -> {
+            Long commentId = row.get("comment_id") instanceof Number n ? n.longValue() : null;
+            Long parentId = row.get("parent_id") instanceof Number n ? n.longValue() : null;
+            var comment = commentId == null ? null :
+                    new com.formypet.community.dto.MyActivityResponse.Comment(commentId, parentId,
+                            (String) row.get("comment_content"));
+            return new com.formypet.community.dto.MyActivityResponse.Item(toPostResponse(row, user.getId()),
+                    row.get("activity_at") instanceof LocalDateTime at ? at :
+                            ((Timestamp) row.get("activity_at")).toLocalDateTime(), comment);
+        }).toList();
+        String next = null;
+        if (more) {
+            var last = items.getLast();
+            next = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    (type + "|" + last.activityAt() + "|" + last.post().id())
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return new com.formypet.community.dto.MyActivityResponse(items, next);
+    }
+
     private static final Set<String> SORTS = Set.of("latest", "popular");
     private static final Set<String> CATEGORIES = Set.of(
             "CARE", "FOOD", "OUTING", "SHOW", "QUESTION",
