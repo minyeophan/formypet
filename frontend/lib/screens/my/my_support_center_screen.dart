@@ -56,7 +56,7 @@ class MySupportCenterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 const AppText(
-                  '문의 유형과 내용을 남기면 운영팀이 확인 후 답변합니다.',
+                  '접수가 완료되면 입력한 이메일로 답변드려요.',
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
