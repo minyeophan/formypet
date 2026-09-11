@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +10,7 @@ import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
-import '../../widgets/preparing_toast.dart';
+
 import 'community_comment_widgets.dart';
 import 'community_comments_widgets.dart';
 import 'community_routes.dart';
@@ -445,17 +446,19 @@ class _CommunityCommentsScreenState
     return Scaffold(
       backgroundColor: AppV2Tokens.background,
       resizeToAvoidBottomInset: false,
+      appBar: AppHeader(
+        key: const Key('community-comments-header'),
+        leadingKey: const Key('community-comments-back'),
+        title: '댓글 ($_displayedCount)',
+        centerTitle: true,
+        showBackButton: true,
+        onBack: _goBack,
+      ),
       body: SafeArea(
+        top: false,
         bottom: false,
         child: Column(
-          children: [
-            CommunityCommentsHeader(
-              title: '댓글 ($_displayedCount)',
-              onBack: _goBack,
-              onMore: showContent ? () => showPreparingToast(context) : null,
-            ),
-            Expanded(child: _buildContent(post, currentUserId)),
-          ],
+          children: [Expanded(child: _buildContent(post, currentUserId))],
         ),
       ),
       bottomNavigationBar: showContent
@@ -512,9 +515,7 @@ class _CommunityCommentsScreenState
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           children: [
-            CommunityCommentsSortRow(
-              onPopular: () => showPreparingToast(context),
-            ),
+            const CommunityCommentsSortRow(),
             const SizedBox(height: 12),
             if (_comments.isEmpty)
               const SizedBox(
