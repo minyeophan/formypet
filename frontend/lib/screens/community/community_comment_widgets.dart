@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
-import '../../widgets/app_action_sheet.dart';
+
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
-import '../../widgets/preparing_toast.dart';
 
 bool canManageCommunityComment({
   required String? currentUserId,
@@ -19,20 +18,6 @@ bool canManageCommunityComment({
   return currentUserId != null &&
       !comment.deleted &&
       (post.userId == currentUserId || comment.userId == currentUserId);
-}
-
-void showCommunityCommentMoreMenu(BuildContext context) {
-  showAppActionSheet(
-    context,
-    title: '댓글 관리',
-    actions: [
-      AppActionSheetItem(
-        label: '삭제하기',
-        destructive: true,
-        onTap: () => showPreparingToast(context),
-      ),
-    ],
-  );
 }
 
 class CommunityCommentAvatar extends StatelessWidget {

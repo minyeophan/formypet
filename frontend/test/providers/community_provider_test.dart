@@ -7,6 +7,27 @@ import 'package:frontend/services/community_service.dart';
 
 void main() {
   test(
+    'late search page preserves a completed comment deletion count',
+    () async {
+      final service = _ControlledService();
+      final notifier = CommunityNotifier(service);
+      addTearDown(notifier.dispose);
+      service.requests
+          .removeAt(0)
+          .complete(PostFeed(items: [_post('one').copyWith(commentsCount: 3)]));
+      await Future<void>.delayed(Duration.zero);
+      final page = notifier.searchPage('산책');
+      final deletion = notifier.deleteComment('one', 'comment');
+      service.commentDeleteResponses.single.complete();
+      await deletion;
+      service.requests.single.complete(
+        PostFeed(items: [_post('one').copyWith(commentsCount: 3)]),
+      );
+      expect((await page).items.single.commentsCount, 2);
+      expect(notifier.state.postsById['one']!.commentsCount, 2);
+    },
+  );
+  test(
     'disposed account search cannot return personalized results to a caller',
     () async {
       final service = _ControlledService();

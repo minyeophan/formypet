@@ -17,7 +17,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/preparing_toast.dart';
-import 'community_comment_widgets.dart';
+
 import 'community_constants.dart';
 import 'community_detail_widgets.dart';
 import 'community_routes.dart';
@@ -167,6 +167,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     bool focus = false,
     String? threadId,
     String? replyToCommentId,
+    String? manageCommentId,
   }) async {
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
@@ -177,6 +178,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
         focus: focus,
         threadId: threadId,
         replyToCommentId: replyToCommentId,
+        manageCommentId: manageCommentId,
       ),
     );
     if (mounted) await _reload();
@@ -294,7 +296,10 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
                 onReply: (id) =>
                     _openComments(focus: true, replyToCommentId: id),
                 onThread: (id) => _openComments(threadId: id),
-                onManage: () => showCommunityCommentMoreMenu(context),
+                onManage: (threadId, commentId) => _openComments(
+                  threadId: threadId,
+                  manageCommentId: commentId,
+                ),
               ),
             if (_commentsError != null)
               Padding(

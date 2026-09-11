@@ -78,8 +78,10 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   final CommunityService _svc;
   int _mutationRevision = 0;
   int _searchGeneration = 0;
+  final Set<String> _deletedPostIds = {};
   bool _refreshPopularAfterLoad = false;
   final Map<String, int> _postEditRevisions = {};
+  final Map<String, int> _commentCountRevisions = {};
   final Map<String, ({int revision, bool liked, int likesCount})> _likeResults =
       {};
 
@@ -259,20 +261,34 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     return reconciled;
   }
 
-  Future<List<Post>> searchPosts(String keyword) async {
+  Future<List<Post>> searchPosts(String keyword) async =>
+      (await searchPage(keyword)).items;
+
+  void invalidateSearch() => _searchGeneration++;
+
+  Future<PostFeed> searchPage(
+    String keyword, {
+    String? cursor,
+    int limit = 10,
+  }) async {
     final generation = ++_searchGeneration;
     final requestRevision = _mutationRevision;
-    final feed = await _svc.getFeed(keyword: keyword, limit: 50);
-    if (!mounted) return const [];
+    final feed = await _svc.getFeed(
+      keyword: keyword,
+      cursor: cursor,
+      limit: limit,
+    );
+    if (!mounted || generation != _searchGeneration) {
+      return const PostFeed(items: []);
+    }
     final posts = feed.items
+        .where((post) => !_deletedPostIds.contains(post.id))
         .map((post) => _reconcilePost(post, requestRevision))
         .toList();
-    if (generation == _searchGeneration) {
-      for (final post in posts) {
-        _replacePost(post);
-      }
+    for (final post in posts) {
+      _replacePost(post);
     }
-    return posts;
+    return PostFeed(items: posts, nextCursor: feed.nextCursor);
   }
 
   Post _reconcilePost(Post post, int requestRevision) {
@@ -280,6 +296,12 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       // The shared copy includes the completed edit and any subsequent local
       // changes; a read begun before that edit must not restore the old post.
       post = state.postsById[post.id] ?? post;
+    }
+    if ((_commentCountRevisions[post.id] ?? 0) > requestRevision) {
+      post = post.copyWith(
+        commentsCount:
+            state.postsById[post.id]?.commentsCount ?? post.commentsCount,
+      );
     }
     final result = _likeResults[post.id];
     if (result == null || result.revision <= requestRevision) return post;
@@ -309,6 +331,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   Future<void> deletePost(String postId) async {
     await _svc.deletePost(postId);
     if (!mounted) return;
+    _deletedPostIds.add(postId);
     final posts = <String, List<Post>>{
       for (final entry in state.postsByFeedKey.entries)
         entry.key: entry.value.where((post) => post.id != postId).toList(),
@@ -337,6 +360,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     if (!mounted) return comment;
     final post = state.postsById[postId];
     if (post != null) {
+      _commentCountRevisions[postId] = ++_mutationRevision;
       _replacePost(post.copyWith(commentsCount: comment.commentsCount));
     }
     return comment;
@@ -355,6 +379,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     if (!mounted) return;
     final post = state.postsById[postId];
     if (post != null) {
+      _commentCountRevisions[postId] = ++_mutationRevision;
       _replacePost(
         post.copyWith(commentsCount: max(0, post.commentsCount - 1)),
       );

@@ -77,21 +77,20 @@ Flutter 화면·라우터·서비스·상태 관리, Spring Controller·서비�
 - 확정 범위: 댓글·답글 신고·차단 버튼을 제거한다. 기존 댓글 신고 API·서비스·테이블은 호환성 유지를 위해 남기되 새 접수 ticket이나 이메일과 연결하지 않는다.
 - 이번 출시에서 새로 연결하는 신고 대상은 게시글이다. 게시글 신고를 DB에 저장하고 운영자 이메일로 전달하며 검토·제재는 수동 운영한다.
 
-### I-02. 게시글 상세의 댓글 삭제 메뉴가 기존 임시 동작으로 남음
+### I-02. 게시글 상세 댓글 관리 연결 — 수정 완료
 
-- `community_detail_screen.dart:297` → `community_comment_widgets.dart:24` → 준비중 토스트.
-- 별도 전체 댓글 화면에는 수정·삭제 API 연결이 이미 있다.
-- 남은 일: 상세 화면 미리보기의 관리 버튼도 실제 댓글을 전달해 삭제하거나 전체 댓글 화면의 관리 흐름으로 연결.
-- 전체 댓글 화면 상단 더보기(`community_comments_screen.dart:436`) 역시 준비중이며 메뉴 목적부터 확정해야 한다.
+- 상세 미리보기의 원댓글·답글 관리 버튼에서 원댓글 ID와 선택한 댓글 ID를 전체 댓글 화면으로 전달한다.
+- 선택한 댓글 위치에서 기존 수정·삭제 메뉴를 자동으로 열고, 본인/게시글 작성자의 관리 권한을 다시 검사한다.
+- 수정·삭제 후 상세로 돌아오면 댓글 목록을 새로 불러온다. 기존 준비중 삭제 함수는 제거했다.
+- 전체 댓글 화면 상단 더보기와 인기순·이미지 첨부는 이번 범위에 포함하지 않았다.
 
-### I-03. 커뮤니티 검색은 구현됐지만 다음 페이지를 표시하지 못함
+### I-03. 커뮤니티 검색 추가 로딩 — 수정 완료
 
-- Backend 피드는 검색어와 cursor를 지원하고 검색 화면도 존재한다. README의 “검색 후속 범위”는 오래된 설명이다.
-- `frontend/lib/providers/community_provider.dart:262`의 `searchPosts`는 `limit: 50` 한 번만 요청하고 `feed.items`만 반환한다.
-- `CommunitySearchScreen`에는 검색 결과 다음 cursor·추가 로딩 흐름이 없다.
-- 영향: 검색 결과가 50개를 넘으면 나머지 결과를 볼 수 없다.
-- 남은 일: 검색어별 cursor/hasMore 상태와 추가 로딩·재시도 연결.
-
+- 사용자 요청에 따라 처음 10개, '더보기' 클릭 시 다음 10개씩 가져온다. 50개 이후에도 cursor가 있으면 계속 조회한다.
+- 검색 화면의 기존 상태에 cursor·추가 로딩·재시도를 추가하고, 공통 provider의 searchPage가 응답을 공유 캐시에 반영한다.
+- 추가 로딩 실패 시 기존 결과를 유지하며 같은 cursor로 재시도한다. 중복 게시글은 ID 기준으로 합친다.
+- 새 검색·계정 변경·검색 지우기 이후 이전 응답을 무시하고, 진행 중인 같은 요청은 중복 전송하지 않는다.
+- 상세에서 돌아올 때 검색어·로드한 목록·스크롤 위치를 유지한다. 삭제된 글과 이미 갱신된 좋아요/댓글 수가 이전 검색 응답으로 복원되지 않게 한다.
 ### I-04. 사용자 전체 예약 알림 설정 UI가 없음 — 기존 문서상 보류
 
 - Backend `/api/v1/notifications/settings`의 조회·변경 API는 있다.
@@ -211,3 +210,12 @@ Flutter 화면·라우터·서비스·상태 관리, Spring Controller·서비�
 - 로그: frontend/release-scope-final-tests.log, frontend/release-scope-final-analyze.log.
 - 이번 변경은 Flutter 메뉴와 문서이며 backend 코드는 추가 수정하지 않았다. 기존 Q-01 알림 테스트 결함은 다음 검증 범위로 유지한다.
 - 최종 정적 분석: No issues found, 종료 코드 0. git diff --check 및 cached 점검 통과. 커밋·push·병합은 하지 않았다.
+
+### 커뮤니티 상호작용 후속 검증
+
+- 작업 브랜치: fix/community-interactions. 앞선 release-scope-cleanup 변경이 develop에 머지된 상태에서 생성했다.
+- 검색 페이지 크기는 사용자 확정값 10개다. 60개까지 추가 조회, 오류 후 재시도, 목록 복귀, 중복 요청/결과, 계정 전환, 삭제/좋아요/댓글 수 경합을 검증했다.
+- 상세의 답글 ID 전달, 선택한 댓글 관리 메뉴, 댓글 삭제 후 상세 갱신 및 기존 권한별 수정·삭제를 검증했다.
+- 커뮤니티 화면 및 공통 상태 테스트 138개 통과, 종료 코드 0. Flutter 정적 분석 No issues found, 종료 코드 0. git diff --check 통과.
+- 로그: frontend/community-interactions-final-tests.log, frontend/community-interactions-analyze.log.
+- Backend 변경·실서버/실기기 검증·커밋·push·병합은 이번 실행에서 진행하지 않았다.
