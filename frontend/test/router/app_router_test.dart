@@ -1451,7 +1451,6 @@ void main() {
       '/my/support': MySupportCenterScreen,
       '/my/support/records': MyFaqCategoryScreen,
       '/my/support/faq/account-email': MyFaqDetailScreen,
-      '/my/inquiry': MyInquiryScreen,
     }.entries) {
       await _pumpRouter(
         tester,
@@ -1476,6 +1475,34 @@ void main() {
       };
       expect(find.text(expectedFallback), findsWidgets);
     }
+  });
+
+  testWidgets('inquiry direct URL hides bottom navigation and returns to my', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/my/inquiry',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+    expect(find.byType(MyInquiryScreen), findsOneWidget);
+    expect(find.byType(BottomNavigationBar), findsNothing);
+    await tester.tap(find.byTooltip('뒤로가기'));
+    await tester.pumpAndSettle();
+    expect(find.text('마이페이지'), findsOneWidget);
+    expect(
+      tester
+          .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+          .currentIndex,
+      2,
+    );
   });
 
   testWidgets('logout loading does not expose onboarding before auth', (

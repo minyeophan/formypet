@@ -12,6 +12,7 @@ import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
+import 'package:frontend/screens/my/inquiry_type_dropdown.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
@@ -381,62 +382,33 @@ void main() {
     expect(find.text('질문을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('inquiry explains unavailability before the form', (
-    tester,
-  ) async {
-    await _pumpSupportRouter(tester, '/my/inquiry');
-
-    final notice = find.textContaining('준비중');
-    final unavailable = find.textContaining('보낼 수 없어요');
-    expect(notice, findsOneWidget);
-    expect(unavailable, findsOneWidget);
-    expect(
-      tester.getBottomLeft(unavailable).dy,
-      lessThan(tester.getTopLeft(find.text('문의 유형')).dy),
-    );
-    expect(notice.hitTestable(), findsOneWidget);
+  testWidgets('inquiry shows email reply guidance', (tester) async {
+    await _pump(tester, const MyInquiryScreen());
+    expect(find.text('문의하신 내용은 이메일로 답변드려요.'), findsOneWidget);
+    expect(find.textContaining('준비중'), findsNothing);
   });
 
-  testWidgets('inquiry type and text entry are disabled', (tester) async {
-    await _pumpSupportRouter(tester, '/my/inquiry');
-
-    expect(find.text('문의 유형'), findsOneWidget);
-    expect(find.text('제목'), findsOneWidget);
-    expect(find.text('문의 내용'), findsOneWidget);
-    final dropdown = tester.widget<DropdownButtonFormField<String>>(
-      find.byType(DropdownButtonFormField<String>),
+  testWidgets('inquiry type and text entry are enabled when signed in', (
+    tester,
+  ) async {
+    await _pump(tester, const MyInquiryScreen());
+    final dropdown = tester.widget<InquiryTypeDropdown>(
+      find.byType(InquiryTypeDropdown),
     );
-    expect(dropdown.onChanged, isNull);
-    expect(find.byType(TextField), findsNWidgets(2));
+    expect(dropdown.onChanged, isNotNull);
+    expect(find.byType(TextField), findsNWidgets(3));
     for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
-      expect(field.enabled, isFalse);
-      expect(
-        WidgetStateProperty.resolveAs(field.decoration!.fillColor!, {
-          WidgetState.disabled,
-        }),
-        AppColors.surfaceSoft,
-      );
+      expect(field.enabled, isTrue);
     }
-
-    await tester.tap(find.byType(TextField).first, warnIfMissed: false);
-    await tester.pump();
-    expect(tester.testTextInput.isVisible, isFalse);
   });
 
-  testWidgets('inquiry submission is disabled without a fake receipt', (
-    tester,
-  ) async {
-    await _pumpSupportRouter(tester, '/my/inquiry');
-
-    final submit = find.widgetWithText(FilledButton, '문의 접수');
-    await tester.ensureVisible(submit);
-    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
-
-    await tester.tap(submit);
-    await tester.pump();
-
-    expect(find.byType(SnackBar), findsNothing);
-    expect(find.byType(MyInquiryScreen), findsOneWidget);
+  testWidgets('empty inquiry validates without a fake receipt', (tester) async {
+    await _pump(tester, const MyInquiryScreen());
+    await tester.tap(find.byKey(const Key('inquiry-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('제목을 입력해 주세요.'), findsOneWidget);
+    expect(find.text('문의 내용을 입력해 주세요.'), findsOneWidget);
+    expect(find.text('문의가 접수됐어요'), findsNothing);
   });
 }
 

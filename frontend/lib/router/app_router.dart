@@ -226,12 +226,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) =>
                 MyFaqDetailScreen(faqId: s.pathParameters['faqId']!),
           ),
-          GoRoute(
-            path: '/my/inquiry',
-            builder: (c, s) => const MyInquiryScreen(),
-          ),
         ],
       ),
+      GoRoute(path: '/my/inquiry', builder: (c, s) => const MyInquiryScreen()),
       GoRoute(
         path: '/records',
         redirect: (c, s) =>

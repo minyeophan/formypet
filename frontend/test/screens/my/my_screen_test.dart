@@ -16,6 +16,8 @@ import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
+import 'dart:async';
+import 'package:frontend/services/inquiry_service.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_policies_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
@@ -30,6 +32,35 @@ import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets(
+    'inquiry opens above tab navigation and protects pending submission',
+    (tester) async {
+      final service = _PendingInquiryService();
+      await _pumpMyScreen(tester, inquiryService: service);
+      await _tapMenuRow(tester, '1대1 문의하기');
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomNavigationBar).hitTestable(), findsNothing);
+      await tester.enterText(find.byKey(const Key('inquiry-title')), '문의 제목');
+      await tester.enterText(
+        find.byKey(const Key('my-inquiry-body-field')),
+        '문의 내용',
+      );
+      await tester.tap(find.byKey(const Key('inquiry-submit')));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(MyInquiryScreen), findsOneWidget);
+      expect(service.calls, 1);
+      service.pending.complete(
+        InquiryReceipt(id: 'i1', receivedAt: DateTime(2026)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('inquiry-done')));
+      await tester.pumpAndSettle();
+      expect(find.byType(MyInquiryScreen), findsNothing);
+      expect(find.byType(BottomNavigationBar).hitTestable(), findsOneWidget);
+    },
+  );
   for (final entry in {
     '내가 쓴 글': '아직 작성한 글이 없어요.',
     '내가 공감한 글': '아직 공감한 글이 없어요.',
@@ -225,6 +256,7 @@ void main() {
 
 Future<void> _pumpMyScreen(
   WidgetTester tester, {
+  InquiryService? inquiryService,
   List<Pet>? pets,
   String? activePetId,
   bool isLoading = false,
@@ -236,6 +268,8 @@ Future<void> _pumpMyScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        if (inquiryService != null)
+          inquiryServiceProvider.overrideWithValue(inquiryService),
         blockedUsersProvider.overrideWith((_) async => []),
         communityServiceProvider.overrideWithValue(_EmptyActivityService()),
         notificationServiceProvider.overrideWithValue(
@@ -345,4 +379,17 @@ class _EmptyNotificationService extends NotificationService {
   @override
   Future<NotificationFeed> list({String? cursor, int limit = 20}) async =>
       NotificationFeed(items: [], hasMore: false, unreadCount: 0);
+}
+
+class _PendingInquiryService extends InquiryService {
+  final pending = Completer<InquiryReceipt>();
+  int calls = 0;
+  @override
+  Future<InquiryReceipt> submit(
+    InquiryDraft draft, {
+    required String requestId,
+  }) {
+    calls++;
+    return pending.future;
+  }
 }
