@@ -64,6 +64,8 @@ void main() {
     expect(scaffold.backgroundColor, AppV2Tokens.background);
     expect(scaffold.resizeToAvoidBottomInset, isFalse);
     expect(find.byKey(const Key('community-comments-header')), findsOneWidget);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
     expect(find.text('댓글 (1)'), findsOneWidget);
     expect(service.commentsLimit, 20);
     expect(service.replyLimit, 20);
@@ -102,19 +104,21 @@ void main() {
     },
   );
 
-  testWidgets('shows preparing message for popular sort and camera', (
-    tester,
-  ) async {
+  testWidgets('only supported comment controls are shown', (tester) async {
     await _pump(tester, _FakeService());
-
-    await tester.tap(find.byKey(const Key('community-comments-sort-popular')));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('community-comment-image-button')));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
+    expect(
+      find.byKey(const Key('community-comments-sort-popular')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('community-comment-image-button')),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('community-comments-more')), findsNothing);
+    expect(find.byKey(const Key('community-comments-input')), findsOneWidget);
+    expect(find.text('최신순'), findsOneWidget);
+    expect(find.text('준비중'), findsNothing);
   });
-
   testWidgets('shows unavailable without composer for first page 404', (
     tester,
   ) async {

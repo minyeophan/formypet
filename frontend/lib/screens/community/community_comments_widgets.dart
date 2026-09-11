@@ -8,116 +8,21 @@ import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_visual.dart';
-import '../../widgets/preparing_toast.dart';
+
 import 'community_comment_widgets.dart';
 import 'community_constants.dart';
 
 String communityCommentAuthor(String value) =>
     value.trim().isEmpty ? '익명집사' : value.trim();
 
-class CommunityCommentsHeader extends StatelessWidget {
-  const CommunityCommentsHeader({
-    super.key,
-    required this.title,
-    required this.onBack,
-    this.onMore,
-  });
-
-  final String title;
-  final VoidCallback onBack;
-  final VoidCallback? onMore;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    key: const Key('community-comments-header'),
-    height: 56,
-    child: Padding(
-      padding: const EdgeInsets.only(left: 20, right: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              key: const Key('community-comments-back'),
-              onPressed: onBack,
-              icon: const AppIcon(Icons.arrow_back_rounded),
-              color: AppV2Tokens.primary,
-              tooltip: '뒤로가기',
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppV2Tokens.text,
-
-                fontSize: AppV2Tokens.headerTitleSize,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: onMore == null
-                ? null
-                : IconButton(
-                    key: const Key('community-comments-more'),
-                    onPressed: onMore,
-                    icon: const AppIcon(Icons.more_vert_rounded),
-                    color: AppV2Tokens.primary,
-                    tooltip: '더보기',
-                  ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 class CommunityCommentsSortRow extends StatelessWidget {
-  const CommunityCommentsSortRow({super.key, required this.onPopular});
-  final VoidCallback onPopular;
+  const CommunityCommentsSortRow({super.key});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    container: true,
-    child: SizedBox(
-      key: const Key('community-comments-sort-row'),
-      height: 44,
-      child: Row(
-        children: [
-          Semantics(
-            button: true,
-            selected: true,
-            enabled: true,
-            child: const _FocusAction(
-              key: Key('community-comments-sort-latest'),
-              label: '최신순',
-              selected: true,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(width: 1, height: 12, color: AppV2Tokens.border),
-          const SizedBox(width: 12),
-          Semantics(
-            button: true,
-            selected: false,
-            enabled: true,
-            child: _FocusAction(
-              key: const Key('community-comments-sort-popular'),
-              label: '인기순',
-              onPressed: onPopular,
-            ),
-          ),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => const Text(
+    '최신순',
+    key: Key('community-comments-sort-latest'),
+    style: TextStyle(fontSize: 14, color: AppV2Tokens.textSecondary),
   );
 }
 
@@ -342,12 +247,10 @@ class _FocusAction extends StatelessWidget {
     super.key,
     required this.label,
     this.onPressed,
-    this.selected = false,
     this.loading = false,
   });
   final String label;
   final VoidCallback? onPressed;
-  final bool selected;
   final bool loading;
 
   @override
@@ -359,11 +262,9 @@ class _FocusAction extends StatelessWidget {
       ),
       overlayColor: AppInteractionStyle.overlay(),
       backgroundBuilder: AppFocusRing.buttonBuilder,
-      foregroundColor: WidgetStatePropertyAll(
-        selected ? AppV2Tokens.primary : AppV2Tokens.textSecondary,
-      ),
+      foregroundColor: const WidgetStatePropertyAll(AppV2Tokens.textSecondary),
     ),
-    onPressed: onPressed ?? (selected ? () {} : null),
+    onPressed: onPressed,
     child: loading
         ? const SizedBox(
             width: 18,
@@ -653,25 +554,6 @@ class CommunityCommentsComposer extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: IconButton.filled(
-                      key: const Key('community-comment-image-button'),
-                      style: const ButtonStyle(
-                        backgroundColor: WidgetStatePropertyAll(
-                          AppV2Tokens.surfaceSoft,
-                        ),
-                        foregroundColor: WidgetStatePropertyAll(
-                          AppV2Tokens.primary,
-                        ),
-                      ),
-                      onPressed: () => showPreparingToast(context),
-                      icon: const AppIcon(Icons.photo_camera_outlined),
-                      tooltip: '이미지 첨부',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       key: const Key('community-comments-input'),
