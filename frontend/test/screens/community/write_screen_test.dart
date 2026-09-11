@@ -14,6 +14,7 @@ import 'package:frontend/core/app_theme.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/screens/community/write_screen.dart';
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 // Exercise ImagePicker itself, replacing only the native/browser picker boundary.
@@ -502,7 +503,22 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 280);
       await tester.pumpAndSettle();
 
+      final arrow = tester.widget<AppIcon>(
+        find.descendant(
+          of: find.byKey(const Key('community-category-field')),
+          matching: find.byType(AppIcon),
+        ),
+      );
+      expect(arrow.size, 16);
       final remove = find.byTooltip('사진 1 삭제');
+      final close = tester.widget<AppIcon>(
+        find.descendant(of: remove, matching: find.byType(AppIcon)),
+      );
+      expect(close.size, 14);
+      expect(
+        tester.getSize(find.byKey(const Key('community-photo-remove-disc-0'))),
+        const Size(24, 24),
+      );
       expect(remove.hitTestable(), findsOneWidget);
       expect(tester.getSize(remove).shortestSide, greaterThanOrEqualTo(44));
       expect(

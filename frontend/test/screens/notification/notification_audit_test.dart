@@ -7,6 +7,7 @@ import 'package:frontend/core/api_client.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/screens/pet/pet_detail_screen.dart';
@@ -277,7 +278,7 @@ void main() {
     useAuditApi(
       AuditApi((r) {
         if (r.path == '/api/v1/pets' && fail) throw Exception('offline');
-        if (r.path.contains('/community/')) {
+        if (r.path == '/api/v1/posts') {
           return {'items': [], 'hasMore': false};
         }
         return auditDefaultResponse(r);
@@ -291,7 +292,14 @@ void main() {
     });
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [petProvider.overrideWith((_) => pet)],
+        overrides: [
+          petProvider.overrideWith((_) => pet),
+          authProvider.overrideWith(
+            (_) => AuthNotifier.test(
+              const AuthState(isLoading: false, isAuthenticated: true),
+            ),
+          ),
+        ],
         child: const MaterialApp(home: HomeScreen()),
       ),
     );

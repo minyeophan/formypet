@@ -11,6 +11,7 @@ import '../../core/visuals/app_visual_id.dart';
 import '../../models/pet.dart';
 import '../../models/post.dart';
 import '../../providers/home_popular_posts_provider.dart';
+import '../../providers/home_news_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_visual.dart';
@@ -127,10 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       showPreparingToast(context),
                                 ),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
-                                _NewsSection(
-                                  onPreparing: () =>
-                                      showPreparingToast(context),
-                                ),
+                                const _NewsSection(),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
                                 const _PopularPostsSection(),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
@@ -166,6 +164,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         error = e;
       }),
       ref.read(homePopularPostsProvider.notifier).refresh().catchError((e) {
+        error = e;
+      }),
+      ref.read(homeNewsProvider.notifier).refresh().catchError((e) {
         error = e;
       }),
     ]);
@@ -475,79 +476,115 @@ class _QuickMenu extends StatelessWidget {
   }
 }
 
-class _NewsSection extends StatelessWidget {
-  const _NewsSection({required this.onPreparing});
-  final VoidCallback onPreparing;
+class _NewsSection extends ConsumerWidget {
+  const _NewsSection();
 
   @override
-  Widget build(BuildContext context) {
-    const news = [
-      (AppVisualId.homeNewsSnack, '수제 강아지 간식 레시피: 야채 비스킷'),
-      (AppVisualId.homeNewsWalk, '안전하고 즐거운 산책을 위한 준비사항'),
-      (AppVisualId.homeNewsDental, '반려동물 치아관리, 거부감 없이 시작하는 법'),
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(homeNewsProvider);
     return Column(
       key: const Key('home-news-section'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(title: '오늘의 뉴스', action: '모두 보기', onTap: onPreparing),
+        _SectionHeader(
+          title: '포마펫 소식',
+          action: '모두 보기',
+          onTap: () => context.push('/community/category/NEWS'),
+        ),
         const SizedBox(height: 10),
-        for (final item in news)
-          _NewsCard(visual: item.$1, title: item.$2, onTap: onPreparing),
+        if (state.isInitialLoading)
+          const _PopularSkeleton()
+        else if (state.initialError != null)
+          _PopularMessage(
+            message: '소식을 불러오지 못했어요',
+            action: TextButton(
+              key: const Key('home-news-retry'),
+              onPressed: () =>
+                  ref.read(homeNewsProvider.notifier).load().catchError((_) {}),
+              child: const Text('다시 시도'),
+            ),
+          )
+        else if (state.posts.isEmpty)
+          const _PopularMessage(message: '아직 등록된 소식이 없어요')
+        else
+          for (var i = 0; i < state.posts.length; i++) ...[
+            if (i > 0) const Divider(height: 32, color: AppV2Tokens.border),
+            _NewsCard(post: state.posts[i]),
+          ],
       ],
     );
   }
 }
 
 class _NewsCard extends StatelessWidget {
-  const _NewsCard({
-    required this.visual,
-    required this.title,
-    required this.onTap,
-  });
-  final AppVisualId visual;
-  final String title;
-  final VoidCallback onTap;
+  const _NewsCard({required this.post});
+  final Post post;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: AppInkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
-        ),
+  Widget build(BuildContext context) {
+    final created = DateTime.tryParse(post.createdAt)?.toLocal();
+    final date = created == null
+        ? null
+        : '${created.year}.${created.month.toString().padLeft(2, '0')}.${created.day.toString().padLeft(2, '0')}';
+    return Material(
+      color: Colors.transparent,
+      child: AppInkWell(
+        key: Key('home-news-${post.id}'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.push('/community/posts/${post.id}?source=NEWS'),
         child: Row(
           children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AuthenticatedNetworkImage(
+                url: post.imageUrls.isEmpty ? null : post.imageUrls.first,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                fallback: Container(
+                  key: Key('home-news-image-fallback-${post.id}'),
+                  color: AppV2Tokens.primarySoft,
+                  alignment: Alignment.center,
+                  child: const AppIcon(
+                    Icons.image_outlined,
+                    size: 28,
+                    color: AppV2Tokens.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AppCategoryBadge(label: '준비중'),
-                  const SizedBox(height: 5),
-                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(
+                    _postTitle(post),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (date != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      date,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppV2Tokens.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 64,
-              height: 64,
-
-              child: Center(
-                child: AppVisual(
-                  id: visual,
-                  color: AppV2Tokens.primary,
-                  size: 28,
-                ),
               ),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _PopularPostsSection extends ConsumerWidget {
