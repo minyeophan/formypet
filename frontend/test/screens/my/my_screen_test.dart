@@ -22,6 +22,8 @@ import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
+import 'package:frontend/screens/my/my_blocked_users_screen.dart';
+import 'package:frontend/providers/blocked_users_provider.dart';
 import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
@@ -65,6 +67,7 @@ void main() {
       '내가 댓글 남긴 글',
       '설정',
       '일반 설정',
+      '차단 목록',
       '알림 내역',
       '고객지원',
       '공지사항',
@@ -102,6 +105,19 @@ void main() {
   });
 
   for (final fromSettings in [false, true]) {
+    testWidgets('${fromSettings ? 'settings' : 'main'} opens blocked list', (
+      tester,
+    ) async {
+      await _pumpMyScreen(tester);
+      if (fromSettings) {
+        await tester.tap(find.byKey(const Key('my-settings-button')));
+        await tester.pumpAndSettle();
+      }
+      await _tapMenuRow(tester, '차단 목록');
+      await tester.pumpAndSettle();
+      expect(find.byType(MyBlockedUsersScreen), findsOneWidget);
+      expect(find.text('차단한 사용자가 없어요.'), findsOneWidget);
+    });
     testWidgets(
       '${fromSettings ? 'settings' : 'main'} notification history opens the inbox',
       (tester) async {
@@ -220,6 +236,7 @@ Future<void> _pumpMyScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        blockedUsersProvider.overrideWith((_) async => []),
         communityServiceProvider.overrideWithValue(_EmptyActivityService()),
         notificationServiceProvider.overrideWithValue(
           _EmptyNotificationService(),

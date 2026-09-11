@@ -77,6 +77,12 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 icon: Icons.notifications_none_rounded,
                 onTap: () => context.push('/notifications'),
               ),
+              MyMenuRow(
+                label: '차단 목록',
+                icon: Icons.block_rounded,
+                showTopBorder: true,
+                onTap: () => context.push('/my/blocked-users'),
+              ),
             ],
           ),
           const SizedBox(height: 16),

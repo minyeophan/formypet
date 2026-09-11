@@ -64,8 +64,8 @@ Flutter 화면·라우터·서비스·상태 관리, Spring Controller·서비�
 | F-04 | 지도에서 찾기 — 삭제 완료 | 일정 생성·수정 공통 폼에서 검색 버튼과 검색 안내 제거 | 장소 직접 입력만 유지. 추가 구현 대상에서 제외 |
 | F-05 | 1대1 문의 | `frontend/lib/screens/my/my_inquiry_screen.dart:45`에 미제공 안내, 입력과 접수 버튼 비활성. 대응 API 없음 | 입력·DB 접수·운영자 이메일 전달 및 이메일 회신. 앱 내 문의함·답변 화면은 초기 범위 제외 |
 | F-06 | 테마 설정 — 삭제 완료 | `frontend/lib/screens/my/my_settings_screen.dart`에서 메뉴 제거 | 추가 구현 대상에서 제외 |
-| F-07 | 게시글 신고 | `frontend/lib/screens/community/community_detail_screen.dart:366`이 준비중. 댓글 신고 API와는 별개 | 게시글 신고 접수 API·UI |
-| F-08 | 사용자 차단 | `frontend/lib/screens/community/community_comments_screen.dart:574`의 report/block 분기가 모두 준비중 | 댓글 report/block 진입 제거. 게시글 더보기에서 작성자 차단, 관계 저장·콘텐츠 노출 정책·설정에서 해제 |
+| F-07 | 게시글 신고 — 화면·호출 구조 구현 | 게시글 더보기 → 신고 사유·상세 입력, 초록색 선택 표시, 실패 재시도·접수 확인 화면 제공 | 서버 접수 API·DB 저장·운영자 이메일 전달은 연동 단계. API 미제공 시 실패 표시 |
+| F-08 | 사용자 차단 — 화면·호출 구조 구현 | 게시글 작성자 차단 확인 및 기존 마이페이지·설정의 차단 목록·해제 화면 제공. 댓글/답글 신고·차단 메뉴 없음 | 관계 저장·목록·해제 API, 콘텐츠 숨김 정책·서버 필터링은 연동 단계 |
 | F-09 | 댓글 인기순·이미지 첨부 | `community_comments_screen.dart:497`, `community_comments_widgets.dart:665`가 준비중 | 인기 정렬 기준/API, 댓글 이미지 저장·표시 |
 
 ## 3. 일부 구현됐지만 연결이 끝나지 않은 기능
@@ -219,3 +219,12 @@ Flutter 화면·라우터·서비스·상태 관리, Spring Controller·서비�
 - 커뮤니티 화면 및 공통 상태 테스트 138개 통과, 종료 코드 0. Flutter 정적 분석 No issues found, 종료 코드 0. git diff --check 통과.
 - 로그: frontend/community-interactions-final-tests.log, frontend/community-interactions-analyze.log.
 - Backend 변경·실서버/실기기 검증·커밋·push·병합은 이번 실행에서 진행하지 않았다.
+
+### 게시글 신고·작성자 차단 후속 검증
+
+- 작업 브랜치: `feat/post-report-block`. 신고 사유·상세 입력 및 초록색 선택 표시, 작성자 차단 확인, 기존 마이페이지·설정에서 차단 목록 진입과 해제 흐름을 구현했다.
+- 실제 서버 응답을 사용하는 호출 구조이며 접수 API·차단 관계 저장·이메일 전달·콘텐츠 필터링은 서버 연동 단계다. 현재 API가 없으면 실패 상태를 표시한다. 자세한 범위와 제안 계약은 [POST_REPORT_BLOCK.md](POST_REPORT_BLOCK.md)에 정리했다.
+- 관련 Flutter 테스트 **210개 통과**, 종료 코드 0. 신고 실패 입력 유지·동일 요청 재시도·중복 제출 방지·계정 전환, 차단 해제 실패/성공·목록 재조회·이전 계정 지연 응답 무시, 기존 커뮤니티·My 화면을 검증했다.
+- 정적 분석 **No issues found**, 종료 코드 0. 읽기 전용 별도 코드 리뷰에서 중요한 결함 없음. `git diff --check` 통과.
+- 로그: `frontend/post-report-final-tests.log`, `frontend/post-report-analyze.log`.
+- Backend 변경·실서버/실기기 검증·커밋·push·병합은 진행하지 않았다.

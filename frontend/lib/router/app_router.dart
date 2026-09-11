@@ -41,6 +41,7 @@ import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
+import '../screens/my/my_blocked_users_screen.dart';
 import '../screens/my/my_support_center_screen.dart';
 import '../screens/notification/notification_screen.dart';
 import '../widgets/main_scaffold.dart';
@@ -173,6 +174,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
+          GoRoute(
+            path: '/my/blocked-users',
+            builder: (c, s) => const MyBlockedUsersScreen(),
+          ),
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
