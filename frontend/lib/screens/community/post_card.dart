@@ -76,49 +76,61 @@ class _PostCardState extends State<PostCard> {
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    if (post.poll != null) ...[
-                      const Text(
-                        '투표',
-                        style: TextStyle(
-                          color: AppV2Tokens.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Expanded(
-                      child: Text(
-                        headline,
-                        style: _communityTextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: _isHovered
-                              ? AppV2Tokens.primary
-                              : AppV2Tokens.text,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        post.content.trim(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: _communityTextStyle(
-                          fontSize: 14,
-                          color: AppV2Tokens.textSecondary,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              if (post.poll != null) ...[
+                                const Text(
+                                  '투표',
+                                  style: TextStyle(
+                                    color: AppV2Tokens.primary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  headline,
+                                  style: _communityTextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isHovered
+                                        ? AppV2Tokens.primary
+                                        : AppV2Tokens.text,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  post.content.trim(),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _communityTextStyle(
+                                    fontSize: 14,
+                                    color: AppV2Tokens.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                     if (post.imageUrls.isNotEmpty) ...[

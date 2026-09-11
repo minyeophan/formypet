@@ -321,6 +321,11 @@ void main() {
       matching: find.byKey(const Key('community-post-thumbnail')),
     );
     expect(tester.getSize(thumbnail), const Size(80, 80));
+    final headline = find.descendant(
+      of: imageRow,
+      matching: find.text('한 줄 제목'),
+    );
+    expect(tester.getTopLeft(thumbnail).dy, tester.getTopLeft(headline).dy);
     expect(
       find.descendant(
         of: textRow,

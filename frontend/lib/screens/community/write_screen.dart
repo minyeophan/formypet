@@ -248,7 +248,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                             const SizedBox(width: 4),
-                            const AppIcon(Icons.keyboard_arrow_down, size: 18),
+                            const AppIcon(Icons.keyboard_arrow_down, size: 16),
                           ],
                         ),
                       ),
@@ -760,12 +760,23 @@ class _SelectedAttachmentState extends State<_SelectedAttachment> {
               onPressed: widget.onRemove,
               constraints: const BoxConstraints.tightFor(width: 44, height: 44),
               padding: const EdgeInsets.all(10),
-              icon: const DecoratedBox(
+              icon: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(Icons.close, size: 24, color: AppColors.text),
+                child: SizedBox(
+                  key: Key('community-photo-remove-disc-${widget.index}'),
+                  width: 24,
+                  height: 24,
+                  child: const Center(
+                    child: AppIcon(
+                      Icons.close,
+                      size: 14,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
