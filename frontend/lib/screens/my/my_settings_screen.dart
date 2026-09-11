@@ -77,12 +77,6 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 icon: Icons.notifications_none_rounded,
                 onTap: () => context.push('/notifications'),
               ),
-              const MyMenuRow(
-                label: '테마 설정',
-                icon: Icons.palette_outlined,
-                showTopBorder: true,
-                trailing: AppText('준비중', fontSize: 12, color: AppColors.muted),
-              ),
             ],
           ),
           const SizedBox(height: 16),

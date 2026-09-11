@@ -133,6 +133,7 @@ public class CommunityService {
     public PostResponse create(String email, PostCreateRequest request, List<MultipartFile> files) {
         User user = findUser(email);
         validateCreate(request, files);
+        requireCategoryWritePermission(user, normalizeCategory(request.category()));
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
 
@@ -221,6 +222,10 @@ public class CommunityService {
                 || request.content() == null || request.content().isBlank()) {
             throw new IllegalArgumentException("Post title, category, and content are required; title must be 30 characters or fewer.");
         }
+        requireCategoryWritePermission(user, normalizeCategory(request.category()));
+        String previousCategory = jdbcTemplate.queryForObject(
+                "SELECT category FROM posts WHERE id = ?", String.class, postId);
+        requireCategoryWritePermission(user, previousCategory);
         jdbcTemplate.update("""
                 UPDATE posts SET title = ?, category = ?, pet_species = ?, content = ? WHERE id = ?
                 """, request.title().trim(), normalizeCategory(request.category()), request.petSpecies(),
@@ -891,6 +896,12 @@ public class CommunityService {
     private int likesCount(Long postId) {
         Integer count = jdbcTemplate.queryForObject("SELECT likes_count FROM posts WHERE id = ?", Integer.class, postId);
         return count == null ? 0 : count;
+    }
+
+    private void requireCategoryWritePermission(User user, String category) {
+        if ("NEWS".equals(category) && !user.isAdmin()) {
+            throw new ForbiddenException("소식은 관리자만 작성할 수 있습니다.", "NEWS_ADMIN_ONLY");
+        }
     }
 
     private String normalizeCategory(String category) {

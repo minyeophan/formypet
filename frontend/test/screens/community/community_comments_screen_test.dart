@@ -42,6 +42,7 @@ void main() {
     expect(find.text('댓글 (1)'), findsOneWidget);
     expect(service.commentsLimit, 20);
     expect(service.replyLimit, 20);
+    expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
   });
 
   testWidgets(
@@ -140,6 +141,7 @@ void main() {
     expect(find.text('수정하기'), findsOneWidget);
     expect(find.text('삭제하기'), findsOneWidget);
     expect(find.text('신고하기'), findsNothing);
+    expect(find.text('사용자 차단'), findsNothing);
   });
 
   testWidgets('renders deleted root as tombstone without actions', (
@@ -162,7 +164,7 @@ void main() {
     expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
     expect(find.byKey(const Key('community-comment-reply-1')), findsNothing);
     expect(find.byKey(const Key('community-reply-2')), findsOneWidget);
-    expect(find.byKey(const Key('community-comment-more-2')), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-2')), findsNothing);
     expect(find.text('댓글 (1)'), findsOneWidget);
   });
 
@@ -277,6 +279,8 @@ void main() {
 
     expect(find.text('삭제하기'), findsOneWidget);
     expect(find.text('수정하기'), findsNothing);
+    expect(find.text('신고하기'), findsNothing);
+    expect(find.text('사용자 차단'), findsNothing);
   });
 }
 

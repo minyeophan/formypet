@@ -30,6 +30,13 @@ public class User {
     @Column(name = "registration_source", nullable = false, length = 20)
     private String registrationSource;
 
+    @Column(nullable = false, length = 20)
+    private String role = "USER";
+
+    public boolean isAdmin() {
+        return "ADMIN".equals(role);
+    }
+
     @Column(name = "profile_media_id")
     private Long profileMediaId;
 

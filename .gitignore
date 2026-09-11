@@ -25,7 +25,7 @@ backend/.env.*
 backend/src/main/resources/application-local.yml
 
 # Runtime uploaded files
-storage/
+/storage/
 backend/hs_err_pid*.log
 backend/replay_pid*.log
 hs_err_pid*.log
