@@ -33,7 +33,7 @@ void main() {
     for (final width in [360.0, 390.0]) {
       tester.view.physicalSize = Size(width, 844);
       await _pumpScreen(tester);
-      final place = find.widgetWithText(TextField, '장소를 직접 입력하거나 검색하세요');
+      final place = find.widgetWithText(TextField, '장소를 직접 입력해 주세요');
       await tester.ensureVisible(place);
       await tester.pumpAndSettle();
       await tester.enterText(place, '반려동물 병원');
@@ -124,7 +124,7 @@ void main() {
     expect(find.text('일정 제목'), findsOneWidget);
     expect(find.text('일시'), findsOneWidget);
     expect(find.text('장소'), findsOneWidget);
-    expect(find.text('지도에서 찾기'), findsOneWidget);
+    expect(find.text('지도에서 찾기'), findsNothing);
     expect(find.text('메모'), findsOneWidget);
     expect(find.text('알림 시점'), findsOneWidget);
     expect(find.text('동반자'), findsNothing);
@@ -165,6 +165,10 @@ void main() {
     await tester.pump();
     expect(saveButton().onPressed, isNotNull);
 
+    final place = find.widgetWithText(TextField, '장소를 직접 입력해 주세요');
+    await tester.ensureVisible(place);
+    await tester.enterText(place, '동네 미용실');
+
     await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('schedule-save-button')));
@@ -174,6 +178,7 @@ void main() {
     expect(notifier.state.schedules, hasLength(1));
     expect(notifier.state.schedules.single.title, '목욕 예약');
     expect(notifier.state.schedules.single.categoryId, 'grooming');
+    expect(notifier.state.schedules.single.place, '동네 미용실');
     expect(notifier.state.schedules.single.startTime, '00:00');
     expect(
       notifier.state.schedules.single.endDate,
@@ -187,7 +192,7 @@ void main() {
     expect(find.text('routine target tab=schedules'), findsOneWidget);
   });
 
-  testWidgets('schedule has no all-day control and map search shows toast', (
+  testWidgets('schedule uses direct place input without map search', (
     tester,
   ) async {
     await _pumpScreen(tester);
@@ -196,11 +201,8 @@ void main() {
     expect(find.byKey(const Key('schedule-all-day-switch')), findsNothing);
     expect(find.text('종일'), findsNothing);
 
-    await tester.ensureVisible(find.text('지도에서 찾기'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('지도에서 찾기'));
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
+    expect(find.text('지도에서 찾기'), findsNothing);
+    expect(find.widgetWithText(TextField, '장소를 직접 입력해 주세요'), findsOneWidget);
   });
 
   testWidgets('reminder picker only applies completed selection', (
@@ -238,6 +240,7 @@ void main() {
     expect(find.text('10:30'), findsOneWidget);
     expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
     expect(find.widgetWithText(TextField, '동네 미용실'), findsOneWidget);
+    expect(find.text('지도에서 찾기'), findsNothing);
     expect(find.widgetWithText(TextField, '빗 챙기기'), findsOneWidget);
     expect(find.byKey(const Key('schedule-save-button')), findsOneWidget);
     expect(find.text('저장'), findsOneWidget);

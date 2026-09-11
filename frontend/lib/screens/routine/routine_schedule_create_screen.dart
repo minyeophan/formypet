@@ -1,6 +1,5 @@
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
-import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +13,6 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
-import '../../widgets/preparing_toast.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import '../../widgets/record_inputs/record_input_style.dart';
 import '../../widgets/record_inputs/record_picker_sheet.dart';
@@ -157,30 +155,9 @@ class _RoutineScheduleCreateScreenState
               const SizedBox(height: 12),
               _FormSection(
                 label: '장소',
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _placeController,
-                      decoration: _inputDecoration('장소를 직접 입력하거나 검색하세요'),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => showPreparingToast(context),
-                        icon: const AppIcon(Icons.map_outlined, size: 18),
-                        label: const AppText(
-                          '지도에서 찾기',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                        ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                      ),
-                    ),
-                  ],
+                child: TextField(
+                  controller: _placeController,
+                  decoration: _inputDecoration('장소를 직접 입력해 주세요'),
                 ),
               ),
               const SizedBox(height: 12),

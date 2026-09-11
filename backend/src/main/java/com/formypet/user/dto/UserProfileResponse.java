@@ -7,7 +7,8 @@ public record UserProfileResponse(
         String email,
         String nickname,
         String profileImageUrl,
-        String registrationSource
+        String registrationSource,
+        String role
 ) {
     public static UserProfileResponse of(User user) {
         Long mediaId = user.getProfileMediaId();
@@ -16,7 +17,8 @@ public record UserProfileResponse(
                 user.getEmail(),
                 user.getNickname(),
                 mediaId == null ? null : "/api/v1/media/" + mediaId,
-                user.getRegistrationSource()
+                user.getRegistrationSource(),
+                user.getRole()
         );
     }
 }

@@ -10,6 +10,7 @@ import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../widgets/preparing_toast.dart';
+import 'community_comment_widgets.dart';
 import 'community_comments_widgets.dart';
 import 'community_routes.dart';
 
@@ -509,6 +510,13 @@ class _CommunityCommentsScreenState
               for (var i = 0; i < _comments.length; i++) ...[
                 if (i > 0) const SizedBox(height: 24),
                 CommunityCommentGroup(
+                  canManage: (comment) =>
+                      post != null &&
+                      canManageCommunityComment(
+                        currentUserId: currentUserId,
+                        post: post,
+                        comment: comment,
+                      ),
                   targetCommentId: widget.targetCommentId,
                   targetCommentKey: _targetCommentKey,
                   threadKey: _threadKeys.putIfAbsent(
@@ -555,13 +563,18 @@ class _CommunityCommentsScreenState
     Post? post,
     String? currentUserId,
   ) async {
-    if (comment.deleted) return;
+    if (post == null ||
+        !canManageCommunityComment(
+          currentUserId: currentUserId,
+          post: post,
+          comment: comment,
+        )) {
+      return;
+    }
     if (_mutatingCommentIds.contains(comment.id)) return;
     final kind = currentUserId != null && comment.userId == currentUserId
         ? CommunityCommentMenuKind.commentOwner
-        : currentUserId != null && post?.userId == currentUserId
-        ? CommunityCommentMenuKind.postOwner
-        : CommunityCommentMenuKind.viewer;
+        : CommunityCommentMenuKind.postOwner;
     final action = await showCommunityCommentsV2Menu(context, kind: kind);
     if (!mounted || action == null) return;
     switch (action) {
@@ -570,10 +583,6 @@ class _CommunityCommentsScreenState
         break;
       case CommunityCommentMenuAction.delete:
         await _confirmAndDelete(comment);
-        break;
-      case CommunityCommentMenuAction.report:
-      case CommunityCommentMenuAction.block:
-        showPreparingToast(context);
         break;
     }
   }

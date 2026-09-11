@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("26", flyway.info().current().getVersion().getVersion());
+        assertEquals("27", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -48,6 +48,13 @@ class FlywayMigrationTest {
             assertCommentManagementSchema(connection);
             assertActivityIndexes(connection);
             assertNotificationsSchema(connection);
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("INSERT INTO users(email, password_hash, nickname, registration_source) VALUES ('role-default@example.test', 'hash', 'reader', 'LOCAL')");
+                try (var result = statement.executeQuery("SELECT role FROM users WHERE email='role-default@example.test'")) {
+                    result.next();
+                    assertEquals("USER", result.getString(1));
+                }
+            }
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'notification_enabled'"));
         }
     }
@@ -60,7 +67,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("26", flyway.info().current().getVersion().getVersion());
+        assertEquals("27", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

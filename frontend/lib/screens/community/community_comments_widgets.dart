@@ -125,6 +125,7 @@ class CommunityCommentGroup extends StatelessWidget {
   const CommunityCommentGroup({
     super.key,
     required this.root,
+    required this.canManage,
     required this.onRootMore,
     required this.onReply,
     required this.onReplyMore,
@@ -136,6 +137,7 @@ class CommunityCommentGroup extends StatelessWidget {
   });
 
   final PostComment root;
+  final bool Function(PostComment) canManage;
   final VoidCallback onRootMore;
   final VoidCallback onReply;
   final ValueChanged<PostComment> onReplyMore;
@@ -161,7 +163,7 @@ class CommunityCommentGroup extends StatelessWidget {
             comment: root,
             avatarSize: 40,
             bodySize: 16,
-            onMore: onRootMore,
+            onMore: canManage(root) ? onRootMore : null,
             onReply: onReply,
           ),
           if (root.replies.isNotEmpty || onLoadEarlierReplies != null)
@@ -195,7 +197,9 @@ class CommunityCommentGroup extends StatelessWidget {
                           comment: root.replies[i],
                           avatarSize: 32,
                           bodySize: 14,
-                          onMore: () => onReplyMore(root.replies[i]),
+                          onMore: canManage(root.replies[i])
+                              ? () => onReplyMore(root.replies[i])
+                              : null,
                         ),
                       ),
                     ],
@@ -222,7 +226,7 @@ class _CommentRow extends StatelessWidget {
   final PostComment comment;
   final double avatarSize;
   final double bodySize;
-  final VoidCallback onMore;
+  final VoidCallback? onMore;
   final VoidCallback? onReply;
 
   @override
@@ -276,7 +280,11 @@ class _CommentRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _CommentMoreButton(commentId: comment.id, onPressed: onMore),
+                  if (onMore != null)
+                    _CommentMoreButton(
+                      commentId: comment.id,
+                      onPressed: onMore!,
+                    ),
                 ],
               ),
               Text(
@@ -369,9 +377,9 @@ class _FocusAction extends StatelessWidget {
   );
 }
 
-enum CommunityCommentMenuKind { commentOwner, postOwner, viewer }
+enum CommunityCommentMenuKind { commentOwner, postOwner }
 
-enum CommunityCommentMenuAction { edit, delete, report, block }
+enum CommunityCommentMenuAction { edit, delete }
 
 Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
   BuildContext context, {
@@ -394,10 +402,6 @@ Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
         Icons.delete_outline_rounded,
         true,
       ),
-    ],
-    CommunityCommentMenuKind.viewer => const [
-      (CommunityCommentMenuAction.report, '신고하기', Icons.report_outlined, false),
-      (CommunityCommentMenuAction.block, '사용자 차단', Icons.block_rounded, false),
     ],
   };
   return showModalBottomSheet<CommunityCommentMenuAction>(

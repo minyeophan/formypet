@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     nickname      VARCHAR(50)    NOT NULL,
     notification_enabled BOOLEAN  NOT NULL DEFAULT TRUE,
     registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
     profile_media_id BIGINT      NULL,
     created_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)

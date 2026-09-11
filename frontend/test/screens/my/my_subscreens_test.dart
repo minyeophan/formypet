@@ -19,7 +19,6 @@ import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/services/auth_service.dart';
-import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -69,26 +68,12 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('theme settings is visibly preparing and disabled', (
+  testWidgets('settings keeps notifications without a theme menu', (
     tester,
   ) async {
     await _pump(tester, const MySettingsScreen());
-    final row = find
-        .ancestor(of: find.text('테마 설정'), matching: find.byType(InkWell))
-        .first;
-
-    expect(
-      find.descendant(of: row, matching: find.text('준비중')),
-      findsOneWidget,
-    );
-    expect(tester.widget<InkWell>(row).onTap, isNull);
-    expect(
-      find.descendant(of: row, matching: find.byType(AppDisclosureChevron)),
-      findsNothing,
-    );
-    await tester.tap(find.text('테마 설정'));
-    await tester.pumpAndSettle();
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.text('테마 설정'), findsNothing);
+    expect(find.text('알림 내역'), findsOneWidget);
   });
 
   testWidgets('cancelling logout keeps the account connected', (tester) async {

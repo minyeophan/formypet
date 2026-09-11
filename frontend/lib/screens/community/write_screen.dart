@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/community_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/post.dart';
 import '../../services/community_service.dart';
 import '../../widgets/app_text.dart';
@@ -87,6 +88,11 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
 
   Future<void> _submit() async {
     if (_isLoading) return;
+    if ((_category == 'NEWS' || widget.editingPost?.category == 'NEWS') &&
+        ref.read(authProvider).profile?.isAdmin != true) {
+      setState(() => _error = '소식은 관리자만 작성할 수 있어요.');
+      return;
+    }
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
     if (title.isEmpty) {
@@ -157,6 +163,13 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
     final selected = await _showCategoryPickerSheet(
       context: context,
       currentCategory: _category,
+      categories: kCommunityCategories
+          .where(
+            (category) =>
+                category != 'NEWS' ||
+                ref.read(authProvider).profile?.isAdmin == true,
+          )
+          .toList(),
     );
     if (selected == null || !mounted) return;
     setState(() => _category = selected);
@@ -452,18 +465,26 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
 Future<String?> _showCategoryPickerSheet({
   required BuildContext context,
   required String currentCategory,
+  required List<String> categories,
 }) {
   return showModalBottomSheet<String>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (context) => _CategoryWheelSheet(currentCategory: currentCategory),
+    builder: (context) => _CategoryWheelSheet(
+      currentCategory: currentCategory,
+      categories: categories,
+    ),
   );
 }
 
 class _CategoryWheelSheet extends StatefulWidget {
   final String currentCategory;
+  final List<String> categories;
 
-  const _CategoryWheelSheet({required this.currentCategory});
+  const _CategoryWheelSheet({
+    required this.currentCategory,
+    required this.categories,
+  });
 
   @override
   State<_CategoryWheelSheet> createState() => _CategoryWheelSheetState();
@@ -475,12 +496,14 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
   @override
   void initState() {
     super.initState();
-    _pendingCategory = widget.currentCategory;
+    _pendingCategory = widget.categories.contains(widget.currentCategory)
+        ? widget.currentCategory
+        : widget.categories.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final initialIndex = kCommunityCategories.indexOf(widget.currentCategory);
+    final initialIndex = widget.categories.indexOf(widget.currentCategory);
     final safeInitialIndex = initialIndex < 0 ? 0 : initialIndex;
 
     return SafeArea(
@@ -548,11 +571,11 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
                   ),
                 ),
                 onSelectedItemChanged: (index) {
-                  _pendingCategory = kCommunityCategories[index];
+                  _pendingCategory = widget.categories[index];
                 },
-                childCount: kCommunityCategories.length,
+                childCount: widget.categories.length,
                 itemBuilder: (context, index) {
-                  final category = kCommunityCategories[index];
+                  final category = widget.categories[index];
                   return Center(
                     child: AppText(
                       key: Key('community-category-option-$category'),
