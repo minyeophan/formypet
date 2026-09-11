@@ -16,6 +16,7 @@ String communityCommentsPath(
   bool focus = false,
   String? threadId,
   String? replyToCommentId,
+  String? manageCommentId,
 }) {
   final source = normalizeCommunitySourceKey(sourceKey);
   return Uri(
@@ -25,6 +26,8 @@ String communityCommentsPath(
       if (focus) 'focus': 'true',
       'thread': ?threadId,
       'replyTo': ?replyToCommentId,
+      'targetComment': ?manageCommentId,
+      if (manageCommentId != null) 'manage': 'true',
     },
   ).toString();
 }

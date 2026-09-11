@@ -12,6 +12,31 @@ import 'package:frontend/services/community_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('management target opens the selected reply owner menu', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeService(
+        comments: [
+          _comment('1', replies: [_comment('2', userId: 'me')]),
+        ],
+      ),
+      initialThreadId: '1',
+      targetCommentId: '2',
+      manageTarget: true,
+    );
+    expect(find.text('수정하기'), findsOneWidget);
+    expect(find.text('삭제하기'), findsOneWidget);
+    await tester.tap(find.text('수정하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('댓글 수정 중'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '댓글 2',
+    );
+  });
+
   testWidgets('activity target loads older reply under a deleted parent', (
     tester,
   ) async {
@@ -290,6 +315,7 @@ Future<void> _pump(
   String? initialThreadId,
   String? initialReplyToCommentId,
   String? targetCommentId,
+  bool manageTarget = false,
   String currentUserId = 'me',
 }) async {
   await tester.pumpWidget(
@@ -316,6 +342,7 @@ Future<void> _pump(
           initialThreadId: initialThreadId,
           initialReplyToCommentId: initialReplyToCommentId,
           targetCommentId: targetCommentId,
+          manageTarget: manageTarget,
         ),
       ),
     ),

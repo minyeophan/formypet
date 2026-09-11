@@ -398,7 +398,7 @@ class CommunityCommentPreview extends StatelessWidget {
   final VoidCallback onMore;
   final ValueChanged<String> onReply;
   final ValueChanged<String> onThread;
-  final VoidCallback onManage;
+  final void Function(String threadId, String commentId) onManage;
   @override
   Widget build(BuildContext context) {
     if (comments.isEmpty) {
@@ -446,7 +446,7 @@ class _CommentRow extends StatelessWidget {
   final String? currentUserId;
   final VoidCallback onReply;
   final VoidCallback onThread;
-  final VoidCallback onManage;
+  final void Function(String threadId, String commentId) onManage;
   @override
   Widget build(BuildContext context) {
     final uniqueReplies = <String, PostComment>{
@@ -466,7 +466,7 @@ class _CommentRow extends StatelessWidget {
             post: post,
             comment: comment,
           ),
-          onManage: onManage,
+          onManage: () => onManage(comment.id, comment.id),
           onReply: onReply,
         ),
         for (final reply in uniqueReplies)
@@ -487,7 +487,7 @@ class _CommentRow extends StatelessWidget {
                 post: post,
                 comment: reply,
               ),
-              onManage: onManage,
+              onManage: () => onManage(comment.id, reply.id),
             ),
           ),
         if (remaining > 0 || comment.repliesNextCursor != null)

@@ -130,6 +130,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             sourceKey: s.uri.queryParameters['from'],
             initialThreadId: thread,
             targetCommentId: s.uri.queryParameters['targetComment'],
+            manageTarget: s.uri.queryParameters['manage'] == 'true',
             initialReplyToCommentId: replyTo,
             autofocus:
                 s.uri.queryParameters['focus'] == 'true' || replyTo != null,

@@ -23,6 +23,7 @@ class CommunityCommentsScreen extends ConsumerStatefulWidget {
     this.initialThreadId,
     this.initialReplyToCommentId,
     this.targetCommentId,
+    this.manageTarget = false,
   });
 
   final String postId;
@@ -31,6 +32,7 @@ class CommunityCommentsScreen extends ConsumerStatefulWidget {
   final String? initialThreadId;
   final String? initialReplyToCommentId;
   final String? targetCommentId;
+  final bool manageTarget;
 
   @override
   ConsumerState<CommunityCommentsScreen> createState() =>
@@ -44,6 +46,7 @@ class _CommunityCommentsScreenState
   final _scrollController = ScrollController();
   final Map<String, GlobalKey> _threadKeys = {};
   final _targetCommentKey = GlobalKey();
+  bool _managementOpened = false;
   final Set<String> _loadingReplies = {};
 
   List<PostComment> _comments = const [];
@@ -263,6 +266,21 @@ class _CommunityCommentsScreenState
       }
       if (widget.initialReplyToCommentId != null && !root!.deleted) {
         _focusNode.requestFocus();
+      }
+      if (widget.manageTarget &&
+          !_managementOpened &&
+          requestedComment != null) {
+        final selected = root!.id == requestedComment
+            ? root
+            : root.replies.where((r) => r.id == requestedComment).firstOrNull;
+        if (selected != null) {
+          _managementOpened = true;
+          _showCommentMenu(
+            selected,
+            ref.read(communityProvider).postsById[widget.postId],
+            ref.read(authProvider).profile?.id,
+          );
+        }
       }
     });
   }

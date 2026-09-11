@@ -22,6 +22,10 @@ class CommunitySearchScreen extends ConsumerStatefulWidget {
 
 class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController(keepScrollOffset: false);
+  String? _nextCursor;
+  bool _loadingMore = false;
+  String? _moreError;
   List<Post> _posts = const [];
   int _searchGeneration = 0;
   bool _loading = false;
@@ -43,10 +47,12 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _clearSearch() {
+    ref.read(communityProvider.notifier).invalidateSearch();
     _controller.clear();
     setState(() {
       // Invalidate completions as well as cached results from the old account.
@@ -56,30 +62,43 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
       _error = null;
       _searched = false;
       _lastKeyword = null;
+      _nextCursor = null;
+      _loadingMore = false;
+      _moreError = null;
     });
   }
 
-  Future<void> _search() async {
-    if (_loading) return;
-    final keyword = _controller.text.trim();
+  Future<void> _search({String? retryKeyword}) async {
+    final keyword = retryKeyword ?? _controller.text.trim();
+    if (_loading && keyword == _lastKeyword) return;
     if (keyword.length < 2 || keyword.length > 20) {
       setState(() => _error = '검색어는 2~20자로 입력해 주세요.');
       return;
     }
     final generation = ++_searchGeneration;
+    FocusScope.of(context).unfocus();
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
     setState(() {
       _loading = true;
       _error = null;
       _searched = true;
       _lastKeyword = keyword;
       _posts = const [];
+      _nextCursor = null;
+      _loadingMore = false;
+      _moreError = null;
     });
     try {
-      final posts = await ref
+      final page = await ref
           .read(communityProvider.notifier)
-          .searchPosts(keyword);
+          .searchPage(keyword);
       if (mounted && generation == _searchGeneration) {
-        setState(() => _posts = posts);
+        setState(() {
+          _posts = {
+            for (final post in page.items) post.id: post,
+          }.values.toList();
+          _nextCursor = page.nextCursor;
+        });
       }
     } catch (_) {
       if (mounted && generation == _searchGeneration) {
@@ -88,6 +107,37 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
     } finally {
       if (mounted && generation == _searchGeneration) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final cursor = _nextCursor;
+    final keyword = _lastKeyword;
+    if (_loading || _loadingMore || cursor == null || keyword == null) return;
+    final generation = _searchGeneration;
+    setState(() {
+      _loadingMore = true;
+      _moreError = null;
+    });
+    try {
+      final page = await ref
+          .read(communityProvider.notifier)
+          .searchPage(keyword, cursor: cursor);
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _posts = {
+          for (final post in _posts) post.id: post,
+          for (final post in page.items) post.id: post,
+        }.values.toList();
+        _nextCursor = page.nextCursor == cursor ? null : page.nextCursor;
+      });
+    } catch (_) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() => _moreError = '추가 결과를 불러오지 못했어요.');
+    } finally {
+      if (mounted && generation == _searchGeneration) {
+        setState(() => _loadingMore = false);
       }
     }
   }
@@ -165,7 +215,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppV2Tokens.primary,
                 ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                onPressed: _loading ? null : _search,
+                onPressed: _search,
                 child: const Text('검색'),
               ),
             ),
@@ -187,24 +237,54 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
             const SizedBox(height: 10),
             OutlinedButton(
               key: const Key('community-search-retry-button'),
-              onPressed: _lastKeyword == null ? null : _search,
+              onPressed: _lastKeyword == null
+                  ? null
+                  : () => _search(retryKeyword: _lastKeyword),
               child: const Text('다시 시도'),
             ),
           ],
         ),
       );
     }
-    if (_searched && _posts.isEmpty) {
+    final posts = _posts
+        .map((post) => community.postsById[post.id])
+        .whereType<Post>()
+        .toList();
+    if (_searched && posts.isEmpty && _nextCursor == null) {
       return const Center(child: Text('검색 결과가 없어요.'));
     }
     if (!_searched) {
       return const Center(child: Text('궁금한 내용을 검색해 보세요.'));
     }
     return ListView.builder(
-      itemCount: _posts.length,
+      key: const PageStorageKey('community-search-results'),
+      controller: _scrollController,
+      itemCount: posts.length + (_nextCursor == null ? 0 : 1),
       itemBuilder: (context, index) {
-        final post = community.postsById[_posts[index].id] ?? _posts[index];
+        if (index == posts.length) {
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                if (_moreError != null) Text(_moreError!),
+                TextButton(
+                  key: const Key('community-search-load-more'),
+                  onPressed: _loadingMore ? null : _loadMore,
+                  child: Text(
+                    _loadingMore
+                        ? '불러오는 중…'
+                        : _moreError != null
+                        ? '다시 시도'
+                        : '더보기',
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        final post = posts[index];
         return PostCard(
+          key: ValueKey(post.id),
           post: post,
           isLiking: community.isLiking(post.id),
           onLike: () => _toggleLike(post.id),

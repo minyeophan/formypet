@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -19,6 +20,237 @@ void main() {
     initApiClient('http://example.test', includeAuthInterceptor: false);
   });
 
+  testWidgets(
+    'loads every search page beyond fifty and retains results on retry',
+    (tester) async {
+      final cursors = <String?>[];
+      var failNext = true;
+      dio.httpClientAdapter = _SearchAdapter((request) async {
+        if (request.queryParameters['keyword'] == null) return _feed([]);
+        expect(request.queryParameters['limit'], 10);
+        final cursor = request.queryParameters['cursor'] as String?;
+        cursors.add(cursor);
+        if (cursor == '10' && failNext) {
+          failNext = false;
+          return _json({'title': 'Unavailable'}, status: 400);
+        }
+        final start = int.tryParse(cursor ?? '') ?? 0;
+        return _json({
+          'items': List.generate(
+            10,
+            (i) => {
+              ..._post(title: '결과 ${start + i}'),
+              'id': 'post-${start + i}',
+            },
+          ),
+          'nextCursor': start < 50 ? '${start + 10}' : null,
+        });
+      });
+      final container = await _pumpSearch(tester);
+      await _search(tester);
+      Future<void> more() async {
+        final button = find.byKey(const Key('community-search-load-more'));
+        await tester.scrollUntilVisible(
+          button,
+          800,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+      }
+
+      await more();
+      expect(find.text('추가 결과를 불러오지 못했어요.'), findsOneWidget);
+      expect(container.read(communityProvider).postsById.length, 10);
+      await more();
+      await more();
+      for (var i = 0; i < 3; i++) {
+        await more();
+      }
+      expect(cursors, [null, '10', '10', '20', '30', '40', '50']);
+      expect(container.read(communityProvider).postsById.length, 60);
+      await tester.scrollUntilVisible(
+        find.text('결과 59'),
+        800,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text('결과 59'), findsOneWidget);
+      expect(find.byKey(const Key('community-search-load-more')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'detail return preserves keyword loaded pages and scroll position',
+    (tester) async {
+      var searches = 0;
+      dio.httpClientAdapter = _SearchAdapter((request) async {
+        if (request.queryParameters['keyword'] == null) return _feed([]);
+        searches++;
+        final start = request.queryParameters['cursor'] == null ? 0 : 10;
+        return _json({
+          'items': List.generate(
+            10,
+            (i) => {
+              ..._post(title: '결과 ${start + i}'),
+              'id': 'post-${start + i}',
+            },
+          ),
+          'nextCursor': start == 0 ? '10' : null,
+        });
+      });
+      final router = GoRouter(
+        initialLocation: '/community/search',
+        routes: [
+          GoRoute(
+            path: '/community/search',
+            builder: (_, _) => const CommunitySearchScreen(),
+          ),
+          GoRoute(
+            path: '/community/posts/:postId',
+            builder: (context, _) => Scaffold(
+              body: TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('돌아가기'),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await _pumpSearch(tester, router: router);
+      await _search(tester);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('community-search-load-more')),
+        600,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.byKey(const Key('community-search-load-more')));
+      await tester.pumpAndSettle();
+      final list = tester.widget<ListView>(
+        find.byKey(const PageStorageKey('community-search-results')),
+      );
+      final offset = list.controller!.offset;
+      final card = tester.widget<PostCard>(find.byType(PostCard).last);
+      card.onOpen!();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('돌아가기'));
+      await tester.pumpAndSettle();
+      expect(searches, 2);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('community-search-field')))
+            .controller!
+            .text,
+        '산책',
+      );
+      expect(list.controller!.offset, closeTo(offset, 1));
+      expect(find.byKey(const Key('community-search-load-more')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'pending additional page cannot overwrite new keyword or duplicate requests',
+    (tester) async {
+      final page = Completer<ResponseBody>();
+      var loads = 0;
+      dio.httpClientAdapter = _SearchAdapter((request) async {
+        final keyword = request.queryParameters['keyword'];
+        if (keyword == null) return _feed([]);
+        if (keyword == '새 검색') return _feed([_post(title: '새 결과')]);
+        if (request.queryParameters['cursor'] != null) {
+          loads++;
+          return page.future;
+        }
+        return _json({
+          'items': [_post()],
+          'nextCursor': 'next',
+        });
+      });
+      final container = await _pumpSearch(tester);
+      await _search(tester);
+      final button = find.byKey(const Key('community-search-load-more'));
+      await tester.tap(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(loads, 1);
+      await _search(tester, '새 검색');
+      page.complete(_feed([_post(title: '오래된 결과')]));
+      await tester.pumpAndSettle();
+      expect(find.text('새 결과'), findsOneWidget);
+      expect(find.text('오래된 결과'), findsNothing);
+      expect(
+        container.read(communityProvider).postsById['search-post']!.title,
+        '새 결과',
+      );
+      expect(button, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'additional page deduplicates IDs and cannot restore a deleted post',
+    (tester) async {
+      final page = Completer<ResponseBody>();
+      dio.httpClientAdapter = _SearchAdapter((request) async {
+        if (request.method == 'DELETE') return _json({});
+        if (request.queryParameters['keyword'] == null) return _feed([]);
+        if (request.queryParameters['cursor'] != null) return page.future;
+        return _json({
+          'items': [_post()],
+          'nextCursor': 'next',
+        });
+      });
+      final container = await _pumpSearch(tester);
+      await _search(tester);
+      await tester.tap(find.byKey(const Key('community-search-load-more')));
+      await tester.pump();
+      final deletion = container
+          .read(communityProvider.notifier)
+          .deletePost('search-post');
+      await tester.pumpAndSettle();
+      await deletion;
+      page.complete(
+        _feed([
+          _post(),
+          {..._post(title: '다른 글'), 'id': 'second'},
+          {..._post(title: '다른 글'), 'id': 'second'},
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('산책 정보'), findsNothing);
+      expect(find.text('다른 글'), findsOneWidget);
+      expect(
+        container.read(communityProvider).postsById.containsKey('search-post'),
+        isFalse,
+      );
+    },
+  );
+  testWidgets('new keyword supersedes pending search without clearing', (
+    tester,
+  ) async {
+    final old = Completer<ResponseBody>();
+    dio.httpClientAdapter = _SearchAdapter((request) async {
+      if (request.queryParameters['keyword'] == null) return _feed([]);
+      if (request.queryParameters['keyword'] == '산책') return old.future;
+      return _feed([_post(title: '새 결과')]);
+    });
+    await _pumpSearch(tester);
+    await tester.enterText(
+      find.byKey(const Key('community-search-field')),
+      '산책',
+    );
+    await tester.tap(find.byKey(const Key('community-search-submit-button')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('community-search-field')),
+      '새 검색',
+    );
+    await tester.tap(find.byKey(const Key('community-search-submit-button')));
+    await tester.pump();
+    old.complete(_feed([_post()]));
+    await tester.pumpAndSettle();
+    expect(find.text('새 결과'), findsOneWidget);
+    expect(find.text('산책 정보'), findsNothing);
+  });
   testWidgets('search like updates shared feed and detail cache', (
     tester,
   ) async {
@@ -274,7 +506,7 @@ void main() {
             (request) => request.queryParameters.containsKey('keyword'),
           )
           .queryParameters,
-      {'keyword': '산책', 'limit': 50, 'sort': 'latest'},
+      {'keyword': '산책', 'limit': 10, 'sort': 'latest'},
     );
     expect(requests.last.method, 'POST');
     expect(requests.last.path, '/api/v1/posts/search-post/like');
@@ -454,24 +686,27 @@ void main() {
 Future<ProviderContainer> _pumpSearch(
   WidgetTester tester, {
   AuthNotifier? auth,
+  GoRouter? router,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [if (auth != null) authProvider.overrideWith((ref) => auth)],
-      child: MaterialApp(
-        theme: ThemeData(
-          inputDecorationTheme: InputDecorationTheme(
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30),
+      child: router != null
+          ? MaterialApp.router(routerConfig: router)
+          : MaterialApp(
+              theme: ThemeData(
+                inputDecorationTheme: InputDecorationTheme(
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: AppColors.actionMint),
+                  ),
+                ),
+              ),
+              home: const CommunitySearchScreen(),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30),
-              borderSide: const BorderSide(color: AppColors.actionMint),
-            ),
-          ),
-        ),
-        home: const CommunitySearchScreen(),
-      ),
     ),
   );
   await tester.pumpAndSettle();

@@ -1,3 +1,5 @@
+import 'package:frontend/screens/community/community_comments_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:frontend/widgets/app_ink_well.dart';
 
@@ -21,6 +23,52 @@ import 'package:frontend/widgets/authenticated_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('reply management routes the selected reply and its root', (
+    tester,
+  ) async {
+    Uri? openedUri;
+    final router = GoRouter(
+      initialLocation: '/community/posts/post-1',
+      routes: [
+        GoRoute(
+          path: '/community/posts/:postId',
+          builder: (_, _) => const CommunityDetailScreen(postId: 'post-1'),
+        ),
+        GoRoute(
+          path: '/community/posts/:postId/comments',
+          builder: (_, state) {
+            openedUri = state.uri;
+            return Scaffold(body: Text(state.uri.toString()));
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await _pumpDetail(
+      tester,
+      router: router,
+      currentUserId: 'me',
+      comments: [
+        _comment(
+          id: 'root',
+          userId: 'other',
+          replyCount: 1,
+          replies: [
+            _comment(id: 'reply', userId: 'me', parentCommentId: 'root'),
+          ],
+        ),
+      ],
+    );
+    final button = find.byKey(const Key('community-comment-more-reply'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(openedUri?.queryParameters, containsPair('thread', 'root'));
+    expect(openedUri?.queryParameters, containsPair('targetComment', 'reply'));
+    expect(openedUri?.queryParameters, containsPair('manage', 'true'));
+    expect(find.text('준비중'), findsNothing);
+  });
+
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
     initApiClient('http://example.test', includeAuthInterceptor: false);
@@ -287,23 +335,54 @@ void main() {
     expect(find.text('답글 3개 더보기'), findsOneWidget);
   });
 
-  testWidgets('delete action shows preparing toast', (tester) async {
-    await _pumpDetail(
-      tester,
-      currentUserId: 'comment-owner',
-      comments: [_comment(id: 'own', userId: 'comment-owner')],
-    );
-
-    await tester.tap(find.byKey(const Key('community-comment-more-own')));
-    await tester.pumpAndSettle();
-    expect(find.text('댓글 관리'), findsOneWidget);
-
-    await tester.tap(find.text('삭제하기'));
-    await tester.pump();
-
-    expect(find.text('준비중'), findsOneWidget);
-  });
-
+  testWidgets(
+    'detail management deletes selected comment and refreshes on return',
+    (tester) async {
+      final service = _FakeCommunityService(
+        post: _post(userId: 'post-owner'),
+        comments: [_comment(id: 'own', userId: 'comment-owner')],
+      );
+      final router = GoRouter(
+        initialLocation: '/community/posts/post-1',
+        routes: [
+          GoRoute(
+            path: '/community/posts/:postId',
+            builder: (_, _) => const CommunityDetailScreen(postId: 'post-1'),
+          ),
+          GoRoute(
+            path: '/community/posts/:postId/comments',
+            builder: (_, state) => CommunityCommentsScreen(
+              postId: 'post-1',
+              initialThreadId: state.uri.queryParameters['thread'],
+              targetCommentId: state.uri.queryParameters['targetComment'],
+              manageTarget: state.uri.queryParameters['manage'] == 'true',
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await _pumpDetail(
+        tester,
+        router: router,
+        currentUserId: 'comment-owner',
+        service: service,
+      );
+      await tester.tap(find.byKey(const Key('community-comment-more-own')));
+      await tester.pumpAndSettle();
+      expect(find.text('수정하기'), findsOneWidget);
+      await tester.tap(find.text('삭제하기'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('community-comment-delete-confirm')),
+      );
+      await tester.pumpAndSettle();
+      expect(service.deletedIds, ['own']);
+      await tester.tap(find.byKey(const Key('community-comments-back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('community-comment-more-own')), findsNothing);
+      expect(find.text('소중한 첫 댓글을 남겨주세요'), findsOneWidget);
+    },
+  );
   testWidgets('renders deleted preview root as tombstone without actions', (
     tester,
   ) async {
@@ -362,6 +441,7 @@ Future<void> _expectKeyboardRing(WidgetTester tester, Key key) async {
 
 Future<void> _pumpDetail(
   WidgetTester tester, {
+  GoRouter? router,
   String currentUserId = 'user-1',
   Post? post,
   List<PostComment>? comments,
@@ -391,7 +471,9 @@ Future<void> _pumpDetail(
         ),
         communityServiceProvider.overrideWithValue(resolvedService),
       ],
-      child: const MaterialApp(home: CommunityDetailScreen(postId: 'post-1')),
+      child: router == null
+          ? const MaterialApp(home: CommunityDetailScreen(postId: 'post-1'))
+          : MaterialApp.router(routerConfig: router),
     ),
   );
   await tester.pumpAndSettle();
@@ -436,6 +518,12 @@ PostComment _comment({
 class _FakeCommunityService extends CommunityService {
   final Post post;
   final List<PostComment> comments;
+  final deletedIds = <String>[];
+  @override
+  Future<void> deleteComment(String postId, String commentId) async {
+    deletedIds.add(commentId);
+  }
+
   int? lastCommentsLimit;
   int? lastReplyLimit;
 
@@ -462,7 +550,9 @@ class _FakeCommunityService extends CommunityService {
   }) async {
     lastCommentsLimit = limit;
     lastReplyLimit = replyLimit;
-    return PostCommentFeed(items: comments);
+    return PostCommentFeed(
+      items: comments.where((c) => !deletedIds.contains(c.id)).toList(),
+    );
   }
 }
 
