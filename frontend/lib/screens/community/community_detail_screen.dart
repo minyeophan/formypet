@@ -16,7 +16,10 @@ import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_navigation.dart';
-import '../../widgets/preparing_toast.dart';
+import '../../widgets/user_block_sheet.dart';
+import '../../providers/blocked_users_provider.dart';
+import '../../services/community_safety_service.dart';
+import 'post_report_screen.dart';
 
 import 'community_constants.dart';
 import 'community_detail_widgets.dart';
@@ -344,34 +347,67 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
     }
   }
 
-  void _showPostMoreMenu() => showAppActionSheet(
-    context,
-    title: '더보기 메뉴',
-    actions: [
-      if (ref.read(authProvider).profile?.id ==
-          ref.read(communityProvider).postsById[widget.postId]?.userId)
-        AppActionSheetItem(
-          key: const Key('community-post-edit'),
-          label: '게시글 수정',
-          onTap: () => context.push(
-            '/community/write',
-            extra: ref.read(communityProvider).postsById[widget.postId],
+  void _showPostMoreMenu() {
+    final post = ref.read(communityProvider).postsById[widget.postId];
+    final auth = ref.read(authProvider);
+    if (post == null || !auth.isAuthenticated || auth.profile == null) return;
+    final own = auth.profile!.id == post.userId;
+    showAppActionSheet(
+      context,
+      title: '더보기 메뉴',
+      actions: [
+        if (own)
+          AppActionSheetItem(
+            key: const Key('community-post-edit'),
+            label: '게시글 수정',
+            onTap: () => context.push(
+              '/community/write',
+              extra: ref.read(communityProvider).postsById[widget.postId],
+            ),
           ),
-        ),
-      if (ref.read(authProvider).profile?.id ==
-          ref.read(communityProvider).postsById[widget.postId]?.userId)
-        AppActionSheetItem(
-          key: const Key('community-post-delete'),
-          label: '게시글 삭제',
-          destructive: true,
-          onTap: _deletePost,
-        ),
-      AppActionSheetItem(
-        label: '신고하기',
-        onTap: () => showPreparingToast(context),
-      ),
-    ],
-  );
+        if (own)
+          AppActionSheetItem(
+            key: const Key('community-post-delete'),
+            label: '게시글 삭제',
+            destructive: true,
+            onTap: _deletePost,
+          ),
+        if (!own)
+          AppActionSheetItem(
+            key: const Key('community-post-report'),
+            label: '신고하기',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PostReportScreen(post: post),
+              ),
+            ),
+          ),
+        if (!own)
+          AppActionSheetItem(
+            key: const Key('community-post-block'),
+            label: '작성자 차단',
+            onTap: () async {
+              final done = await showUserBlockSheet(
+                context,
+                user: BlockedUser(
+                  userId: post.userId,
+                  nickname: post.authorNickname,
+                ),
+              );
+              if (!mounted ||
+                  done != true ||
+                  ref.read(authProvider).profile?.id != auth.profile!.id) {
+                return;
+              }
+              ref.invalidate(blockedUsersProvider);
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('작성자를 차단했어요.')));
+            },
+          ),
+      ],
+    );
+  }
 
   Future<void> _deletePost() async {
     final confirmed = await showDialog<bool>(

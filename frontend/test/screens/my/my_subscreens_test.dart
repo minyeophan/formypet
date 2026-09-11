@@ -73,6 +73,7 @@ void main() {
   ) async {
     await _pump(tester, const MySettingsScreen());
     expect(find.text('테마 설정'), findsNothing);
+    expect(find.text('차단 목록'), findsOneWidget);
     expect(find.text('알림 내역'), findsOneWidget);
   });
 

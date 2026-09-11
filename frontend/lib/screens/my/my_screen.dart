@@ -234,6 +234,11 @@ const _menuGroups = [
         route: '/my/settings',
       ),
       _MyMenuItem(
+        label: '차단 목록',
+        icon: Icons.block_rounded,
+        route: '/my/blocked-users',
+      ),
+      _MyMenuItem(
         label: '알림 내역',
         icon: Icons.notifications_none_rounded,
         route: '/notifications',

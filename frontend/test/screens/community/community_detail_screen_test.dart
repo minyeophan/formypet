@@ -175,7 +175,7 @@ void main() {
   );
 
   testWidgets('opens post more menu', (tester) async {
-    await _pumpDetail(tester);
+    await _pumpDetail(tester, currentUserId: 'viewer');
 
     await tester.tap(find.byKey(const Key('community-detail-more-button')));
     await tester.pumpAndSettle();
@@ -185,15 +185,29 @@ void main() {
     expect(find.text('닫기'), findsOneWidget);
   });
 
-  testWidgets('report action shows preparing toast', (tester) async {
-    await _pumpDetail(tester);
+  testWidgets('report action opens reason form', (tester) async {
+    await _pumpDetail(tester, currentUserId: 'viewer');
 
     await tester.tap(find.byKey(const Key('community-detail-more-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('신고하기'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('준비중'), findsOneWidget);
+    expect(find.text('신고 사유를 선택해 주세요'), findsOneWidget);
+    expect(find.text('광고 / 스팸'), findsOneWidget);
+    expect(find.text('준비중'), findsNothing);
+  });
+
+  testWidgets('own post has edit and delete without report or block', (
+    tester,
+  ) async {
+    await _pumpDetail(tester);
+    await tester.tap(find.byKey(const Key('community-detail-more-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('community-post-edit')), findsOneWidget);
+    expect(find.byKey(const Key('community-post-delete')), findsOneWidget);
+    expect(find.byKey(const Key('community-post-report')), findsNothing);
+    expect(find.byKey(const Key('community-post-block')), findsNothing);
   });
 
   testWidgets('comment author can see comment management', (tester) async {
