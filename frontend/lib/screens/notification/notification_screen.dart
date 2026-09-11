@@ -1,4 +1,5 @@
-import '../../widgets/app_icon.dart';
+import '../../core/app_v2_tokens.dart';
+import '../community/community_constants.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/app_ink_well.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,10 +102,10 @@ class _NotificationBody extends ConsumerWidget {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    padding: const EdgeInsets.only(bottom: 32),
                     sliver: SliverList.separated(
                       itemCount: state.items.length + (state.hasMore ? 1 : 0),
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox.shrink(),
                       itemBuilder: (context, index) {
                         if (index == state.items.length) {
                           return Center(
@@ -245,54 +246,89 @@ class _NotificationTile extends StatelessWidget {
   final VoidCallback? onTap;
   const _NotificationTile({required this.item, this.onTap});
 
+  String get _title {
+    final title = item.title.trim();
+    if (title.isNotEmpty && title != item.type) return title;
+    return switch (item.type) {
+      'COMMENT' => '새 댓글',
+      'REPLY' => '새 답글',
+      'POST_LIKE' => '새 공감',
+      'POLL_VOTE' => '새 투표',
+      'ROUTINE_REMINDER' => '루틴 알림',
+      'CARE_SCHEDULE_REMINDER' => '케어 일정 알림',
+      _ => '알림',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      color: item.isRead
-          ? AppColors.surface
-          : AppColors.primary.withValues(alpha: .12),
+    final time = item.createdAt == null
+        ? null
+        : formatCommunityRelativeTime(item.createdAt!.toIso8601String());
+    return Material(
+      key: ValueKey('notification-row-${item.id}'),
+      color: AppV2Tokens.surface,
       child: AppInkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AppIcon(
-                item.isRead
-                    ? Icons.notifications_none
-                    : Icons.notifications_active,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        fontWeight: item.isRead
+                            ? FontWeight.w500
+                            : FontWeight.w700,
+                        color: AppV2Tokens.text,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.body,
-                      style: const TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              if (!item.isRead)
-                const Padding(
-                  padding: EdgeInsets.only(left: 8, top: 4),
-                  child: CircleAvatar(
-                    radius: 4,
-                    backgroundColor: AppColors.primary,
                   ),
+                  const SizedBox(width: 8),
+                  if (!item.isRead) ...[
+                    Semantics(
+                      label: '읽지 않음',
+                      child: const CircleAvatar(
+                        radius: 3,
+                        backgroundColor: AppV2Tokens.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (time != null)
+                    Flexible(
+                      child: Text(
+                        time,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: AppV2Tokens.textSecondary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.body,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: AppV2Tokens.textSecondary,
                 ),
+              ),
             ],
           ),
         ),

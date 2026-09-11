@@ -203,7 +203,7 @@ void main() {
         tab: 'commented',
         realComments: true,
       );
-      await tester.tap(find.text('내 댓글 · 내 답글'));
+      await tester.tap(find.text('내 답글'));
       await tester.pumpAndSettle();
       expect(find.text('상세'), findsOneWidget);
       expect(find.text('댓글이 삭제되어 게시글로 이동합니다.'), findsOneWidget);
@@ -237,7 +237,10 @@ void main() {
       await pump(tester, service, tab: type.name);
       expect(find.text('${type.name} 제목'), findsOneWidget);
       if (type == MyActivityType.commented) {
-        expect(find.text('내 댓글 · 내 답글'), findsOneWidget);
+        expect(find.text('내 답글'), findsOneWidget);
+        expect(find.text('내 답글'), findsOneWidget);
+        expect(find.text('게시글 보기'), findsNothing);
+        expect(find.text('내가 남긴 댓글을 바로 확인해 보세요.'), findsNothing);
       }
     });
   }
@@ -269,17 +272,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('아직 공감한 글이 없어요.'), findsOneWidget);
   });
-  testWidgets('card opens detail and preview targets reply without composing', (
-    tester,
-  ) async {
+  testWidgets('whole row targets reply without composing', (tester) async {
     final service = ActivityService();
     final router = await pump(tester, service, tab: 'commented');
     await tester.tap(find.text('commented 제목'));
     await tester.pumpAndSettle();
-    expect(find.text('상세'), findsOneWidget);
+    expect(find.byKey(const Key('destination-uri')), findsOneWidget);
     router.pop();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('내 댓글 · 내 답글'));
+    await tester.tap(find.text('내 답글'));
     await tester.pumpAndSettle();
     final uri = Uri.parse(
       tester.widget<Text>(find.byKey(const Key('destination-uri'))).data!,

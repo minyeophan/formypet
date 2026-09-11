@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_v2_tokens.dart';
+import 'my_comment_activity_row.dart';
 import '../../models/my_community_activity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../providers/my_activity_provider.dart';
 import '../../widgets/app_header.dart';
-import '../community/community_constants.dart';
 import '../community/community_routes.dart';
 import '../community/post_card.dart';
 
@@ -245,79 +246,91 @@ class _ActivityListState extends ConsumerState<_ActivityList>
     final community = ref.watch(communityProvider);
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: ListView(
-        key: PageStorageKey('my-activity-${widget.type.name}'),
-        controller: _scroll,
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          if (state.loading) const LinearProgressIndicator(),
-          if (state.error != null && !state.moreFailed)
-            _retry(state.error!, () => _refresh(preserveDepth: true)),
-          if (state.loaded && state.items.isEmpty && !state.loading)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 20),
-              child: Text(switch (widget.type) {
-                MyActivityType.written => '아직 작성한 글이 없어요.',
-                MyActivityType.liked => '아직 공감한 글이 없어요.',
-                MyActivityType.commented => '아직 댓글을 남긴 글이 없어요.',
-              }, textAlign: TextAlign.center),
-            ),
-          for (final item in state.items)
-            Column(
-              key: _keys.putIfAbsent(item.post.id, GlobalKey.new),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      child: ColoredBox(
+        color: AppV2Tokens.surface,
+        child: ListView(
+          key: PageStorageKey('my-activity-${widget.type.name}'),
+          controller: _scroll,
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            if (state.loading) const LinearProgressIndicator(),
+            if (state.error != null && !state.moreFailed)
+              _retry(state.error!, () => _refresh(preserveDepth: true)),
+            if (state.loaded && state.items.isEmpty && !state.loading)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 80,
+                  horizontal: 20,
+                ),
+                child: Text(switch (widget.type) {
+                  MyActivityType.written => '아직 작성한 글이 없어요.',
+                  MyActivityType.liked => '아직 공감한 글이 없어요.',
+                  MyActivityType.commented => '아직 댓글을 남긴 글이 없어요.',
+                }, textAlign: TextAlign.center),
+              ),
+            for (final item in state.items)
+              if (widget.type == MyActivityType.commented)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Text(
-                    '${widget.type.actionLabel} · ${formatCommunityRelativeTime(item.activityAt) ?? item.activityAt}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  key: _keys.putIfAbsent(item.post.id, GlobalKey.new),
+                  padding: EdgeInsets.zero,
+                  child: MyCommentActivityRow(
+                    activity: item.withPost(
+                      community.postsById[item.post.id] ?? item.post,
                     ),
+                    onOpenComment: item.commentId == null
+                        ? null
+                        : () => _open(item, comment: true),
                   ),
-                ),
-                PostCard(
-                  post: community.postsById[item.post.id] ?? item.post,
-                  onOpen: () => _open(item),
-                  onLike: () => _like(item),
-                  isLiking: community.isLiking(item.post.id),
-                ),
-                if (item.commentId != null)
-                  TextButton(
-                    onPressed: () => _open(item, comment: true),
-                    style: TextButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.all(20),
-                      foregroundColor: AppColors.text,
+                )
+              else
+                Column(
+                  key: _keys.putIfAbsent(item.post.id, GlobalKey.new),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    PostCard(
+                      post: community.postsById[item.post.id] ?? item.post,
+                      onOpen: () => _open(item),
+                      onLike: () => _like(item),
+                      isLiking: community.isLiking(item.post.id),
                     ),
-                    child: Text(
-                      '내 댓글 · ${item.commentContent}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-            ),
-          if (state.loadingMore)
-            const Center(child: CircularProgressIndicator()),
-          if (state.moreFailed)
-            _retry(
-              state.error!,
-              () =>
-                  ref.read(myActivityProvider(widget.type).notifier).loadMore(),
-            ),
-          if (state.cursor != null &&
-              !state.loading &&
-              !state.loadingMore &&
-              !state.moreFailed)
-            TextButton(
-              onPressed: () =>
-                  ref.read(myActivityProvider(widget.type).notifier).loadMore(),
-              child: const Text('더보기'),
-            ),
-          const SizedBox(height: 24),
-        ],
+                    if (item.commentId != null)
+                      TextButton(
+                        onPressed: () => _open(item, comment: true),
+                        style: TextButton.styleFrom(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.all(20),
+                          foregroundColor: AppColors.text,
+                        ),
+                        child: Text(
+                          '내 댓글 · ${item.commentContent}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+            if (state.loadingMore)
+              const Center(child: CircularProgressIndicator()),
+            if (state.moreFailed)
+              _retry(
+                state.error!,
+                () => ref
+                    .read(myActivityProvider(widget.type).notifier)
+                    .loadMore(),
+              ),
+            if (state.cursor != null &&
+                !state.loading &&
+                !state.loadingMore &&
+                !state.moreFailed)
+              TextButton(
+                onPressed: () => ref
+                    .read(myActivityProvider(widget.type).notifier)
+                    .loadMore(),
+                child: const Text('더보기'),
+              ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
