@@ -26,17 +26,27 @@ class MyNoticesScreen extends StatelessWidget {
           const SizedBox(height: 14),
           const MySupportSectionTitle('최근 공지'),
           const SizedBox(height: 10),
-          MySupportCard(
-            children: [
-              for (var index = 0; index < myNotices.length; index++)
-                MySupportRow(
-                  title: myNotices[index].title,
-                  showTopBorder: index > 0,
-                  onTap: () =>
-                      context.push('/my/notices/${myNotices[index].id}'),
-                ),
-            ],
-          ),
+          if (myNotices.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+              child: Text(
+                '등록된 공지사항이 없어요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            )
+          else
+            MySupportCard(
+              children: [
+                for (var index = 0; index < myNotices.length; index++)
+                  MySupportRow(
+                    title: myNotices[index].title,
+                    showTopBorder: index > 0,
+                    onTap: () =>
+                        context.push('/my/notices/${myNotices[index].id}'),
+                  ),
+              ],
+            ),
         ],
       ),
     );

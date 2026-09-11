@@ -312,6 +312,7 @@ void main() {
       expect(find.text('약관 상세'), findsOneWidget);
       expect(find.text(entry.value), findsOneWidget);
       expect(find.text('약관을 찾을 수 없어요'), findsNothing);
+      expect(find.textContaining('확정된 정책이 아니에요'), findsOneWidget);
     }
   });
 
@@ -322,21 +323,22 @@ void main() {
     expect(find.text('약관을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('notices list shows the three static notices', (tester) async {
+  testWidgets('notices list shows empty state without sample announcements', (
+    tester,
+  ) async {
     await _pumpSupportRouter(tester, '/my/notices');
 
     expect(find.text('최근 공지'), findsOneWidget);
-    expect(find.text('루틴 알림 안정화 안내'), findsOneWidget);
-    expect(find.text('기록 입력 화면 개선 안내'), findsOneWidget);
-    expect(find.text('정기 점검 예정 안내'), findsOneWidget);
+    expect(find.text('등록된 공지사항이 없어요.'), findsOneWidget);
+    expect(find.text('루틴 알림 안정화 안내'), findsNothing);
+    expect(find.text('정기 점검 예정 안내'), findsNothing);
   });
 
-  testWidgets('notice detail shows title and body by route id', (tester) async {
+  testWidgets('removed sample notice URL shows not found', (tester) async {
     await _pumpSupportRouter(tester, '/my/notices/routine');
 
     expect(find.text('공지사항'), findsWidgets);
-    expect(find.text('루틴 알림 안정화 안내'), findsOneWidget);
-    expect(find.textContaining('루틴 알림 수신 상태'), findsOneWidget);
+    expect(find.text('공지사항을 찾을 수 없어요'), findsOneWidget);
   });
 
   testWidgets('unknown notice detail shows not found message', (tester) async {

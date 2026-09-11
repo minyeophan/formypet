@@ -93,6 +93,13 @@ class MyPolicyDetailScreen extends StatelessWidget {
                         color: AppColors.text,
                       ),
                       const SizedBox(height: 14),
+                      const AppText(
+                        '정책 전문을 준비하고 있어요. 아래 내용은 항목 소개이며 확정된 정책이 아니에요.',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(height: 14),
                       AppText(
                         policy.body,
                         fontSize: 14,
