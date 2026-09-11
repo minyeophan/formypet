@@ -10,7 +10,8 @@ class PushNotificationService {
   PushNotificationService._();
 
   static final instance = PushNotificationService._();
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  // Resolve only after the web and Firebase initialization guards below.
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   StreamSubscription<String>? _tokenSubscription;
 
   Future<void> registerDeviceToken() async {
