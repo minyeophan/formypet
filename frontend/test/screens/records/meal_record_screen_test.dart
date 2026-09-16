@@ -1,6 +1,7 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/models/activity_record.dart';
@@ -12,6 +13,7 @@ import 'package:frontend/router/app_router.dart';
 import 'package:frontend/screens/records/meal_record_screen.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/record_inputs/record_inputs.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -171,6 +173,250 @@ void main() {
       notifier.savedBodies.single['time'],
       matches(RegExp(r'^\d{2}:\d{2}$')),
     );
+  });
+
+  testWidgets('photo picker completion after leaving screen is ignored', (
+    tester,
+  ) async {
+    final pending = Completer<XFile?>();
+    await _pumpMealScreen(tester, pickImage: () => pending.future);
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pumpWidget(const SizedBox());
+    pending.complete(XFile.fromData(Uint8List.fromList([1]), name: 'meal.jpg'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('photo picker failure after leaving screen is ignored', (
+    tester,
+  ) async {
+    final pending = Completer<XFile?>();
+    await _pumpMealScreen(tester, pickImage: () => pending.future);
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pumpWidget(const SizedBox());
+    pending.completeError(PlatformException(code: 'photo_access_denied'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('photo picker failure shows guidance and allows retry', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await _pumpMealScreen(
+      tester,
+      pickImage: () async {
+        if (attempts++ == 0) {
+          throw PlatformException(code: 'photo_access_denied');
+        }
+        return XFile('retry.jpg');
+      },
+    );
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('사진을 불러오지 못했어요. 사진 접근 권한을 확인한 뒤 다시 시도해 주세요.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    expect(find.text('사진 추가 (1/1) · retry.jpg'), findsOneWidget);
+    expect(find.textContaining('사진을 불러오지 못했어요'), findsNothing);
+  });
+
+  testWidgets('pending photo selection blocks duplicate selection and save', (
+    tester,
+  ) async {
+    final pending = Completer<XFile?>();
+    var picks = 0;
+    final notifier = _MealTestPetNotifier();
+    await _pumpMealScreen(
+      tester,
+      notifier: notifier,
+      pickImage: () {
+        picks++;
+        return pending.future;
+      },
+    );
+    await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+    ]);
+    await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await _tapSave(tester);
+    expect(picks, 1);
+    expect(notifier.savedBodies, isEmpty);
+    pending.complete(null);
+    await tester.pump();
+    expect(find.text('사진 추가 (0/1)'), findsOneWidget);
+  });
+
+  testWidgets('cancelled replacement keeps the previously selected photo', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await _pumpMealScreen(
+      tester,
+      pickImage: () async {
+        attempts++;
+        return attempts == 1 ? XFile('kept.jpg') : null;
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+
+    expect(attempts, 2);
+    expect(find.text('사진 추가 (1/1) · kept.jpg'), findsOneWidget);
+  });
+
+  testWidgets(
+    'selected photo bytes and normalized filename are sent when saving',
+    (tester) async {
+      final notifier = _MealTestPetNotifier();
+      await _pumpMealScreen(
+        tester,
+        notifier: notifier,
+        pickImage: () async => XFile.fromData(
+          Uint8List.fromList([7, 8, 9]),
+          name: 'meal-upload.jpg',
+        ),
+      );
+      await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+      await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+        '3',
+      ]);
+      await tester.tap(find.byKey(const Key('meal-consumed-75')));
+      await tester.tap(find.byKey(const Key('meal-photo-button')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<RecordFormSubmitButton>(
+              find.byKey(const Key('meal-save-button')),
+            )
+            .enabled,
+        isTrue,
+      );
+      await _tapSave(tester);
+
+      expect(notifier.savedPhotos, hasLength(1));
+      expect(notifier.savedPhotos.single!.filename, 'meal-photo.jpg');
+      expect(notifier.savedPhotos.single!.bytes, [7, 8, 9]);
+    },
+  );
+
+  testWidgets('photo read failure keeps input and permits reselection retry', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final notifier = _MealTestPetNotifier();
+    await _pumpMealScreen(
+      tester,
+      notifier: notifier,
+      pickImage: () async {
+        attempts++;
+        return attempts == 1
+            ? _FailingXFile()
+            : XFile.fromData(
+                Uint8List.fromList([4, 5, 6]),
+                name: 'retry-upload.jpg',
+              );
+      },
+    );
+    await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+    ]);
+    await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<RecordFormSubmitButton>(
+            find.byKey(const Key('meal-save-button')),
+          )
+          .enabled,
+      isTrue,
+    );
+    await _tapSave(tester);
+    await tester.pumpAndSettle();
+
+    expect(notifier.saveAttempts, 0);
+    expect(find.text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+    expect(find.text('습식'), findsOneWidget);
+    expect(find.text('75%'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    await _tapSave(tester);
+    await tester.pumpAndSettle();
+    expect(notifier.saveAttempts, 1);
+    expect(notifier.savedPhotos.single!.filename, 'meal-photo.jpg');
+  });
+
+  testWidgets('save failure keeps form and photo for a successful retry', (
+    tester,
+  ) async {
+    final notifier = _MealTestPetNotifier(failuresRemaining: 1);
+    await _pumpMealScreen(
+      tester,
+      notifier: notifier,
+      pickImage: () async =>
+          XFile.fromData(Uint8List.fromList([1]), name: 'retry.jpg'),
+    );
+    await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+    ]);
+    await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    await _tapSave(tester);
+    await tester.pumpAndSettle();
+
+    expect(notifier.saveAttempts, 1);
+    expect(find.text('사진 추가 (1/1) · meal-photo.jpg'), findsOneWidget);
+    expect(find.text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+
+    await _tapSave(tester);
+    await tester.pumpAndSettle();
+    expect(notifier.saveAttempts, 2);
+    expect(notifier.savedPhotos.single!.filename, 'meal-photo.jpg');
+  });
+
+  testWidgets('saving meal prevents changing attached photo', (tester) async {
+    final pending = Completer<void>();
+    final notifier = _MealTestPetNotifier(savePending: pending);
+    var picks = 0;
+    await _pumpMealScreen(
+      tester,
+      notifier: notifier,
+      pickImage: () async {
+        picks++;
+        return null;
+      },
+    );
+    await tester.tap(find.byKey(const Key('meal-food-type-wet')));
+    await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
+      '3',
+    ]);
+    await tester.tap(find.byKey(const Key('meal-consumed-75')));
+    await _tapSave(tester);
+    await _tapSave(tester);
+    await tester.tap(find.byKey(const Key('meal-photo-button')));
+    await tester.pump();
+    expect(picks, 0);
+    expect(notifier.saveAttempts, 1);
+    await tester.pumpWidget(const SizedBox());
+    pending.complete();
+    await tester.pump();
   });
 
   testWidgets('meal date is read-only and time button opens picker sheet', (
@@ -440,31 +686,38 @@ Future<void> _pumpMealScreen(
 }
 
 class _MealTestPetNotifier extends PetNotifier {
-  _MealTestPetNotifier({List<ActivityRecord> records = const []})
-    : super.test(
-        PetState(
-          isLoading: false,
-          hasOnboarded: true,
-          pets: const [
-            Pet(
-              id: 'pet-1',
-              name: '몽실이',
-              species: 'dog',
-              birthDate: '2022-03-15',
-              accentColor: '#F4A460',
-              bgLight: '#FFF8F0',
-            ),
-          ],
-          activePetId: 'pet-1',
-          records: records,
-          routines: const [],
-          todayRoutineItems: const [],
-          routineCompletions: const {},
-          quickTypeIds: const [],
-        ),
-      );
+  _MealTestPetNotifier({
+    List<ActivityRecord> records = const [],
+    this.savePending,
+    this.failuresRemaining = 0,
+  }) : super.test(
+         PetState(
+           isLoading: false,
+           hasOnboarded: true,
+           pets: const [
+             Pet(
+               id: 'pet-1',
+               name: '몽실이',
+               species: 'dog',
+               birthDate: '2022-03-15',
+               accentColor: '#F4A460',
+               bgLight: '#FFF8F0',
+             ),
+           ],
+           activePetId: 'pet-1',
+           records: records,
+           routines: const [],
+           todayRoutineItems: const [],
+           routineCompletions: const {},
+           quickTypeIds: const [],
+         ),
+       );
 
   final savedBodies = <Map<String, dynamic>>[];
+  final savedPhotos = <RecordPhotoUpload?>[];
+  final Completer<void>? savePending;
+  int failuresRemaining;
+  int saveAttempts = 0;
   final updatedRecords = <(String, Map<String, dynamic>)>[];
 
   @override
@@ -472,11 +725,26 @@ class _MealTestPetNotifier extends PetNotifier {
     Map<String, dynamic> body, {
     RecordPhotoUpload? photo,
   }) async {
+    saveAttempts++;
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
+      throw Exception('save failed');
+    }
     savedBodies.add(body);
+    savedPhotos.add(photo);
+    if (savePending != null) await savePending!.future;
   }
 
   @override
   Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
     updatedRecords.add((recordId, body));
   }
+}
+
+class _FailingXFile extends XFile {
+  _FailingXFile() : super('failing-meal-photo.jpg');
+
+  @override
+  Future<Uint8List> readAsBytes() =>
+      Future<Uint8List>.error(Exception('photo read failed'));
 }
