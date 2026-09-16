@@ -51,6 +51,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   bool _showMore = false;
   bool _isSaving = false;
   bool _isDeleting = false;
+  bool _isPickingPhoto = false;
   String? _error;
   XFile? _photo;
 
@@ -84,6 +85,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   bool get _canSave =>
       !_isSaving &&
       !_isDeleting &&
+      !_isPickingPhoto &&
       _foodType != null &&
       _consumedPercent != null &&
       (_servedAmount ?? 0) > 0;
@@ -233,7 +235,9 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
                           ? '사진 추가 (0/1)'
                           : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
                       hasPhoto: _photo != null,
-                      onTap: _pickPhoto,
+                      onTap: _isSaving || _isDeleting || _isPickingPhoto
+                          ? null
+                          : _pickPhoto,
                     )
                   else
                     _ExistingMealPhotos(record: widget.editingRecord!),
@@ -272,15 +276,25 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   Future<void> _pickPhoto() async {
+    if (_isSaving || _isDeleting || _isPickingPhoto) return;
+    setState(() => _isPickingPhoto = true);
     final pickImage =
         widget.pickImageForTest ??
         () => ImagePicker().pickImage(source: ImageSource.gallery);
-    final photo = await pickImage();
-    if (photo != null) {
+    try {
+      final photo = await pickImage();
+      if (!mounted || photo == null) return;
       setState(() {
         _photo = photo;
         _error = null;
       });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = '사진을 불러오지 못했어요. 사진 접근 권한을 확인한 뒤 다시 시도해 주세요.';
+      });
+    } finally {
+      if (mounted) setState(() => _isPickingPhoto = false);
     }
   }
 
@@ -299,6 +313,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   Future<void> _save() async {
+    if (!_canSave) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _isSaving = true;
@@ -876,7 +891,7 @@ class _SegmentButton extends StatelessWidget {
 class _PhotoButton extends StatelessWidget {
   final String label;
   final bool hasPhoto;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _PhotoButton({
     required this.label,
