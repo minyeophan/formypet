@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("27", flyway.info().current().getVersion().getVersion());
+        assertEquals("29", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -60,6 +60,32 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void addsSupportAndBlockingToExistingV27Database() throws Exception {
+        flyway("27").migrate();
+        try (Connection connection = connection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("INSERT INTO users(id,email,password_hash,nickname) VALUES (91001,'support-migration@example.test','hash','reader')");
+        }
+        flyway(null).migrate();
+        try (Connection connection = connection()) {
+            assertEquals(3, count(connection, """
+                    SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()
+                    AND table_name IN ('support_tickets','support_mail_outbox','user_blocks')
+                    """));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM users WHERE id=91001"));
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                        INSERT INTO support_tickets(requester_user_id,kind,request_id,payload_hash,category,title,content,created_at)
+                        VALUES (91001,'INQUIRY','migration',REPEAT('a',64),'BUG','test','body',UTC_TIMESTAMP(6))
+                        """);
+                statement.executeUpdate("INSERT INTO support_mail_outbox(ticket_id,next_attempt_at) SELECT id,UTC_TIMESTAMP(6) FROM support_tickets");
+                statement.executeUpdate("DELETE FROM users WHERE id=91001");
+            }
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM support_tickets WHERE requester_user_id IS NULL"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM support_mail_outbox WHERE status='PENDING'"));
+        }
+    }
+
+    @Test
     void addsCommentManagementSchemaFromV20() throws Exception {
         Flyway flyway = flyway("20");
         flyway.migrate();
@@ -67,7 +93,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("27", flyway.info().current().getVersion().getVersion());
+        assertEquals("29", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

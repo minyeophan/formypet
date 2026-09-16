@@ -10,6 +10,7 @@ import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
+import '../../providers/content_visibility_provider.dart';
 
 import 'community_comment_widgets.dart';
 import 'community_comments_widgets.dart';
@@ -74,6 +75,26 @@ class _CommunityCommentsScreenState
         0;
     _replyToCommentId = widget.initialReplyToCommentId;
     _resolvingTarget = widget.initialThreadId != null;
+    ref.listenManual(contentVisibilityProvider, (_, _) {
+      _generation++;
+      setState(() {
+        _comments = const [];
+        _nextCursor = null;
+        _displayedCount = 0;
+        _reloadLocked = false;
+        _loadingMore = false;
+        _submitting = false;
+        _loadingReplies.clear();
+        _mutatingCommentIds.clear();
+        _managementOpened = false;
+        _resolvingTarget = false;
+        _resetComposer();
+      });
+      final generation = _generation;
+      Future.microtask(() {
+        if (mounted && generation == _generation) _reload();
+      });
+    });
     _reload();
     if (widget.autofocus && widget.initialThreadId == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -249,7 +270,9 @@ class _CommunityCommentsScreenState
       }
     }
     _resolvingTarget = false;
-    if (widget.initialReplyToCommentId != null && !root.deleted) {
+    if (widget.initialReplyToCommentId != null &&
+        !root.deleted &&
+        !root.blocked) {
       _replyToCommentId = root.id;
     }
     _displayedCount = _calculateCount(null);
@@ -265,7 +288,9 @@ class _CommunityCommentsScreenState
           duration: const Duration(milliseconds: 220),
         );
       }
-      if (widget.initialReplyToCommentId != null && !root!.deleted) {
+      if (widget.initialReplyToCommentId != null &&
+          !root!.deleted &&
+          !root.blocked) {
         _focusNode.requestFocus();
       }
       if (widget.manageTarget &&
@@ -355,6 +380,7 @@ class _CommunityCommentsScreenState
   }
 
   Future<void> _submit() async {
+    final generation = _generation;
     final content = _controller.text.trim();
     if (content.isEmpty || _submitting || _resolvingTarget) return;
     final editingCommentId = _editingCommentId;
@@ -363,7 +389,9 @@ class _CommunityCommentsScreenState
       return;
     }
     final replyTarget = _replyToCommentId;
-    if (replyTarget != null && _rootById(replyTarget)?.deleted == true) {
+    final replyRoot = replyTarget == null ? null : _rootById(replyTarget);
+    if (replyTarget != null &&
+        (replyRoot == null || replyRoot.deleted || replyRoot.blocked)) {
       setState(() => _replyToCommentId = null);
       return;
     }
@@ -372,7 +400,7 @@ class _CommunityCommentsScreenState
       final comment = await ref
           .read(communityProvider.notifier)
           .createComment(widget.postId, content, parentCommentId: replyTarget);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       final exists = _containsComment(comment.id);
       if (!exists && replyTarget == null) {
         _comments = _mergeRoots([comment], _comments);
@@ -397,13 +425,14 @@ class _CommunityCommentsScreenState
       _focusNode.requestFocus();
       setState(() => _submitting = false);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() => _submitting = false);
       _showError('댓글을 등록하지 못했습니다');
     }
   }
 
   Future<void> _submitEdit(String commentId, String content) async {
+    final generation = _generation;
     if (_mutatingCommentIds.contains(commentId)) return;
     setState(() {
       _submitting = true;
@@ -413,7 +442,7 @@ class _CommunityCommentsScreenState
       final updated = await ref
           .read(communityProvider.notifier)
           .updateComment(widget.postId, commentId, content);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _comments = _replaceComment(_comments, updated);
         _resetComposer();
@@ -422,7 +451,7 @@ class _CommunityCommentsScreenState
       });
       _focusNode.requestFocus();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _submitting = false;
         _mutatingCommentIds.remove(commentId);
@@ -471,7 +500,7 @@ class _CommunityCommentsScreenState
                   !_resolvingTarget &&
                   !_submitting,
               submitting: _submitting,
-              replyTo: replyRoot?.deleted == true
+              replyTo: replyRoot?.deleted == true || replyRoot?.blocked == true
                   ? null
                   : replyRoot?.authorNickname,
               editing: _editingCommentId != null,
@@ -591,11 +620,15 @@ class _CommunityCommentsScreenState
       return;
     }
     if (_mutatingCommentIds.contains(comment.id)) return;
-    final kind = currentUserId != null && comment.userId == currentUserId
+    final generation = _generation;
+    final kind =
+        !comment.blocked &&
+            currentUserId != null &&
+            comment.userId == currentUserId
         ? CommunityCommentMenuKind.commentOwner
         : CommunityCommentMenuKind.postOwner;
     final action = await showCommunityCommentsV2Menu(context, kind: kind);
-    if (!mounted || action == null) return;
+    if (!mounted || generation != _generation || action == null) return;
     switch (action) {
       case CommunityCommentMenuAction.edit:
         _startEdit(comment);
@@ -607,7 +640,7 @@ class _CommunityCommentsScreenState
   }
 
   void _startReply(PostComment root) {
-    if (_submitting || root.deleted) return;
+    if (_submitting || root.deleted || root.blocked) return;
     setState(() {
       _editingCommentId = null;
       _replyToCommentId = root.id;
@@ -617,7 +650,7 @@ class _CommunityCommentsScreenState
   }
 
   void _startEdit(PostComment comment) {
-    if (_submitting) return;
+    if (_submitting || comment.deleted || comment.blocked) return;
     setState(() {
       _replyToCommentId = null;
       _editingCommentId = comment.id;
@@ -630,21 +663,23 @@ class _CommunityCommentsScreenState
   }
 
   Future<void> _confirmAndDelete(PostComment comment) async {
+    final generation = _generation;
     final confirmed = await showCommunityCommentDeleteConfirmationSheet(
       context,
     );
-    if (!mounted || confirmed != true) return;
+    if (!mounted || generation != _generation || confirmed != true) return;
     await _deleteComment(comment);
   }
 
   Future<void> _deleteComment(PostComment comment) async {
+    final generation = _generation;
     if (_mutatingCommentIds.contains(comment.id)) return;
     setState(() => _mutatingCommentIds.add(comment.id));
     try {
       await ref
           .read(communityProvider.notifier)
           .deleteComment(widget.postId, comment.id);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _comments = _deleteCommentLocally(_comments, comment);
         _comments = _withCommentCounts(_comments, max(0, _displayedCount - 1));
@@ -656,7 +691,7 @@ class _CommunityCommentsScreenState
         _mutatingCommentIds.remove(comment.id);
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() => _mutatingCommentIds.remove(comment.id));
       _showError('댓글을 삭제하지 못했습니다');
     }
@@ -726,6 +761,7 @@ class _CommunityCommentsScreenState
       content: updated.content,
       updatedAt: updated.updatedAt,
       deleted: updated.deleted,
+      blocked: updated.blocked,
       commentsCount: updated.commentsCount,
     );
   }
@@ -859,7 +895,9 @@ class _CommunityCommentsScreenState
 
   bool _isUnavailable(Object error) =>
       error is DioException &&
-      (error.response?.statusCode == 400 || error.response?.statusCode == 404);
+      (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 403 ||
+          error.response?.statusCode == 404);
 
   void _showError(String message) {
     if (!mounted) return;

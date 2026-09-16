@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/notification.dart';
 import '../services/notification_service.dart';
+import 'auth_provider.dart';
+import 'content_visibility_provider.dart';
 
 class NotificationState {
   final bool isLoading;
@@ -229,7 +231,18 @@ final notificationServiceProvider = Provider<NotificationService>(
   (_) => NotificationService(),
 );
 
-final notificationProvider =
-    StateNotifierProvider<NotificationNotifier, NotificationState>(
-      (ref) => NotificationNotifier(ref.watch(notificationServiceProvider)),
-    );
+final StateNotifierProvider<NotificationNotifier, NotificationState>
+notificationProvider =
+    StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
+      final notifier = NotificationNotifier(
+        ref.watch(notificationServiceProvider),
+      );
+      ref.listen(contentVisibilityRevisionProvider, (_, _) {
+        final authenticated = ref.read(authProvider).isAuthenticated;
+        notifier.resetSession(authenticated: authenticated);
+        if (authenticated) {
+          notifier.loadFirstPage().catchError((Object _) {});
+        }
+      });
+      return notifier;
+    });

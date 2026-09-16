@@ -11,6 +11,7 @@ import 'package:frontend/models/post.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/content_visibility_provider.dart';
 import 'package:frontend/providers/my_activity_provider.dart';
 import 'package:frontend/screens/my/my_activity_screen.dart';
 import 'package:frontend/screens/community/community_comments_screen.dart';
@@ -18,6 +19,25 @@ import 'package:frontend/screens/community/community_detail_screen.dart';
 import 'package:frontend/services/community_service.dart';
 
 void main() {
+  testWidgets('visible activity reloads after block and unblock', (
+    tester,
+  ) async {
+    final service = ActivityService();
+    await pump(tester, service);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MyActivityScreen)),
+    );
+    expect(find.text('written 제목'), findsOneWidget);
+    service.writtenSnapshot = [];
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    await tester.pumpAndSettle();
+    expect(find.text('written 제목'), findsNothing);
+    service.writtenSnapshot = null;
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    await tester.pumpAndSettle();
+    expect(find.text('written 제목'), findsOneWidget);
+    expect(service.calls[MyActivityType.written], 3);
+  });
   testWidgets(
     'detail like refreshes a visited tab whose initial response is pending',
     (tester) async {

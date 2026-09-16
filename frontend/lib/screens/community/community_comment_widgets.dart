@@ -17,7 +17,8 @@ bool canManageCommunityComment({
 }) {
   return currentUserId != null &&
       !comment.deleted &&
-      (post.userId == currentUserId || comment.userId == currentUserId);
+      (post.userId == currentUserId ||
+          (!comment.blocked && comment.userId == currentUserId));
 }
 
 class CommunityCommentAvatar extends StatelessWidget {
@@ -92,8 +93,23 @@ class CommunityCommentTile extends StatelessWidget {
     ),
     child: Padding(
       padding: const EdgeInsets.all(12),
-      child: comment.deleted
-          ? const AppText('삭제된 댓글입니다', fontSize: 14)
+      child: comment.deleted || comment.blocked
+          ? Row(
+              children: [
+                Expanded(
+                  child: AppText(
+                    comment.blocked ? '차단한 사용자의 댓글입니다' : '삭제된 댓글입니다',
+                    fontSize: 14,
+                  ),
+                ),
+                if (!comment.deleted && comment.blocked && canManage)
+                  AppMoreButton.plain(
+                    key: moreKey ?? Key('community-comment-more-${comment.id}'),
+                    tooltip: '댓글 관리',
+                    onPressed: onMore,
+                  ),
+              ],
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -8,6 +8,7 @@ import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
+import '../../providers/content_visibility_provider.dart';
 import '../../widgets/app_header.dart';
 import 'community_routes.dart';
 import 'post_card.dart';
@@ -36,12 +37,28 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
   @override
   void initState() {
     super.initState();
-    ref.listenManual(
-      authProvider.select(
-        (state) => state.isAuthenticated ? state.profile?.id : null,
-      ),
-      (_, _) => _clearSearch(),
-    );
+    String? account() {
+      final auth = ref.read(authProvider);
+      return auth.isAuthenticated ? auth.profile?.id : null;
+    }
+
+    var previousAccount = account();
+    ref.listenManual(contentVisibilityProvider, (_, _) {
+      final nextAccount = account();
+      final keyword = nextAccount == previousAccount ? _lastKeyword : null;
+      previousAccount = nextAccount;
+      _clearSearch(invalidateRequest: false);
+      if (keyword != null) {
+        _controller.text = keyword;
+        final generation = _searchGeneration;
+        // Wait until dependent providers have retired the old notifier.
+        Future.microtask(() {
+          if (mounted && generation == _searchGeneration) {
+            _search(retryKeyword: keyword);
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -51,8 +68,10 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
     super.dispose();
   }
 
-  void _clearSearch() {
-    ref.read(communityProvider.notifier).invalidateSearch();
+  void _clearSearch({bool invalidateRequest = true}) {
+    if (invalidateRequest) {
+      ref.read(communityProvider.notifier).invalidateSearch();
+    }
     _controller.clear();
     setState(() {
       // Invalidate completions as well as cached results from the old account.

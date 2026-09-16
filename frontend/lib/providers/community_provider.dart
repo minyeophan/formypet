@@ -7,6 +7,7 @@ import '../models/post.dart';
 import '../services/community_service.dart';
 import '../screens/community/community_constants.dart';
 import 'auth_provider.dart';
+import 'content_visibility_provider.dart';
 
 enum CommunityFeedRequestKind { initial, refresh, loadMore }
 
@@ -465,6 +466,7 @@ final communityServiceProvider = Provider<CommunityService>(
 
 final communityProvider =
     StateNotifierProvider<CommunityNotifier, CommunityState>((ref) {
+      ref.watch(contentVisibilityProvider);
       ref.watch(
         authProvider.select((s) => s.isAuthenticated ? s.profile?.id : null),
       );

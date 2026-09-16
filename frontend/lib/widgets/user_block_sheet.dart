@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/app_v2_tokens.dart';
 import '../providers/auth_provider.dart';
+import '../providers/content_visibility_provider.dart';
 import '../services/community_safety_service.dart';
 
 Future<bool?> showUserBlockSheet(
@@ -63,6 +64,9 @@ class _UserBlockSheetState extends ConsumerState<_UserBlockSheet> {
       _busy = true;
       _error = null;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
+    final session = container.read(contentAccountSessionProvider);
+    final revision = container.read(contentVisibilityRevisionProvider.notifier);
     try {
       final service = ref.read(communitySafetyServiceProvider);
       if (widget.unblock) {
@@ -70,6 +74,14 @@ class _UserBlockSheetState extends ConsumerState<_UserBlockSheet> {
       } else {
         await service.block(widget.user.userId);
       }
+      // Commit invalidation even if the initiating route has been removed.
+      // Never apply a previous account's completion to the current account.
+      if (_sessionChanged ||
+          !revision.mounted ||
+          !identical(container.read(contentAccountSessionProvider), session)) {
+        return;
+      }
+      revision.state++;
       if (!mounted || _sessionChanged || _actor != actor) return;
       // Enable popping before removing the route.
       setState(() => _busy = false);

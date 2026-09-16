@@ -133,6 +133,7 @@ class PostComment {
   final String createdAt;
   final String? updatedAt;
   final bool deleted;
+  final bool blocked;
   final int commentsCount;
   final String? parentCommentId;
   final int replyCount;
@@ -148,6 +149,7 @@ class PostComment {
     required this.createdAt,
     this.updatedAt,
     this.deleted = false,
+    this.blocked = false,
     required this.commentsCount,
     this.parentCommentId,
     this.replyCount = 0,
@@ -164,6 +166,7 @@ class PostComment {
     createdAt: j['createdAt'] as String? ?? '',
     updatedAt: j['updatedAt'] as String?,
     deleted: j['deleted'] as bool? ?? false,
+    blocked: j['blocked'] as bool? ?? false,
     commentsCount: j['commentsCount'] as int? ?? 0,
     parentCommentId: j['parentCommentId']?.toString(),
     replyCount: j['replyCount'] as int? ?? 0,
@@ -180,6 +183,7 @@ class PostComment {
     String? content,
     String? updatedAt,
     bool? deleted,
+    bool? blocked,
     int? commentsCount,
     int? replyCount,
     List<PostComment>? replies,
@@ -194,6 +198,7 @@ class PostComment {
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    blocked: blocked ?? this.blocked,
     commentsCount: commentsCount ?? this.commentsCount,
     parentCommentId: parentCommentId,
     replyCount: replyCount ?? this.replyCount,
