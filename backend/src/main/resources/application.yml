@@ -1,6 +1,6 @@
 spring:
   config:
-    import: optional:file:.env[.properties],optional:file:../.env[.properties]
+    import: optional:file:.env[.properties],optional:file:../.env[.properties],optional:file:.env.support[.properties]
   application:
     name: formypet
 
@@ -34,6 +34,16 @@ spring:
     baseline-on-migrate: false
 
 app:
+  support:
+    mail:
+      enabled: ${SUPPORT_MAIL_ENABLED:false}
+      scheduler-enabled: true
+      host: smtp.gmail.com
+      port: 587
+      username: ${SUPPORT_MAIL_USERNAME:}
+      password: ${SUPPORT_MAIL_PASSWORD:}
+      recipient: ${SUPPORT_MAIL_RECIPIENT:}
+      sender-name: 포마펫 고객지원
   firebase:
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
   notification:
@@ -75,3 +85,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+
+app:
+  firebase:
+    credentials-path: build/test-no-firebase-credentials.json
+  support:
+    mail:
+      enabled: false
+      scheduler-enabled: false

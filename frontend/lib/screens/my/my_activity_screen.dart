@@ -103,6 +103,11 @@ class _ActivityListState extends ConsumerState<_ActivityList>
   @override
   void initState() {
     super.initState();
+    ref.listenManual(myActivityProvider(widget.type).notifier, (_, notifier) {
+      Future.microtask(() {
+        if (mounted && notifier.mounted) notifier.ensureLoaded();
+      });
+    });
     Future.microtask(() {
       if (mounted) {
         ref.read(myActivityProvider(widget.type).notifier).ensureLoaded();

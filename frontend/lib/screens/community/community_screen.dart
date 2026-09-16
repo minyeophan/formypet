@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_v2_tokens.dart';
 import '../../providers/community_provider.dart';
+import '../../providers/content_visibility_provider.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
@@ -97,6 +98,7 @@ class _CommunityCategoryScreenState
   @override
   void initState() {
     super.initState();
+    ref.listenManual(contentVisibilityProvider, (_, _) => _activateRouteFeed());
     _activateRouteFeed();
   }
 

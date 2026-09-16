@@ -522,18 +522,32 @@ class _FlatComment extends StatelessWidget {
   final bool reply;
   @override
   Widget build(BuildContext context) {
-    if (comment.deleted) {
+    if (comment.deleted || comment.blocked) {
       return Container(
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Text(
-          '삭제된 댓글입니다',
-          style: communityV2Style(
-            size: 14,
-            color: AppV2Tokens.textSecondary,
-          ).copyWith(fontStyle: FontStyle.italic),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                comment.blocked ? '차단한 사용자의 댓글입니다' : '삭제된 댓글입니다',
+                style: communityV2Style(
+                  size: 14,
+                  color: AppV2Tokens.textSecondary,
+                ).copyWith(fontStyle: FontStyle.italic),
+              ),
+            ),
+            if (!comment.deleted && comment.blocked && canManage)
+              AppMoreButton.plain(
+                key: Key('community-comment-more-${comment.id}'),
+                tooltip: '댓글 관리',
+                onPressed: onManage,
+                plainColor: AppV2Tokens.textSecondary,
+                plainSplashColor: AppV2Tokens.primarySoft,
+              ),
+          ],
         ),
       );
     }

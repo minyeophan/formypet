@@ -136,7 +136,7 @@ class _CommentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (comment.deleted) {
+    if (comment.deleted || comment.blocked) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -144,7 +144,7 @@ class _CommentRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              '삭제된 댓글입니다',
+              comment.blocked ? '차단한 사용자의 댓글입니다' : '삭제된 댓글입니다',
               style: TextStyle(
                 color: AppV2Tokens.textSecondary,
                 fontSize: bodySize,
@@ -153,6 +153,8 @@ class _CommentRow extends StatelessWidget {
               ),
             ),
           ),
+          if (!comment.deleted && comment.blocked && onMore != null)
+            _CommentMoreButton(commentId: comment.id, onPressed: onMore!),
         ],
       );
     }

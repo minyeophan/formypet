@@ -12,12 +12,46 @@ import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/content_visibility_provider.dart';
 import 'package:frontend/screens/community/community_search_screen.dart';
 import 'package:frontend/screens/community/post_card.dart';
 
 void main() {
   setUpAll(() {
     initApiClient('http://example.test', includeAuthInterceptor: false);
+  });
+  testWidgets('block clears cached search and old response cannot restore it', (
+    tester,
+  ) async {
+    final pending = <Completer<ResponseBody>>[];
+    var delay = false;
+    dio.httpClientAdapter = _SearchAdapter((request) async {
+      if (request.queryParameters['keyword'] == null) return _feed([]);
+      if (!delay) return _feed([_post(title: 'cached author')]);
+      final response = Completer<ResponseBody>();
+      pending.add(response);
+      return response.future;
+    });
+    final container = await _pumpSearch(tester, auth: _SwitchingAuth());
+    await _search(tester);
+    expect(find.text('cached author'), findsOneWidget);
+    delay = true;
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    for (var i = 0; i < 10 && pending.isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(find.text('cached author'), findsNothing);
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    for (var i = 0; i < 10 && pending.length < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(pending, hasLength(2));
+    pending.last.complete(_feed([_post(title: 'visible author')]));
+    await tester.pumpAndSettle();
+    pending.first.complete(_feed([_post(title: 'blocked author')]));
+    await tester.pumpAndSettle();
+    expect(find.text('visible author'), findsOneWidget);
+    expect(find.text('blocked author'), findsNothing);
   });
 
   testWidgets(

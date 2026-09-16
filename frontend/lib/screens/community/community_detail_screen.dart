@@ -12,12 +12,12 @@ import '../../core/keyboard_utils.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
+import '../../providers/content_visibility_provider.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/user_block_sheet.dart';
-import '../../providers/blocked_users_provider.dart';
 import '../../services/community_safety_service.dart';
 import 'post_report_screen.dart';
 
@@ -60,6 +60,23 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   @override
   void initState() {
     super.initState();
+    ref.listenManual(contentVisibilityProvider, (_, _) {
+      _postGeneration++;
+      _commentsGeneration++;
+      setState(() {
+        _comments = const [];
+        _commentsCursor = null;
+        _commentsError = null;
+        _voting = false;
+      });
+      // Start fresh requests even when an older reload is still pending.
+      final generation = _postGeneration;
+      Future.microtask(() {
+        if (!mounted || generation != _postGeneration) return;
+        unawaited(_loadPost());
+        unawaited(_loadComments());
+      });
+    });
     unawaited(_reload());
   }
 
@@ -147,22 +164,26 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
 
   Future<void> _toggleLike(Post post) async {
     if (_postMutationLocked) return;
+    final generation = _postGeneration;
     try {
       await ref.read(communityProvider.notifier).toggleLike(post.id);
     } catch (_) {
-      if (mounted) _snack('좋아요를 처리하지 못했습니다');
+      if (mounted && generation == _postGeneration) _snack('좋아요를 처리하지 못했습니다');
     }
   }
 
   Future<void> _vote(String optionId) async {
     if (_postMutationLocked) return;
+    final generation = _postGeneration;
     setState(() => _voting = true);
     try {
       await ref.read(communityProvider.notifier).vote(widget.postId, optionId);
     } catch (_) {
-      if (mounted) _snack('투표를 처리하지 못했습니다');
+      if (mounted && generation == _postGeneration) _snack('투표를 처리하지 못했습니다');
     } finally {
-      if (mounted) setState(() => _voting = false);
+      if (mounted && generation == _postGeneration) {
+        setState(() => _voting = false);
+      }
     }
   }
 
@@ -399,7 +420,6 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
                   ref.read(authProvider).profile?.id != auth.profile!.id) {
                 return;
               }
-              ref.invalidate(blockedUsersProvider);
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(const SnackBar(content: Text('작성자를 차단했어요.')));
@@ -410,6 +430,10 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   }
 
   Future<void> _deletePost() async {
+    final generation = _postGeneration;
+    final actor = ref.read(authProvider).profile?.id;
+    final post = ref.read(communityProvider).postsById[widget.postId];
+    if (actor == null || post?.userId != actor) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -427,17 +451,17 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted || generation != _postGeneration) return;
     try {
       await ref.read(communityProvider.notifier).deletePost(widget.postId);
-      if (!mounted) return;
+      if (!mounted || generation != _postGeneration) return;
       if (context.canPop()) {
         context.pop();
       } else {
         context.go(communityFallbackPath(widget.sourceKey));
       }
     } catch (_) {
-      if (mounted) _snack('게시글 삭제에 실패했습니다.');
+      if (mounted && generation == _postGeneration) _snack('게시글 삭제에 실패했습니다.');
     }
   }
 }

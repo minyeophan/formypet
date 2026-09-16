@@ -23,6 +23,45 @@ import 'package:frontend/widgets/authenticated_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets(
+    'blocked preview preserves replies and post owner delete entry only',
+    (tester) async {
+      final root = PostComment.fromJson({
+        'id': 'blocked-root',
+        'blocked': true,
+        'deleted': false,
+        'userId': null,
+        'authorNickname': null,
+        'content': null,
+        'replies': [
+          {
+            'id': 'visible-reply',
+            'parentCommentId': 'blocked-root',
+            'userId': 'reply-owner',
+            'authorNickname': 'reply author',
+            'content': 'visible reply',
+          },
+        ],
+        'replyCount': 1,
+      });
+      await _pumpDetail(
+        tester,
+        currentUserId: 'post-owner',
+        post: _post(userId: 'post-owner', commentsCount: 2),
+        comments: [root],
+      );
+      expect(find.text('차단한 사용자의 댓글입니다'), findsOneWidget);
+      expect(find.text('visible reply'), findsOneWidget);
+      expect(
+        find.byKey(const Key('community-comment-more-blocked-root')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('community-comment-reply-blocked-root')),
+        findsNothing,
+      );
+    },
+  );
   testWidgets('reply management routes the selected reply and its root', (
     tester,
   ) async {

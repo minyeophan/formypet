@@ -37,6 +37,17 @@ void main() {
     title: ' 오류 ',
     body: ' 내용 ',
   );
+  test('inquiry accepts backend receipt with an explicit offset', () async {
+    dio.httpClientAdapter = InquiryAdapter(
+      (_) => response({
+        'id': 'support-inquiry',
+        'receivedAt': '2026-09-16T18:30:00+09:00',
+      }),
+    );
+    final receipt = await InquiryService().submit(draft, requestId: 'request');
+    expect(receipt.id, 'support-inquiry');
+    expect(receipt.receivedAt, DateTime.utc(2026, 9, 16, 9, 30));
+  });
   test(
     'POST sends normalized fields and request ID, never client user ID',
     () async {

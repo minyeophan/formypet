@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
+import 'support_receipt.dart';
 
 class ReportReceipt {
   const ReportReceipt({required this.id, required this.receivedAt});
@@ -33,10 +34,16 @@ class CommunitySafetyService {
       '/api/v1/posts/${Uri.encodeComponent(postId)}/reports',
       data: {'reason': reason, 'detail': detail.trim(), 'requestId': requestId},
     );
-    final data = unwrap(response) as Map<String, dynamic>;
-    final id = data['id']?.toString();
-    final receivedAt = DateTime.tryParse(data['receivedAt']?.toString() ?? '');
-    if (id == null || id.isEmpty || receivedAt == null) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw const FormatException('Report receipt is not confirmed');
+    }
+    final data = unwrap(response);
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Missing report receipt');
+    }
+    final id = data['id'];
+    final receivedAt = parseSupportReceiptTime(data['receivedAt']);
+    if (id is! String || id.trim().isEmpty || receivedAt == null) {
       throw const FormatException('Missing report receipt');
     }
     return ReportReceipt(id: id, receivedAt: receivedAt);

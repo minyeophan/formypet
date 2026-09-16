@@ -32,6 +32,44 @@ void main() {
     () => initApiClient('http://example.test', includeAuthInterceptor: false),
   );
 
+  test('report accepts the authenticated backend offset receipt', () async {
+    dio.httpClientAdapter = SafetyAdapter(
+      (_) => jsonResponse({
+        'id': 'support-report',
+        'receivedAt': '2026-09-16T18:30:00.123+09:00',
+      }, status: 201),
+    );
+    final receipt = await CommunitySafetyService().reportPost(
+      postId: 'post',
+      reason: 'SPAM',
+      detail: '',
+      requestId: 'request',
+    );
+    expect(receipt.id, 'support-report');
+    expect(receipt.receivedAt, DateTime.parse('2026-09-16T09:30:00.123Z'));
+  });
+
+  for (final data in [
+    {'id': 123, 'receivedAt': '2026-09-16T18:30:00+09:00'},
+    {'id': '  ', 'receivedAt': '2026-09-16T18:30:00+09:00'},
+    {'id': 'r', 'receivedAt': '2026-09-16T18:30:00'},
+    {'id': 'r', 'receivedAt': '2026-02-30T18:30:00+09:00'},
+    {'id': 'r', 'receivedAt': '2026-09-16T18:30:00+25:00'},
+  ]) {
+    test('report rejects malformed receipt $data', () async {
+      dio.httpClientAdapter = SafetyAdapter((_) => jsonResponse(data));
+      await expectLater(
+        CommunitySafetyService().reportPost(
+          postId: 'post',
+          reason: 'SPAM',
+          detail: '',
+          requestId: 'request',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  }
+
   test(
     'report sends reason detail and request id and requires server receipt',
     () async {

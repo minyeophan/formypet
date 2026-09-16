@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/post.dart';
 import '../services/community_service.dart';
 import 'community_provider.dart';
+import 'content_visibility_provider.dart';
 
 class HomePopularPostsState {
   final List<Post> posts;
@@ -57,11 +58,13 @@ class HomePopularPostsNotifier extends StateNotifier<HomePopularPostsState> {
         sort: CommunityFeedSort.popular,
         limit: 3,
       );
+      if (!mounted) return;
       state = HomePopularPostsState(
         posts: feed.items.take(3).toList(),
         isInitialLoading: false,
       );
     } catch (error) {
+      if (!mounted) return;
       state = state.copyWith(
         isInitialLoading: false,
         isRefreshing: false,
@@ -79,6 +82,7 @@ final homePopularPostsProvider =
       HomePopularPostsNotifier,
       HomePopularPostsState
     >((ref) {
+      ref.watch(contentVisibilityProvider);
       final notifier = HomePopularPostsNotifier(
         ref.watch(communityServiceProvider),
       );

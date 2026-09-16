@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,11 +8,120 @@ import 'package:frontend/models/post.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/content_visibility_provider.dart';
 import 'package:frontend/screens/community/community_comments_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  test('blocked flag is backward compatible and copied', () {
+    expect(PostComment.fromJson({'id': 'old'}).blocked, isFalse);
+    expect(
+      _comment('1').copyWith(blocked: true).copyWith(content: '').blocked,
+      isTrue,
+    );
+  });
+  testWidgets('post owner can delete a blocked root but cannot edit or reply', (
+    tester,
+  ) async {
+    final root = PostComment.fromJson({
+      'id': '1',
+      'blocked': true,
+      'deleted': false,
+      'userId': null,
+      'authorNickname': null,
+      'content': null,
+      'replies': [
+        {
+          'id': '2',
+          'parentCommentId': '1',
+          'userId': 'other',
+          'content': 'visible reply',
+        },
+      ],
+      'replyCount': 1,
+    });
+    final service = _FakeService(comments: [root]);
+    await _pump(tester, service, currentUserId: 'post-owner');
+    expect(find.text('차단한 사용자의 댓글입니다'), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-reply-1')), findsNothing);
+    await tester.tap(find.byKey(const Key('community-comment-more-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('수정하기'), findsNothing);
+    await tester.tap(find.text('삭제하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-comment-delete-confirm')));
+    await tester.pumpAndSettle();
+    expect(service.deleteRequests, [('post-1', '1')]);
+    expect(find.text('삭제된 댓글입니다'), findsOneWidget);
+    expect(find.text('차단한 사용자의 댓글입니다'), findsNothing);
+    expect(find.text('visible reply'), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
+  });
+  testWidgets('visibility reload rejects a previous comments response', (
+    tester,
+  ) async {
+    final service = _DelayedComments();
+    await _pump(tester, service);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CommunityCommentsScreen)),
+    );
+    expect(find.text('댓글 1'), findsOneWidget);
+    service.delay = true;
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    await tester.pump();
+    expect(find.text('댓글 1'), findsNothing);
+    container.read(contentVisibilityRevisionProvider.notifier).state++;
+    await tester.pump();
+    expect(service.pending, hasLength(2));
+    service.pending.last.complete(PostCommentFeed(items: [_comment('3')]));
+    await tester.pumpAndSettle();
+    service.pending.first.complete(PostCommentFeed(items: [_comment('2')]));
+    await tester.pumpAndSettle();
+    expect(find.text('댓글 3'), findsOneWidget);
+    expect(find.text('댓글 2'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('blocked root is a placeholder and retains other replies', (
+    tester,
+  ) async {
+    final root = PostComment.fromJson({
+      'id': '1',
+      'deleted': false,
+      'blocked': true,
+      'userId': null,
+      'authorNickname': null,
+      'authorProfileImageUrl': null,
+      'content': null,
+      'replyCount': 1,
+      'repliesNextCursor': 'older',
+      'replies': [
+        {
+          'id': '2',
+          'parentCommentId': '1',
+          'userId': 'me',
+          'authorNickname': '나',
+          'content': 'visible reply',
+        },
+      ],
+    });
+    expect(root.copyWith(commentsCount: 2).blocked, isTrue);
+    expect(root.deleted, isFalse);
+    expect(root.userId, isEmpty);
+    expect(root.content, isEmpty);
+    expect(root.repliesNextCursor, 'older');
+    await _pump(tester, _FakeService(comments: [root]));
+    expect(find.text('차단한 사용자의 댓글입니다'), findsOneWidget);
+    expect(find.text('hidden author'), findsNothing);
+    expect(find.text('hidden body'), findsNothing);
+    expect(find.text('visible reply'), findsOneWidget);
+    expect(find.byKey(const Key('community-comment-more-1')), findsNothing);
+    expect(find.byKey(const Key('community-comment-more-2')), findsOneWidget);
+    expect(
+      find.byKey(const Key('community-replies-load-more-1')),
+      findsOneWidget,
+    );
+  });
   testWidgets('management target opens the selected reply owner menu', (
     tester,
   ) async {
@@ -463,5 +573,30 @@ class _FakeService extends CommunityService {
   Future<void> deleteComment(String postId, String commentId) async {
     deleteRequests.add((postId, commentId));
     if (deleteError != null) throw deleteError!;
+  }
+}
+
+class _DelayedComments extends _FakeService {
+  _DelayedComments() : super(comments: [_comment('1')]);
+  bool delay = false;
+  final pending = <Completer<PostCommentFeed>>[];
+  @override
+  Future<PostCommentFeed> getComments(
+    String postId, {
+    String? cursor,
+    int limit = 20,
+    int replyLimit = 20,
+  }) {
+    if (!delay) {
+      return super.getComments(
+        postId,
+        cursor: cursor,
+        limit: limit,
+        replyLimit: replyLimit,
+      );
+    }
+    final request = Completer<PostCommentFeed>();
+    pending.add(request);
+    return request.future;
   }
 }

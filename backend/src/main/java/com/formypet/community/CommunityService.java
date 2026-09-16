@@ -79,6 +79,7 @@ public class CommunityService {
             ) a JOIN posts p ON p.id = a.post_id JOIN users u ON u.id = p.user_id WHERE 1 = 1
             """);
         List<Object> params = new ArrayList<>(List.of(user.getId(), user.getId()));
+        appendBlockFilter(sql, params, user.getId());
         if (cursor != null) {
             try {
                 if (cursor.length() > 256) throw new IllegalArgumentException();
@@ -174,6 +175,7 @@ public class CommunityService {
                 WHERE 1 = 1
                 """);
         params.add(user.getId());
+        appendBlockFilter(sql, params, user.getId());
         if (category != null && !category.isBlank()) {
             sql.append(" AND p.category = ?");
             params.add(normalizeCategory(category));
@@ -205,7 +207,7 @@ public class CommunityService {
     @Transactional(readOnly = true)
     public PostResponse detail(String email, Long postId) {
         User user = findUser(email);
-        ensurePostExists(postId);
+        ensurePostVisible(postId, user.getId());
         return findPostResponse(postId, user.getId());
     }
 
@@ -246,8 +248,8 @@ public class CommunityService {
 
     @Transactional(readOnly = true)
     public PostCommentFeedResponse comments(String email, Long postId, String cursor, int limit, int replyLimit) {
-        findUser(email);
-        ensurePostExists(postId);
+        User user = findUser(email);
+        ensurePostVisible(postId, user.getId());
         int pageSize = Math.max(1, Math.min(limit, 50));
         int nestedPageSize = validateReplyLimit(replyLimit);
         int commentsCount = commentsCount(postId);
@@ -273,7 +275,9 @@ public class CommunityService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
         boolean hasNext = rows.size() > pageSize;
         if (hasNext) rows = new ArrayList<>(rows.subList(0, pageSize));
-        Map<Long, List<PostCommentResponse>> replies = loadReplies(rows, nestedPageSize, commentsCount);
+        Set<Long> blocked = blockedAuthors(user.getId());
+        maskBlockedComments(rows, blocked);
+        Map<Long, List<PostCommentResponse>> replies = loadReplies(rows, nestedPageSize, commentsCount, blocked);
         List<PostCommentResponse> items = rows.stream()
                 .map(row -> rootCommentResponse(row, commentsCount, replies.getOrDefault(idOf(row), List.of())))
                 .toList();
@@ -283,23 +287,25 @@ public class CommunityService {
 
     @Transactional(readOnly = true)
     public PostCommentResponse commentThread(String email, Long postId, Long commentId, int replyLimit) {
-        findUser(email);
-        ensurePostExists(postId);
+        User user = findUser(email);
+        ensurePostVisible(postId, user.getId());
         Map<String, Object> row = requireComment(postId, commentId);
         if (row.get("deleted_at") != null && ((Number) row.get("reply_count")).intValue() == 0) {
             throw commentNotFound();
         }
         if (row.get("parent_comment_id") != null) throw invalidCommentParent();
         int commentsCount = commentsCount(postId);
-        List<PostCommentResponse> replies = loadReplies(List.of(row), validateReplyLimit(replyLimit), commentsCount)
+        Set<Long> blocked = blockedAuthors(user.getId());
+        maskBlockedComments(List.of(row), blocked);
+        List<PostCommentResponse> replies = loadReplies(List.of(row), validateReplyLimit(replyLimit), commentsCount, blocked)
                 .getOrDefault(commentId, List.of());
         return rootCommentResponse(row, commentsCount, replies);
     }
 
     @Transactional(readOnly = true)
     public PostCommentFeedResponse replies(String email, Long postId, Long commentId, String cursor, int limit) {
-        findUser(email);
-        ensurePostExists(postId);
+        User user = findUser(email);
+        ensurePostVisible(postId, user.getId());
         Map<String, Object> parent = requireComment(postId, commentId);
         if (parent.get("deleted_at") != null && ((Number) parent.get("reply_count")).intValue() == 0) {
             throw commentNotFound();
@@ -325,6 +331,7 @@ public class CommunityService {
         boolean hasNext = rows.size() > pageSize;
         if (hasNext) rows = new ArrayList<>(rows.subList(0, pageSize));
         Collections.reverse(rows);
+        maskBlockedComments(rows, blockedAuthors(user.getId()));
         List<PostCommentResponse> items = rows.stream().map(row -> leafCommentResponse(row, commentsCount)).toList();
         String nextCursor = hasNext && !items.isEmpty() ? items.getFirst().id().toString() : null;
         return PostCommentFeedResponse.of(items, nextCursor);
@@ -333,7 +340,7 @@ public class CommunityService {
     @Transactional
     public PostCommentResponse createComment(String email, Long postId, PostCommentCreateRequest request) {
         User user = findUser(email);
-        ensurePostExists(postId);
+        ensurePostVisible(postId, user.getId());
         if (request == null) {
             throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
         }
@@ -473,6 +480,8 @@ public class CommunityService {
             return PostLikeResponse.of(postId, false, likesCount(postId));
         }
 
+        ensurePostVisible(postId, user.getId());
+
         jdbcTemplate.update("""
                 INSERT INTO post_likes (user_id, post_id, created_at)
                 VALUES (?, ?, ?)
@@ -486,6 +495,7 @@ public class CommunityService {
     @Transactional
     public PostResponse vote(String email, Long postId, Long optionId) {
         User user = findUser(email);
+        ensurePostVisible(postId, user.getId());
         Long pollId = pollIdForPost(postId);
         ensureOptionBelongsToPoll(pollId, optionId);
 
@@ -625,7 +635,7 @@ public class CommunityService {
     }
 
     private PostCommentResponse leafCommentResponse(Map<String, Object> row, int commentsCount) {
-        if (row.get("deleted_at") != null) {
+        if (row.get("deleted_at") != null || Boolean.TRUE.equals(row.get("blocked"))) {
             return tombstoneCommentResponse(row, commentsCount, List.of());
         }
         return new PostCommentResponse(
@@ -647,7 +657,7 @@ public class CommunityService {
 
     private PostCommentResponse rootCommentResponse(Map<String, Object> row, int commentsCount,
                                                      List<PostCommentResponse> replies) {
-        if (row.get("deleted_at") != null) {
+        if (row.get("deleted_at") != null || Boolean.TRUE.equals(row.get("blocked"))) {
             return tombstoneCommentResponse(row, commentsCount, replies);
         }
         int replyCount = ((Number) row.get("reply_count")).intValue();
@@ -666,8 +676,10 @@ public class CommunityService {
         String nextCursor = replyCount > replies.size() && !replies.isEmpty()
                 ? replies.getFirst().id().toString() : null;
         return new PostCommentResponse(idOf(row), null, null, null, null,
-                normalizeDateTime(row.get("created_at")), normalizeDateTime(row.get("updated_at")), true,
-                commentsCount, null, replyCount, replies, nextCursor);
+                normalizeDateTime(row.get("created_at")), normalizeDateTime(row.get("updated_at")), row.get("deleted_at") != null,
+                commentsCount, row.get("parent_comment_id") == null ? null : ((Number) row.get("parent_comment_id")).longValue(),
+                replyCount, replies, nextCursor,
+                row.get("deleted_at") == null && Boolean.TRUE.equals(row.get("blocked")));
     }
 
     private String commentAuthorProfileImageUrl(Map<String, Object> row) {
@@ -744,6 +756,32 @@ public class CommunityService {
         }
     }
 
+    private void appendBlockFilter(StringBuilder sql, List<Object> params, Long viewer) {
+        sql.append(" AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_user_id = ? AND b.blocked_user_id = p.user_id)");
+        params.add(viewer);
+    }
+
+    private void ensurePostVisible(Long postId, Long viewer) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM posts p WHERE p.id = ? AND NOT EXISTS (
+                    SELECT 1 FROM user_blocks b WHERE b.blocker_user_id = ? AND b.blocked_user_id = p.user_id)
+                """, Integer.class, postId, viewer);
+        if (count == null || count == 0) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "post-not-found", "Post Not Found", "Post not found.", "POST_NOT_FOUND");
+        }
+    }
+
+    private Set<Long> blockedAuthors(Long viewer) {
+        return new HashSet<>(jdbcTemplate.queryForList(
+                "SELECT blocked_user_id FROM user_blocks WHERE blocker_user_id = ?", Long.class, viewer));
+    }
+
+    private void maskBlockedComments(List<Map<String, Object>> rows, Set<Long> blocked) {
+        for (Map<String, Object> row : rows) {
+            row.put("blocked", blocked.contains(((Number) row.get("user_id")).longValue()));
+        }
+    }
+
     private int commentsCount(Long postId) {
         Integer count = jdbcTemplate.queryForObject("SELECT comments_count FROM posts WHERE id = ?", Integer.class, postId);
         return count == null ? 0 : count;
@@ -778,7 +816,7 @@ public class CommunityService {
     }
 
     private Map<Long, List<PostCommentResponse>> loadReplies(List<Map<String, Object>> roots,
-                                                              int replyLimit, int commentsCount) {
+                                                              int replyLimit, int commentsCount, Set<Long> blocked) {
         if (roots.isEmpty() || replyLimit == 0) return Map.of();
         String placeholders = String.join(",", Collections.nCopies(roots.size(), "?"));
         List<Object> params = roots.stream().map(this::idOf).map(value -> (Object) value).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -800,6 +838,7 @@ public class CommunityService {
                 """.formatted(placeholders);
         Map<Long, List<PostCommentResponse>> result = new HashMap<>();
         for (Map<String, Object> row : jdbcTemplate.queryForList(sql, params.toArray())) {
+            maskBlockedComments(List.of(row), blocked);
             Long parentId = ((Number) row.get("parent_comment_id")).longValue();
             result.computeIfAbsent(parentId, ignored -> new ArrayList<>()).add(leafCommentResponse(row, commentsCount));
         }

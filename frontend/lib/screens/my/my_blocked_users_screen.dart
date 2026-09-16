@@ -23,7 +23,6 @@ class MyBlockedUsersScreen extends ConsumerWidget {
         ref.read(authProvider).profile?.id != actor) {
       return;
     }
-    ref.invalidate(blockedUsersProvider);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('차단을 해제했어요.')));
