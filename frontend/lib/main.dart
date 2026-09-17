@@ -77,7 +77,7 @@ void main() async {
     if (initialMessage != null) _pendingMessage = initialMessage;
   }
 
-  final baseUrl = kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080';
+  final baseUrl = kIsWeb ? 'http://localhost:8083' : 'http://10.0.2.2:8083';
   initApiClient(baseUrl);
   const kakaoNativeAppKey = String.fromEnvironment('KAKAO_NATIVE_APP_KEY');
   if (kakaoNativeAppKey.isEmpty) {

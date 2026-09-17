@@ -28,6 +28,7 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
@@ -138,6 +139,87 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].note").value("full portion"))
                 .andExpect(jsonPath("$.data[0].detail.servedAmount").value(120));
+    }
+
+    @Test
+    void legacyCoordinatesAreHiddenInListTodayAndPartialUpdateResponses() throws Exception {
+        String token = registerAndGetToken("legacy-location@example.com", "legacy");
+        Long petId = createPet(token, "Maro");
+        MvcResult created = mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"Walk\",\"typeId\":\"walk\",\"repeatType\":\"daily\",\"startDate\":\"2026-05-09\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        Long id = readId(created);
+        String legacy = "{\"distance\":2.4,\"memo\":\"park\",\"startLng\":127,\"startLat\":37,\"endLng\":128,\"endLat\":38,\"clinicLng\":129,\"clinicLat\":39}";
+        jdbcTemplate.update("UPDATE routines SET detail=? WHERE id=?", legacy, id);
+        for (String url : List.of(routinesUrl(petId), routinesUrl(petId) + "/today?date=2026-05-09")) {
+            String prefix = url.contains("today?") ? "$.data.routines[0].routine.detail" : "$.data[0].detail";
+            var response = mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath(prefix + ".distance").value(2.4))
+                    .andExpect(jsonPath(prefix + ".memo").value("park"));
+            for (String key : List.of("startLng", "startLat", "endLng", "endLat", "clinicLng", "clinicLat")) {
+                response.andExpect(jsonPath(prefix + "." + key).doesNotExist());
+            }
+        }
+        mockMvc.perform(put(routinesUrl(petId) + "/" + id)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"Evening walk\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.detail").value(org.hamcrest.Matchers.aMapWithSize(2)))
+                .andExpect(jsonPath("$.data.detail.distance").value(2.4))
+                .andExpect(jsonPath("$.data.detail.memo").value("park"));
+    }
+
+    @Test
+    void routineDetailDropsLocationKeysButKeepsOtherFields() throws Exception {
+        String token = registerAndGetToken("routine-location-filter@example.com", "routine-location-filter");
+        Long petId = createPet(token, "Maro");
+
+        mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "label", "Walk", "typeId", "walk", "repeatType", "daily",
+                                "startDate", "2026-05-09", "detail", Map.of(
+                                        "distance", 2.4, "startLng", 127.0, "startLat", 37.0,
+                                        "memo", "park"
+                                )))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.detail.distance").value(2.4))
+                .andExpect(jsonPath("$.data.detail.memo").value("park"))
+                .andExpect(jsonPath("$.data.detail.startLng").doesNotExist())
+                .andExpect(jsonPath("$.data.detail.startLat").doesNotExist());
+    }
+
+    @Test
+    void routineUpdateStripsAllCoordinatesAndPreservesOmittedDetail() throws Exception {
+        String token = registerAndGetToken("update-location@example.com", "update");
+        Long petId = createPet(token, "Maro");
+        MvcResult created = mockMvc.perform(post(routinesUrl(petId))
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"Walk\",\"typeId\":\"walk\",\"repeatType\":\"daily\",\"startDate\":\"2026-05-09\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        Long id = readId(created);
+        String url = routinesUrl(petId) + "/" + id;
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"detail\":{\"distance\":3,\"startLng\":127,\"startLat\":37,\"endLng\":128,\"endLat\":38,\"clinicLng\":129,\"clinicLat\":39}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.detail").value(org.hamcrest.Matchers.aMapWithSize(1)))
+                .andExpect(jsonPath("$.data.detail.distance").value(3));
+        org.junit.jupiter.api.Assertions.assertEquals(objectMapper.readTree("{\"distance\":3}"),
+                objectMapper.readTree(jdbcTemplate.queryForObject("SELECT detail FROM routines WHERE id=?", String.class, id)));
+        for (String body : List.of("{\"label\":\"Walk again\"}", "{\"detail\":null}")) {
+            mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.detail").value(org.hamcrest.Matchers.aMapWithSize(1)))
+                    .andExpect(jsonPath("$.data.detail.distance").value(3));
+        }
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"detail\":{}}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.detail").isEmpty());
     }
 
     @Test

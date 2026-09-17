@@ -60,7 +60,6 @@ const _assets = <String>[
   'community_show',
   'community_question',
   'community_free',
-  'ui_map',
   'record_meal',
   'record_water',
   'record_walk',

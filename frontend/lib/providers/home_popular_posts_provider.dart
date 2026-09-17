@@ -56,11 +56,13 @@ class HomePopularPostsNotifier extends StateNotifier<HomePopularPostsState> {
     try {
       final feed = await _service.getFeed(
         sort: CommunityFeedSort.popular,
-        limit: 3,
+        // NEWS is rendered in the separate home news section. Request a
+        // larger window so news posts do not reduce the three general posts.
+        limit: 20,
       );
       if (!mounted) return;
       state = HomePopularPostsState(
-        posts: feed.items.take(3).toList(),
+        posts: feed.items.where((post) => post.category != 'NEWS').take(3).toList(),
         isInitialLoading: false,
       );
     } catch (error) {

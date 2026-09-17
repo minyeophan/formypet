@@ -69,6 +69,34 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void legacyCoordinateRequestsKeepRecordDetailsButDoNotReturnCoordinates() throws Exception {
+        String token = registerAndGetToken("legacy-record@example.com", "legacy");
+        Long petId = createPet(token, "Maro");
+        for (String type : List.of("walk", "vet")) {
+            Map<String, Object> detail = new java.util.LinkedHashMap<>();
+            detail.putAll(Map.of("startLng", 127, "startLat", 37, "endLng", 128,
+                    "endLat", 38, "clinicLng", 129, "clinicLat", 39));
+            detail.putAll(type.equals("walk") ? Map.of("distance", 2.4, "duration", 30)
+                    : Map.of("vetClinicName", "Town Vet", "vetDiagnosis", "healthy", "vetCost", 12000));
+            Long id = createRecord(token, petId, type, detail);
+            var response = mockMvc.perform(get(recordsUrl(petId) + "/" + id)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.typeId").value(type));
+            for (String key : List.of("startLng", "startLat", "endLng", "endLat", "clinicLng", "clinicLat")) {
+                response.andExpect(jsonPath("$.data.detail." + key).doesNotExist());
+            }
+            if (type.equals("walk")) {
+                response.andExpect(jsonPath("$.data.detail.distance").value(2.4))
+                        .andExpect(jsonPath("$.data.detail.duration").value(30));
+            } else {
+                response.andExpect(jsonPath("$.data.detail.vetClinicName").value("Town Vet"))
+                        .andExpect(jsonPath("$.data.detail.vetDiagnosis").value("healthy"))
+                        .andExpect(jsonPath("$.data.detail.vetCost").value(12000));
+            }
+        }
+    }
+
+    @Test
     void createRoutineRecordPersistsRoutineId() throws Exception {
         String token = registerAndGetToken("routine-record@example.com", "routine-record");
         Long petId = createPet(token, "Maro");
@@ -278,17 +306,11 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
         createRecord(token, petId, "poop", Map.of("poopShape", "normal", "poopColor", "brown", "poopAmount", "normal"));
         createRecord(token, petId, "walk", Map.of(
                 "distance", 1.2,
-                "duration", 30,
-                "startLng", 127.0276,
-                "startLat", 37.4979,
-                "endLng", 127.0300,
-                "endLat", 37.5000
+                "duration", 30
         ));
         createRecord(token, petId, "weight", Map.of("weight", 5.25));
         createRecord(token, petId, "vet", Map.of(
                 "vetClinicName", "Town Vet",
-                "clinicLng", 127.0276,
-                "clinicLat", 37.4979,
                 "vetVisitReason", "checkup",
                 "vetCost", 30000
         ));

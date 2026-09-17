@@ -803,6 +803,8 @@ String _categoryLabel(String category) =>
       'FOOD': '먹거리',
       'OUTING': '외출',
       'SHOW': '자랑',
+      'NEWS': '소식',
+      'EVENT': '이벤트',
     }[category.toUpperCase()] ??
     category;
 

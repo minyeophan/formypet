@@ -269,14 +269,13 @@ void main() {
     },
   );
 
-  testWidgets('policies list shows only the five policy names', (tester) async {
+  testWidgets('policies list shows only the four policy names', (tester) async {
     await _pumpPoliciesRouter(tester, '/my/policies');
 
     for (final title in [
       '서비스 이용약관',
       '개인정보 처리방침',
       '운영정책',
-      '위치기반 서비스 이용약관',
       '마케팅 정보 수신 동의',
     ]) {
       expect(find.text(title), findsOneWidget);
@@ -299,7 +298,6 @@ void main() {
       '서비스 이용약관': '서비스 이용약관',
       '개인정보 처리방침': '개인정보 처리방침',
       '운영정책': '운영정책',
-      '위치기반 서비스 이용약관': '위치기반 서비스 이용약관',
       '마케팅 정보 수신 동의': '마케팅 정보 수신 동의',
     };
 

@@ -250,13 +250,12 @@ public class ActivityRecordService {
                     FROM record_poop WHERE record_id = ?
                     """;
             case "walk" -> """
-                    SELECT distance, duration, ST_X(start_location) AS startLng, ST_Y(start_location) AS startLat,
-                           ST_X(end_location) AS endLng, ST_Y(end_location) AS endLat
+                    SELECT distance, duration
                     FROM record_walk WHERE record_id = ?
                     """;
             case "weight" -> "SELECT weight FROM record_weight WHERE record_id = ?";
             case "vet" -> """
-                    SELECT vet_clinic_name AS vetClinicName, ST_X(clinic_location) AS clinicLng, ST_Y(clinic_location) AS clinicLat,
+                    SELECT vet_clinic_name AS vetClinicName,
                            vet_visit_reason AS vetVisitReason, vet_diagnosis AS vetDiagnosis, vet_treatment AS vetTreatment,
                            vet_cost AS vetCost, vet_next_visit_date AS vetNextVisitDate
                     FROM record_vet WHERE record_id = ?
@@ -291,16 +290,15 @@ public class ActivityRecordService {
                     """, recordId, str(detail, "poopShape"), str(detail, "poopColor"),
                     str(detail, "poopAmount"), str(detail, "poopSmell"));
             case "walk" -> jdbcTemplate.update("""
-                    INSERT INTO record_walk (record_id, distance, duration, start_location, end_location)
-                    VALUES (?, ?, ?, ST_GeomFromText(?, 4326), ST_GeomFromText(?, 4326))
-                    """, recordId, decimal(detail, "distance"), integer(detail, "duration"),
-                    point(detail, "startLng", "startLat"), point(detail, "endLng", "endLat"));
+                    INSERT INTO record_walk (record_id, distance, duration)
+                    VALUES (?, ?, ?)
+                    """, recordId, decimal(detail, "distance"), integer(detail, "duration"));
             case "weight" -> jdbcTemplate.update("INSERT INTO record_weight (record_id, weight) VALUES (?, ?)",
                     recordId, decimal(detail, "weight"));
             case "vet" -> jdbcTemplate.update("""
-                    INSERT INTO record_vet (record_id, vet_clinic_name, clinic_location, vet_visit_reason, vet_diagnosis, vet_treatment, vet_cost, vet_next_visit_date)
-                    VALUES (?, ?, ST_GeomFromText(?, 4326), ?, ?, ?, ?, ?)
-                    """, recordId, str(detail, "vetClinicName"), point(detail, "clinicLng", "clinicLat"),
+                    INSERT INTO record_vet (record_id, vet_clinic_name, vet_visit_reason, vet_diagnosis, vet_treatment, vet_cost, vet_next_visit_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, recordId, str(detail, "vetClinicName"),
                     str(detail, "vetVisitReason"), str(detail, "vetDiagnosis"), str(detail, "vetTreatment"),
                     integer(detail, "vetCost"), localDate(detail, "vetNextVisitDate"));
             case "diary", "etc" -> {
@@ -379,15 +377,6 @@ public class ActivityRecordService {
     private LocalDate localDate(Map<String, Object> detail, String key) {
         Object value = detail.get(key);
         return value == null ? null : LocalDate.parse(value.toString());
-    }
-
-    private String point(Map<String, Object> detail, String lngKey, String latKey) {
-        BigDecimal lng = decimal(detail, lngKey);
-        BigDecimal lat = decimal(detail, latKey);
-        if (lng == null || lat == null) {
-            return null;
-        }
-        return "POINT(" + lat + " " + lng + ")";
     }
 
     private LocalTime normalizeTime(Object value) {

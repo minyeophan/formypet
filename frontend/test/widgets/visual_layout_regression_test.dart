@@ -68,7 +68,7 @@ void main() {
           key: Key('capture'),
           child: Padding(
             padding: EdgeInsets.all(16),
-            child: AppIcon(Icons.map_outlined, size: 24),
+            child: AppIcon(Icons.search_rounded, size: 24),
           ),
         ),
         '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">'
