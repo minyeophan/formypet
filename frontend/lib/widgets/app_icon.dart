@@ -64,7 +64,6 @@ class AppIcon extends StatelessWidget {
     Icons.info_outline_rounded: 'assets/icons/ui_info.svg',
     Icons.repeat_rounded: 'assets/icons/ui_repeat.svg',
     Icons.show_chart_rounded: 'assets/icons/ui_graph.svg',
-    Icons.map_outlined: 'assets/icons/ui_map.svg',
     Icons.photo_camera_outlined: 'assets/icons/ui_camera.svg',
     Icons.add_a_photo_rounded: 'assets/icons/ui_add_camera.svg',
     Icons.image_not_supported: 'assets/icons/ui_image_error.svg',

@@ -69,7 +69,7 @@ void main() {
         final popular = await _popularNotifier(const []);
         final news = List.generate(
           4,
-          (i) => _post('n$i', title: '소식 $i 아주 긴 제목이 두 줄을 넘으면 말줄임으로 표시됩니다'),
+          (i) => _post('n$i', title: '소식 $i 아주 긴 제목이 두 줄을 넘으면 말줄임으로 표시됩니다', category: 'NEWS'),
         );
         await tester.pumpWidget(
           _app(popular: popular, news: news, router: _router()),
@@ -131,6 +131,7 @@ void main() {
           news: [
             _post(
               'image',
+              category: 'NEWS',
               images: [
                 'https://example.test/first.jpg',
                 'https://example.test/second.jpg',
@@ -392,13 +393,14 @@ Post _post(
   String? title = '제목',
   String content = '본문',
   List<String> images = const [],
+  String category = 'FREE',
 }) => Post(
   id: id,
   userId: 'user',
   authorNickname: 'author',
   title: title,
   content: content,
-  category: 'NEWS',
+  category: category,
   likesCount: 12,
   liked: false,
   commentsCount: 3,

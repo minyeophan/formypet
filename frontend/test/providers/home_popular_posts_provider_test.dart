@@ -6,7 +6,7 @@ import 'package:frontend/providers/home_popular_posts_provider.dart';
 import 'package:frontend/services/community_service.dart';
 
 void main() {
-  test('loads popular feed with limit three and coalesces requests', () async {
+  test('excludes news posts before taking the three home popular posts', () async {
     final service = _FakeCommunityService();
     final notifier = HomePopularPostsNotifier(service);
 
@@ -14,8 +14,8 @@ void main() {
     final second = notifier.load();
 
     expect(identical(first, second), isTrue);
-    expect(service.requests, [(CommunityFeedSort.popular, 3)]);
-    service.complete([_post('1'), _post('2'), _post('3'), _post('4')]);
+    expect(service.requests, [(CommunityFeedSort.popular, 20)]);
+    service.complete([_newsPost('news'), _post('1'), _newsPost('news-2'), _post('2'), _post('3'), _post('4')]);
     await first;
 
     expect(notifier.state.posts.map((post) => post.id), ['1', '2', '3']);
@@ -49,6 +49,20 @@ Post _post(String id) => Post(
   likesCount: 1,
   liked: false,
   commentsCount: 2,
+  imageUrls: const [],
+  createdAt: '2026-07-01T00:00:00Z',
+);
+
+Post _newsPost(String id) => Post(
+  id: id,
+  userId: 'admin',
+  authorNickname: 'admin',
+  title: 'news $id',
+  content: 'news content',
+  category: 'NEWS',
+  likesCount: 99,
+  liked: false,
+  commentsCount: 0,
   imageUrls: const [],
   createdAt: '2026-07-01T00:00:00Z',
 );

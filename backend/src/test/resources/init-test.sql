@@ -1,19 +1,3 @@
--- Testcontainers 전용 초기화 (Flyway 대체)
--- MySQL 8.0.13+: SRID 4326에서 ST_GeomFromText WKT 좌표 순서는 (위도, 경도)
-CREATE TABLE IF NOT EXISTS spatial_test (
-    id       BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name     VARCHAR(100) NOT NULL,
-    location POINT NOT NULL SRID 4326,
-    SPATIAL INDEX idx_location (location)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
-INSERT INTO spatial_test (name, location) VALUES
-    ('강남역',   ST_GeomFromText('POINT(37.4979 127.0276)', 4326)),
-    ('서울역',   ST_GeomFromText('POINT(37.5547 126.9726)', 4326)),
-    ('홍대입구', ST_GeomFromText('POINT(37.5571 126.9228)', 4326)),
-    ('잠실역',   ST_GeomFromText('POINT(37.5133 127.1000)', 4326)),
-    ('판교역',   ST_GeomFromText('POINT(37.3952 127.1109)', 4326));
-
 CREATE TABLE IF NOT EXISTS users (
     id            BIGINT         AUTO_INCREMENT PRIMARY KEY,
     email         VARCHAR(255)   NOT NULL UNIQUE,
@@ -151,8 +135,6 @@ CREATE TABLE IF NOT EXISTS record_walk (
     record_id      BIGINT PRIMARY KEY,
     distance       DECIMAL(8,2),
     duration       INT,
-    start_location POINT SRID 4326,
-    end_location   POINT SRID 4326,
     CONSTRAINT fk_record_walk_record FOREIGN KEY (record_id) REFERENCES activity_records (id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
@@ -165,7 +147,6 @@ CREATE TABLE IF NOT EXISTS record_weight (
 CREATE TABLE IF NOT EXISTS record_vet (
     record_id           BIGINT PRIMARY KEY,
     vet_clinic_name     VARCHAR(100),
-    clinic_location     POINT SRID 4326,
     vet_visit_reason    VARCHAR(30),
     vet_diagnosis       TEXT,
     vet_treatment       TEXT,

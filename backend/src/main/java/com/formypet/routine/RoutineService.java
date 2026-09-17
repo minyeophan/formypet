@@ -32,6 +32,10 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class RoutineService {
 
+    private static final Set<String> REMOVED_LOCATION_KEYS = Set.of(
+            "startLng", "startLat", "endLng", "endLat", "clinicLng", "clinicLat"
+    );
+
     private static final Set<String> SUPPORTED_REPEAT_TYPES = Set.of("daily", "weekly", "biweekly", "monthly");
     private static final Set<String> SUPPORTED_COMPLETION_STATUS = Set.of("PENDING", "COMPLETED", "SKIPPED");
     private static final int MAX_LABEL_LENGTH = 30;
@@ -73,7 +77,7 @@ public class RoutineService {
             ps.setString(9, toJson(request.times()));
             ps.setBoolean(10, Boolean.TRUE.equals(request.notificationEnabled()));
             ps.setString(11, request.note());
-            ps.setString(12, toJsonObject(request.detail()));
+            ps.setString(12, toJsonObject(sanitizeDetail(request.detail())));
             ps.setObject(13, now);
             ps.setObject(14, now);
             return ps;
@@ -139,7 +143,7 @@ public class RoutineService {
                 request.active() != null ? request.active() : toBoolean(current.get("is_active")),
                 request.notificationEnabled() != null ? request.notificationEnabled() : toBoolean(current.get("notification_enabled")),
                 request.note() != null ? request.note() : current.get("note"),
-                request.detail() != null ? toJsonObject(request.detail()) : current.get("detail"),
+                request.detail() != null ? toJsonObject(sanitizeDetail(request.detail())) : current.get("detail"),
                 LocalDateTime.now(),
                 routineId,
                 pet.getId());
@@ -251,7 +255,7 @@ public class RoutineService {
                 normalizeDate(row.get("end_date")),
                 parseStringList(row.get("times")),
                 (String) row.get("note"),
-                parseMap(row.get("detail")),
+                sanitizeDetail(parseMap(row.get("detail"))),
                 toBoolean(row.get("is_active")),
                 toBoolean(row.get("notification_enabled"))
         );
@@ -366,6 +370,15 @@ public class RoutineService {
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid routine JSON value.");
         }
+    }
+
+    private Map<String, Object> sanitizeDetail(Map<String, Object> detail) {
+        if (detail == null || detail.isEmpty()) {
+            return detail;
+        }
+        Map<String, Object> sanitized = new LinkedHashMap<>(detail);
+        REMOVED_LOCATION_KEYS.forEach(sanitized::remove);
+        return sanitized;
     }
 
     private List<Integer> parseIntegerList(Object value) {

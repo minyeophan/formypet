@@ -67,11 +67,11 @@ const List<String> kDefaultQuickIds = [
 const Map<String, List<String>> kDetailKeysByType = {
   'meal': ['foodName', 'amount', 'unit', 'consumeMode'],
   'water': ['amount', 'unit'],
-  'walk': ['duration', 'distance', 'startLng', 'startLat', 'endLng', 'endLat'],
+  'walk': ['duration', 'distance'],
   'poop': ['consistency', 'color', 'hasBlood'],
   'medicine': ['medicineName', 'dosage', 'unit'],
   'weight': ['value', 'unit'],
-  'vet': ['clinicName', 'diagnosis', 'vetCost', 'clinicLng', 'clinicLat'],
+  'vet': ['clinicName', 'diagnosis', 'vetCost'],
 };
 
 // Strip null/empty detail fields before API send
