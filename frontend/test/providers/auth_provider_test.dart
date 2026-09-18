@@ -9,13 +9,32 @@ import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/reminder_tap_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    ReminderTapService.instance.reset();
     FlutterSecureStorage.setMockInitialValues({});
     setAuthExpiredHandler(null);
+  });
+
+  test('starting logout immediately invalidates pending reminder navigation', () async {
+    final service = _FakeAuthService()..logoutCompleter = Completer<void>();
+    final notifier = AuthNotifier.test(_signedIn, service: service);
+    final taps = ReminderTapService.instance;
+    taps.receive({'type': 'ROUTINE_REMINDER', 'sourceId': '12', 'messageId': 'old'});
+    final generation = taps.generation;
+    final logout = notifier.logout();
+    try {
+      expect(taps.pending, isNull);
+      expect(taps.generation, greaterThan(generation));
+    } finally {
+      service.logoutCompleter!.complete();
+      await logout;
+      notifier.dispose();
+    }
   });
 
   test('logout locks loading until service completes then signs out', () async {
