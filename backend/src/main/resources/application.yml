@@ -51,7 +51,7 @@ app:
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
   notification:
     interval-ms: 60000
-    lookback-minutes: 1
+    lookback-minutes: 5
     timezone: Asia/Seoul
     scheduler-enabled: true
   jwt:

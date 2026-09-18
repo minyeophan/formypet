@@ -7,6 +7,8 @@ import 'pet_provider.dart';
 import 'notification_provider.dart';
 import '../services/auth_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/foreground_notification_service.dart';
+import '../services/reminder_tap_service.dart';
 
 class AuthState {
   final bool isLoading;
@@ -74,7 +76,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _completeSignedOut() async {
     final operation = ++_operation;
+    ReminderTapService.instance.reset();
     _svc.invalidatePendingAuthentication();
+    await PushNotificationService.instance.endSession(disableRemote: false);
+    try {
+      await ForegroundNotificationService.instance.cancelAll();
+    } catch (_) {
+      debugPrint('Failed to clear local notifications during sign-out.');
+    }
     _notificationNotifier?.resetSession(authenticated: false);
     try {
       await _petNotifier?.clearForSignedOutUser();
@@ -97,17 +106,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('Failed to load authenticated pet data: $error');
     }
     if (!_isCurrent(operation)) return;
-    try {
-      await PushNotificationService.instance.registerDeviceToken();
-    } catch (error) {
-      debugPrint('Failed to register FCM device token: $error');
-    }
     if (!_isCurrent(operation)) return;
     state = AuthState(
       isLoading: false,
       isAuthenticated: true,
       profile: profile,
     );
+    PushNotificationService.instance.beginSession(profile.id);
+    // Push registration must not delay the authenticated UI or make login fail.
+    PushNotificationService.instance.registerDeviceToken(sessionKey: profile.id).catchError((error) {
+      debugPrint('Failed to register FCM device token: $error');
+    });
   }
 
   Future<void> _init() async {
@@ -221,12 +230,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     final operation = ++_operation;
+    ReminderTapService.instance.reset();
     _svc.invalidatePendingAuthentication();
     final authenticatedState = state;
     state = state.copyWith(isLoading: true);
     try {
       try {
-        await PushNotificationService.instance.disableDeviceToken();
+        await PushNotificationService.instance.endSession(disableRemote: true);
       } catch (error) {
         debugPrint('Failed to disable FCM device token: $error');
       }
@@ -235,6 +245,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (_) {
       if (!_isCurrent(operation)) return;
       state = authenticatedState;
+      final account = authenticatedState.profile?.id;
+      if (authenticatedState.isAuthenticated && account != null) {
+        PushNotificationService.instance.beginSession(account);
+        PushNotificationService.instance.registerDeviceToken(sessionKey: account).catchError((Object _) {
+          debugPrint('Failed to restore push registration after logout failure.');
+        });
+      }
       rethrow;
     }
     if (!_isCurrent(operation)) return;

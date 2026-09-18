@@ -33,32 +33,46 @@ public class RoutineReminderService {
                 WHERE r.is_active = 1 AND r.notification_enabled = 1 AND u.notification_enabled = 1 AND p.is_deleted = 0
                 """, (rs, rowNum) -> {
             LocalDate date = now.toLocalDate();
+            LocalDate firstDate = windowStart.toLocalDate();
             LocalDate start = rs.getObject("start_date", LocalDate.class);
             LocalDate end = rs.getObject("end_date", LocalDate.class);
-            if (date.isBefore(start) || (end != null && date.isAfter(end))) return null;
+            if (start == null || rs.getString("repeat_type") == null) {
+                log.warn("Skipping routine {}: invalid recurrence", rs.getLong("id"));
+                return null;
+            }
 
             List<Integer> days;
             List<String> times;
             try { days = mapper.readValue(rs.getString("days") == null ? "[]" : rs.getString("days"), new TypeReference<>() {}); times = mapper.readValue(rs.getString("times") == null ? "[]" : rs.getString("times"), new TypeReference<>() {}); }
             catch (Exception ex) { log.warn("Skipping routine {}: invalid JSON", rs.getLong("id"), ex); return null; }
-            if (!scheduledOn(rs.getString("repeat_type"), start, date, days, rs.getInt("monthly_interval"))) {
+            if (days == null || times == null || ("monthly".equals(rs.getString("repeat_type")) && rs.getInt("monthly_interval") < 1)) {
+                log.warn("Skipping routine {}: invalid recurrence", rs.getLong("id"));
                 return null;
             }
-
-            for (String value : times) {
-                LocalDateTime scheduledFor = LocalDateTime.of(date, LocalTime.parse(value));
-                if (!scheduledFor.isBefore(windowStart) && !scheduledFor.isAfter(now)) {
-                    notifications.createReminder(
-                            rs.getLong("user_id"), NotificationType.ROUTINE_REMINDER,
-                            "ROUTINE", rs.getLong("id"), scheduledFor, "루틴 알림",
-                            rs.getString("name") + "님의 " + rs.getString("label") + " 시간입니다.");
+            for (LocalDate candidate = firstDate; !candidate.isAfter(date); candidate = candidate.plusDays(1)) {
+                if (candidate.isBefore(start) || (end != null && candidate.isAfter(end))) continue;
+                if (!scheduledOn(rs.getString("repeat_type"), start, candidate, days, rs.getInt("monthly_interval"))) continue;
+                for (String value : times) {
+                    final LocalTime parsed;
+                    try { parsed = LocalTime.parse(value); }
+                    catch (RuntimeException ex) {
+                        log.warn("Skipping routine {}: invalid time {}", rs.getLong("id"), value);
+                        continue;
+                    }
+                    LocalDateTime scheduledFor = LocalDateTime.of(candidate, parsed);
+                    if (!scheduledFor.isBefore(windowStart) && !scheduledFor.isAfter(now)) {
+                        notifications.createReminder(
+                                rs.getLong("user_id"), NotificationType.ROUTINE_REMINDER,
+                                "ROUTINE", rs.getLong("id"), scheduledFor, "루틴 알림",
+                                rs.getString("name") + "님의 " + rs.getString("label") + " 시간입니다.");
+                    }
                 }
             }
             return null;
         });
     }
 
-    private boolean scheduledOn(String repeat, LocalDate start, LocalDate date,
+    static boolean scheduledOn(String repeat, LocalDate start, LocalDate date,
                                  List<Integer> days, int monthlyInterval) {
         return switch (repeat) {
             case "daily" -> true;
@@ -72,15 +86,8 @@ public class RoutineReminderService {
         };
     }
 
-    private int day(DayOfWeek day) {
+    private static int day(DayOfWeek day) {
         return day == DayOfWeek.SUNDAY ? 0 : day.getValue();
     }
 
-    private <T> T parse(String value, TypeReference<T> type) {
-        try {
-            return mapper.readValue(value == null ? "[]" : value, type);
-        } catch (Exception ignored) {
-            return (T) List.of();
-        }
-    }
 }

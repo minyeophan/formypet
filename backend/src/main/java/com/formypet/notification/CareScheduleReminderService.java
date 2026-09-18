@@ -33,12 +33,16 @@ public class CareScheduleReminderService {
                 """, (rs, rowNum) -> {
             String reminder = rs.getString("reminder");
             Long offsetMinutes = reminderOffset(reminder);
-            if (offsetMinutes == null && reminder != null && !reminder.trim().equalsIgnoreCase("none")) {
+            if (offsetMinutes == null && reminder != null && !reminder.trim().equalsIgnoreCase("none") && !reminder.trim().equals("알림 없음")) {
                 log.warn("Skipping care schedule {}: unsupported reminder {}", rs.getLong("id"), reminder);
             }
             if (offsetMinutes == null) return null;
 
             LocalDate date = rs.getObject("start_date", LocalDate.class);
+            if (date == null) {
+                log.warn("Skipping care schedule {}: missing date", rs.getLong("id"));
+                return null;
+            }
             Time sqlTime = rs.getTime("start_time");
             LocalTime time = sqlTime == null ? LocalTime.of(9, 0) : sqlTime.toLocalTime();
             LocalDateTime scheduledFor = LocalDateTime.of(date, time).minusMinutes(offsetMinutes);
@@ -54,7 +58,7 @@ public class CareScheduleReminderService {
         });
     }
 
-    private Long reminderOffset(String reminder) {
+    static Long reminderOffset(String reminder) {
         if (reminder == null) return null;
         return switch (reminder.trim().toLowerCase(Locale.ROOT)) {
             case "하루 전", "1 day before" -> 1_440L;

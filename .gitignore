@@ -73,6 +73,7 @@ docs/ERD.md
 docs/BACKEND_STATUS.md
 docs/NOTIFICATIONS_STATUS.md
 docs/api-screen-inventory.md
+# Local status and audit notes; keep GitHub focused on the public README.
 backend/bin/
 TODOS.md
 gstack/

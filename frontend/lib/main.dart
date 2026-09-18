@@ -12,26 +12,15 @@ import 'core/api_client.dart';
 import 'core/app_theme.dart';
 import 'router/app_router.dart';
 import 'services/foreground_notification_service.dart';
-
-GoRouter? _appRouter;
-RemoteMessage? _pendingMessage;
+import 'providers/auth_provider.dart';
+import 'providers/pet_provider.dart';
+import 'services/reminder_tap_service.dart';
 
 void _openPushTarget(RemoteMessage message) {
-  final type = message.data['type']?.toString();
-  final sourceId = message.data['sourceId']?.toString();
-  if (sourceId == null || sourceId.isEmpty) return;
-  final route = switch (type) {
-    'CARE_SCHEDULE_REMINDER' => '/routine/schedule/$sourceId',
-    'ROUTINE_REMINDER' => '/routine/$sourceId',
-    _ => null,
-  };
-  if (route == null) return;
-  final router = _appRouter;
-  if (router == null) {
-    _pendingMessage = message;
-  } else {
-    router.push(route);
-  }
+  ReminderTapService.instance.receive({
+    ...message.data,
+    if (message.messageId != null) 'messageId': message.messageId,
+  });
 }
 
 void _openPushPayload(String payload) {
@@ -54,11 +43,6 @@ void main() async {
   if (!kIsWeb) {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
     FirebaseMessaging.onMessageOpenedApp.listen(_openPushTarget);
     await ForegroundNotificationService.instance.initialize(
       (payload) async => _openPushPayload(payload),
@@ -70,11 +54,14 @@ void main() async {
         id: message.hashCode,
         title: notification.title ?? '포마펫 알림',
         body: notification.body ?? '',
-        data: message.data,
+        data: {
+          ...message.data,
+          if (message.messageId != null) 'messageId': message.messageId,
+        },
       );
     });
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) _pendingMessage = initialMessage;
+    if (initialMessage != null) _openPushTarget(initialMessage);
   }
 
   final baseUrl = kIsWeb ? 'http://localhost:8083' : 'http://10.0.2.2:8083';
@@ -88,25 +75,102 @@ void main() async {
   runApp(const ProviderScope(child: FormypetApp()));
 }
 
-class FormypetApp extends ConsumerWidget {
+class FormypetApp extends ConsumerStatefulWidget {
   const FormypetApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FormypetApp> createState() => _FormypetAppState();
+}
+
+class _FormypetAppState extends ConsumerState<FormypetApp> {
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  @override
+  void initState() {
+    super.initState();
+    ReminderTapService.instance.addListener(_onTap);
+  }
+
+  void _onTap() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    ReminderTapService.instance.removeListener(_onTap);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    _appRouter = router;
-    final pending = _pendingMessage;
-    if (pending != null) {
-      _pendingMessage = null;
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _openPushTarget(pending),
-      );
+    final taps = ReminderTapService.instance;
+    final auth = ref.watch(authProvider);
+    if (taps.pending != null && !auth.isLoading) {
+      final generation = taps.generation;
+      final pending = taps.take()!;
+      final account = auth.profile?.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != taps.generation) return;
+        if (!auth.isAuthenticated) {
+          router.go('/auth');
+        } else {
+          _handlePushTarget(router, pending, generation, account);
+        }
+      });
     }
     return MaterialApp.router(
       title: '포마펫',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      scaffoldMessengerKey: _messenger,
       routerConfig: router,
     );
+  }
+
+  Future<void> _handlePushTarget(
+    GoRouter router,
+    ReminderTap tap,
+    int generation,
+    String? account,
+  ) async {
+    bool current() =>
+        mounted &&
+        generation == ReminderTapService.instance.generation &&
+        ref.read(authProvider).isAuthenticated &&
+        ref.read(authProvider).profile?.id == account;
+    try {
+      if (!current()) return;
+      final found = await ref
+          .read(petProvider.notifier)
+          .activateReminderTarget(
+            sourceId: tap.sourceId,
+            isSchedule: tap.isSchedule,
+            isRequestCurrent: current,
+          );
+      if (!current()) return;
+      if (found) {
+        router.push(tap.route);
+      } else {
+        _messenger.currentState?.showSnackBar(
+          const SnackBar(content: Text('연결된 일정 내용을 찾을 수 없어요.')),
+        );
+      }
+    } catch (_) {
+      if (!current()) return;
+      _messenger.currentState?.showSnackBar(
+        SnackBar(
+          content: const Text('일정을 불러오지 못했어요. 연결 상태를 확인해 주세요.'),
+          action: SnackBarAction(
+            label: '재시도',
+            onPressed: () {
+              if (current()) {
+                _handlePushTarget(router, tap, generation, account);
+              }
+            },
+          ),
+        ),
+      );
+    }
   }
 }

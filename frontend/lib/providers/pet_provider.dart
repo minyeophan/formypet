@@ -393,11 +393,16 @@ class PetNotifier extends StateNotifier<PetState> {
   Future<bool> activateReminderTarget({
     required String sourceId,
     required bool isSchedule,
+    bool Function()? isRequestCurrent,
   }) async {
     final session = _session;
     final version = _dataVersion;
     final pets = await _petSvc.getPets();
-    if (!_isCurrent(session) || version != _dataVersion) return false;
+    if (!_isCurrent(session) ||
+        version != _dataVersion ||
+        isRequestCurrent?.call() == false) {
+      return false;
+    }
     for (final pet in pets) {
       final found = isSchedule
           ? (await _requireScheduleService().getSchedules(
@@ -406,7 +411,11 @@ class PetNotifier extends StateNotifier<PetState> {
           : (await _routSvc.getRoutines(
               pet.id,
             )).any((item) => item.id == sourceId && item.petId == pet.id);
-      if (!_isCurrent(session) || version != _dataVersion) return false;
+      if (!_isCurrent(session) ||
+          version != _dataVersion ||
+          isRequestCurrent?.call() == false) {
+        return false;
+      }
       if (!found) continue;
       state = state.copyWith(pets: pets, hasOnboarded: true);
       await setActivePet(pet.id);

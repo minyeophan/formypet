@@ -7,6 +7,8 @@ class ForegroundNotificationService {
 
   static final instance = ForegroundNotificationService._();
   final _plugin = FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
+  final Set<String> _shown = {};
 
   Future<void> initialize(Future<void> Function(String payload) onTap) async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -26,6 +28,18 @@ class ForegroundNotificationService {
           description: '일정과 루틴 알림을 표시합니다.',
           importance: Importance.high,
         ));
+    _initialized = true;
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    final payload = launch?.notificationResponse?.payload;
+    if (launch?.didNotificationLaunchApp == true && payload != null && payload.isNotEmpty) {
+      await onTap(payload);
+    }
+  }
+
+  Future<void> cancelAll() async {
+    _shown.clear();
+    if (!_initialized) return;
+    await _plugin.cancelAll();
   }
 
   Future<void> show({
@@ -34,6 +48,9 @@ class ForegroundNotificationService {
     required String body,
     required Map<String, dynamic> data,
   }) async {
+    final identity = data['messageId']?.toString();
+    if (identity != null && !_shown.add(identity)) return;
+    if (_shown.length > 100) _shown.remove(_shown.first);
     await _plugin.show(
       id,
       title,
