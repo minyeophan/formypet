@@ -63,6 +63,31 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void labelOnlyUpdatePreservesMultipleTimesMonthlyIntervalAndOwner() throws Exception {
+        String token = registerAndGetToken("preserve-edit@example.com", "preserve");
+        Long petId = createPet(token, "Mochi");
+        MvcResult created = mockMvc.perform(post(routinesUrl(petId))
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "label", "Meal", "typeId", "meal", "repeatType", "monthly",
+                        "monthlyInterval", 3, "times", List.of("08:00", "20:00"),
+                        "startDate", "2026-05-01", "note", " original "))))
+                .andExpect(status().isCreated()).andReturn();
+        String url = routinesUrl(petId) + "/" + readId(created);
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"Changed\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.times", hasSize(2)))
+                .andExpect(jsonPath("$.data.monthlyInterval").value(3))
+                .andExpect(jsonPath("$.data.note").value(" original "));
+        String other = registerAndGetToken("other-edit@example.com", "other");
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + other)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"label\":\"Forbidden\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void updateCanClearEndDateAndMemoWithoutChangingOmittedValues() throws Exception {
         String token = registerAndGetToken("clear-routine@example.com", "clear-routine");
         Long petId = createPet(token, "Mochi");
@@ -381,6 +406,10 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
         String token = registerAndGetToken("today-routine@example.com", "today");
         Long petId = createPet(token, "Bori");
         Long mealId = createRoutine(token, petId, "Meal", "meal");
+        mockMvc.perform(put(routinesUrl(petId) + "/" + mealId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"times\":[\"08:00\",\"20:00\"]}"))
+                .andExpect(status().isOk());
         createRoutine(token, petId, "Walk", "walk");
 
         mockMvc.perform(patch(routinesUrl(petId) + "/" + mealId + "/completions/2026-05-09")

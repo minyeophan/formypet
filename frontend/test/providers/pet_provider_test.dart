@@ -15,6 +15,140 @@ import 'package:frontend/services/routine_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('routine list reads share one request for the same context', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = _ControlledRoutineService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1')]),
+      _FakeRecordService(),
+      service,
+    );
+    await notifier.loadForAuthenticatedUser();
+    final gate = Completer<List<Routine>>();
+    service.readGate = gate;
+    final first = notifier.reloadRoutines();
+    final second = notifier.reloadRoutines();
+    expect(identical(first, second), isTrue);
+    gate.complete([_routine('fresh', '1')]);
+    await first;
+    expect(notifier.state.routines.single.id, 'fresh');
+    notifier.dispose();
+  });
+  test(
+    'update success does not wait for today refresh and logout discards late refresh',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = _ControlledRoutineService();
+      final notifier = PetNotifier(
+        _FakePetService(pets: [_pet('1')]),
+        _FakeRecordService(),
+        service,
+      );
+      await notifier.loadForAuthenticatedUser();
+      final gate = Completer<TodayRoutineData>();
+      service.todayGate = gate;
+      expect(await notifier.updateRoutine('rt1', {'label': 'saved'}), isTrue);
+      expect(notifier.state.routines.single.label, 'saved');
+      await notifier.clearForSignedOutUser();
+      gate.complete(
+        TodayRoutineData(
+          items: [],
+          summary: const TodayRoutineSummary(total: 0, done: 0, rate: 0),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.state.routines, isEmpty);
+      expect(notifier.state.todaySummary, isNull);
+      notifier.dispose();
+    },
+  );
+  test(
+    'routine update survives refresh and stale full load preserves records without stuck loading',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = _ControlledRoutineService();
+      final records = _FakeRecordService(records: [_record('record1', '1')]);
+      final notifier = PetNotifier(
+        _FakePetService(pets: [_pet('1')]),
+        records,
+        service,
+      );
+      await notifier.loadForAuthenticatedUser();
+      final oldRead = Completer<List<Routine>>();
+      service.readGate = oldRead;
+      final refresh = notifier.retryDataLoad();
+      await Future<void>.delayed(Duration.zero);
+      await notifier.updateRoutine('rt1', {'label': 'changed'});
+      oldRead.complete([_routine('stale', '1')]);
+      await refresh;
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.records.single.id, 'record1');
+      expect(notifier.state.routines.single.label, 'changed');
+      notifier.dispose();
+    },
+  );
+
+  test('late update after pet switch away and back is ignored', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = _ControlledRoutineService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1'), _pet('2')]),
+      _FakeRecordService(),
+      service,
+    );
+    await notifier.loadForAuthenticatedUser();
+    final token = notifier.routineContext;
+    final gate = Completer<void>();
+    service.writeGate = gate;
+    final update = notifier.updateRoutine('rt1', {'label': 'late'});
+    await notifier.setActivePet('2');
+    await notifier.setActivePet('1');
+    gate.complete();
+    await update;
+    expect(notifier.isRoutineContextCurrent(token), isFalse);
+    expect(notifier.state.routines.single.label, isNot('late'));
+    notifier.dispose();
+  });
+
+  test('today refresh failure keeps saved routine and exposes retry', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = _ControlledRoutineService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1')]),
+      _FakeRecordService(),
+      service,
+    );
+    await notifier.loadForAuthenticatedUser();
+    service.failTodayRefresh = true;
+    await notifier.updateRoutine('rt1', {'label': 'saved'});
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.state.routines.single.label, 'saved');
+    expect(notifier.state.routineRefreshError, isNotNull);
+    service.failTodayRefresh = false;
+    await notifier.retryTodayRoutines();
+    expect(notifier.state.routineRefreshError, isNull);
+    notifier.dispose();
+  });
+
+  test('late list response cannot restore a deleted routine', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = _ControlledRoutineService();
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1')]),
+      _FakeRecordService(),
+      service,
+    );
+    await notifier.loadForAuthenticatedUser();
+    final read = Completer<List<Routine>>();
+    service.readGate = read;
+    final load = notifier.reloadRoutines();
+    await notifier.deleteRoutine('rt1');
+    read.complete([_routine('rt1', '1')]);
+    await load;
+    expect(notifier.state.routines, isEmpty);
+    notifier.dispose();
+  });
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
@@ -1126,6 +1260,48 @@ class _FakeCareScheduleService extends CareScheduleService {
   @override
   Future<void> deleteSchedule(String petId, String scheduleId) async {
     deletedRequests.add((petId, scheduleId));
+  }
+}
+
+class _ControlledRoutineService extends _FakeRoutineService {
+  Completer<TodayRoutineData>? todayGate;
+  @override
+  Future<TodayRoutineData> getTodayRoutines(String petId) =>
+      todayGate?.future ?? super.getTodayRoutines(petId);
+  Completer<List<Routine>>? readGate;
+  Completer<void>? writeGate;
+  List<Routine> saved = [_routine('rt1', '1')];
+  @override
+  Future<List<Routine>> getRoutines(String petId) {
+    final gate = readGate;
+    readGate = null;
+    return gate?.future ?? Future.value(saved);
+  }
+
+  @override
+  Future<Routine> updateRoutine(
+    String petId,
+    String routineId,
+    Map<String, dynamic> body,
+  ) async {
+    if (writeGate != null) await writeGate!.future;
+    final updated = Routine(
+      id: routineId,
+      petId: petId,
+      label: body['label'] as String,
+      typeId: 'meal',
+      repeatType: 'daily',
+      times: const ['08:00'],
+      days: const [],
+      startDate: '2026-05-01',
+    );
+    saved = [updated];
+    return updated;
+  }
+
+  @override
+  Future<void> deleteRoutine(String petId, String routineId) async {
+    saved = [];
   }
 }
 

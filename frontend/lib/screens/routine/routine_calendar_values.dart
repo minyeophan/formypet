@@ -1,5 +1,36 @@
 import '../../models/routine.dart';
 
+String routineRepeatLabel(Routine routine) {
+  if (routine.repeatType == 'monthly' && routine.monthlyInterval < 1) {
+    return '반복 간격 확인 필요';
+  }
+  final base = routine.repeatType == 'monthly'
+      ? (routine.monthlyInterval <= 1 ? '매월' : '매 ${routine.monthlyInterval}개월')
+      : switch (routine.repeatType) {
+          'daily' => '매일',
+          'weekly' => '매주',
+          'biweekly' => '격주',
+          _ => routine.repeatType,
+        };
+  if (routine.repeatType == 'weekly' || routine.repeatType == 'biweekly') {
+    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+    final selected = routine.days
+        .where((day) => day >= 0 && day < 7)
+        .map((day) => weekdays[day])
+        .join(', ');
+    if (selected.isNotEmpty) return '$base · $selected';
+  }
+  return base;
+}
+
+String routineTimeSummary(Routine routine) {
+  if (routine.times.isEmpty) return '시간 없음';
+  final times = [...routine.times]..sort();
+  return times.length == 1
+      ? times.first
+      : '${times.first} 외 ${times.length - 1}개';
+}
+
 bool routineAppliesOn(Routine routine, DateTime date) {
   if (!routine.active) return false;
   final target = _dateOnly(date);

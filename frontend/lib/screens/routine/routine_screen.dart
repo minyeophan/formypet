@@ -17,6 +17,8 @@ import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/pet_data_status.dart';
 import 'routine_schedule_values.dart';
+import 'routine_calendar_values.dart';
+import 'routine_refresh_notice.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
@@ -76,6 +78,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const PetDataStatus(),
+              const RoutineRefreshNotice(),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: AppText(
@@ -816,13 +819,8 @@ bool _routineEnded(Routine routine, DateTime today) {
 }
 
 String _routineSubtitle(Routine routine) {
-  final repeat = switch (routine.repeatType) {
-    'weekly' => '매주',
-    'biweekly' => '격주',
-    'monthly' => '매월',
-    _ => '매일',
-  };
-  final time = routine.times.isEmpty ? '시간 없음' : routine.times.first;
+  final repeat = routineRepeatLabel(routine);
+  final time = routineTimeSummary(routine);
   final period = routine.endDate == null
       ? '계속 반복'
       : '${_shortDate(routine.startDate)}~${_shortDate(routine.endDate!)}';

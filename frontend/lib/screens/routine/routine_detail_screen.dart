@@ -10,6 +10,8 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
+import 'routine_calendar_values.dart';
+import 'routine_refresh_notice.dart';
 
 class RoutineDetailScreen extends ConsumerWidget {
   final String routineId;
@@ -45,6 +47,7 @@ class RoutineDetailScreen extends ConsumerWidget {
               sliver: SliverList.list(
                 children: [
                   _RoutineHero(routine: routine),
+                  const RoutineRefreshNotice(),
                   const SizedBox(height: 12),
                   _InfoRow(label: '시작일', value: _dateLabel(routine.startDate)),
                   const SizedBox(height: 10),
@@ -55,7 +58,13 @@ class RoutineDetailScreen extends ConsumerWidget {
                         : _dateLabel(routine.endDate!),
                   ),
                   const SizedBox(height: 10),
-                  _InfoRow(label: '시간', value: routine.times.join(', ')),
+                  _InfoRow(
+                    label: '시간',
+                    value: routine.times.isEmpty
+                        ? '시간 없음'
+                        : ([...routine.times]..sort()).join('\n'),
+                  ),
+                  const Text('시간별로 알림을 받아요. 완료는 하루 단위로 기록해요.'),
                   const SizedBox(height: 10),
                   _InfoRow(label: '반복', value: _repeatLabel(routine)),
                   const SizedBox(height: 10),
@@ -226,23 +235,7 @@ String _categoryLabel(String typeId) => switch (typeId) {
 String _dateLabel(String value) =>
     DateFormat('yyyy년 M월 d일').format(DateTime.parse(value));
 
-String _repeatLabel(Routine routine) {
-  final repeat = switch (routine.repeatType) {
-    'weekly' => '매주',
-    'biweekly' => '격주',
-    'monthly' => '매월',
-    _ => '매일',
-  };
-  if (routine.repeatType != 'weekly' && routine.repeatType != 'biweekly') {
-    return repeat;
-  }
-  const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-  final selected = routine.days
-      .where((day) => day >= 0 && day < weekdays.length)
-      .map((day) => weekdays[day])
-      .join(', ');
-  return selected.isEmpty ? repeat : '$repeat · $selected';
-}
+String _repeatLabel(Routine routine) => routineRepeatLabel(routine);
 
 void _goBack(BuildContext context) {
   if (context.canPop()) {
