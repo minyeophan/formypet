@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,7 @@ List<String> _removeRemovedQuickTypeIds(List<String> ids) =>
 class PetState {
   final bool isLoading;
   final String? dataErrorText;
+  final String? routineRefreshError;
   final bool hasOnboarded;
   final List<Pet> pets;
   final String? activePetId;
@@ -37,6 +39,7 @@ class PetState {
   const PetState({
     required this.isLoading,
     this.dataErrorText,
+    this.routineRefreshError,
     required this.hasOnboarded,
     required this.pets,
     this.activePetId,
@@ -56,6 +59,8 @@ class PetState {
     bool? isLoading,
     String? dataErrorText,
     bool clearDataError = false,
+    String? routineRefreshError,
+    bool clearRoutineRefreshError = false,
     bool? hasOnboarded,
     List<Pet>? pets,
     String? activePetId,
@@ -70,6 +75,9 @@ class PetState {
     List<String>? quickTypeIds,
   }) => PetState(
     isLoading: isLoading ?? this.isLoading,
+    routineRefreshError: clearRoutineRefreshError
+        ? null
+        : routineRefreshError ?? this.routineRefreshError,
     dataErrorText: clearDataError
         ? null
         : (dataErrorText ?? this.dataErrorText),
@@ -120,6 +128,75 @@ class PetNotifier extends StateNotifier<PetState> {
   Future<void>? _refreshInFlight;
   int _session = 0;
   int _dataVersion = 0;
+  int _routineMutationVersion = 0;
+  int _routineReadVersion = 0;
+  int _selectionVersion = 0;
+  final _routineWrites = <(int, int, String?), int>{};
+  final _routineWriteDrains = <(int, int, String?), Completer<void>>{};
+  int get _pendingRoutineWrites => _routineWrites[routineContext] ?? 0;
+  void _beginRoutineWrite((int, int, String?) token) {
+    _routineWriteDrains.putIfAbsent(token, Completer<void>.new);
+    _routineWrites[token] = (_routineWrites[token] ?? 0) + 1;
+    _routineMutationVersion++;
+  }
+
+  void _endRoutineWrite((int, int, String?) token) {
+    final remaining = (_routineWrites[token] ?? 1) - 1;
+    if (remaining == 0) {
+      _routineWrites.remove(token);
+      _routineWriteDrains.remove(token)?.complete();
+    } else {
+      _routineWrites[token] = remaining;
+    }
+    if (isRoutineContextCurrent(token)) _routineMutationVersion++;
+  }
+
+  int _todayRequest = 0;
+  Future<void>? _routineRead;
+  (int, int, String?)? _routineReadContext;
+  (int, int, String?) get routineContext =>
+      (_session, _selectionVersion, state.activePetId);
+  bool isRoutineContextCurrent((int, int, String?) token) =>
+      mounted && token == routineContext;
+
+  Future<void> reloadRoutines() {
+    final token = routineContext;
+    if (_routineRead != null && _routineReadContext == token) {
+      return _routineRead!;
+    }
+    _routineReadContext = token;
+    late final Future<void> request;
+    request = _reloadRoutines(token).whenComplete(() {
+      if (identical(_routineRead, request)) _routineRead = null;
+    });
+    return _routineRead = request;
+  }
+
+  Future<void> _reloadRoutines((int, int, String?) token) async {
+    if (token.$3 == null) return;
+    while (isRoutineContextCurrent(token)) {
+      if (_pendingRoutineWrites > 0) {
+        await _routineWriteDrains[token]!.future;
+        continue;
+      }
+      final version = _routineMutationVersion;
+      final request = ++_routineReadVersion;
+      final routines = await _routSvc.getRoutines(token.$3!);
+      if (!isRoutineContextCurrent(token)) return;
+      if (version != _routineMutationVersion ||
+          request != _routineReadVersion ||
+          _pendingRoutineWrites > 0) {
+        continue;
+      }
+      state = state.copyWith(routines: routines);
+      return;
+    }
+  }
+
+  Future<void> retryTodayRoutines() async {
+    final petId = state.activePetId;
+    if (petId != null) await _refreshTodayRoutinesBestEffort(petId);
+  }
 
   bool _isCurrent(int session) => mounted && session == _session;
 
@@ -314,10 +391,34 @@ class PetNotifier extends StateNotifier<PetState> {
   Future<void> _loadPetData(String petId) async {
     final session = _session;
     final version = ++_dataVersion;
+    final routineVersion = _routineMutationVersion;
+    final routineWritePending = _pendingRoutineWrites > 0;
+    final routineRequest = ++_routineReadVersion;
+    final todayRequest = ++_todayRequest;
     state = state.copyWith(isLoading: true, clearDataError: true);
     try {
       final data = await _fetchPetData(petId);
       if (!_isCurrentPet(session, version, petId)) return;
+      if (routineWritePending ||
+          routineRequest != _routineReadVersion ||
+          todayRequest != _todayRequest ||
+          routineVersion != _routineMutationVersion ||
+          _pendingRoutineWrites > 0) {
+        state = state.copyWith(
+          records: data.records,
+          schedules: data.schedules,
+          isLoading: false,
+          clearDataError: true,
+        );
+        unawaited(
+          reloadRoutines().catchError((Object error) {
+            if (_isCurrentPet(session, version, petId)) {
+              state = state.copyWith(dataErrorText: '루틴 목록을 갱신하지 못했어요.');
+            }
+          }),
+        );
+        return;
+      }
       state = data
           .applyTo(state)
           .copyWith(isLoading: false, clearDataError: true);
@@ -373,7 +474,9 @@ class PetNotifier extends StateNotifier<PetState> {
     if (!state.pets.any((pet) => pet.id == petId)) {
       throw StateError('Pet not found');
     }
+    _selectionVersion++;
     state = state.copyWith(
+      clearRoutineRefreshError: true,
       activePetId: petId,
       records: const [],
       routines: const [],
@@ -648,47 +751,74 @@ class PetNotifier extends StateNotifier<PetState> {
     state = state.copyWith(schedules: next);
   }
 
-  Future<void> addRoutine(Map<String, dynamic> body) async {
-    final session = _session;
-    final version = _dataVersion;
+  Future<bool> addRoutine(Map<String, dynamic> body) async {
+    final token = routineContext;
     final petId = state.activePetId!;
-    final routine = await _routSvc.createRoutine(petId, body);
-    if (!_isCurrentPet(session, version, petId)) return;
-    state = state.copyWith(routines: [...state.routines, routine]);
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      final routine = await _routSvc.createRoutine(petId, body);
+      if (!isRoutineContextCurrent(token)) return false;
+      state = state.copyWith(routines: [...state.routines, routine]);
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      await _refreshTodayRoutinesBestEffort(petId);
+    }
+    return isRoutineContextCurrent(token);
   }
 
-  Future<void> updateRoutine(
+  Future<bool> updateRoutine(
     String routineId,
     Map<String, dynamic> body,
   ) async {
-    final session = _session;
-    final version = _dataVersion;
+    final token = routineContext;
     final petId = state.activePetId!;
-    final updated = await _routSvc.updateRoutine(petId, routineId, body);
-    if (!_isCurrentPet(session, version, petId)) return;
-    state = state.copyWith(
-      routines: state.routines
-          .map((r) => r.id == routineId ? updated : r)
-          .toList(),
-    );
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      final updated = await _routSvc.updateRoutine(petId, routineId, body);
+      if (!isRoutineContextCurrent(token)) return false;
+      state = state.copyWith(
+        routines: state.routines.any((r) => r.id == routineId)
+            ? state.routines
+                  .map((r) => r.id == routineId ? updated : r)
+                  .toList()
+            : [...state.routines, updated],
+      );
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      unawaited(_refreshTodayRoutinesBestEffort(petId));
+    }
+    return isRoutineContextCurrent(token);
   }
 
-  Future<void> deleteRoutine(String routineId) async {
-    final session = _session;
-    final version = _dataVersion;
+  Future<bool> deleteRoutine(String routineId) async {
+    final token = routineContext;
     final petId = state.activePetId!;
-    await _routSvc.deleteRoutine(petId, routineId);
-    if (!_isCurrentPet(session, version, petId)) return;
-    final completions = Map<String, CompletionStatus>.from(
-      state.routineCompletions,
-    )..removeWhere((key, _) => key.startsWith('$routineId:'));
-    state = state.copyWith(
-      routines: state.routines.where((r) => r.id != routineId).toList(),
-      routineCompletions: completions,
-    );
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      await _routSvc.deleteRoutine(petId, routineId);
+      if (!isRoutineContextCurrent(token)) return false;
+      final completions = Map<String, CompletionStatus>.from(
+        state.routineCompletions,
+      )..removeWhere((key, _) => key.startsWith('$routineId:'));
+      state = state.copyWith(
+        routines: state.routines.where((r) => r.id != routineId).toList(),
+        todayRoutineItems: state.todayRoutineItems
+            .where((item) => item.routine.id != routineId)
+            .toList(),
+        routineCompletions: completions,
+      );
+      state = state.copyWith(todaySummary: _todaySummaryFrom(completions));
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      unawaited(_refreshTodayRoutinesBestEffort(petId));
+    }
+    return isRoutineContextCurrent(token);
   }
 
   Future<void> toggleRoutineCompletion(String routineId, String date) async {
@@ -721,11 +851,18 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> _refreshTodayRoutinesBestEffort(String petId) async {
-    final session = _session;
-    final version = _dataVersion;
+    final token = routineContext;
+    final request = ++_todayRequest;
+    final routineVersion = _routineMutationVersion;
+    if (_pendingRoutineWrites > 0) return;
     try {
       final todayData = await _routSvc.getTodayRoutines(petId);
-      if (!_isCurrentPet(session, version, petId)) return;
+      if (!isRoutineContextCurrent(token) ||
+          request != _todayRequest ||
+          routineVersion != _routineMutationVersion ||
+          _pendingRoutineWrites > 0) {
+        return;
+      }
 
       final completions = Map<String, CompletionStatus>.from(
         state.routineCompletions,
@@ -737,11 +874,19 @@ class PetNotifier extends StateNotifier<PetState> {
         completions[_completionKey(item)] = item.completion.status;
       }
       state = state.copyWith(
+        clearRoutineRefreshError: true,
         todayRoutineItems: todayData.items,
         todaySummary: todayData.summary,
         routineCompletions: completions,
       );
     } catch (error) {
+      if (isRoutineContextCurrent(token) &&
+          request == _todayRequest &&
+          routineVersion == _routineMutationVersion) {
+        state = state.copyWith(
+          routineRefreshError: '저장은 완료됐지만 오늘 루틴을 갱신하지 못했어요',
+        );
+      }
       debugPrint('Failed to refresh today routines: $error');
     }
   }
