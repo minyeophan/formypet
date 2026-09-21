@@ -13,6 +13,60 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('notification switch updates the saved setting directly', (
+    tester,
+  ) async {
+    final notifier = _FakePetNotifier(_petState());
+    await _pumpScreen(tester, notifier, editingRoutine: _editFixture());
+    final toggle = find.byType(Switch);
+    expect(toggle, findsOneWidget);
+    final semantics = tester.ensureSemantics();
+    try {
+      expect(tester.getSemantics(toggle).label, '알림 받기');
+    } finally {
+      semantics.dispose();
+    }
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+    await _tapSave(tester);
+    expect(notifier.updatedRoutineBody?['notificationEnabled'], false);
+  });
+  for (final width in [320.0, 375.0, 1024.0]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets('routine controls remain reachable at $width and $scale', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await _pumpScreen(
+          tester,
+          _FakePetNotifier(_petState()),
+          editingRoutine: _editFixture(times: ['08:00', '20:00']),
+          textScale: scale,
+        );
+        expect(tester.takeException(), isNull);
+        final remove = find.byKey(const Key('routine-time-field'));
+        await tester.ensureVisible(remove);
+        await tester.pumpAndSettle();
+        expect(tester.getSize(remove).width, greaterThanOrEqualTo(48));
+        expect(tester.getSize(remove).height, greaterThanOrEqualTo(48));
+        await tester.ensureVisible(
+          find.byKey(const Key('routine-add-time-button')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('routine-add-time-button')).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+        expect(find.byType(FilledButton).hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
   testWidgets(
     'failed confirmation reload is a connection error and keeps the form',
     (tester) async {
@@ -140,8 +194,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('record-picker-done')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byTooltip('08:00 시간 삭제'));
-    await tester.tap(find.byTooltip('08:00 시간 삭제'));
+    await tester.ensureVisible(find.byKey(const Key('routine-time-field')));
+    await tester.tap(find.byKey(const Key('routine-time-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('이 시간 삭제'));
     await tester.pumpAndSettle();
     expect(find.text('등록된 시간이 없어 예약 알림이 발송되지 않아요.'), findsOneWidget);
     expect(
@@ -358,7 +414,7 @@ void main() {
       find.byKey(const Key('routine-notification-button')),
       findsOneWidget,
     );
-    expect(find.byType(Switch), findsNothing);
+    expect(find.byType(Switch), findsOneWidget);
   });
 
   testWidgets('weekly save defaults today weekday and omits empty note', (
@@ -458,10 +514,13 @@ void main() {
       delete.style!.overlayColor!.resolve({WidgetState.hovered}),
       Colors.transparent,
     );
-    final clearEnd = find.byTooltip('종료일 제거');
+    final clearEnd = find.byKey(const Key('routine-end-date-field'));
     await tester.ensureVisible(clearEnd);
     await tester.pumpAndSettle();
     await tester.tap(clearEnd);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('종료일 없음'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('routine-note-field')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('routine-note-field')), '');
@@ -553,16 +612,10 @@ void main() {
       await tester.tap(find.byKey(const Key('record-picker-done')));
       await tester.pumpAndSettle();
       expect(find.text('이미 등록된 시간이에요.'), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (w) => w is IconButton && w.tooltip == '08:00 시간 삭제',
-              ),
-            )
-            .onPressed,
-        isNull,
-      );
+      await tester.ensureVisible(find.byKey(const Key('routine-time-field')));
+      await tester.tap(find.byKey(const Key('routine-time-field')));
+      await tester.pumpAndSettle();
+      expect(find.text('이 시간 삭제'), findsNothing);
     },
   );
 

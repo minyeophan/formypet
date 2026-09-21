@@ -1,7 +1,5 @@
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
-import '../../widgets/app_icon.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,8 +16,6 @@ import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/record_inputs/record_date_time_pickers.dart';
 import '../../widgets/record_inputs/record_edit_action_bar.dart';
-import '../../widgets/record_inputs/record_input_style.dart';
-import '../../widgets/record_inputs/record_picker_sheet.dart';
 
 class RoutineCreateScreen extends ConsumerStatefulWidget {
   final Routine? editingRoutine;
@@ -160,6 +156,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
   DateTime? _endDate;
   bool _notificationEnabled = true;
   bool _saving = false;
+  bool _deleting = false;
   bool _nameEdited = false;
   bool _confirming = false;
   bool _leaving = false;
@@ -272,12 +269,57 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
         if (!didPop) _goBack();
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.white,
         appBar: AppHeader(
           title: widget.editingRoutine == null ? '루틴 추가' : '루틴 수정',
           showBackButton: true,
           centerTitle: true,
           onBack: _goBack,
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: SizedBox(
+              height: 50,
+              child: FilledButton(
+                onPressed: _canSave ? _saveRoutine : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: _saving
+                      ? AppColors.primary
+                      : AppColors.surfaceSoft,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_saving && !_deleting) ...[
+                      const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: AppText(
+                        _saving && !_deleting ? '저장 중…' : '저장',
+                        color: _canSave || _saving
+                            ? AppColors.white
+                            : AppColors.muted,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
         body: SafeArea(
           child: AbsorbPointer(
@@ -287,30 +329,6 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _FormSection(
-                    label: '카테고리',
-                    child: Row(
-                      children: _availableTypeOptions
-                          .map(
-                            (option) => Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  right: option == _availableTypeOptions.last
-                                      ? 0
-                                      : 8,
-                                ),
-                                child: _RoutineCategoryButton(
-                                  option: option,
-                                  selected: _selectedType == option,
-                                  onTap: () => _selectType(option),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   _FormSection(
                     label: '루틴 제목',
                     child: TextField(
@@ -330,38 +348,63 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                   ),
                   const SizedBox(height: 12),
                   _FormSection(
-                    label: '기간',
-                    child: Column(
-                      children: [
-                        _RoutineDateField(
-                          fieldKey: const Key('routine-start-date-field'),
-                          label: '시작일',
-                          value: _formatDate(_startDate),
-                          onTap: _pickStartDate,
-                        ),
-                        const SizedBox(height: 10),
-                        _RoutineDateField(
-                          fieldKey: const Key('routine-end-date-field'),
-                          label: '종료일',
-                          value: _endDate == null
-                              ? '종료일 없음'
-                              : _formatDate(_endDate!),
-                          onTap: _pickEndDate,
-                          onClear: _endDate == null ? null : _clearEndDate,
-                        ),
-                      ],
+                    label: '카테고리',
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final largeText =
+                            MediaQuery.textScalerOf(context).scale(12) > 18;
+                        final columns = largeText ? 2 : 3;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _availableTypeOptions
+                              .map(
+                                (option) => SizedBox(
+                                  width:
+                                      (constraints.maxWidth -
+                                          8 * (columns - 1)) /
+                                      columns,
+                                  child: Padding(
+                                    padding: EdgeInsets.zero,
+                                    child: _RoutineCategoryButton(
+                                      option: option,
+                                      selected: _selectedType == option,
+                                      onTap: () => _selectType(option),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 12),
                   _FormSection(
                     label: '시간',
+                    trailing: TextButton(
+                      key: const Key('routine-add-time-button'),
+                      onPressed: _saving ? null : () => _pickTime(null),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Text('시간 추가'),
+                    ),
                     child: Column(
                       children: [
                         for (var index = 0; index < _times.length; index++)
-                          Padding(
+                          Container(
                             key: ValueKey(_timeIds[index]),
-                            padding: EdgeInsets.only(
-                              bottom: index == _times.length - 1 ? 0 : 8,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              border: index == _times.length - 1
+                                  ? null
+                                  : const Border(
+                                      bottom: BorderSide(
+                                        color: AppColors.border,
+                                      ),
+                                    ),
                             ),
                             child: _TimeRow(
                               key: index == 0
@@ -390,15 +433,6 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                             '잘못된 시간을 수정하거나 삭제해 주세요.',
                             style: TextStyle(color: Colors.redAccent),
                           ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            key: const Key('routine-add-time-button'),
-                            onPressed: _saving ? null : () => _pickTime(null),
-                            icon: const Icon(Icons.add),
-                            label: const Text('시간 추가'),
-                          ),
-                        ),
                         const Align(
                           alignment: Alignment.centerLeft,
                           child: AppText(
@@ -461,6 +495,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                           const SizedBox(height: 12),
                           Wrap(
                             spacing: 6,
+                            runSpacing: 8,
                             children: List.generate(
                               _weekDays.length,
                               (index) => AppFocusIndicator(
@@ -510,18 +545,61 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                   ),
                   const SizedBox(height: 12),
                   _FormSection(
-                    label: '알림',
-                    child: Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                      child: AppInkWell(
-                        key: const Key('routine-notification-button'),
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: _pickNotification,
-                        child: _ValueField(
-                          value: _notificationEnabled ? '알림 사용' : '알림 없음',
+                    label: '기간',
+                    child: Column(
+                      children: [
+                        _RoutineDateField(
+                          fieldKey: const Key('routine-start-date-field'),
+                          label: '시작일',
+                          value: _formatDate(_startDate),
+                          onTap: _pickStartDate,
                         ),
-                      ),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
+                        _RoutineDateField(
+                          fieldKey: const Key('routine-end-date-field'),
+                          label: '종료일',
+                          value: _endDate == null
+                              ? '종료일 없음'
+                              : _formatDate(_endDate!),
+                          onTap: _pickEndDate,
+                          onClear: _endDate == null ? null : _clearEndDate,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: AppText(
+                            '알림 받기',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Semantics(
+                          label: '알림 받기',
+                          child: Switch(
+                            key: const Key('routine-notification-button'),
+                            value: _notificationEnabled,
+                            activeTrackColor: AppColors.primary,
+                            onChanged: _saving || _confirming || _leaving
+                                ? null
+                                : (value) => setState(
+                                    () => _notificationEnabled = value,
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -531,7 +609,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                       key: const Key('routine-note-field'),
                       controller: _noteController,
                       enabled: !_saving && !_confirming,
-                      minLines: 3,
+                      minLines: 2,
                       maxLines: 5,
                       decoration: _inputDecoration('복용량, 사료명 등을 입력해 주세요'),
                     ),
@@ -541,26 +619,6 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                     AppText(_error!, fontSize: 12, color: Colors.redAccent),
                   ],
                   const SizedBox(height: 20),
-                  SizedBox(
-                    height: 50,
-                    child: FilledButton(
-                      onPressed: _canSave ? _saveRoutine : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        disabledBackgroundColor: _saving
-                            ? AppColors.primary
-                            : AppColors.surfaceSoft,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: AppText(
-                        _saving ? '저장 중' : '저장',
-                        color: _canSave ? AppColors.white : AppColors.muted,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                   if (widget.editingRoutine != null) ...[
                     const SizedBox(height: 12),
                     SizedBox(
@@ -580,8 +638,8 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                                 danger: true,
                               ),
                             ),
-                        child: const AppText(
-                          '루틴 삭제',
+                        child: AppText(
+                          _deleting ? '삭제 중…' : '루틴 삭제',
                           color: Colors.redAccent,
                           fontWeight: FontWeight.bold,
                         ),
@@ -713,6 +771,9 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
     final picked = await showRecordDatePickerSheet(
       context,
       initialDate: _endDate ?? _startDate,
+      onClear: () {
+        if (mounted && !_leaving) _clearEndDate();
+      },
       firstDate: _startDate,
       lastDate: DateTime(2100),
     );
@@ -756,6 +817,14 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
     final picked = await showRecordTimePickerSheet(
       context,
       initialTime: initial,
+      onDelete:
+          index != null &&
+              (_times.length > 1 ||
+                  (widget.editingRoutine != null && _initialTimes.isEmpty))
+          ? () {
+              if (mounted && !_leaving) _removeTime(index);
+            }
+          : null,
     );
     if (!mounted) return;
     setState(() => _pickingTime = false);
@@ -901,18 +970,6 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
     }
   }
 
-  Future<void> _pickNotification() async {
-    if (_saving || _confirming || _leaving) return;
-    final picked = await showRecordPickerSheet<bool>(
-      context,
-      builder: (context) =>
-          _NotificationPickerSheet(initialValue: _notificationEnabled),
-    );
-    if (picked != null && mounted && !_leaving) {
-      setState(() => _notificationEnabled = picked);
-    }
-  }
-
   Future<void> _deleteRoutine() async {
     final routine = widget.editingRoutine;
     if (routine == null || _saving || _confirming) return;
@@ -929,7 +986,10 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
     if (!mounted) return;
     setState(() => _confirming = false);
     if (confirmed != true || !notifier.isRoutineContextCurrent(token)) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _deleting = true;
+    });
     try {
       final applied = await notifier.deleteRoutine(routine.id);
       if (!applied) return;
@@ -942,7 +1002,12 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
         await _handleFailure(error, deleting: true);
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _deleting = false;
+        });
+      }
     }
   }
 
@@ -999,16 +1064,59 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
       final discard = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: AppColors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+          titleTextStyle: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+            height: 1.4,
+          ),
+          contentTextStyle: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
           title: Text(_saving ? '저장 중 화면을 나갈까요?' : '변경 내용을 버릴까요?'),
           content: Text(
             _saving ? '이미 보낸 저장 요청은 계속 처리될 수 있어요.' : '저장하지 않은 변경 내용이 사라져요.',
           ),
           actions: [
-            TextButton(
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                minimumSize: const Size(112, 48),
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onPressed: () => Navigator.pop(context, false),
               child: const Text('계속 편집'),
             ),
             TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                minimumSize: const Size(88, 48),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('나가기'),
             ),
@@ -1033,24 +1141,35 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
 class _FormSection extends StatelessWidget {
   final String label;
   final Widget child;
+  final Widget? trailing;
 
-  const _FormSection({required this.label, required this.child});
+  const _FormSection({required this.label, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppText(
-            label,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
+          Row(
+            children: [
+              Expanded(
+                child: AppText(
+                  label,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+              ?trailing,
+            ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: trailing == null ? 8 : 0),
           child,
         ],
       ),
@@ -1060,19 +1179,32 @@ class _FormSection extends StatelessWidget {
 
 class _ValueField extends StatelessWidget {
   final String value;
+  final double horizontalPadding;
 
-  const _ValueField({required this.value});
+  const _ValueField({required this.value, this.horizontalPadding = 12});
 
   @override
   Widget build(BuildContext context) {
     return Ink(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: AppText(value, fontSize: 14, color: AppColors.text),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 24),
+        child: Row(
+          children: [
+            Expanded(
+              child: AppText(value, fontSize: 14, color: AppColors.text),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1105,70 +1237,12 @@ class _TimeRow extends StatelessWidget {
               child: AppInkWell(
                 onTap: onTap,
                 borderRadius: BorderRadius.circular(14),
-                child: _ValueField(value: value),
+                child: _ValueField(value: value, horizontalPadding: 0),
               ),
             ),
           ),
         ),
-        IconButton(
-          tooltip: '$value 시간 삭제',
-          onPressed: canDelete ? onDelete : null,
-          icon: const AppIcon(Icons.remove_circle_outline, size: 20),
-        ),
       ],
-    );
-  }
-}
-
-class _NotificationPickerSheet extends StatefulWidget {
-  final bool initialValue;
-
-  const _NotificationPickerSheet({required this.initialValue});
-
-  @override
-  State<_NotificationPickerSheet> createState() =>
-      _NotificationPickerSheetState();
-}
-
-class _NotificationPickerSheetState extends State<_NotificationPickerSheet> {
-  late int _index;
-  late FixedExtentScrollController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _index = widget.initialValue ? 0 : 1;
-    _controller = FixedExtentScrollController(initialItem: _index);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const labels = ['알림 사용', '알림 없음'];
-    return RecordPickerSheet<bool>(
-      value: () => _index == 0,
-      child: SizedBox(
-        height: 180,
-        child: CupertinoPicker.builder(
-          key: const Key('routine-notification-wheel'),
-          scrollController: _controller,
-          itemExtent: RecordInputStyle.pickerItemExtent,
-          onSelectedItemChanged: (index) => setState(() => _index = index),
-          childCount: labels.length,
-          itemBuilder: (context, index) => Center(
-            child: AppText(
-              labels[index],
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1206,22 +1280,27 @@ class _RoutineCategoryButton extends StatelessWidget {
                 width: 1.5,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppVisual(
-                  id: recordTypeVisualId(option.typeId),
-                  size: 24,
-                  color: selected ? AppColors.primary : AppColors.textSecondary,
-                ),
-                const SizedBox(height: 5),
-                AppText(
-                  _routineTypeLabel(option.typeId),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                ),
-              ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 50),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AppVisual(
+                    id: recordTypeVisualId(option.typeId),
+                    size: 24,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 5),
+                  AppText(
+                    _routineTypeLabel(option.typeId),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1236,7 +1315,6 @@ class _RoutineDateField extends StatelessWidget {
   final String value;
   final VoidCallback onTap;
   final VoidCallback? onClear;
-
   const _RoutineDateField({
     required this.fieldKey,
     required this.label,
@@ -1244,38 +1322,43 @@ class _RoutineDateField extends StatelessWidget {
     required this.onTap,
     this.onClear,
   });
-
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 52,
-          child: AppText(label, fontSize: 12, color: AppColors.textSecondary),
-        ),
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: AppInkWell(
-              key: fieldKey,
-              borderRadius: BorderRadius.circular(14),
-              onTap: onTap,
-              child: _ValueField(value: value),
-            ),
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: AppInkWell(
+      key: fieldKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: AppText(
+                  label,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: AppText(value, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        if (onClear != null) ...[
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: '종료일 제거',
-            onPressed: onClear,
-            icon: const AppIcon(Icons.close_rounded, size: 18),
-          ),
-        ],
-      ],
-    );
-  }
+      ),
+    ),
+  );
 }
 
 class _RoutineTypeOption {
@@ -1344,13 +1427,5 @@ InputDecoration _inputDecoration(String hint) {
       borderSide: BorderSide.none,
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-  );
-}
-
-BoxDecoration _cardDecoration() {
-  return BoxDecoration(
-    color: AppColors.surface,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(color: AppColors.border),
   );
 }

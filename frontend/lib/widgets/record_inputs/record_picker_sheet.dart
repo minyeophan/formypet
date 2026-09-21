@@ -23,12 +23,14 @@ class RecordPickerSheet<T> extends StatelessWidget {
   final Widget child;
   final T Function() value;
   final Widget? headerCenter;
+  final Widget? footer;
 
   const RecordPickerSheet({
     super.key,
     required this.child,
     required this.value,
     this.headerCenter,
+    this.footer,
   });
 
   @override
@@ -90,6 +92,7 @@ class RecordPickerSheet<T> extends StatelessWidget {
                 ),
                 const Divider(height: 1, color: RecordInputStyle.borderColor),
                 Flexible(child: child),
+                ?footer,
               ],
             ),
           ),
