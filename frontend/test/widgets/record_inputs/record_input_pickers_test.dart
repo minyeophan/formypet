@@ -4,6 +4,58 @@ import 'package:frontend/widgets/record_inputs/record_inputs.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  for (final datePicker in [true, false]) {
+    testWidgets(
+      'picker action stays on sheet above bottom inset: $datePicker',
+      (tester) async {
+        tester.view.padding = const FakeViewPadding(bottom: 34);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var calls = 0;
+        await _pumpSheetHost(
+          tester,
+          onPressed: (context) async {
+            if (datePicker) {
+              await showRecordDatePickerSheet(
+                context,
+                initialDate: DateTime(2026, 9, 21),
+                onClear: () => calls++,
+              );
+            } else {
+              await showRecordTimePickerSheet(
+                context,
+                initialTime: const TimeOfDay(hour: 8, minute: 0),
+                onDelete: () => calls++,
+              );
+            }
+          },
+        );
+        await tester.tap(find.byKey(const Key('open-sheet')));
+        await tester.pumpAndSettle();
+        final action = find.widgetWithText(
+          TextButton,
+          datePicker ? '종료일 없음' : '이 시간 삭제',
+        );
+        expect(
+          tester.getBottomRight(action).dy,
+          lessThanOrEqualTo(tester.view.physicalSize.height - 34),
+        );
+        final surfaces = find.ancestor(
+          of: action,
+          matching: find.byWidgetPredicate(
+            (w) => w is Material && w.color == Colors.white,
+          ),
+        );
+        expect(surfaces, findsWidgets);
+        expect(tester.takeException(), isNull);
+        await tester.tap(action);
+        await tester.pumpAndSettle();
+        expect(calls, 1);
+        expect(action, findsNothing);
+      },
+    );
+  }
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
