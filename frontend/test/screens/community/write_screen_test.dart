@@ -13,6 +13,9 @@ import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/app_theme.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/user_profile.dart';
+import 'package:frontend/providers/auth_provider.dart';
+import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:frontend/widgets/app_icon.dart';
 import 'package:go_router/go_router.dart';
@@ -52,6 +55,24 @@ void main() {
     mimeType: 'image/png',
   );
 
+  testWidgets('attachment tools expose named accessible actions', (
+    tester,
+  ) async {
+    await installUiTestFonts();
+    final semantics = tester.ensureSemantics();
+    try {
+      await _pump(tester);
+      expect(find.bySemanticsLabel('사진 추가'), findsOneWidget);
+      expect(find.bySemanticsLabel('투표 추가'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('투표 추가'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('community-poll-panel')), findsOneWidget);
+      expect(find.bySemanticsLabel('투표 닫기'), findsOneWidget);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('toolbar tool paints its grey surface and visible pressed ink', (
     tester,
   ) async {
@@ -60,7 +81,8 @@ void main() {
     await tester.runAsync(() => GoogleFonts.pendingFonts());
     await tester.pumpAndSettle();
     final tool = find.byKey(const Key('community-add-image-button'));
-    expect(tester.getSize(tool), const Size(44, 44));
+    expect(tester.getSize(tool).width, greaterThanOrEqualTo(48));
+    expect(tester.getSize(tool).height, greaterThanOrEqualTo(48));
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.ancestor(of: tool, matching: find.byType(RepaintBoundary)).first,
     );
@@ -91,6 +113,200 @@ void main() {
     await press.cancel();
     await tester.pumpAndSettle();
     expect(await sampleSurface(), idle);
+  });
+
+  for (final editing in [false, true]) {
+    testWidgets(
+      'session switch during keyboard wait blocks submit (edit: $editing)',
+      (tester) async {
+        final auth = _SwitchableAuth();
+        await _pump(
+          tester,
+          auth: auth,
+          editingPost: editing ? Post.fromJson(_postJson) : null,
+        );
+        await tester.enterText(
+          find.byKey(const Key('community-title-field')),
+          'A draft',
+        );
+        await tester.enterText(_body, 'A content');
+        final button = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, editing ? '저장' : '등록'),
+        );
+        button.onPressed!();
+        auth.switchTo('user-2');
+        await tester.pumpAndSettle();
+        expect(
+          api.requests.where((r) => r.method == 'POST' || r.method == 'PUT'),
+          isEmpty,
+        );
+        expect(find.text('community-root'), findsNothing);
+        expect(find.text('계정이 변경됐어요. 커뮤니티에서 다시 열어 주세요.'), findsOneWidget);
+        button.onPressed!();
+        await tester.pumpAndSettle();
+        expect(
+          api.requests.where((r) => r.method == 'POST' || r.method == 'PUT'),
+          isEmpty,
+        );
+      },
+    );
+
+    testWidgets(
+      'session switch rejects pending save success (edit: $editing)',
+      (tester) async {
+        final auth = _SwitchableAuth();
+        await _pump(
+          tester,
+          auth: auth,
+          editingPost: editing ? Post.fromJson(_postJson) : null,
+        );
+        api.pendingSave = Completer<void>();
+        await _startSubmit(tester);
+        expect(
+          api.requests.where((r) => r.method == (editing ? 'PUT' : 'POST')),
+          hasLength(1),
+        );
+        auth.switchTo('user-2');
+        await tester.pump();
+        api.pendingSave!.complete();
+        await tester.pumpAndSettle();
+        expect(find.text('community-root'), findsNothing);
+        expect(find.text('계정이 변경됐어요. 커뮤니티에서 다시 열어 주세요.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('취소'));
+        await tester.pumpAndSettle();
+        expect(find.text('community-root'), findsOneWidget);
+      },
+    );
+  }
+
+  testWidgets('session switch rejects late image picker result', (
+    tester,
+  ) async {
+    final auth = _SwitchableAuth();
+    await _pump(tester, auth: auth);
+    final result = Completer<List<XFile>>();
+    picker.selections.add(result.future);
+    await tester.tap(find.byKey(const Key('community-add-image-button')));
+    await tester.pump();
+    auth.switchTo('user-2');
+    result.complete([photo('old-account.png')]);
+    await tester.pumpAndSettle();
+    expect(_railImages, findsNothing);
+    expect(find.text('계정이 변경됐어요. 커뮤니티에서 다시 열어 주세요.'), findsOneWidget);
+  });
+
+  testWidgets('session switch rejects late category selection', (tester) async {
+    final auth = _SwitchableAuth();
+    await _pump(tester, auth: auth);
+    await tester.tap(find.byKey(const Key('community-category-field')));
+    await tester.pumpAndSettle();
+    auth.switchTo('user-2');
+    await tester.tap(find.text('완료'));
+    await tester.pumpAndSettle();
+    expect(find.text('계정이 변경됐어요. 커뮤니티에서 다시 열어 주세요.'), findsOneWidget);
+    expect(find.byKey(const Key('community-category-field')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('replaced notifier rejects pending save navigation', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WriteScreen)),
+    );
+    api.pendingSave = Completer<void>();
+    await _startSubmit(tester);
+    container.invalidate(communityProvider);
+    api.pendingSave!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(WriteScreen), findsOneWidget);
+    expect(find.text('community-root'), findsNothing);
+    expect(find.text('내용 수정'), findsOneWidget);
+  });
+
+  testWidgets('dirty title blocks cancel until draft is discarded', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.enterText(
+      find.byKey(const Key('community-title-field')),
+      '초안',
+    );
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WriteScreen), findsOneWidget);
+    expect(find.text('community-root'), findsNothing);
+    await tester.tap(find.text('계속 입력'));
+    await tester.pumpAndSettle();
+    expect(find.text('초안'), findsOneWidget);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('나가기'));
+    await tester.pumpAndSettle();
+    expect(find.text('community-root'), findsOneWidget);
+  });
+
+  for (final change in ['body', 'category', 'poll', 'photo', 'edit']) {
+    testWidgets('$change draft is protected on system back', (tester) async {
+      await _pump(
+        tester,
+        editingPost: change == 'edit' ? Post.fromJson(_postJson) : null,
+      );
+      switch (change) {
+        case 'body':
+        case 'edit':
+          await tester.enterText(_body, '바뀐 내용');
+        case 'category':
+          await tester.tap(find.byKey(const Key('community-category-field')));
+          await tester.pumpAndSettle();
+          await tester.drag(
+            find.byKey(const Key('community-category-wheel')),
+            const Offset(0, -44),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('완료'));
+        case 'poll':
+          await tester.tap(find.byKey(const Key('community-add-poll-button')));
+        case 'photo':
+          picker.selections.add([photo('draft.png')]);
+          await _pick(tester);
+      }
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('계속 입력'), findsOneWidget);
+      await tester.tap(find.text('계속 입력'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WriteScreen), findsOneWidget);
+    });
+  }
+
+  testWidgets('restoring edit baseline allows leaving without a warning', (
+    tester,
+  ) async {
+    await _pump(tester, editingPost: Post.fromJson(_postJson));
+    await tester.enterText(_body, '바뀐 내용');
+    await tester.enterText(_body, ' 원래 내용 ');
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(find.text('community-root'), findsOneWidget);
+    expect(find.text('계속 입력'), findsNothing);
+  });
+
+  testWidgets('edit offers save and update-specific failure with retry', (
+    tester,
+  ) async {
+    await _pump(tester, editingPost: Post.fromJson(_postJson));
+    expect(find.text('저장'), findsOneWidget);
+    api.failUpdate = true;
+    await _submit(tester);
+    expect(find.text('글을 수정하지 못했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+    api.failUpdate = false;
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(find.text('community-root'), findsOneWidget);
   });
 
   for (final validOptions in [0, 1]) {
@@ -259,10 +475,28 @@ void main() {
     await _startSubmit(tester);
 
     try {
-      await tester.tap(find.byTooltip('사진 1 삭제'));
-      await tester.tap(find.byKey(const Key('community-add-image-button')));
-      await tester.tap(find.byKey(const Key('community-add-poll-button')));
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('community-title-field')))
+            .enabled,
+        false,
+      );
+      expect(tester.widget<TextField>(_body).enabled, false);
+      // The busy draft deliberately absorbs these pointer attempts.
+      await tester.tap(find.byTooltip('사진 1 삭제'), warnIfMissed: false);
+      await tester.tap(
+        find.byKey(const Key('community-add-image-button')),
+        warnIfMissed: false,
+      );
+      await tester.tap(
+        find.byKey(const Key('community-add-poll-button')),
+        warnIfMissed: false,
+      );
+      await tester.tap(find.text('취소'), warnIfMissed: false);
+      await tester.binding.handlePopRoute();
       await tester.pump();
+      expect(find.byType(WriteScreen), findsOneWidget);
+      expect(find.text('계속 입력'), findsNothing);
       expect(_railImages, findsNWidgets(2));
       expect(
         (tester.widget<Image>(_railImages.first).image as MemoryImage).bytes,
@@ -277,7 +511,7 @@ void main() {
       final closePoll = find.byKey(const Key('community-poll-close-button'));
       await tester.ensureVisible(closePoll);
       await tester.pump();
-      await tester.tap(closePoll);
+      await tester.tap(closePoll, warnIfMissed: false);
       await tester.pump();
       expect(find.byKey(const Key('community-poll-panel')), findsOneWidget);
       final addOption = find.byKey(
@@ -285,7 +519,7 @@ void main() {
       );
       await tester.ensureVisible(addOption);
       await tester.pump();
-      await tester.tap(addOption);
+      await tester.tap(addOption, warnIfMissed: false);
       await tester.pump();
       expect(
         find.byKey(const Key('community-poll-option-field-2')),
@@ -294,7 +528,7 @@ void main() {
       final option = find.byKey(const Key('community-poll-option-field-0'));
       await tester.ensureVisible(option);
       await tester.pump();
-      await tester.tap(option);
+      await tester.tap(option, warnIfMissed: false);
       await tester.pump();
       expect(tester.testTextInput.isVisible, isFalse);
       expect(find.text('아침'), findsOneWidget);
@@ -355,14 +589,14 @@ void main() {
       final uploadRead = Completer<Uint8List>();
       first.pendingRead = uploadRead.future;
       await _startSubmit(tester);
-      await tester.tap(find.text('취소'));
-      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
 
       uploadRead.completeError(StateError('private-upload-details'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('community-root'), findsOneWidget);
+      expect(find.byType(WriteScreen), findsNothing);
       expect(find.textContaining('private-upload-details'), findsNothing);
     },
   );
@@ -686,7 +920,11 @@ final _railImages = find.descendant(
   matching: find.byType(Image),
 );
 
-Future<void> _pump(WidgetTester tester, {Post? editingPost}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  Post? editingPost,
+  AuthNotifier? auth,
+}) async {
   final router = GoRouter(
     initialLocation: '/write',
     routes: [
@@ -703,6 +941,15 @@ Future<void> _pump(WidgetTester tester, {Post? editingPost}) async {
   addTearDown(router.dispose);
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) =>
+              auth ??
+              AuthNotifier.test(
+                const AuthState(isLoading: false, isAuthenticated: false),
+              ),
+        ),
+      ],
       child: MaterialApp.router(theme: buildAppTheme(), routerConfig: router),
     ),
   );
@@ -725,7 +972,9 @@ Future<void> _startSubmit(WidgetTester tester) async {
     '제목 수정',
   );
   await tester.enterText(_body, '내용 수정');
-  await tester.tap(find.text('등록'));
+  await tester.tap(
+    find.text(find.text('저장').evaluate().isNotEmpty ? '저장' : '등록'),
+  );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 20));
 }
@@ -758,6 +1007,26 @@ Future<Uint8List> _png(Color color) async {
   return bytes.buffer.asUint8List();
 }
 
+class _SwitchableAuth extends AuthNotifier {
+  _SwitchableAuth()
+    : super.test(
+        const AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          profile: UserProfile(
+            id: 'user-1',
+            email: 'a@example.test',
+            nickname: 'A',
+          ),
+        ),
+      );
+  void switchTo(String id) => state = AuthState(
+    isLoading: false,
+    isAuthenticated: true,
+    profile: UserProfile(id: id, email: '$id@example.test', nickname: id),
+  );
+}
+
 class _Picker extends ImagePickerPlatform {
   final selections = <FutureOr<List<XFile>>>[];
 
@@ -782,6 +1051,8 @@ class _PostApi implements HttpClientAdapter {
 
   final Uint8List photoBytes;
   final requests = <RequestOptions>[];
+  bool failUpdate = false;
+  Completer<void>? pendingSave;
 
   @override
   Future<ResponseBody> fetch(
@@ -797,9 +1068,12 @@ class _PostApi implements HttpClientAdapter {
     if (options.method == 'GET' && options.path == '/api/v1/posts') {
       data = {'items': [], 'nextCursor': null};
     } else if (options.method == 'POST' && options.path == '/api/v1/posts') {
+      await pendingSave?.future;
       data = _postJson;
     } else if (options.method == 'PUT' &&
         options.path == '/api/v1/posts/post-1') {
+      await pendingSave?.future;
+      if (failUpdate) throw StateError('private-update-error');
       data = {..._postJson, ...options.data as Map<String, dynamic>};
     } else {
       throw StateError('Unexpected request: ${options.method} ${options.path}');

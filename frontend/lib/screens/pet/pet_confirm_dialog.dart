@@ -1,8 +1,5 @@
-import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
-
-import '../../core/app_colors.dart';
-import '../../widgets/app_text.dart';
+import '../../widgets/app_confirm_dialog.dart';
 
 class PetConfirmDialogAction {
   final String label;
@@ -30,84 +27,17 @@ class PetConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(30),
+    return AppConfirmDialog(
+      title: title,
+      body: body,
+      actions: [
+        for (final action in actions)
+          AppConfirmDialogAction(
+            label: action.label,
+            onPressed: action.onPressed,
+            isDanger: action.isDanger,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText(
-                title,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-              const SizedBox(height: 10),
-              AppText(
-                body,
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 22),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  for (var i = 0; i < actions.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    _DialogActionButton(action: actions[i]),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DialogActionButton extends StatelessWidget {
-  final PetConfirmDialogAction action;
-
-  const _DialogActionButton({required this.action});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: action.onPressed,
-      style:
-          TextButton.styleFrom(
-            backgroundColor: AppColors.surfaceSoft,
-            foregroundColor: action.isDanger
-                ? AppColors.danger
-                : AppColors.text,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-            minimumSize: const Size(64, 42),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ).copyWith(
-            overlayColor: AppInteractionStyle.overlay(danger: action.isDanger),
-          ),
-      child: AppText(
-        action.label,
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: action.isDanger ? AppColors.danger : AppColors.text,
-      ),
+      ],
     );
   }
 }

@@ -23,6 +23,199 @@ import 'package:frontend/widgets/authenticated_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('session switch unlocks back while old delete is unresolved', (
+    tester,
+  ) async {
+    final auth = _MutableAuth();
+    final pending = Completer<void>();
+    final service = _FakeCommunityService(
+      post: _post(userId: 'user-1'),
+      comments: [],
+    )..deleteResult = pending;
+    final router = GoRouter(
+      initialLocation: '/community',
+      routes: [
+        GoRoute(
+          path: '/community',
+          builder: (_, _) => const Scaffold(body: Text('community-root')),
+        ),
+        GoRoute(
+          path: '/detail',
+          builder: (_, _) => const CommunityDetailScreen(postId: 'post-1'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await _pumpDetail(tester, service: service, auth: auth, router: router);
+    unawaited(router.push('/detail'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-detail-more-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete-confirm')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(service.postDeletes, 1);
+    auth.switchUser();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.binding.handlePopRoute();
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(pending.isCompleted, isFalse);
+    expect(find.text('community-root'), findsOneWidget);
+    expect(find.byType(CommunityDetailScreen), findsNothing);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final switchDuringRequest in [false, true]) {
+    testWidgets(
+      'session change invalidates delete (pending: $switchDuringRequest)',
+      (tester) async {
+        final auth = _MutableAuth();
+        final service = _FakeCommunityService(
+          post: _post(userId: 'user-1'),
+          comments: [],
+        );
+        await _pumpDetail(tester, service: service, auth: auth);
+        await tester.tap(find.byKey(const Key('community-detail-more-button')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('community-post-delete')));
+        await tester.pumpAndSettle();
+        service.deleteResult = Completer<void>();
+        if (!switchDuringRequest) auth.switchUser();
+        await tester.tap(
+          find.byKey(const Key('community-post-delete-confirm')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        if (switchDuringRequest) {
+          auth.switchUser();
+          service.deleteResult!.completeError(StateError('stale failure'));
+        }
+        await tester.pumpAndSettle();
+        expect(service.postDeletes, switchDuringRequest ? 1 : 0);
+        expect(find.text('게시글 삭제에 실패했습니다.'), findsNothing);
+        expect(find.byType(CommunityDetailScreen), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('old delete cleanup cannot unlock a newer pending deletion', (
+    tester,
+  ) async {
+    final auth = _MutableAuth();
+    final old = Completer<void>();
+    final service = _FakeCommunityService(
+      post: _post(userId: 'user-1'),
+      comments: [],
+    )..deleteResult = old;
+    await _pumpDetail(tester, service: service, auth: auth);
+    Future<void> startDelete() async {
+      await tester.tap(find.byKey(const Key('community-detail-more-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('community-post-delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('community-post-delete-confirm')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    await startDelete();
+    auth.switchUser();
+    await tester.pump();
+    auth.restoreUser();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CommunityDetailScreen)),
+    );
+    await container.read(communityProvider.notifier).loadPost('post-1');
+    await tester.pumpAndSettle();
+    final newer = Completer<void>();
+    service.deleteResult = newer;
+    await startDelete();
+    expect(service.postDeletes, 2);
+    old.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('삭제 중...'), findsOneWidget);
+    expect(find.byKey(const Key('community-detail-more-button')), findsNothing);
+    expect(newer.isCompleted, isFalse);
+    newer.completeError(StateError('new deletion failed'));
+    await tester.pumpAndSettle();
+    expect(find.text('게시글 삭제에 실패했습니다.'), findsOneWidget);
+    expect(service.postDeletes, 2);
+  });
+
+  testWidgets('successful deletion returns to the community route', (
+    tester,
+  ) async {
+    final service = _FakeCommunityService(
+      post: _post(userId: 'user-1'),
+      comments: [],
+    );
+    final router = GoRouter(
+      initialLocation: '/community/posts/post-1',
+      routes: [
+        GoRoute(
+          path: '/community/posts/:postId',
+          builder: (_, _) => const CommunityDetailScreen(postId: 'post-1'),
+        ),
+        GoRoute(
+          path: '/community',
+          builder: (_, _) => const Scaffold(body: Text('community-root')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await _pumpDetail(tester, service: service, router: router);
+    await tester.tap(find.byKey(const Key('community-detail-more-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete-confirm')));
+    await tester.pumpAndSettle();
+    expect(service.postDeletes, 1);
+    expect(find.text('community-root'), findsOneWidget);
+  });
+  testWidgets('post delete uses sheet, locks pending work and permits retry', (
+    tester,
+  ) async {
+    final service = _FakeCommunityService(
+      post: _post(userId: 'user-1'),
+      comments: [],
+    );
+    await _pumpDetail(tester, service: service);
+    await tester.tap(find.byKey(const Key('community-detail-more-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    final confirm = find.byKey(const Key('community-post-delete-confirm'));
+    expect(confirm, findsOneWidget);
+    service.deleteResult = Completer<void>();
+    await tester.tap(confirm);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('삭제 중...'), findsOneWidget);
+    expect(service.postDeletes, 1);
+    expect(find.byKey(const Key('community-detail-more-button')), findsNothing);
+    service.deleteResult!.completeError(StateError('private-delete-error'));
+    await tester.pumpAndSettle();
+    expect(find.text('게시글 삭제에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('community-detail-more-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('community-post-delete')));
+    await tester.pumpAndSettle();
+    expect(confirm, findsOneWidget);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(service.postDeletes, 1);
+  });
   testWidgets(
     'blocked preview preserves replies and post owner delete entry only',
     (tester) async {
@@ -499,6 +692,7 @@ Future<void> _pumpDetail(
   Post? post,
   List<PostComment>? comments,
   _FakeCommunityService? service,
+  AuthNotifier? auth,
 }) async {
   final resolvedService =
       service ??
@@ -510,17 +704,19 @@ Future<void> _pumpDetail(
     ProviderScope(
       overrides: [
         authProvider.overrideWith(
-          (ref) => AuthNotifier.test(
-            AuthState(
-              isLoading: false,
-              isAuthenticated: true,
-              profile: UserProfile(
-                id: currentUserId,
-                email: '$currentUserId@example.test',
-                nickname: '사용자',
+          (ref) =>
+              auth ??
+              AuthNotifier.test(
+                AuthState(
+                  isLoading: false,
+                  isAuthenticated: true,
+                  profile: UserProfile(
+                    id: currentUserId,
+                    email: '$currentUserId@example.test',
+                    nickname: '사용자',
+                  ),
+                ),
               ),
-            ),
-          ),
         ),
         communityServiceProvider.overrideWithValue(resolvedService),
       ],
@@ -569,6 +765,14 @@ PostComment _comment({
 );
 
 class _FakeCommunityService extends CommunityService {
+  Completer<void>? deleteResult;
+  int postDeletes = 0;
+  @override
+  Future<void> deletePost(String postId) async {
+    postDeletes++;
+    await deleteResult?.future;
+  }
+
   final Post post;
   final List<PostComment> comments;
   final deletedIds = <String>[];
@@ -623,4 +827,30 @@ class _CannedAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+class _MutableAuth extends AuthNotifier {
+  _MutableAuth()
+    : super.test(
+        const AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          profile: UserProfile(
+            id: 'user-1',
+            email: 'test@example.test',
+            nickname: '사용자',
+          ),
+        ),
+      );
+  void switchUser() =>
+      state = const AuthState(isLoading: false, isAuthenticated: false);
+  void restoreUser() => state = const AuthState(
+    isLoading: false,
+    isAuthenticated: true,
+    profile: UserProfile(
+      id: 'user-1',
+      email: 'test@example.test',
+      nickname: '사용자',
+    ),
+  );
 }

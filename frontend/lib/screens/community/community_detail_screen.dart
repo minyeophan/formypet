@@ -17,6 +17,7 @@ import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_navigation.dart';
+import '../../widgets/record_inputs/record_edit_action_bar.dart';
 import '../../widgets/user_block_sheet.dart';
 import '../../services/community_safety_service.dart';
 import 'post_report_screen.dart';
@@ -49,17 +50,33 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   bool _commentsLoading = true;
   bool _reloading = false;
   bool _voting = false;
+  bool _deletePending = false;
+  bool _deleting = false;
+  int _sessionGeneration = 0;
+  int _deleteGeneration = 0;
   int _postGeneration = 0;
   int _commentsGeneration = 0;
 
   bool get _postMutationLocked =>
       _postLoading ||
+      _deletePending ||
       _voting ||
       ref.read(communityProvider).isLiking(widget.postId);
 
   @override
   void initState() {
     super.initState();
+    ref.listenManual(
+      authProvider.select((s) => (s.isAuthenticated, s.profile?.id)),
+      (_, _) {
+        _sessionGeneration++;
+        _deleteGeneration++;
+        setState(() {
+          _deleting = false;
+          _deletePending = false;
+        });
+      },
+    );
     ref.listenManual(contentVisibilityProvider, (_, _) {
       _postGeneration++;
       _commentsGeneration++;
@@ -242,23 +259,38 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
       authProvider.select((value) => value.profile?.id),
     );
     final visible = post != null && !_unavailable;
-    return Scaffold(
-      backgroundColor: AppV2Tokens.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _DetailHeader(
-              title: _headerTitle(post),
-              onBack: _goBack,
-              onMore: visible ? _showPostMoreMenu : null,
+    return PopScope(
+      canPop: !_deleting,
+      child: AbsorbPointer(
+        absorbing: _deleting,
+        child: ExcludeFocus(
+          excluding: _deleting,
+          child: Scaffold(
+            backgroundColor: AppV2Tokens.background,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _DetailHeader(
+                    title: _headerTitle(post),
+                    onBack: _goBack,
+                    onMore: visible && !_deletePending
+                        ? _showPostMoreMenu
+                        : null,
+                  ),
+                  if (_deleting) ...[
+                    const LinearProgressIndicator(),
+                    const Text('삭제 중...'),
+                  ],
+                  Expanded(child: _buildBody(post, currentUserId)),
+                ],
+              ),
             ),
-            Expanded(child: _buildBody(post, currentUserId)),
-          ],
+            bottomNavigationBar: visible
+                ? _CommentLauncher(onPressed: () => _openComments(focus: true))
+                : null,
+          ),
         ),
       ),
-      bottomNavigationBar: visible
-          ? _CommentLauncher(onPressed: () => _openComments(focus: true))
-          : null,
     );
   }
 
@@ -360,6 +392,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   }
 
   void _goBack() {
+    if (_deleting) return;
     FocusManager.instance.primaryFocus?.unfocus();
     if (Navigator.of(context).canPop()) {
       context.pop();
@@ -369,6 +402,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   }
 
   void _showPostMoreMenu() {
+    if (_deletePending) return;
     final post = ref.read(communityProvider).postsById[widget.postId];
     final auth = ref.read(authProvider);
     if (post == null || !auth.isAuthenticated || auth.profile == null) return;
@@ -430,38 +464,56 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   }
 
   Future<void> _deletePost() async {
+    if (_deletePending) return;
     final generation = _postGeneration;
+    final session = _sessionGeneration;
     final actor = ref.read(authProvider).profile?.id;
     final post = ref.read(communityProvider).postsById[widget.postId];
-    if (actor == null || post?.userId != actor) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: const Text('게시글을 삭제할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted || generation != _postGeneration) return;
+    if (actor == null ||
+        post?.userId != actor ||
+        !ref.read(authProvider).isAuthenticated) {
+      return;
+    }
+    final operation = ++_deleteGeneration;
+    bool current() =>
+        mounted &&
+        operation == _deleteGeneration &&
+        generation == _postGeneration &&
+        session == _sessionGeneration &&
+        ref.read(authProvider).isAuthenticated &&
+        ref.read(authProvider).profile?.id == actor;
+    setState(() => _deletePending = true);
     try {
+      final confirmed = await showDeleteConfirmationSheet(
+        context,
+        title: '게시글을 삭제할까요?',
+        message: '이 게시글을 삭제하면 다시 되돌릴 수 없어요.',
+        confirmLabel: '게시글 삭제',
+        confirmKey: const Key('community-post-delete-confirm'),
+      );
+      if (confirmed != true || !current()) return;
+      setState(() => _deleting = true);
       await ref.read(communityProvider.notifier).deletePost(widget.postId);
-      if (!mounted || generation != _postGeneration) return;
+      if (!current()) return;
+      setState(() => _deleting = false);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !current() || ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
       if (context.canPop()) {
         context.pop();
       } else {
         context.go(communityFallbackPath(widget.sourceKey));
       }
     } catch (_) {
-      if (mounted && generation == _postGeneration) _snack('게시글 삭제에 실패했습니다.');
+      if (current()) _snack('게시글 삭제에 실패했습니다.');
+    } finally {
+      if (mounted && operation == _deleteGeneration) {
+        setState(() {
+          _deletePending = false;
+          _deleting = false;
+        });
+      }
     }
   }
 }

@@ -12,6 +12,16 @@ import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('care calendar fits 320dp at double text scale', (tester) async {
+    tester.view.physicalSize = const Size(320, 1000);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _pumpRoutineScreen(tester, _petState());
+    expect(tester.takeException(), isNull);
+  });
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });

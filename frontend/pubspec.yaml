@@ -42,6 +42,8 @@ dependencies:
   kakao_flutter_sdk_user: ^2.0.0+1 # 카카오 로그인 API 패키지
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   firebase_core_platform_interface: ^6.0.3
   flutter_test:
     sdk: flutter
@@ -53,7 +55,28 @@ flutter:
       - assets/images/
       - assets/icons/
       - assets/illustrations/
+      - assets/fonts/OFL.txt
   fonts:
+    - family: NotoSansKR
+      fonts:
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 100
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 200
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 300
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 800
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 900
     - family: PlusJakartaSans
       fonts:
         - asset: assets/fonts/PlusJakartaSans-Variable.ttf

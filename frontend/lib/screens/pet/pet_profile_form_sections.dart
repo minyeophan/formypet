@@ -37,7 +37,8 @@ class _IdentitySection extends StatelessWidget {
                   text: TextSpan(
                     text: item.label,
                     style: DefaultTextStyle.of(context).style.merge(
-                      GoogleFonts.notoSansKr(
+                      const TextStyle(
+                        fontFamily: AppFonts.family,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),

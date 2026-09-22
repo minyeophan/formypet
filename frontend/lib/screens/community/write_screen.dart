@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
@@ -26,7 +28,8 @@ class WriteScreen extends ConsumerStatefulWidget {
   ConsumerState<WriteScreen> createState() => _WriteScreenState();
 }
 
-class _WriteScreenState extends ConsumerState<WriteScreen> {
+class _WriteScreenState extends ConsumerState<WriteScreen>
+    with DraftExitGuardMixin<WriteScreen> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
   final _pollOptionCtrls = [TextEditingController(), TextEditingController()];
@@ -36,6 +39,31 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
   bool _showPoll = false;
   bool _isLoading = false;
   String? _error;
+  late final String _baseline;
+  int _pickerGeneration = 0;
+  bool _sessionChanged = false;
+
+  (bool, String?) get _identity {
+    final auth = ref.read(authProvider);
+    return (auth.isAuthenticated, auth.profile?.id);
+  }
+
+  String get _draft => jsonEncode({
+    'title': _titleCtrl.text.trim(),
+    'content': _contentCtrl.text.trim(),
+    'category': _category,
+    'poll': _showPoll
+        ? _pollOptionCtrls.map((c) => c.text.trim()).toList()
+        : null,
+    'photos': _files.map((f) => f.path).toList(),
+  });
+
+  @override
+  bool get hasUnsavedChanges => !_sessionChanged && _draft != _baseline;
+  @override
+  bool get isDraftBusy => _isLoading;
+
+  void _draftChanged() => setState(() {});
 
   @override
   void initState() {
@@ -46,6 +74,20 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
       _contentCtrl.text = post.content;
       _category = post.category;
     }
+    _baseline = _draft;
+    for (final controller in [_titleCtrl, _contentCtrl, ..._pollOptionCtrls]) {
+      controller.addListener(_draftChanged);
+    }
+    ref.listenManual(
+      authProvider.select((s) => (s.isAuthenticated, s.profile?.id)),
+      (_, _) {
+        setState(() {
+          _sessionChanged = true;
+          _pickerGeneration++;
+          _isLoading = false;
+        });
+      },
+    );
   }
 
   @override
@@ -59,19 +101,34 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
   }
 
   Future<void> _pickImages() async {
-    if (_isLoading) return;
+    if (_isLoading || _sessionChanged) return;
+    final identity = _identity;
+    final generation = _pickerGeneration;
     if (_files.length >= 5) {
       _showImageLimit();
       return;
     }
     try {
       final picked = await _imagePicker.pickMultiImage();
-      if (!mounted || _isLoading || picked.isEmpty) return;
+      if (!mounted ||
+          _sessionChanged ||
+          _identity != identity ||
+          _isLoading ||
+          generation != _pickerGeneration ||
+          picked.isEmpty) {
+        return;
+      }
       final remaining = 5 - _files.length;
       setState(() => _files.addAll(picked.take(remaining)));
       if (picked.length > remaining) _showImageLimit();
     } catch (_) {
-      if (!mounted || _isLoading) return;
+      if (!mounted ||
+          _sessionChanged ||
+          _identity != identity ||
+          _isLoading ||
+          generation != _pickerGeneration) {
+        return;
+      }
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -87,7 +144,14 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
   }
 
   Future<void> _submit() async {
-    if (_isLoading) return;
+    if (_isLoading || _sessionChanged) return;
+    final identity = _identity;
+    final notifier = ref.read(communityProvider.notifier);
+    bool current() =>
+        mounted &&
+        !_sessionChanged &&
+        _identity == identity &&
+        identical(ref.read(communityProvider.notifier), notifier);
     if ((_category == 'NEWS' || widget.editingPost?.category == 'NEWS') &&
         ref.read(authProvider).profile?.isAdmin != true) {
       setState(() => _error = '소식은 관리자만 작성할 수 있어요.');
@@ -114,14 +178,14 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
       return;
     }
     final category = _category;
+    _pickerGeneration++;
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
       await dismissKeyboardBeforeTransition(context);
-      if (!mounted) return;
-      final notifier = ref.read(communityProvider.notifier);
+      if (!current()) return;
       if (widget.editingPost == null) {
         await notifier.createPost(
           content: content,
@@ -138,10 +202,17 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
           category: category,
         );
       }
-      if (mounted) await _goBackToCommunity();
+      if (!current()) return;
+      await allowDraftExit();
+      if (!current()) return;
+      await _navigateBack(isCurrent: current);
     } catch (_) {
-      if (mounted) {
-        setState(() => _error = '글을 등록하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      if (current()) {
+        setState(
+          () => _error = widget.editingPost == null
+              ? '글을 등록하지 못했어요. 잠시 후 다시 시도해 주세요.'
+              : '글을 수정하지 못했어요. 잠시 후 다시 시도해 주세요.',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -158,8 +229,17 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
   }
 
   Future<void> _selectCategory() async {
+    if (_isLoading || _sessionChanged) return;
+    final identity = _identity;
+    final generation = _pickerGeneration;
     await dismissKeyboardBeforeTransition(context);
-    if (!mounted) return;
+    if (!mounted ||
+        _sessionChanged ||
+        _identity != identity ||
+        _isLoading ||
+        generation != _pickerGeneration) {
+      return;
+    }
     final selected = await _showCategoryPickerSheet(
       context: context,
       currentCategory: _category,
@@ -171,24 +251,37 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
           )
           .toList(),
     );
-    if (selected == null || !mounted) return;
+    if (selected == null ||
+        !mounted ||
+        _sessionChanged ||
+        _identity != identity ||
+        _isLoading ||
+        generation != _pickerGeneration) {
+      return;
+    }
     setState(() => _category = selected);
   }
 
   void _addPollOption() {
     if (_isLoading || _pollOptionCtrls.length >= 5) return;
     setState(() {
-      _pollOptionCtrls.add(TextEditingController());
+      _pollOptionCtrls.add(TextEditingController()..addListener(_draftChanged));
     });
   }
 
   void _closePoll() {
+    if (_isLoading) return;
     setState(() => _showPoll = false);
   }
 
   Future<void> _goBackToCommunity() async {
+    if (!await confirmDraftExit() || !mounted) return;
+    await _navigateBack();
+  }
+
+  Future<void> _navigateBack({bool Function()? isCurrent}) async {
     await dismissKeyboardBeforeTransition(context);
-    if (!mounted) return;
+    if (!mounted || (isCurrent != null && !isCurrent())) return;
     if (context.canPop()) {
       context.pop();
       return;
@@ -198,265 +291,292 @@ class _WriteScreenState extends ConsumerState<WriteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Container(
-              height: 54,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(bottom: BorderSide(color: AppColors.border)),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 64,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _goBackToCommunity,
-                        child: const AppText(
-                          '취소',
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: TextButton(
-                        key: const Key('community-category-field'),
-                        onPressed: _isLoading ? null : _selectCategory,
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.text,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+    if (_sessionChanged) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: TextButton(
+            onPressed: _goBackToCommunity,
+            child: const Text('취소'),
+          ),
+        ),
+        body: const Center(child: Text('계정이 변경됐어요. 커뮤니티에서 다시 열어 주세요.')),
+      );
+    }
+    return protectDraft(
+      onExit: _goBackToCommunity,
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        body: Column(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Container(
+                height: 54,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 64,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _goBackToCommunity,
+                          child: const AppText(
+                            '취소',
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
                           ),
-                        ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppText(
-                              _communityCategoryLabel(_category),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            const SizedBox(width: 4),
-                            const AppIcon(Icons.keyboard_arrow_down, size: 16),
-                          ],
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 64,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _isLoading ? null : _submit,
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                    Expanded(
+                      child: Center(
+                        child: TextButton(
+                          key: const Key('community-category-field'),
+                          onPressed: _isLoading ? null : _selectCategory,
+                          style:
+                              TextButton.styleFrom(
+                                foregroundColor: AppColors.text,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
                                 ),
-                              )
-                            : const AppText(
-                                '등록',
-                                fontSize: 14,
-                                color: AppColors.primary,
+                              ).copyWith(
+                                overlayColor: AppInteractionStyle.overlay(),
+                              ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AppText(
+                                _communityCategoryLabel(_category),
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    border: Border(bottom: BorderSide(color: AppColors.border)),
-                  ),
-                  child: Row(
-                    children: [
-                      const AppText(
-                        '제목',
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          key: const Key('community-title-field'),
-                          controller: _titleCtrl,
-                          maxLength: 30,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: AppColors.text,
-                          ),
-                          decoration: const InputDecoration(
-                            hintText: '제목을 입력해주세요',
-                            hintStyle: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.muted,
-                            ),
-                            filled: false,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                            border: InputBorder.none,
-                            counterText: '',
+                              const SizedBox(width: 4),
+                              const AppIcon(
+                                Icons.keyboard_arrow_down,
+                                size: 16,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Stack(
-                  children: [
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _contentCtrl,
-                      builder: (context, value, child) {
-                        if (value.text.isNotEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        return const Positioned(
-                          left: 18,
-                          top: 18,
-                          right: 18,
-                          child: Text(
-                            '반려동물과 함께한 이야기, 궁금한 점, 나누고 싶은 정보를 적어주세요.',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.muted,
-                              height: 1.4,
-                            ),
-                          ),
-                        );
-                      },
                     ),
-                    TextField(
-                      key: const Key('community-content-field'),
-                      controller: _contentCtrl,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppColors.text,
-                        height: 1.45,
+                    SizedBox(
+                      width: 64,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _submit,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : AppText(
+                                  widget.editingPost == null ? '등록' : '저장',
+                                  fontSize: 14,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                        ),
                       ),
-                      decoration: const InputDecoration(
-                        filled: false,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        focusedErrorBorder: InputBorder.none,
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.fromLTRB(18, 18, 18, 18),
-                      ),
-                      minLines: _showPoll ? 5 : 10,
-                      maxLines: null,
                     ),
                   ],
                 ),
-                if (_showPoll) ...[
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _PollPanel(
-                      enabled: !_isLoading,
-                      optionCtrls: _pollOptionCtrls,
-                      onAddOption: _addPollOption,
-                      onClose: _closePoll,
-                    ),
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: AppText(_error!, fontSize: 12, color: Colors.red),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.border)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
-                  if (widget.editingPost != null)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: AppText(
-                        '사진과 투표는 수정할 수 없어요. 기존 첨부 내용은 유지돼요.',
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.border),
                       ),
                     ),
-                  if (widget.editingPost == null ||
-                      widget.editingPost!.imageUrls.isNotEmpty)
-                    Row(
+                    child: Row(
                       children: [
+                        const AppText(
+                          '제목',
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: _AttachmentRail(
-                            files: _files,
-                            imageUrls:
-                                widget.editingPost?.imageUrls ?? const [],
-                            onRemove: _isLoading
-                                ? null
-                                : (file) {
-                                    if (_isLoading) return;
-                                    setState(() => _files.remove(file));
-                                  },
+                          child: TextField(
+                            key: const Key('community-title-field'),
+                            enabled: !_isLoading,
+                            controller: _titleCtrl,
+                            maxLength: 30,
+                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppColors.text,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: '제목을 입력해주세요',
+                              hintStyle: TextStyle(
+                                fontSize: 15,
+                                color: AppColors.muted,
+                              ),
+                              filled: false,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              border: InputBorder.none,
+                              counterText: '',
+                            ),
                           ),
                         ),
-                        if (widget.editingPost == null) ...[
-                          _ToolButton(
-                            key: const Key('community-add-image-button'),
-                            icon: Icons.image_outlined,
-                            onTap: _isLoading ? null : _pickImages,
-                          ),
-                          const SizedBox(width: 8),
-                          _ToolButton(
-                            key: const Key('community-add-poll-button'),
-                            icon: Icons.poll_outlined,
-                            onTap: _isLoading
-                                ? null
-                                : () => setState(() => _showPoll = !_showPoll),
-                          ),
-                        ],
                       ],
                     ),
+                  ),
+                  Stack(
+                    children: [
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _contentCtrl,
+                        builder: (context, value, child) {
+                          if (value.text.isNotEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return const Positioned(
+                            left: 18,
+                            top: 18,
+                            right: 18,
+                            child: Text(
+                              '반려동물과 함께한 이야기, 궁금한 점, 나누고 싶은 정보를 적어주세요.',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: AppColors.muted,
+                                height: 1.4,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      TextField(
+                        key: const Key('community-content-field'),
+                        enabled: !_isLoading,
+                        controller: _contentCtrl,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: AppColors.text,
+                          height: 1.45,
+                        ),
+                        decoration: const InputDecoration(
+                          filled: false,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          focusedErrorBorder: InputBorder.none,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.fromLTRB(18, 18, 18, 18),
+                        ),
+                        minLines: _showPoll ? 5 : 10,
+                        maxLines: null,
+                      ),
+                    ],
+                  ),
+                  if (_showPoll) ...[
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _PollPanel(
+                        enabled: !_isLoading,
+                        optionCtrls: _pollOptionCtrls,
+                        onAddOption: _addPollOption,
+                        onClose: _closePoll,
+                      ),
+                    ),
+                  ],
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: AppText(_error!, fontSize: 12, color: Colors.red),
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-        ],
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.editingPost != null)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: AppText(
+                          '사진과 투표는 수정할 수 없어요. 기존 첨부 내용은 유지돼요.',
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    if (widget.editingPost == null ||
+                        widget.editingPost!.imageUrls.isNotEmpty)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _AttachmentRail(
+                              files: _files,
+                              imageUrls:
+                                  widget.editingPost?.imageUrls ?? const [],
+                              onRemove: _isLoading
+                                  ? null
+                                  : (file) {
+                                      if (_isLoading) return;
+                                      setState(() => _files.remove(file));
+                                    },
+                            ),
+                          ),
+                          if (widget.editingPost == null) ...[
+                            _ToolButton(
+                              key: const Key('community-add-image-button'),
+                              label: '사진 추가',
+                              icon: Icons.image_outlined,
+                              onTap: _isLoading ? null : _pickImages,
+                            ),
+                            const SizedBox(width: 8),
+                            _ToolButton(
+                              key: const Key('community-add-poll-button'),
+                              label: _showPoll ? '투표 닫기' : '투표 추가',
+                              icon: Icons.poll_outlined,
+                              onTap: _isLoading
+                                  ? null
+                                  : () =>
+                                        setState(() => _showPoll = !_showPoll),
+                            ),
+                          ],
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -800,30 +920,43 @@ class _AttachmentUnavailable extends StatelessWidget {
 
 class _ToolButton extends StatelessWidget {
   final IconData icon;
+  final String label;
   final VoidCallback? onTap;
 
-  const _ToolButton({super.key, required this.icon, required this.onTap});
+  const _ToolButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: AppInkWell(
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: onTap != null,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Ink(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceSoft,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: AppIcon(
-              icon,
-              color: onTap == null ? AppColors.muted : AppColors.textSecondary,
-              size: 22,
+        child: AppInkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Ink(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: AppIcon(
+                icon,
+                color: onTap == null
+                    ? AppColors.muted
+                    : AppColors.textSecondary,
+                size: 22,
+              ),
             ),
           ),
         ),

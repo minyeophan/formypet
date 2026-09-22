@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
@@ -18,6 +20,7 @@ import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import 'record_support.dart';
+import 'record_draft_number_input.dart';
 
 typedef MealImagePicker = Future<XFile?> Function();
 
@@ -37,7 +40,8 @@ class MealRecordScreen extends ConsumerStatefulWidget {
   ConsumerState<MealRecordScreen> createState() => _MealRecordScreenState();
 }
 
-class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
+class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
+    with DraftExitGuardMixin<MealRecordScreen> {
   final _productCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
@@ -51,13 +55,38 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   bool _showMore = false;
   bool _isSaving = false;
   bool _isDeleting = false;
+  bool _confirmingDelete = false;
   bool _isPickingPhoto = false;
   String? _error;
   XFile? _photo;
+  late String _baseline;
+  late final PetNotifier _draftOwner;
+  late final (int, int, String?) _draftOwnerContext;
+  bool get _ownsDraft =>
+      mounted &&
+      identical(ref.read(petProvider.notifier), _draftOwner) &&
+      _draftOwner.isRoutineContextCurrent(_draftOwnerContext);
+
+  String get _draft => jsonEncode({
+    'payload': _buildPayload(),
+    'amount': _amountCtrl.text.trim(),
+    'photo': _photo?.path,
+  });
+
+  @override
+  bool get hasUnsavedChanges => _draft != _baseline;
+  @override
+  bool get isDraftBusy => _isSaving || _isDeleting || _isPickingPhoto;
+
+  void _draftChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
+    _draftOwner = ref.read(petProvider.notifier);
+    _draftOwnerContext = _draftOwner.routineContext;
     final now = DateTime.now();
     final editingRecord = widget.editingRecord;
     final initialDate = editingRecord == null
@@ -71,6 +100,15 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
     if (editingRecord != null) {
       _initializeFromRecord(editingRecord);
     }
+    _baseline = _draft;
+    for (final controller in [
+      _productCtrl,
+      _amountCtrl,
+      _brandCtrl,
+      _noteCtrl,
+    ]) {
+      controller.addListener(_draftChanged);
+    }
   }
 
   @override
@@ -83,6 +121,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   bool get _canSave =>
+      _ownsDraft &&
       !_isSaving &&
       !_isDeleting &&
       !_isPickingPhoto &&
@@ -94,180 +133,206 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppFormHeader(
-              title: widget.editingRecord == null ? '급식 기록' : '급식 수정',
-              onBack: _goBack,
-            ),
-            Expanded(
-              child: RecordFormScrollBody(
-                submitButton: widget.editingRecord == null
-                    ? RecordFormSubmitButton(
-                        key: const Key('meal-save-button'),
-                        enabled: _canSave,
-                        isSaving: _isSaving,
-                        onPressed: _save,
-                      )
-                    : RecordEditActionBar(
-                        enabled: _canSave,
-                        isSaving: _isSaving,
-                        isDeleting: _isDeleting,
-                        onSave: _save,
-                        onDelete: _delete,
-                      ),
-                children: [
-                  _SectionBlock(
-                    title: '날짜/시간',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('meal-date-label'),
-                                text: DateFormat('yyyy-MM-dd').format(_date),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('meal-time-button'),
-                                text: _apiTime,
-                                onTap: _pickTime,
-                              ),
-                            ),
-                          ],
+    ref.watch(petProvider);
+    return protectDraft(
+      onExit: _goBack,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              AppFormHeader(
+                title: widget.editingRecord == null ? '급식 기록' : '급식 수정',
+                onBack: _goBack,
+              ),
+              Expanded(
+                child: RecordFormScrollBody(
+                  submitButton: widget.editingRecord == null
+                      ? RecordFormSubmitButton(
+                          key: const Key('meal-save-button'),
+                          enabled: _canSave,
+                          isSaving: _isSaving,
+                          onPressed: _save,
+                        )
+                      : RecordEditActionBar(
+                          enabled: _canSave,
+                          isSaving: _isSaving,
+                          isDeleting: _isDeleting,
+                          onSave: _save,
+                          onDelete: _delete,
                         ),
-                        const SizedBox(height: 10),
-                        _SubtleButton(
-                          key: const Key('meal-set-now-button'),
-                          label: '현재 시간으로 설정',
-                          onTap: _setNow,
-                        ),
-                      ],
+                  children: [
+                    const AppText(
+                      '필수: 사료 종류, 0g보다 큰 급여량, 섭취율을 입력하면 저장할 수 있어요. 나머지는 선택 입력이에요.',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '사료 종류',
-                    child: _FoodTypeGrid(
-                      selectedValue: _foodType,
-                      onSelected: (value) => setState(() {
-                        _foodType = value;
+                    const SizedBox(height: 12),
+                    _SectionBlock(
+                      title: '날짜/시간',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Flex(
+                            mainAxisSize: MainAxisSize.min,
+                            direction:
+                                MediaQuery.sizeOf(context).width < 400 ||
+                                    MediaQuery.textScalerOf(context).scale(14) >
+                                        20
+                                ? Axis.vertical
+                                : Axis.horizontal,
+                            children: [
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: _InputBox(
+                                  key: const Key('meal-date-label'),
+                                  text: DateFormat('yyyy-MM-dd').format(_date),
+                                ),
+                              ),
+                              const SizedBox(width: 10, height: 10),
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: _InputBox(
+                                  key: const Key('meal-time-button'),
+                                  text: _apiTime,
+                                  onTap: _pickTime,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _SubtleButton(
+                            key: const Key('meal-set-now-button'),
+                            label: '현재 시간으로 설정',
+                            onTap: _setNow,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _SectionBlock(
+                      title: '사료 종류',
+                      child: _FoodTypeGrid(
+                        selectedValue: _foodType,
+                        onSelected: (value) => setState(() {
+                          _foodType = value;
+                          _error = null;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _SectionBlock(
+                      title: '상세 정보',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _LabeledRow(
+                            label: '사료명',
+                            child: _TextInput(
+                              key: const Key('meal-product-field'),
+                              enabled: !isDraftBusy && _ownsDraft,
+                              controller: _productCtrl,
+                              hintText: '20자 이내',
+                              maxLength: 20,
+                              onChanged: (_) => setState(() => _error = null),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _LabeledRow(
+                            label: '급여량',
+                            child: RecordDraftNumberInput(
+                              enabled: !isDraftBusy && _ownsDraft,
+                              canApply: () => _ownsDraft && !isDraftBusy,
+                              key: const Key('meal-served-amount-field'),
+                              controller: _amountCtrl,
+                              mode: RecordNumberInputMode.integer,
+                              hintText: '0',
+                              suffixText: 'g',
+                              onChanged: (_) => setState(() => _error = null),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _LabeledRow(
+                            label: '섭취율',
+                            child: _ConsumeGrid(
+                              selectedValue: _consumedPercent,
+                              onSelected: (value) => setState(() {
+                                _consumedPercent = value;
+                                _error = null;
+                              }),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _LabeledRow(
+                            label: '메모',
+                            child: _TextInput(
+                              key: const Key('meal-note-field'),
+                              enabled: !isDraftBusy && _ownsDraft,
+                              controller: _noteCtrl,
+                              hintText: '선택',
+                              maxLines: 3,
+                              onChanged: (_) => setState(() => _error = null),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _MoreSection(
+                      enabled: !isDraftBusy && _ownsDraft,
+                      expanded: _showMore,
+                      onToggle: () => setState(() => _showMore = !_showMore),
+                      brandController: _brandCtrl,
+                      feedingMethod: _feedingMethod,
+                      onBrandChanged: (_) => setState(() => _error = null),
+                      onFeedingMethodChanged: (value) => setState(() {
+                        _feedingMethod = value;
                         _error = null;
                       }),
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionBlock(
-                    title: '상세 정보',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _LabeledRow(
-                          label: '사료명',
-                          child: _TextInput(
-                            key: const Key('meal-product-field'),
-                            controller: _productCtrl,
-                            hintText: '20자 이내',
-                            maxLength: 20,
-                            onChanged: (_) => setState(() => _error = null),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _LabeledRow(
-                          label: '급여량',
-                          child: RecordNumberInput(
-                            key: const Key('meal-served-amount-field'),
-                            controller: _amountCtrl,
-                            mode: RecordNumberInputMode.integer,
-                            hintText: '0',
-                            suffixText: 'g',
-                            onChanged: (_) => setState(() => _error = null),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _LabeledRow(
-                          label: '섭취율',
-                          child: _ConsumeGrid(
-                            selectedValue: _consumedPercent,
-                            onSelected: (value) => setState(() {
-                              _consumedPercent = value;
-                              _error = null;
-                            }),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _LabeledRow(
-                          label: '메모',
-                          child: _TextInput(
-                            key: const Key('meal-note-field'),
-                            controller: _noteCtrl,
-                            hintText: '선택',
-                            maxLines: 3,
-                            onChanged: (_) => setState(() => _error = null),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _MoreSection(
-                    expanded: _showMore,
-                    onToggle: () => setState(() => _showMore = !_showMore),
-                    brandController: _brandCtrl,
-                    feedingMethod: _feedingMethod,
-                    onBrandChanged: (_) => setState(() => _error = null),
-                    onFeedingMethodChanged: (value) => setState(() {
-                      _feedingMethod = value;
-                      _error = null;
-                    }),
-                  ),
-                  const SizedBox(height: 18),
-                  if (widget.editingRecord == null)
-                    _PhotoButton(
-                      label: _photo == null
-                          ? '사진 추가 (0/1)'
-                          : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
-                      hasPhoto: _photo != null,
-                      onTap: _isSaving || _isDeleting || _isPickingPhoto
-                          ? null
-                          : _pickPhoto,
-                    )
-                  else
-                    _ExistingMealPhotos(record: widget.editingRecord!),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    AppText(
-                      _error!,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFFE35D5D),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 18),
+                    if (widget.editingRecord == null)
+                      _PhotoButton(
+                        label: _photo == null
+                            ? '사진 추가 (0/1)'
+                            : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
+                        hasPhoto: _photo != null,
+                        onTap: _isSaving || _isDeleting || _isPickingPhoto
+                            ? null
+                            : _pickPhoto,
+                      )
+                    else
+                      _ExistingMealPhotos(record: widget.editingRecord!),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      AppText(
+                        _error!,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFE35D5D),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _pickTime() async {
+    if (isDraftBusy || !_ownsDraft) return;
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
-    if (picked != null) {
+    if (_ownsDraft && !isDraftBusy && picked != null) {
       setState(() => _time = picked);
     }
   }
 
   void _setNow() {
+    if (isDraftBusy || !_ownsDraft) return;
     final now = DateTime.now();
     setState(() {
       _time = TimeOfDay(hour: now.hour, minute: now.minute);
@@ -276,20 +341,20 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    if (_isSaving || _isDeleting || _isPickingPhoto) return;
+    if (_isSaving || _isDeleting || _isPickingPhoto || !_ownsDraft) return;
     setState(() => _isPickingPhoto = true);
     final pickImage =
         widget.pickImageForTest ??
         () => ImagePicker().pickImage(source: ImageSource.gallery);
     try {
       final photo = await pickImage();
-      if (!mounted || photo == null) return;
+      if (!_ownsDraft || photo == null) return;
       setState(() {
         _photo = photo;
         _error = null;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!_ownsDraft) return;
       setState(() {
         _error = '사진을 불러오지 못했어요. 사진 접근 권한을 확인한 뒤 다시 시도해 주세요.';
       });
@@ -325,26 +390,23 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
       final editingRecord = widget.editingRecord;
       if (editingRecord == null) {
         final photo = _photo;
-        await ref
-            .read(petProvider.notifier)
-            .addRecord(
-              body,
-              photo: photo == null
-                  ? null
-                  : RecordPhotoUpload(
-                      bytes: await photo.readAsBytes(),
-                      filename: _filenameFor(photo),
-                    ),
-            );
+        final upload = photo == null
+            ? null
+            : RecordPhotoUpload(
+                bytes: await photo.readAsBytes(),
+                filename: _filenameFor(photo),
+              );
+        if (!_ownsDraft) return;
+        await _draftOwner.addRecord(body, photo: upload);
       } else {
-        await ref
-            .read(petProvider.notifier)
-            .updateRecord(editingRecord.id, body);
+        await _draftOwner.updateRecord(editingRecord.id, body);
       }
-      if (!mounted) return;
+      if (!_ownsDraft) return;
+      await allowDraftExit();
+      if (!mounted || !_ownsDraft) return;
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (e) {
-      if (mounted) {
+      if (_ownsDraft) {
         setState(() => _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
       }
     } finally {
@@ -356,19 +418,33 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
 
   Future<void> _delete() async {
     final record = widget.editingRecord;
-    if (record == null || _isSaving || _isDeleting) return;
-    final confirmed = await showRecordDeleteConfirmationSheet(context);
-    if (confirmed != true || !mounted) return;
+    if (record == null ||
+        _isSaving ||
+        _isDeleting ||
+        _confirmingDelete ||
+        !_ownsDraft) {
+      return;
+    }
+    _confirmingDelete = true;
+    bool? confirmed;
+    try {
+      confirmed = await showRecordDeleteConfirmationSheet(context);
+    } finally {
+      _confirmingDelete = false;
+    }
+    if (confirmed != true || !_ownsDraft || isDraftBusy) return;
     setState(() {
       _isDeleting = true;
       _error = null;
     });
     try {
-      await ref.read(petProvider.notifier).deleteRecord(record.id);
-      if (!mounted) return;
+      await _draftOwner.deleteRecord(record.id);
+      if (!_ownsDraft) return;
+      await allowDraftExit();
+      if (!mounted || !_ownsDraft) return;
       context.go('/records?date=${record.date}');
     } catch (_) {
-      if (mounted) {
+      if (_ownsDraft) {
         setState(() => _error = '삭제에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
       }
     } finally {
@@ -413,6 +489,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen> {
   }
 
   Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     if (context.canPop()) {
@@ -456,9 +533,9 @@ class _InputBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Container(
-      height: 48,
+      constraints: const BoxConstraints(minHeight: 48),
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
@@ -508,7 +585,8 @@ class _SubtleButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          height: 44,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.all(8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
@@ -538,9 +616,13 @@ class _FoodTypeGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _foodTypeOptions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisExtent: 86,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount:
+            MediaQuery.sizeOf(context).width < 400 &&
+                MediaQuery.textScalerOf(context).scale(13) > 19
+            ? 2
+            : 3,
+        mainAxisExtent: 54 + MediaQuery.textScalerOf(context).scale(13) * 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -570,9 +652,9 @@ class _ConsumeGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _consumeOptions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisExtent: 78,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.sizeOf(context).width < 400 ? 2 : 4,
+        mainAxisExtent: 54 + MediaQuery.textScalerOf(context).scale(13) * 2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
@@ -634,8 +716,6 @@ class _VisualOptionCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: AppColors.text,
                   textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -654,6 +734,17 @@ class _LabeledRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 400 ||
+        MediaQuery.textScalerOf(context).scale(13) > 19) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppText(label, fontSize: 13, fontWeight: FontWeight.bold),
+          const SizedBox(height: 8),
+          child,
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -677,6 +768,7 @@ class _LabeledRow extends StatelessWidget {
 }
 
 class _TextInput extends StatelessWidget {
+  final bool enabled;
   final Key? fieldKey;
   final TextEditingController controller;
   final String hintText;
@@ -685,6 +777,7 @@ class _TextInput extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   const _TextInput({
+    this.enabled = true,
     Key? key,
     required this.controller,
     required this.hintText,
@@ -697,6 +790,7 @@ class _TextInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      enabled: enabled,
       key: fieldKey,
       controller: controller,
       maxLength: maxLength,
@@ -732,6 +826,7 @@ class _TextInput extends StatelessWidget {
 }
 
 class _MoreSection extends StatelessWidget {
+  final bool enabled;
   final bool expanded;
   final VoidCallback onToggle;
   final TextEditingController brandController;
@@ -740,6 +835,7 @@ class _MoreSection extends StatelessWidget {
   final ValueChanged<String> onFeedingMethodChanged;
 
   const _MoreSection({
+    required this.enabled,
     required this.expanded,
     required this.onToggle,
     required this.brandController,
@@ -808,6 +904,7 @@ class _MoreSection extends StatelessWidget {
           _LabeledRow(
             label: '브랜드명',
             child: _TextInput(
+              enabled: enabled,
               key: const Key('meal-brand-field'),
               controller: brandController,
               hintText: '선택',
@@ -864,7 +961,8 @@ class _SegmentButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Container(
-            height: 44,
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -878,8 +976,6 @@ class _SegmentButton extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: selected ? AppColors.primaryPressed : AppColors.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),

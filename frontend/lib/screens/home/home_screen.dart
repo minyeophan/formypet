@@ -262,7 +262,13 @@ class _PetProfilePager extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     children: [
       SizedBox(
-        height: 178,
+        height:
+            178 +
+            140 *
+                (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(
+                  0,
+                  double.infinity,
+                ),
         child: PageView.builder(
           controller: controller,
           physics: locked ? const NeverScrollableScrollPhysics() : null,
@@ -309,7 +315,9 @@ class _PetProfileCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: SizedBox.square(
-            dimension: 112,
+            dimension: MediaQuery.textScalerOf(context).scale(14) > 18
+                ? 80
+                : 112,
             child: AuthenticatedNetworkImage(
               url: pet.profileImageUrl,
               fit: BoxFit.cover,

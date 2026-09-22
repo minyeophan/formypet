@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/draft_exit_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/app_v2_tokens.dart';
@@ -14,7 +15,29 @@ class MyInquiryScreen extends ConsumerStatefulWidget {
   ConsumerState<MyInquiryScreen> createState() => _MyInquiryScreenState();
 }
 
-class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen> {
+class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen>
+    with DraftExitGuardMixin<MyInquiryScreen> {
+  late String _baseline;
+  String get _snapshot => InquiryDraft(
+    type: _type,
+    replyEmail: _email.text,
+    title: _title.text,
+    body: _body.text,
+  ).fingerprint;
+  @override
+  bool get hasUnsavedChanges =>
+      !_sessionChanged && _receipt == null && _snapshot != _baseline;
+  @override
+  bool get isDraftBusy => _busy;
+  void _draftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
+    goBackOrFallback(context, '/my');
+  }
+
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _title = TextEditingController();
@@ -38,6 +61,10 @@ class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen> {
   void initState() {
     super.initState();
     if (_actor != null) _email.text = ref.read(authProvider).profile!.email;
+    _baseline = _snapshot;
+    for (final controller in [_email, _title, _body]) {
+      controller.addListener(_draftChanged);
+    }
     ref.listenManual(
       authProvider.select((s) => s.isAuthenticated ? s.profile?.id : null),
       (_, _) {
@@ -54,6 +81,7 @@ class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen> {
           _fingerprint = null;
           _requestId = null;
           _error = null;
+          _baseline = _snapshot;
         });
       },
     );
@@ -112,17 +140,15 @@ class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen> {
     final allowed =
         !_sessionChanged && auth.isAuthenticated && auth.profile != null;
     final enabled = allowed && !_busy;
-    return PopScope(
-      canPop: !_busy,
+    return protectDraft(
+      onExit: _goBack,
       child: Scaffold(
         backgroundColor: AppV2Tokens.background,
         appBar: AppHeader(
           title: '1대1 문의하기',
           showBackButton: true,
           centerTitle: true,
-          onBack: () {
-            if (!_busy) goBackOrFallback(context, '/my');
-          },
+          onBack: _goBack,
         ),
         body: SafeArea(
           child: _receipt != null

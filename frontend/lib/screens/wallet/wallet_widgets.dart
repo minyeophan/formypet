@@ -1,5 +1,6 @@
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -341,34 +342,42 @@ class WalletCategorySelector extends StatelessWidget {
     this.includeAll = true,
   });
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        if (includeAll)
-          _CategoryChoice(
-            label: '전체',
-            id: AppVisualId.communityAll,
-            selected: selected == null,
-            onTap: () => onSelected(null),
-          ),
-        // Keep every server category reachable; the design illustrates the first four.
-        for (final key in const [
-          'food',
-          'snack',
-          'hospital',
-          'etc',
-          'medicine',
-          'grooming',
-          'supplies',
-        ])
-          _CategoryChoice(
-            label: expenseCategoryDisplayLabel(key),
-            id: walletExpenseVisualId(key),
-            selected: selected == key,
-            onTap: () => onSelected(key),
-          ),
-      ],
+  Widget build(BuildContext context) => ScrollConfiguration(
+    behavior: ScrollConfiguration.of(context).copyWith(
+      dragDevices: {
+        ...ScrollConfiguration.of(context).dragDevices,
+        PointerDeviceKind.mouse,
+      },
+    ),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          if (includeAll)
+            _CategoryChoice(
+              label: '전체',
+              id: AppVisualId.communityAll,
+              selected: selected == null,
+              onTap: () => onSelected(null),
+            ),
+          // Keep every server category reachable; the design illustrates the first four.
+          for (final key in const [
+            'food',
+            'snack',
+            'hospital',
+            'etc',
+            'medicine',
+            'grooming',
+            'supplies',
+          ])
+            _CategoryChoice(
+              label: expenseCategoryDisplayLabel(key),
+              id: walletExpenseVisualId(key),
+              selected: selected == key,
+              onTap: () => onSelected(key),
+            ),
+        ],
+      ),
     ),
   );
 }
@@ -390,7 +399,6 @@ class _CategoryChoice extends StatelessWidget {
     child: Semantics(
       selected: selected,
       button: true,
-      label: label,
       child: Material(
         color: AppColors.white,
         shape: RoundedRectangleBorder(

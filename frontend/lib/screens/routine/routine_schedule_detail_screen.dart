@@ -11,6 +11,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import 'routine_schedule_create_screen.dart';
+import 'routine_detail_screen.dart' show RoutineLookupStatusScreen;
 import 'routine_schedule_values.dart';
 
 class RoutineScheduleDetailScreen extends ConsumerWidget {
@@ -20,8 +21,15 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final schedule = _findSchedule(ref.watch(petProvider), scheduleId);
+    final state = ref.watch(petProvider);
+    final schedule = _findSchedule(state, scheduleId);
     if (schedule == null) {
+      if (state.isLoading || state.dataErrorText != null) {
+        return const RoutineLookupStatusScreen(
+          title: '일정 상세',
+          fallback: '/routine',
+        );
+      }
       return const _ScheduleNotFoundScreen();
     }
 
@@ -92,20 +100,49 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
   }
 }
 
-class RoutineScheduleEditScreen extends ConsumerWidget {
+class RoutineScheduleEditScreen extends ConsumerStatefulWidget {
   final String scheduleId;
 
   const RoutineScheduleEditScreen({super.key, required this.scheduleId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schedule = _findSchedule(ref.watch(petProvider), scheduleId);
+  ConsumerState<RoutineScheduleEditScreen> createState() =>
+      _RoutineScheduleEditScreenState();
+}
+
+class _RoutineScheduleEditScreenState
+    extends ConsumerState<RoutineScheduleEditScreen> {
+  CareSchedule? _baseline;
+  (int, int, String?)? _owner;
+  String? _scheduleId;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(petProvider);
+    final owner = ref.read(petProvider.notifier).routineContext;
+    if (_owner != owner || _scheduleId != widget.scheduleId) {
+      _baseline = null;
+      _owner = owner;
+      _scheduleId = widget.scheduleId;
+    }
+    final found = _findSchedule(state, widget.scheduleId);
+    if (found != null) _baseline ??= found;
+    final schedule =
+        found ??
+        (state.isLoading || state.dataErrorText != null ? _baseline : null);
     if (schedule == null) {
+      if (state.isLoading || state.dataErrorText != null) {
+        return const RoutineLookupStatusScreen(
+          title: '일정 수정',
+          fallback: '/routine',
+        );
+      }
+      _baseline = null;
       return const _ScheduleNotFoundScreen();
     }
     return RoutineScheduleCreateScreen(
-      key: ValueKey(schedule.id),
-      editingSchedule: schedule,
+      key: ValueKey((owner, schedule.id)),
+      editingSchedule: _baseline ?? schedule,
     );
   }
 }

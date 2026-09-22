@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,141 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  testWidgets('dirty schedule back keeps input until discard', (tester) async {
+    await _pumpScreen(tester);
+    await tester.enterText(
+      find.byKey(const Key('schedule-title-field')),
+      '새 일정',
+    );
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('계속 입력'), findsOneWidget);
+    await tester.tap(find.text('계속 입력'));
+    await tester.pumpAndSettle();
+    expect(find.text('새 일정'), findsOneWidget);
+  });
+
+  testWidgets('same frame save is single request and locks fields', (
+    tester,
+  ) async {
+    final service = _PendingScheduleService();
+    await _pumpScreen(
+      tester,
+      notifier: PetNotifier.testWithServices(
+        _petNotifier().state,
+        scheduleService: service,
+      ),
+    );
+    await tester.tap(find.byKey(const Key('schedule-category-grooming')));
+    await tester.enterText(find.byKey(const Key('schedule-title-field')), '예약');
+    await tester.pump();
+    final save = tester
+        .widget<ElevatedButton>(find.byKey(const Key('schedule-save-button')))
+        .onPressed!;
+    save();
+    save();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(service.calls, 1);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('schedule-title-field')))
+          .enabled,
+      isFalse,
+    );
+    await tester.pumpWidget(const SizedBox());
+    service.pending.complete(_schedule());
+    await tester.pump();
+  });
+
+  testWidgets(
+    'late schedule response does not navigate after sign out or keep form locked',
+    (tester) async {
+      final service = _PendingScheduleService();
+      final notifier = PetNotifier.testWithServices(
+        _petNotifier().state,
+        scheduleService: service,
+      );
+      await _pumpScreen(tester, notifier: notifier);
+      await tester.tap(find.byKey(const Key('schedule-category-grooming')));
+      await tester.enterText(
+        find.byKey(const Key('schedule-title-field')),
+        '예약',
+      );
+      await tester.pump();
+      tester
+          .widget<ElevatedButton>(find.byKey(const Key('schedule-save-button')))
+          .onPressed!();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await notifier.clearForSignedOutUser();
+      service.pending.complete(_schedule());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(RoutineScheduleCreateScreen), findsOneWidget);
+      expect(find.textContaining('routine target date='), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    },
+  );
+
+  testWidgets('editing all day schedule retains hidden times and reminder', (
+    tester,
+  ) async {
+    final original = _schedule(allDay: true, reminder: '기존 알림');
+    final notifier = _petNotifier(schedules: [original]);
+    await _pumpScreen(tester, notifier: notifier, editingSchedule: original);
+    await tester.enterText(
+      find.byKey(const Key('schedule-title-field')),
+      '제목만 수정',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    final saved = notifier.state.schedules.single;
+    expect(saved.title, '제목만 수정');
+    expect(saved.allDay, isTrue);
+    expect(saved.startTime, '10:30');
+    expect(saved.endTime, '11:00');
+    expect(saved.endDate, '2026-06-18');
+    expect(saved.reminder, '기존 알림');
+  });
+
+  testWidgets('earlier start time keeps date-only end on its original date', (
+    tester,
+  ) async {
+    final original = _schedule(endDate: '2026-06-17', endTime: null);
+    final notifier = _petNotifier(schedules: [original]);
+    await _pumpScreen(tester, notifier: notifier, editingSchedule: original);
+    await tester.ensureVisible(
+      find.byKey(const Key('schedule-start-time-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-start-time-button')));
+    await tester.pumpAndSettle();
+    tester
+        .widget<CupertinoPicker>(
+          find.descendant(
+            of: find.byKey(const Key('record-time-hour-wheel')),
+            matching: find.byType(CupertinoPicker),
+          ),
+        )
+        .onSelectedItemChanged!(8);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('record-picker-done')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('schedule-save-button')));
+    await tester.pumpAndSettle();
+    final saved = notifier.state.schedules.single;
+    expect(saved.startTime, '09:30');
+    expect(saved.endDate, '2026-06-17');
+    expect(saved.endTime, isNull);
+  });
+
   testWidgets('place input stays usable on narrow screens after scrolling', (
     tester,
   ) async {
@@ -43,6 +179,40 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     }
   });
+
+  for (final width in [320.0, 375.0, 1024.0]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets('schedule layout fits $width at scale $scale', (
+        tester,
+      ) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 844);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        await _pumpScreen(tester, textScale: scale);
+        final date = find.byKey(const Key('schedule-start-date-button'));
+        final time = find.byKey(const Key('schedule-start-time-button'));
+        await tester.ensureVisible(date);
+        await tester.pumpAndSettle();
+        expect(tester.getSize(date).height, greaterThanOrEqualTo(48));
+        if (scale == 1) {
+          expect(
+            tester.getCenter(find.text('일시')).dy,
+            closeTo(tester.getCenter(date).dy, 1),
+            reason: 'The date label and controls should share one compact row.',
+          );
+          expect(tester.getCenter(time).dy, tester.getCenter(date).dy);
+        }
+        if (scale == 2 && width < 400) {
+          expect(
+            tester.getTopLeft(time).dy,
+            greaterThan(tester.getBottomLeft(date).dy),
+          );
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
 
   testWidgets('saving indicator remains visible on green button', (
     tester,
@@ -235,7 +405,7 @@ void main() {
     expect(find.text('일정 수정'), findsOneWidget);
     expect(find.text('기타'), findsOneWidget);
     expect(find.text('2시간 전'), findsNothing);
-    expect(find.text('하루 전'), findsOneWidget);
+    expect(find.text('알 수 없는 알림'), findsOneWidget);
     expect(find.text('2026.06.17'), findsOneWidget);
     expect(find.text('10:30'), findsOneWidget);
     expect(find.widgetWithText(TextField, '목욕 예약'), findsOneWidget);
@@ -291,8 +461,8 @@ void main() {
     expect(schedule.memo, isNull);
     expect(schedule.allDay, isFalse);
     expect(schedule.startTime, '10:30');
-    expect(schedule.endDate, schedule.startDate);
-    expect(schedule.endTime, '10:30');
+    expect(schedule.endDate, '2026-06-18');
+    expect(schedule.endTime, '11:00');
   });
 
   testWidgets(
@@ -328,6 +498,7 @@ Future<void> _pumpScreen(
   WidgetTester tester, {
   PetNotifier? notifier,
   CareSchedule? editingSchedule,
+  double textScale = 1,
 }) async {
   final petNotifier = notifier ?? _petNotifier();
   final router = GoRouter(
@@ -368,7 +539,16 @@ Future<void> _pumpScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [petProvider.overrideWith((ref) => petNotifier)],
-      child: MaterialApp.router(routerConfig: router, theme: buildAppTheme()),
+      child: MaterialApp.router(
+        routerConfig: router,
+        theme: buildAppTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -403,6 +583,9 @@ Pet _pet(String id) => Pet(
 CareSchedule _schedule({
   String categoryId = 'grooming',
   String reminder = '2시간 전',
+  bool allDay = false,
+  String endDate = '2026-06-18',
+  String? endTime = '11:00',
 }) => CareSchedule(
   id: 's1',
   petId: '1',
@@ -410,9 +593,9 @@ CareSchedule _schedule({
   title: '목욕 예약',
   startDate: '2026-06-17',
   startTime: '10:30',
-  endDate: '2026-06-18',
-  endTime: '11:00',
-  allDay: false,
+  endDate: endDate,
+  endTime: endTime,
+  allDay: allDay,
   place: '동네 미용실',
   memo: '빗 챙기기',
   reminder: reminder,
@@ -453,8 +636,11 @@ class _FakeCareScheduleService extends CareScheduleService {
 
 class _PendingScheduleService extends CareScheduleService {
   final pending = Completer<CareSchedule>();
+  int calls = 0;
 
   @override
-  Future<CareSchedule> createSchedule(String petId, CareSchedule schedule) =>
-      pending.future;
+  Future<CareSchedule> createSchedule(String petId, CareSchedule schedule) {
+    calls++;
+    return pending.future;
+  }
 }

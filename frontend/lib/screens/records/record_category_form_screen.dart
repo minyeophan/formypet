@@ -1,3 +1,6 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
+import '../../widgets/pet_data_status.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +16,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
 import 'record_support.dart';
+import 'record_draft_number_input.dart';
 
 class RecordCategoryFormScreen extends ConsumerStatefulWidget {
   final String typeId;
@@ -32,7 +36,8 @@ class RecordCategoryFormScreen extends ConsumerStatefulWidget {
 }
 
 class _RecordCategoryFormScreenState
-    extends ConsumerState<RecordCategoryFormScreen> {
+    extends ConsumerState<RecordCategoryFormScreen>
+    with DraftExitGuardMixin<RecordCategoryFormScreen> {
   final _distanceCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _waterAmountCtrl = TextEditingController();
@@ -50,11 +55,58 @@ class _RecordCategoryFormScreenState
   String? _poopColor;
   bool _isSaving = false;
   bool _isDeleting = false;
+  bool _confirmingDelete = false;
   String? _error;
+  late String _baseline;
+  late final PetNotifier _draftOwner;
+  late final (int, int, String?) _draftOwnerContext;
+  bool get _ownsDraft =>
+      mounted &&
+      identical(ref.read(petProvider.notifier), _draftOwner) &&
+      _draftOwner.isRoutineContextCurrent(_draftOwnerContext);
+  List<TextEditingController> get _controllers => [
+    _distanceCtrl,
+    _noteCtrl,
+    _waterAmountCtrl,
+    _weightCtrl,
+    _vetClinicCtrl,
+    _vetReasonCtrl,
+    _vetTreatmentCtrl,
+    _medicineNameCtrl,
+    _dosageCtrl,
+  ];
+  String get _draft => jsonEncode({
+    'payload': _buildPayload(),
+    'inputs': _controllers.map((c) => c.text.trim()).toList(),
+    'kind': _poopKind,
+  });
+  @override
+  bool get hasUnsavedChanges => _draft != _baseline;
+  @override
+  bool get isDraftBusy => _isSaving || _isDeleting;
+  void _draftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  String get _requiredGuidance => switch (widget.typeId) {
+    'poop' =>
+      _poopKind == 'urine'
+          ? '필수: 색상을 선택하면 저장할 수 있어요.'
+          : '필수: 변 상태와 색상을 선택하면 저장할 수 있어요.',
+    'water' => '필수: 0ml보다 큰 음수량을 입력하면 저장할 수 있어요.',
+    'walk' => '필수: 0km보다 큰 거리를 입력하면 저장할 수 있어요.',
+    'weight' => '필수: 0kg보다 큰 몸무게를 입력하면 저장할 수 있어요.',
+    'vet' => '필수: 병원명, 방문 사유, 진료/처방 메모를 모두 입력하면 저장할 수 있어요.',
+    'medicine' => '필수: 이름과 용량을 입력하면 저장할 수 있어요.',
+    'diary' || 'etc' => '필수: 메모를 입력하면 저장할 수 있어요.',
+    _ => '지원하지 않는 기록이에요.',
+  };
 
   @override
   void initState() {
     super.initState();
+    _draftOwner = ref.read(petProvider.notifier);
+    _draftOwnerContext = _draftOwner.routineContext;
     final now = DateTime.now();
     final editingRecord = widget.editingRecord;
     final initialDate = editingRecord == null
@@ -67,6 +119,10 @@ class _RecordCategoryFormScreenState
               TimeOfDay(hour: now.hour, minute: now.minute);
     if (editingRecord != null) {
       _initializeFromRecord(editingRecord);
+    }
+    _baseline = _draft;
+    for (final controller in _controllers) {
+      controller.addListener(_draftChanged);
     }
   }
 
@@ -85,7 +141,7 @@ class _RecordCategoryFormScreenState
   }
 
   bool get _canSave {
-    if (_isSaving || _isDeleting) return false;
+    if (_isSaving || _isDeleting || !_ownsDraft) return false;
     switch (widget.typeId) {
       case 'poop':
         return _poopKind == 'urine'
@@ -114,84 +170,103 @@ class _RecordCategoryFormScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(petProvider);
     final config = _categoryConfig(widget.typeId);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppFormHeader(
-              title: widget.editingRecord == null
-                  ? '${config.label} 기록'
-                  : '${config.label} 수정',
-              onBack: _goBack,
-            ),
-            Expanded(
-              child: RecordFormScrollBody(
-                submitButton: widget.editingRecord == null
-                    ? RecordFormSubmitButton(
-                        key: const Key('category-save-button'),
-                        enabled: _canSave,
-                        isSaving: _isSaving,
-                        onPressed: _save,
-                      )
-                    : RecordEditActionBar(
-                        enabled: _canSave,
-                        isSaving: _isSaving,
-                        isDeleting: _isDeleting,
-                        onSave: _save,
-                        onDelete: _delete,
-                      ),
-                children: [
-                  _SectionBlock(
-                    title: '날짜/시간',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('category-date-label'),
-                                text: DateFormat('yyyy-MM-dd').format(_date),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _InputBox(
-                                key: const Key('category-time-button'),
-                                text: _apiTime,
-                                onTap: _pickTime,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        _SubtleButton(
-                          key: const Key('category-set-now-button'),
-                          label: '현재 시간으로 설정',
-                          onTap: _setNow,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _buildTypeBody(),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    AppText(
-                      _error!,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFFE35D5D),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ],
+    return protectDraft(
+      onExit: _goBack,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              AppFormHeader(
+                title: widget.editingRecord == null
+                    ? '${config.label} 기록'
+                    : '${config.label} 수정',
+                onBack: _goBack,
               ),
-            ),
-          ],
+              Expanded(
+                child: RecordFormScrollBody(
+                  submitButton: widget.editingRecord == null
+                      ? RecordFormSubmitButton(
+                          key: const Key('category-save-button'),
+                          enabled: _canSave,
+                          isSaving: _isSaving,
+                          onPressed: _save,
+                        )
+                      : RecordEditActionBar(
+                          enabled: _canSave,
+                          isSaving: _isSaving,
+                          isDeleting: _isDeleting,
+                          onSave: _save,
+                          onDelete: _delete,
+                        ),
+                  children: [
+                    AppText(
+                      _requiredGuidance,
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: 12),
+                    _SectionBlock(
+                      title: '날짜/시간',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Flex(
+                            mainAxisSize: MainAxisSize.min,
+                            direction:
+                                MediaQuery.sizeOf(context).width < 400 ||
+                                    MediaQuery.textScalerOf(context).scale(14) >
+                                        20
+                                ? Axis.vertical
+                                : Axis.horizontal,
+                            children: [
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: _InputBox(
+                                  key: const Key('category-date-label'),
+                                  text: DateFormat('yyyy-MM-dd').format(_date),
+                                ),
+                              ),
+                              const SizedBox(width: 10, height: 10),
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: _InputBox(
+                                  key: const Key('category-time-button'),
+                                  text: _apiTime,
+                                  onTap: _pickTime,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _SubtleButton(
+                            key: const Key('category-set-now-button'),
+                            label: '현재 시간으로 설정',
+                            onTap: _setNow,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    _buildTypeBody(),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      AppText(
+                        _error!,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFE35D5D),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -306,6 +381,7 @@ class _RecordCategoryFormScreenState
           title: '메모',
           child: _TextInput(
             key: const Key('category-note-field'),
+            enabled: !isDraftBusy,
             controller: _noteCtrl,
             hintText: '선택',
             maxLines: 3,
@@ -321,7 +397,9 @@ class _RecordCategoryFormScreenState
       title: '음수 정보',
       child: _LabeledRow(
         label: '음수량',
-        child: RecordNumberInput(
+        child: RecordDraftNumberInput(
+          enabled: !isDraftBusy,
+          canApply: () => _ownsDraft && !isDraftBusy,
           key: const Key('category-water-amount-field'),
           controller: _waterAmountCtrl,
           mode: RecordNumberInputMode.decimal,
@@ -341,7 +419,9 @@ class _RecordCategoryFormScreenState
         children: [
           _LabeledRow(
             label: '거리',
-            child: RecordNumberInput(
+            child: RecordDraftNumberInput(
+              enabled: !isDraftBusy,
+              canApply: () => _ownsDraft && !isDraftBusy,
               key: const Key('category-distance-field'),
               controller: _distanceCtrl,
               mode: RecordNumberInputMode.decimal,
@@ -356,6 +436,7 @@ class _RecordCategoryFormScreenState
             label: '산책 메모',
             child: _TextInput(
               key: const Key('category-note-field'),
+              enabled: !isDraftBusy,
               controller: _noteCtrl,
               hintText: '선택',
               maxLines: 3,
@@ -368,6 +449,7 @@ class _RecordCategoryFormScreenState
   }
 
   Widget _buildWeightBody() {
+    final state = ref.watch(petProvider);
     final records =
         ref
             .watch(petProvider)
@@ -385,7 +467,9 @@ class _RecordCategoryFormScreenState
           title: '몸무게 정보',
           child: _LabeledRow(
             label: '몸무게',
-            child: RecordNumberInput(
+            child: RecordDraftNumberInput(
+              enabled: !isDraftBusy,
+              canApply: () => _ownsDraft && !isDraftBusy,
               key: const Key('category-weight-field'),
               controller: _weightCtrl,
               mode: RecordNumberInputMode.decimal,
@@ -399,11 +483,14 @@ class _RecordCategoryFormScreenState
         const SizedBox(height: 22),
         _SectionBlock(
           title: '최근 기록',
-          child: _InfoPanel(
-            text: latest == null
-                ? '아직 몸무게 기록이 없어요.'
-                : '${latest.date} · ${_numberLabel(_weightValue(latest)!)}kg',
-          ),
+          child:
+              latest == null && (state.isLoading || state.dataErrorText != null)
+              ? const PetDataStatus()
+              : _InfoPanel(
+                  text: latest == null
+                      ? '아직 몸무게 기록이 없어요.'
+                      : '${latest.date} · ${_numberLabel(_weightValue(latest)!)}kg',
+                ),
         ),
       ],
     );
@@ -418,6 +505,7 @@ class _RecordCategoryFormScreenState
             label: '병원명',
             child: _TextInput(
               key: const Key('category-vet-clinic-field'),
+              enabled: !isDraftBusy,
               controller: _vetClinicCtrl,
               hintText: '병원 이름',
               onChanged: (_) => setState(() => _error = null),
@@ -428,6 +516,7 @@ class _RecordCategoryFormScreenState
             label: '방문 사유',
             child: _TextInput(
               key: const Key('category-vet-reason-field'),
+              enabled: !isDraftBusy,
               controller: _vetReasonCtrl,
               hintText: '예: 정기 검진',
               onChanged: (_) => setState(() => _error = null),
@@ -438,6 +527,7 @@ class _RecordCategoryFormScreenState
             label: '진료/처방 메모',
             child: _TextInput(
               key: const Key('category-vet-treatment-field'),
+              enabled: !isDraftBusy,
               controller: _vetTreatmentCtrl,
               hintText: '진료 내용',
               maxLines: 3,
@@ -458,6 +548,7 @@ class _RecordCategoryFormScreenState
             label: '이름',
             child: _TextInput(
               key: const Key('category-medicine-name-field'),
+              enabled: !isDraftBusy,
               controller: _medicineNameCtrl,
               hintText: '영양제 또는 약 이름',
               onChanged: (_) => setState(() => _error = null),
@@ -468,6 +559,7 @@ class _RecordCategoryFormScreenState
             label: '용량',
             child: _TextInput(
               key: const Key('category-dosage-field'),
+              enabled: !isDraftBusy,
               controller: _dosageCtrl,
               hintText: '예: 1정',
               onChanged: (_) => setState(() => _error = null),
@@ -486,6 +578,7 @@ class _RecordCategoryFormScreenState
       title: '메모',
       child: _TextInput(
         key: Key('category-$typeId-note-field'),
+        enabled: !isDraftBusy,
         controller: _noteCtrl,
         hintText: hintText,
         maxLines: 8,
@@ -541,13 +634,15 @@ class _RecordCategoryFormScreenState
   }
 
   Future<void> _pickTime() async {
+    if (isDraftBusy || !_ownsDraft) return;
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
-    if (picked != null) {
+    if (_ownsDraft && !isDraftBusy && picked != null) {
       setState(() => _time = picked);
     }
   }
 
   void _setNow() {
+    if (isDraftBusy || !_ownsDraft) return;
     final now = DateTime.now();
     setState(() {
       _time = TimeOfDay(hour: now.hour, minute: now.minute);
@@ -556,6 +651,7 @@ class _RecordCategoryFormScreenState
   }
 
   Future<void> _save() async {
+    if (!_canSave) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _isSaving = true;
@@ -566,16 +662,16 @@ class _RecordCategoryFormScreenState
       final body = _buildPayload();
       final editingRecord = widget.editingRecord;
       if (editingRecord == null) {
-        await ref.read(petProvider.notifier).addRecord(body);
+        await _draftOwner.addRecord(body);
       } else {
-        await ref
-            .read(petProvider.notifier)
-            .updateRecord(editingRecord.id, body);
+        await _draftOwner.updateRecord(editingRecord.id, body);
       }
-      if (!mounted) return;
+      if (!_ownsDraft) return;
+      await allowDraftExit();
+      if (!mounted || !_ownsDraft) return;
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (_) {
-      if (mounted) {
+      if (_ownsDraft) {
         setState(() => _error = '저장에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
       }
     } finally {
@@ -587,19 +683,33 @@ class _RecordCategoryFormScreenState
 
   Future<void> _delete() async {
     final record = widget.editingRecord;
-    if (record == null || _isSaving || _isDeleting) return;
-    final confirmed = await showRecordDeleteConfirmationSheet(context);
-    if (confirmed != true || !mounted) return;
+    if (record == null ||
+        _isSaving ||
+        _isDeleting ||
+        _confirmingDelete ||
+        !_ownsDraft) {
+      return;
+    }
+    _confirmingDelete = true;
+    bool? confirmed;
+    try {
+      confirmed = await showRecordDeleteConfirmationSheet(context);
+    } finally {
+      _confirmingDelete = false;
+    }
+    if (confirmed != true || !_ownsDraft || isDraftBusy) return;
     setState(() {
       _isDeleting = true;
       _error = null;
     });
     try {
-      await ref.read(petProvider.notifier).deleteRecord(record.id);
-      if (!mounted) return;
+      await _draftOwner.deleteRecord(record.id);
+      if (!_ownsDraft) return;
+      await allowDraftExit();
+      if (!mounted || !_ownsDraft) return;
       context.go('/records?date=${record.date}');
     } catch (_) {
-      if (mounted) {
+      if (_ownsDraft) {
         setState(() => _error = '삭제에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
       }
     } finally {
@@ -668,6 +778,7 @@ class _RecordCategoryFormScreenState
       '${_time.minute.toString().padLeft(2, '0')}';
 
   Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     if (context.canPop()) {
@@ -711,9 +822,9 @@ class _InputBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Container(
-      height: 48,
+      constraints: const BoxConstraints(minHeight: 48),
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
@@ -763,7 +874,8 @@ class _SubtleButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          height: 44,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.all(8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
@@ -789,6 +901,17 @@ class _LabeledRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 400 ||
+        MediaQuery.textScalerOf(context).scale(13) > 19) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppText(label, fontSize: 13, fontWeight: FontWeight.bold),
+          const SizedBox(height: 8),
+          child,
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -812,6 +935,7 @@ class _LabeledRow extends StatelessWidget {
 }
 
 class _TextInput extends StatelessWidget {
+  final bool enabled;
   final Key? fieldKey;
   final TextEditingController controller;
   final String hintText;
@@ -819,6 +943,7 @@ class _TextInput extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   const _TextInput({
+    this.enabled = true,
     Key? key,
     required this.controller,
     required this.hintText,
@@ -830,6 +955,7 @@ class _TextInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      enabled: enabled,
       key: fieldKey,
       controller: controller,
       maxLines: maxLines,
@@ -882,9 +1008,13 @@ class _OptionGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: options.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisExtent: 86,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount:
+            MediaQuery.sizeOf(context).width < 400 &&
+                MediaQuery.textScalerOf(context).scale(13) > 19
+            ? 2
+            : 3,
+        mainAxisExtent: 24 + MediaQuery.textScalerOf(context).scale(13) * 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -939,8 +1069,6 @@ class _OptionCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: AppColors.text,
               textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -973,7 +1101,8 @@ class _SegmentButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Container(
-            height: 44,
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.all(8),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
