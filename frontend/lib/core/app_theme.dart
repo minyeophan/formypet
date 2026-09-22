@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'app_fonts.dart';
 
 import 'app_colors.dart';
 import 'app_interaction_style.dart';
 import '../widgets/app_ink_well.dart';
 
-ThemeData buildAppTheme() => ThemeData(
+ThemeData buildAppTheme() {
+  AppFonts.registerLicenses();
+  return _buildAppTheme();
+}
+
+ThemeData _buildAppTheme() => ThemeData(
   colorScheme: ColorScheme.fromSeed(
     seedColor: AppColors.actionMint,
     primary: AppColors.primary,
@@ -16,7 +21,7 @@ ThemeData buildAppTheme() => ThemeData(
   hoverColor: Colors.transparent,
   splashColor: AppColors.primary.withValues(alpha: .10),
   highlightColor: Colors.transparent,
-  textTheme: GoogleFonts.notoSansKrTextTheme(),
+  fontFamily: AppFonts.family,
   textSelectionTheme: TextSelectionThemeData(
     cursorColor: AppColors.primary,
     selectionColor: AppColors.primary.withValues(alpha: 0.25),
