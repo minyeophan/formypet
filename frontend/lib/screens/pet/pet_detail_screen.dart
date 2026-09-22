@@ -153,7 +153,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         barrierDismissible: false,
                         builder: (dialogContext) => PetConfirmDialog(
                           title: '반려동물 삭제',
-                          body: '${pet.name}을(를) 삭제하시겠습니까?',
+                          body:
+                              '${pet.name}의 프로필을 삭제해요. 삭제 후에는 이 반려동물의 기록과 일정을 앱에서 확인할 수 없어요.',
                           actions: [
                             PetConfirmDialogAction(
                               label: '취소',

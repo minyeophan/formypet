@@ -6,11 +6,20 @@ import '../core/keyboard_utils.dart';
 import '../core/visuals/app_visual_id.dart';
 import 'app_visual.dart';
 import 'app_ink_well.dart';
+import 'draft_exit_guard.dart';
 
-class MainScaffold extends StatelessWidget {
+class MainScaffold extends StatefulWidget {
   final Widget child;
 
   const MainScaffold({super.key, required this.child});
+
+  @override
+  State<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends State<MainScaffold> {
+  final _draftExit = DraftExitController();
+  bool _switchingTab = false;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +29,7 @@ class MainScaffold extends StatelessWidget {
     if (location.startsWith('/my')) currentIndex = 2;
 
     return Scaffold(
-      body: child,
+      body: DraftExitScope(controller: _draftExit, child: widget.child),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -40,16 +49,32 @@ class MainScaffold extends StatelessWidget {
             unselectedItemColor: AppColors.muted,
             elevation: 0,
             onTap: (i) async {
-              await dismissKeyboardBeforeTransition(context);
-              if (!context.mounted) return;
-
-              switch (i) {
-                case 0:
-                  context.go('/home');
-                case 1:
-                  context.go('/community');
-                case 2:
-                  context.go('/my');
+              if (_switchingTab) return;
+              final target = const ['/home', '/community', '/my'][i];
+              if (location == target) return;
+              final router = GoRouter.of(context);
+              final originalRoute = router.routeInformationProvider.value;
+              bool routeUnchanged() =>
+                  mounted &&
+                  identical(
+                    router.routeInformationProvider.value,
+                    originalRoute,
+                  );
+              _switchingTab = true;
+              var navigated = false;
+              try {
+                if (!await _draftExit.confirmExit() ||
+                    !routeUnchanged() ||
+                    !context.mounted) {
+                  return;
+                }
+                await dismissKeyboardBeforeTransition(context);
+                if (!routeUnchanged()) return;
+                router.go(target);
+                navigated = true;
+              } finally {
+                if (!navigated) _draftExit.cancelExit();
+                _switchingTab = false;
               }
             },
             items: [

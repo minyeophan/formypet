@@ -27,12 +27,15 @@ Future<void> showAppActionSheet(
   FocusScope.of(context).unfocus();
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 600),
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
     builder: (sheetContext) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -16,6 +16,24 @@ import 'package:frontend/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
+  for (final width in [320.0, 375.0]) {
+    testWidgets('home pet card fits $width at double text scale', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 1200);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final popular = await _popularNotifier(const []);
+      await tester.pumpWidget(_app(popular: popular));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final card = tester.getRect(find.byKey(const Key('home-profile-card-1')));
+      expect(card.contains(tester.getBottomRight(find.text('함께한 날'))), isTrue);
+    });
+  }
   testWidgets('renders Home V2 sections in order without legacy sections', (
     tester,
   ) async {
@@ -69,7 +87,11 @@ void main() {
         final popular = await _popularNotifier(const []);
         final news = List.generate(
           4,
-          (i) => _post('n$i', title: '소식 $i 아주 긴 제목이 두 줄을 넘으면 말줄임으로 표시됩니다', category: 'NEWS'),
+          (i) => _post(
+            'n$i',
+            title: '소식 $i 아주 긴 제목이 두 줄을 넘으면 말줄임으로 표시됩니다',
+            category: 'NEWS',
+          ),
         );
         await tester.pumpWidget(
           _app(popular: popular, news: news, router: _router()),

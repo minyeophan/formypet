@@ -308,9 +308,15 @@ class _RoutineMonthCalendar extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: calendarDays.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1,
+              mainAxisExtent:
+                  48 +
+                  (MediaQuery.textScalerOf(context).scale(13) - 13).clamp(
+                        0,
+                        double.infinity,
+                      ) *
+                      1.6,
             ),
             itemBuilder: (context, index) {
               final date = calendarDays[index];
@@ -409,7 +415,13 @@ class _RoutineCalendarDayCell extends StatelessWidget {
         child: Center(
           child: Ink(
             width: 38,
-            height: 42,
+            height:
+                42 +
+                (MediaQuery.textScalerOf(context).scale(13) - 13).clamp(
+                      0,
+                      double.infinity,
+                    ) *
+                    1.6,
             decoration: BoxDecoration(
               color: isSelected ? accentColor : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
@@ -423,6 +435,7 @@ class _RoutineCalendarDayCell extends StatelessWidget {
                 AppText(
                   '${date.day}',
                   fontSize: 13,
+                  maxLines: 1,
                   fontWeight: isSelected || isToday
                       ? FontWeight.bold
                       : FontWeight.normal,

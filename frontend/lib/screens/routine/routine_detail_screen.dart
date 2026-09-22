@@ -26,7 +26,15 @@ class RoutineDetailScreen extends ConsumerWidget {
           (item) => item.id == routineId && item.petId == state.activePetId,
         )
         .firstOrNull;
-    if (routine == null) return const _RoutineNotFoundScreen();
+    if (routine == null) {
+      if (state.isLoading || state.dataErrorText != null) {
+        return RoutineLookupStatusScreen(
+          title: '루틴 상세',
+          fallback: '/routine?tab=routines',
+        );
+      }
+      return const _RoutineNotFoundScreen();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -98,6 +106,86 @@ class RoutineDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared by routine and schedule routes while their initial lookup is unresolved.
+class RoutineLookupStatusScreen extends ConsumerStatefulWidget {
+  final String title;
+  final String fallback;
+  const RoutineLookupStatusScreen({
+    super.key,
+    required this.title,
+    required this.fallback,
+  });
+
+  @override
+  ConsumerState<RoutineLookupStatusScreen> createState() =>
+      _RoutineLookupStatusScreenState();
+}
+
+class _RoutineLookupStatusScreenState
+    extends ConsumerState<RoutineLookupStatusScreen> {
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    try {
+      await ref.read(petProvider.notifier).retryDataLoad();
+    } catch (_) {
+      // The provider publishes the load error for the next retry.
+    } finally {
+      if (mounted) setState(() => _retrying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(petProvider);
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: AppInlineHeader(
+                title: widget.title,
+                onBack: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(widget.fallback);
+                  }
+                },
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: state.isLoading || _retrying
+                    ? const CircularProgressIndicator()
+                    : Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              state.dataErrorText ?? '정보를 불러오지 못했어요.',
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton(
+                              onPressed: _retry,
+                              child: const Text('다시 시도'),
+                            ),
+                          ],
+                        ),
+                      ),
               ),
             ),
           ],

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'dart:typed_data';
@@ -23,7 +25,30 @@ class MyProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<MyProfileScreen> createState() => _MyProfileScreenState();
 }
 
-class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
+class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
+    with DraftExitGuardMixin<MyProfileScreen> {
+  String? _baseline;
+  String? _hydratedActor;
+  bool _hydrating = false;
+  int _pickerGeneration = 0;
+  String get _snapshot =>
+      jsonEncode([_nickname.text.trim(), _selectedPhoto?.path]);
+  @override
+  bool get hasUnsavedChanges => _baseline != null && _snapshot != _baseline;
+  @override
+  bool get isDraftBusy => _isSaving;
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(
+      authProvider.select((auth) => (auth.isAuthenticated, auth.profile?.id)),
+      (_, _) => _pickerGeneration++,
+    );
+    _nickname.addListener(() {
+      if (mounted && !_hydrating) setState(() {});
+    });
+  }
+
   final _nickname = TextEditingController();
   final _email = TextEditingController();
   String? _hydratedEmail;
@@ -40,21 +65,31 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    if (_isSaving) return;
+    if (_isSaving || isDraftExiting) return;
+    final actor = _hydratedActor;
+    final generation = ++_pickerGeneration;
+    bool current() =>
+        mounted &&
+        !_isSaving &&
+        !isDraftExiting &&
+        generation == _pickerGeneration &&
+        actor == _hydratedActor &&
+        ref.read(authProvider).isAuthenticated &&
+        ref.read(authProvider).profile?.id == actor;
     try {
       final file =
           await (widget.pickImage ??
               () => ImagePicker().pickImage(source: ImageSource.gallery))();
-      if (file == null) return;
+      if (!current() || file == null) return;
       final bytes = await file.readAsBytes();
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _selectedPhoto = file;
         _previewBytes = bytes;
         _error = null;
       });
     } catch (_) {
-      if (mounted) setState(() => _error = '사진을 불러오지 못했어요.');
+      if (current()) setState(() => _error = '사진을 불러오지 못했어요.');
     }
   }
 
@@ -62,6 +97,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     if (_isSaving) return;
     final profile = ref.read(authProvider).profile;
     if (profile == null) return;
+    bool current() =>
+        mounted && ref.read(authProvider).profile?.id == profile.id;
     final nickname = _nickname.text.trim();
     if (nickname.isEmpty) {
       setState(() => _error = '닉네임을 입력해 주세요.');
@@ -73,6 +110,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
 
     final shouldUpdateNickname = nickname != profile.nickname;
+    _pickerGeneration++;
     final selectedPhoto = _selectedPhoto;
     if (!shouldUpdateNickname && selectedPhoto == null) {
       await _goBack();
@@ -84,13 +122,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       _error = null;
     });
     await dismissKeyboardBeforeTransition(context);
-    if (!mounted) return;
+    if (!current()) return;
 
     if (shouldUpdateNickname) {
       try {
         await ref.read(authProvider.notifier).updateProfile(nickname: nickname);
       } catch (_) {
-        if (mounted) {
+        if (current()) {
           setState(() {
             _isSaving = false;
             _error = '프로필을 저장하지 못했어요. 다시 시도해 주세요.';
@@ -100,13 +138,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       }
     }
 
+    if (!current()) return;
+
     var photoUploadFailed = false;
     if (selectedPhoto != null) {
       Uint8List bytes;
       try {
         bytes = await selectedPhoto.readAsBytes();
       } catch (_) {
-        if (mounted) {
+        if (current()) {
           setState(() {
             _isSaving = false;
             _selectedPhoto = null;
@@ -117,13 +157,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         return;
       }
 
+      if (!current()) return;
       try {
         await ref
             .read(authProvider.notifier)
             .uploadProfileImage(bytes: bytes, filename: selectedPhoto.name);
       } catch (_) {
         photoUploadFailed = true;
-        if (mounted) {
+        if (current()) {
           setState(() {
             _selectedPhoto = null;
             _previewBytes = null;
@@ -132,7 +173,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       }
     }
 
-    if (!mounted) return;
+    if (!current()) return;
     setState(() => _isSaving = false);
     _showSaveMessage(
       photoUploadFailed && shouldUpdateNickname
@@ -141,6 +182,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           ? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
           : '프로필을 저장했어요.',
     );
+    await allowDraftExit();
+    if (!current()) return;
     await _goBack();
   }
 
@@ -153,6 +196,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 
   Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     final router = GoRouter.maybeOf(context);
@@ -173,90 +217,102 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final profile = auth.profile;
-    if (profile != null && _hydratedEmail != profile.email) {
-      _hydratedEmail = profile.email;
-      _nickname.text = profile.nickname;
-      _email.text = profile.email;
+    final actor = auth.isAuthenticated ? profile?.id : null;
+    if (_hydratedActor != actor || _hydratedEmail != profile?.email) {
+      _hydrating = true;
+      _hydratedActor = actor;
+      _hydratedEmail = profile?.email;
+      _nickname.text = profile?.nickname ?? '';
+      _email.text = profile?.email ?? '';
+      _selectedPhoto = null;
+      _previewBytes = null;
+      _isSaving = false;
+      _error = null;
+      _baseline = _snapshot;
+      _hydrating = false;
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppHeader(
-        title: '내 프로필 편집',
-        showBackButton: true,
-        centerTitle: true,
-        onBack: _goBack,
-      ),
-      body: auth.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : profile == null
-          ? const Center(child: AppText('프로필 정보를 불러올 수 없어요'))
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-              children: [
-                Center(
-                  child: ClipOval(
-                    child: _previewBytes == null
-                        ? AuthenticatedNetworkImage(
-                            url: profile.profileImageUrl,
-                            width: 96,
-                            height: 96,
-                            fit: BoxFit.cover,
-                            fallback: _fallback(),
-                          )
-                        : Image.memory(
-                            _previewBytes!,
-                            key: const Key('my-profile-local-preview'),
-                            width: 96,
-                            height: 96,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _fallback(),
-                          ),
+    return protectDraft(
+      onExit: _goBack,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppHeader(
+          title: '내 프로필 편집',
+          showBackButton: true,
+          centerTitle: true,
+          onBack: _goBack,
+        ),
+        body: auth.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : profile == null
+            ? const Center(child: AppText('프로필 정보를 불러올 수 없어요'))
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                children: [
+                  Center(
+                    child: ClipOval(
+                      child: _previewBytes == null
+                          ? AuthenticatedNetworkImage(
+                              url: profile.profileImageUrl,
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                              fallback: _fallback(),
+                            )
+                          : Image.memory(
+                              _previewBytes!,
+                              key: const Key('my-profile-local-preview'),
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _fallback(),
+                            ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: TextButton(
-                    key: const Key('my-profile-photo-picker'),
-                    onPressed: _isSaving ? null : _pickPhoto,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      key: const Key('my-profile-photo-picker'),
+                      onPressed: _isSaving ? null : _pickPhoto,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+                      child: const AppText('사진 선택'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _nickname,
+                    enabled: !_isSaving,
+                    decoration: const InputDecoration(labelText: '닉네임'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _email,
+                    enabled: !_isSaving,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: '이메일',
+                      fillColor: AppColors.surfaceSoft,
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 10),
+                    AppText(_error!, fontSize: 12, color: AppColors.danger),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const Key('my-profile-save'),
+                    onPressed: _isSaving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
                     ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                    child: const AppText('사진 선택'),
+                    child: const AppText('저장', color: AppColors.white),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _nickname,
-                  enabled: !_isSaving,
-                  decoration: const InputDecoration(labelText: '닉네임'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _email,
-                  enabled: !_isSaving,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: '이메일',
-                    fillColor: AppColors.surfaceSoft,
-                  ),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  AppText(_error!, fontSize: 12, color: AppColors.danger),
                 ],
-                const SizedBox(height: 20),
-                FilledButton(
-                  key: const Key('my-profile-save'),
-                  onPressed: _isSaving ? null : _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                  child: const AppText('저장', color: AppColors.white),
-                ),
-              ],
-            ),
+              ),
+      ),
     );
   }
 

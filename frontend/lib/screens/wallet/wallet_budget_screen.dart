@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,20 @@ class WalletBudgetScreen extends ConsumerStatefulWidget {
   ConsumerState<WalletBudgetScreen> createState() => _WalletBudgetScreenState();
 }
 
-class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
+class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
+    with DraftExitGuardMixin<WalletBudgetScreen> {
+  String? _baseline;
+  String get _snapshot => jsonEncode(_amount ?? _controller.text.trim());
+  @override
+  bool get hasUnsavedChanges =>
+      !_accountChanged && _baseline != null && _snapshot != _baseline;
+  @override
+  bool get isDraftBusy => _saving;
+  Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
+    Navigator.of(context).pop();
+  }
+
   final _controller = TextEditingController();
   bool _initialized = false;
   bool _saving = false;
@@ -63,6 +78,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
       if (next != widget.identity) {
         setState(() {
           _accountChanged = true;
+          _baseline = null;
           _saving = false;
           _controller.clear();
         });
@@ -82,21 +98,17 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
       _controller.text = budget.valueOrNull == null
           ? ''
           : formatWon(budget.valueOrNull!);
+      _baseline = _snapshot;
     }
-    return PopScope(
-      canPop: !_saving,
+    return protectDraft(
+      onExit: _goBack,
       child: Scaffold(
         backgroundColor: AppColors.white,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
           child: Column(
             children: [
-              AppFormHeader(
-                title: '예산 설정',
-                onBack: () {
-                  if (!_saving) Navigator.of(context).pop();
-                },
-              ),
+              AppFormHeader(title: '예산 설정', onBack: _goBack),
               Expanded(
                 child: !current
                     ? const Center(
@@ -220,67 +232,89 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
                               ),
                             ),
                           const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              for (final entry in [
-                                (10000, '+1만원'),
-                                (50000, '+5만원'),
-                                (100000, '+10만원'),
-                              ]) ...[
-                                if (entry.$1 != 10000)
-                                  const SizedBox(width: 12),
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 48,
-                                    child: OutlinedButton(
-                                      style:
-                                          OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                AppColors.primaryPressed,
-                                            padding: EdgeInsets.zero,
-                                            side: const BorderSide(
-                                              color: AppColors.border,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                          ).copyWith(
-                                            overlayColor:
-                                                AppInteractionStyle.overlay(),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final minimumWidth =
+                                  96 *
+                                  (MediaQuery.textScalerOf(context).scale(14) /
+                                      14);
+                              final columns =
+                                  ((constraints.maxWidth + 12) /
+                                          (minimumWidth + 12))
+                                      .floor()
+                                      .clamp(1, 3);
+                              final buttonWidth =
+                                  (constraints.maxWidth - 12 * (columns - 1)) /
+                                  columns;
+                              return Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  for (final entry in [
+                                    (10000, '+1만원'),
+                                    (50000, '+5만원'),
+                                    (100000, '+10만원'),
+                                  ])
+                                    SizedBox(
+                                      width: buttonWidth,
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          minHeight: 48,
+                                        ),
+                                        child: OutlinedButton(
+                                          style:
+                                              OutlinedButton.styleFrom(
+                                                foregroundColor:
+                                                    AppColors.primaryPressed,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 12,
+                                                    ),
+                                                minimumSize: const Size(48, 48),
+                                                side: const BorderSide(
+                                                  color: AppColors.border,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ).copyWith(
+                                                overlayColor:
+                                                    AppInteractionStyle.overlay(),
+                                              ),
+                                          onPressed:
+                                              _saving ||
+                                                  !_initialized ||
+                                                  budget.hasError
+                                              ? null
+                                              : () {
+                                                  final value =
+                                                      (_amount ?? 0) + entry.$1;
+                                                  if (value > walletMaxAmount) {
+                                                    setState(
+                                                      () => _error =
+                                                          '예산 금액이 너무 커요. 1억 원 이하로 입력해 주세요.',
+                                                    );
+                                                    return;
+                                                  }
+                                                  setState(() {
+                                                    _controller.text =
+                                                        formatWon(value);
+                                                    _error = null;
+                                                  });
+                                                },
+                                          child: AppText(
+                                            entry.$2,
+                                            fontSize: 14,
+                                            color: AppColors.primaryPressed,
                                           ),
-                                      onPressed:
-                                          _saving ||
-                                              !_initialized ||
-                                              budget.hasError
-                                          ? null
-                                          : () {
-                                              final value =
-                                                  (_amount ?? 0) + entry.$1;
-                                              if (value > walletMaxAmount) {
-                                                setState(
-                                                  () => _error =
-                                                      '예산 금액이 너무 커요. 1억 원 이하로 입력해 주세요.',
-                                                );
-                                                return;
-                                              }
-                                              setState(() {
-                                                _controller.text = formatWon(
-                                                  value,
-                                                );
-                                                _error = null;
-                                              });
-                                            },
-                                      child: AppText(
-                                        entry.$2,
-                                        fontSize: 14,
-                                        color: AppColors.primaryPressed,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 20),
                           Container(
@@ -407,11 +441,8 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen> {
           .save(widget.identity.$1!, widget.month, amount);
       if (!mounted || !_current) return;
       ref.invalidate(walletMonthlyBudgetProvider(widget.month));
-      // Unlock PopScope before programmatic pop.
-      setState(() => _saving = false);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _current) Navigator.of(context).pop();
-      });
+      await allowDraftExit();
+      if (mounted && _current) Navigator.of(context).pop();
     } catch (_) {
       if (mounted && _current) {
         setState(() {
@@ -429,23 +460,29 @@ class _BudgetPageBody extends StatelessWidget {
   final Widget submitButton;
   const _BudgetPageBody({required this.children, required this.submitButton});
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Expanded(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 600),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: SizedBox(width: double.infinity, child: submitButton),
+          ),
+        ],
       ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: SizedBox(width: double.infinity, child: submitButton),
-      ),
-    ],
+    ),
   );
 }
 
@@ -481,22 +518,33 @@ class _BudgetValue extends StatelessWidget {
     this.primary = false,
   });
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: AppText(label, fontSize: 14, fontWeight: FontWeight.w500),
-      ),
-      Flexible(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: AppText(
-            value,
-            fontSize: primary ? 20 : 16,
-            fontWeight: FontWeight.bold,
-            color: primary ? AppColors.primaryPressed : AppColors.text,
-          ),
-        ),
-      ),
-    ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final labelWidget = AppText(
+        label,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      );
+      final valueWidget = AppText(
+        value,
+        fontSize: primary ? 20 : 16,
+        fontWeight: FontWeight.bold,
+        color: primary ? AppColors.primaryPressed : AppColors.text,
+      );
+      if (constraints.maxWidth < 280 ||
+          MediaQuery.textScalerOf(context).scale(16) > 24) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [labelWidget, const SizedBox(height: 8), valueWidget],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: labelWidget),
+          const SizedBox(width: 12),
+          Flexible(child: valueWidget),
+        ],
+      );
+    },
   );
 }

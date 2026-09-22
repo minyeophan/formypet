@@ -70,6 +70,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('record calendar fits narrow screen at double text scale', (
+    tester,
+  ) async {
+    await _pumpRecordsScreen(
+      tester,
+      physicalSize: const Size(320, 1000),
+      textScaler: TextScaler.linear(2),
+    );
+    expect(tester.takeException(), isNull);
+    final day = find.byKey(Key('records-calendar-day-$todayIso'));
+    expect(tester.getSize(day).height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('meal record type opens full screen meal record form', (
     tester,
   ) async {

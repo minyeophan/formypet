@@ -118,10 +118,13 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
 Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
   return showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 600),
     backgroundColor: AppColors.surface,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -150,6 +153,7 @@ Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
               child: const AppText('취소', color: AppColors.textSecondary),
             ),
           ],

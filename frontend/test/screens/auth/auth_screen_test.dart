@@ -195,10 +195,7 @@ void main() {
       final submit = tester.widget<FilledButton>(
         find.byKey(const Key('auth-submit-button')),
       );
-      expect(
-        submit.style?.backgroundColor?.resolve({}),
-        const Color(0xFF32B982),
-      );
+      expect(submit.style?.backgroundColor?.resolve({}), AppColors.primary);
 
       await tester.tap(find.text('회원가입'));
       await tester.pumpAndSettle();

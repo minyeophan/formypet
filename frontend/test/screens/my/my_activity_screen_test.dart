@@ -128,7 +128,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('게시글 삭제'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('삭제'));
+      await tester.tap(find.byKey(const Key('community-post-delete-confirm')));
       await tester.pumpAndSettle();
       expect(find.byType(MyActivityScreen), findsOneWidget);
       expect(find.text('아직 작성한 글이 없어요.'), findsOneWidget);

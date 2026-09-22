@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +12,113 @@ import 'package:frontend/screens/wallet/expense_edit_screen.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:frontend/widgets/app_header.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  for (final edit in [false, true]) {
+    testWidgets(
+      'pending expense blocks exit and failed save retains draft edit=$edit',
+      (tester) async {
+        final wallet = _TrackingWalletNotifier([_expense()])
+          ..pending = Completer<void>();
+        await _pumpExpenseRouter(
+          tester,
+          wallet,
+          edit ? '/wallet/expenses/expense-1/edit' : '/wallet/expenses/new',
+        );
+        if (!edit) {
+          await _enterAmount(tester, '12000');
+          await tester.tap(find.byKey(const Key('expense-category-food')));
+        }
+        await tester.enterText(
+          find.byKey(const Key('expense-item-name-field')),
+          'draft',
+        );
+        await tester.tap(find.byKey(const Key('expense-save-button')));
+        await tester.pump();
+        tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
+        await tester.binding.handlePopRoute();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(Dialog), findsNothing);
+        expect(
+          find.byType(edit ? ExpenseEditScreen : ExpenseAddScreen),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<TextField>(
+                find.byWidgetPredicate(
+                  (widget) =>
+                      widget is TextField &&
+                      widget.key == const Key('expense-item-name-field'),
+                ),
+              )
+              .enabled,
+          isFalse,
+        );
+        wallet.pending!.completeError(StateError('offline'));
+        await tester.pumpAndSettle();
+        expect(find.text('draft'), findsOneWidget);
+        tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
+        await tester.pumpAndSettle();
+        expect(find.byType(Dialog), findsOneWidget);
+      },
+    );
+    testWidgets('reverted expense draft exits without prompt edit=$edit', (
+      tester,
+    ) async {
+      await _pumpExpenseRouter(
+        tester,
+        _TrackingWalletNotifier([_expense()]),
+        edit ? '/wallet/expenses/expense-1/edit' : '/wallet/expenses/new',
+      );
+      await tester.enterText(
+        find.byKey(const Key('expense-item-name-field')),
+        'draft',
+      );
+      await tester.enterText(
+        find.byKey(const Key('expense-item-name-field')),
+        edit ? ' old item ' : '  ',
+      );
+      await tester.pumpAndSettle();
+      tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        find.byType(edit ? ExpenseEditScreen : ExpenseAddScreen),
+        findsNothing,
+      );
+    });
+    testWidgets('dirty expense prompts before back edit=$edit', (tester) async {
+      await _pumpExpenseRouter(
+        tester,
+        _TrackingWalletNotifier([_expense()]),
+        edit ? '/wallet/expenses/expense-1/edit' : '/wallet/expenses/new',
+      );
+      await tester.enterText(
+        find.byKey(const Key('expense-item-name-field')),
+        'draft',
+      );
+      tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsOneWidget);
+      await tester.tap(find.text('계속 입력'));
+      await tester.pumpAndSettle();
+      expect(find.text('draft'), findsOneWidget);
+      tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('나가기'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(edit ? ExpenseEditScreen : ExpenseAddScreen),
+        findsNothing,
+      );
+    });
+  }
 
   testWidgets('expense add saves wallet payload', (tester) async {
     final wallet = _TrackingWalletNotifier([_expense()]);
@@ -180,6 +283,7 @@ WalletExpense _expense({String id = 'expense-1'}) => WalletExpense(
 );
 
 class _TrackingWalletNotifier extends WalletExpenseNotifier {
+  Completer<void>? pending;
   String? createdPetId;
   Map<String, dynamic>? createdBody;
   String? updatedExpenseId;
@@ -212,6 +316,7 @@ class _TrackingWalletNotifier extends WalletExpenseNotifier {
   ) async {
     createdPetId = petId;
     createdBody = body;
+    await pending?.future;
     return _expense(id: 'created');
   }
 
@@ -223,6 +328,7 @@ class _TrackingWalletNotifier extends WalletExpenseNotifier {
   ) async {
     updatedExpenseId = expenseId;
     updatedBody = body;
+    await pending?.future;
     return _expense(id: expenseId);
   }
 

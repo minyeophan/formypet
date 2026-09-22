@@ -102,6 +102,7 @@ class ExpenseFormBody extends StatefulWidget {
   final bool submitting;
   final String? errorText;
   final ValueChanged<ExpenseFormData> onSubmit;
+  final ValueChanged<ExpenseFormData>? onChanged;
 
   const ExpenseFormBody({
     super.key,
@@ -113,6 +114,7 @@ class ExpenseFormBody extends StatefulWidget {
     required this.submitting,
     required this.errorText,
     required this.onSubmit,
+    this.onChanged,
   });
 
   @override
@@ -166,6 +168,20 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   }
 
   int? get _amount => walletAmountValue(_amountCtrl.text);
+
+  void _changed() {
+    setState(() {});
+    widget.onChanged?.call(
+      ExpenseFormData(
+        date: _date,
+        time: _time,
+        amount: _amount ?? 0,
+        category: _category ?? '',
+        itemName: _itemNameCtrl.text.trim(),
+        note: _memoCtrl.text.trim(),
+      ),
+    );
+  }
 
   bool get _canSubmit =>
       !widget.submitting &&
@@ -274,7 +290,10 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           child: _CategoryGrid(
             selectedValue: _category,
             onSelected: (value) {
-              if (!widget.submitting) setState(() => _category = value);
+              if (!widget.submitting) {
+                _category = value;
+                _changed();
+              }
             },
           ),
         ),
@@ -326,7 +345,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
             maxLength: 100,
             hintText: '선택',
             enabled: !widget.submitting,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _changed(),
           ),
         ),
         const SizedBox(height: 24),
@@ -339,7 +358,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
             hintText: '간단한 메모를 남겨보세요',
             maxLines: 1,
             enabled: !widget.submitting,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _changed(),
           ),
         ),
         if (widget.errorText != null) ...[
@@ -353,20 +372,23 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
   Future<void> _pickDate() async {
     if (widget.submitting) return;
     final picked = await showRecordDatePickerSheet(context, initialDate: _date);
-    if (mounted && picked != null) {
+    if (mounted && picked != null && !widget.submitting) {
       setState(() => _date = DateTime(picked.year, picked.month, picked.day));
+      _changed();
     }
   }
 
   Future<void> _pickTime() async {
     if (widget.submitting) return;
     final picked = await showRecordTimePickerSheet(context, initialTime: _time);
-    if (mounted && picked != null) {
+    if (mounted && picked != null && !widget.submitting) {
       setState(() => _time = picked);
+      _changed();
     }
   }
 
   Future<void> _pickAmount() async {
+    if (widget.submitting) return;
     final value = await showRecordNumberPadSheet(
       context,
       initialValue: _amount?.toString() ?? '',
@@ -380,6 +402,7 @@ class _ExpenseFormBodyState extends State<ExpenseFormBody> {
           ? value
           : formatWon(int.parse(value)),
     );
+    _changed();
   }
 
   void _submit() {

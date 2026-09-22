@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +22,18 @@ class ExpenseAddScreen extends ConsumerStatefulWidget {
   ConsumerState<ExpenseAddScreen> createState() => _ExpenseAddScreenState();
 }
 
-class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
+class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen>
+    with DraftExitGuardMixin<ExpenseAddScreen> {
+  late ExpenseFormData _initialData;
+  String? _baseline;
+  String? _draft;
+  String? _baselinePetId;
+  @override
+  bool get hasUnsavedChanges =>
+      _baseline != null &&
+      (_draft != _baseline || _selectedPetId != _baselinePetId);
+  @override
+  bool get isDraftBusy => _submitting;
   var _submitting = false;
   String? _errorText;
   int? _session;
@@ -39,6 +52,11 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
       _initializedPet = false;
       _submitting = false;
       _errorText = null;
+      _initialData = ExpenseFormData.now();
+      _baseline = _draft = jsonEncode(
+        _initialData.toWalletExpenseBody(includeNulls: true),
+      );
+      _baselinePetId = null;
     }
     if (!_initializedPet && !pets.isLoading) {
       _selectedPetId = pets.pets.any((pet) => pet.id == _initialWalletPetId)
@@ -47,90 +65,99 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
           ? pets.pets.single.id
           : null;
       _initializedPet = true;
+      _baselinePetId = _selectedPetId;
     }
     final selectedPet = pets.pets
         .where((pet) => pet.id == _selectedPetId)
         .firstOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Column(
-          children: [
-            AppFormHeader(title: '지출 추가', onBack: _goBack),
-            Expanded(
-              child: ExpenseFormBody(
-                key: ValueKey(session),
-                mode: ExpenseFormMode.add,
-                initialData: ExpenseFormData.now(),
-                petName: selectedPet?.name,
-                validTarget: !pets.isLoading && selectedPet != null,
-                petSelector: pets.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : pets.pets.isEmpty
-                    ? Text(
-                        pets.dataErrorText == null
-                            ? '반려동물을 등록해 주세요'
-                            : '반려동물 정보를 불러오지 못했어요.',
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (selectedPet == null)
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 10),
-                              child: Text('지출을 기록할 반려동물을 선택해 주세요'),
-                            ),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final pet in pets.pets)
-                                AppFocusIndicator(
-                                  enabled: !_submitting,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ChoiceChip(
-                                    key: Key('expense-pet-${pet.id}'),
-                                    label: Text(pet.name),
-                                    selected: selectedPet?.id == pet.id,
-                                    color: AppInteractionStyle.inputFill,
-                                    showCheckmark: false,
-                                    side: AppInteractionStyle.selectionBorder(
-                                      selectedPet?.id == pet.id,
-                                    ),
+    return protectDraft(
+      onExit: _goBack,
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: Column(
+            children: [
+              AppFormHeader(title: '지출 추가', onBack: _goBack),
+              Expanded(
+                child: ExpenseFormBody(
+                  key: ValueKey(session),
+                  mode: ExpenseFormMode.add,
+                  initialData: _initialData,
+                  onChanged: (data) => setState(
+                    () => _draft = jsonEncode(
+                      data.toWalletExpenseBody(includeNulls: true),
+                    ),
+                  ),
+                  petName: selectedPet?.name,
+                  validTarget: !pets.isLoading && selectedPet != null,
+                  petSelector: pets.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : pets.pets.isEmpty
+                      ? Text(
+                          pets.dataErrorText == null
+                              ? '반려동물을 등록해 주세요'
+                              : '반려동물 정보를 불러오지 못했어요.',
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (selectedPet == null)
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 10),
+                                child: Text('지출을 기록할 반려동물을 선택해 주세요'),
+                              ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final pet in pets.pets)
+                                  AppFocusIndicator(
+                                    enabled: !_submitting,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    visualDensity: VisualDensity.compact,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    padding: EdgeInsets.zero,
-                                    labelStyle: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.text,
+                                    child: ChoiceChip(
+                                      key: Key('expense-pet-${pet.id}'),
+                                      label: Text(pet.name),
+                                      selected: selectedPet?.id == pet.id,
+                                      color: AppInteractionStyle.inputFill,
+                                      showCheckmark: false,
+                                      side: AppInteractionStyle.selectionBorder(
+                                        selectedPet?.id == pet.id,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: EdgeInsets.zero,
+                                      labelStyle: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.text,
+                                      ),
+                                      onSelected: _submitting
+                                          ? null
+                                          : (_) => setState(() {
+                                              _selectedPetId = pet.id;
+                                              _errorText = null;
+                                            }),
                                     ),
-                                    onSelected: _submitting
-                                        ? null
-                                        : (_) => setState(() {
-                                            _selectedPetId = pet.id;
-                                            _errorText = null;
-                                          }),
                                   ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                submitting: _submitting,
-                errorText: _errorText,
-                onSubmit: _save,
+                              ],
+                            ),
+                          ],
+                        ),
+                  submitting: _submitting,
+                  errorText: _errorText,
+                  onSubmit: _save,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -165,6 +192,10 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
         return;
       }
       showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
+      await allowDraftExit();
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       if (context.canPop()) {
         context.pop();
       } else {
@@ -182,6 +213,7 @@ class _ExpenseAddScreenState extends ConsumerState<ExpenseAddScreen> {
   }
 
   Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     if (context.canPop()) {
