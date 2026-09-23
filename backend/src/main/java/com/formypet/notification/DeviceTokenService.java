@@ -12,10 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class DeviceTokenService {
     private final JdbcTemplate jdbc;
     private final UserRepository users;
+    private final com.formypet.auth.SessionGuard sessions;
 
     @Transactional
     public void register(String email, DeviceTokenRequest request) {
-        Long userId = users.findByEmail(email).orElseThrow().getId();
+        var user = sessions.lock(email);
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !email.equals(authentication.getName())
+                || !(authentication.getDetails() instanceof Long version) || version != user.version()) {
+            throw com.formypet.auth.SessionGuard.invalid();
+        }
+        Long userId = user.id();
         String platform = request.platform().trim().toUpperCase();
         if (!platform.equals("ANDROID") && !platform.equals("IOS")) {
             throw new IllegalArgumentException("Platform must be ANDROID or IOS.");

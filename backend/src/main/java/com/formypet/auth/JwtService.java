@@ -26,9 +26,14 @@ public class JwtService {
     }
 
     public String generateAccessToken(String email) {
+        return generateAccessToken(email, 0);
+    }
+
+    public String generateAccessToken(String email, long version) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .subject(email)
+                .claim("av", version)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + accessTokenExpiration))
                 .signWith(key)
@@ -37,6 +42,14 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public long extractVersion(String token) {
+        Object value = parseClaims(token).get("av");
+        if (value == null) return 0;
+        if (!(value instanceof Number number) || number.longValue() < 0
+                || number.doubleValue() != number.longValue()) throw new IllegalArgumentException("Invalid session version");
+        return number.longValue();
     }
 
     public boolean isValid(String token) {

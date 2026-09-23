@@ -37,6 +37,16 @@ spring:
     baseline-on-migrate: false
 
 app:
+  password-reset:
+    enabled: ${PASSWORD_RESET_ENABLED:false}
+    hmac-secret: ${PASSWORD_RESET_HMAC_SECRET:}
+    token-secret: ${PASSWORD_RESET_TOKEN_SECRET:}
+    mail:
+      host: ${PASSWORD_RESET_SMTP_HOST:smtp.gmail.com}
+      port: ${PASSWORD_RESET_SMTP_PORT:587}
+      username: ${PASSWORD_RESET_SMTP_USERNAME:}
+      password: ${PASSWORD_RESET_SMTP_PASSWORD:}
+      from: ${PASSWORD_RESET_SMTP_FROM:}
   support:
     mail:
       enabled: ${SUPPORT_MAIL_ENABLED:false}
