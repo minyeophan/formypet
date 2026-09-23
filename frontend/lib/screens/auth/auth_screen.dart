@@ -7,9 +7,11 @@ import '../../core/app_colors.dart';
 import '../../core/app_interaction_style.dart';
 import '../../core/api_client.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/password_policy.dart';
+import 'password_recovery_form.dart';
 import '../../widgets/brand_logo.dart';
 
-enum _AuthView { welcome, login, register }
+enum _AuthView { welcome, login, register, recovery }
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -208,9 +210,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       } else if (_nicknameCtrl.text.trim().length > 50) {
         errors['nickname'] = '닉네임은 50자 이하로 입력해 주세요.';
       }
-      if (_passwordCtrl.text.length < 8) {
-        errors['password'] = '비밀번호는 8자 이상 입력해 주세요.';
-      }
+      final passwordError = newPasswordError(_passwordCtrl.text);
+      if (passwordError != null) errors['password'] = passwordError;
     }
     return errors;
   }
@@ -252,7 +253,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       canPop: _view == _AuthView.welcome && !_isLoading,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _view != _AuthView.welcome && !_isLoading) {
-          _show(_AuthView.welcome);
+          _show(
+            _view == _AuthView.recovery ? _AuthView.login : _AuthView.welcome,
+          );
         }
       },
       child: Scaffold(
@@ -269,7 +272,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     double.infinity,
                   ),
                 ),
-                child: _view == _AuthView.welcome ? _welcome() : _form(),
+                child: _view == _AuthView.recovery
+                    ? PasswordRecoveryForm(
+                        onClose: () => _show(_AuthView.login),
+                        onCompleted: () {
+                          _passwordCtrl.clear();
+                          _show(_AuthView.login);
+                        },
+                      )
+                    : _view == _AuthView.welcome
+                    ? _welcome()
+                    : _form(),
               ),
             ),
           ),
@@ -456,6 +469,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 )
               : Text(registering ? '회원가입' : '로그인'),
         ),
+        if (!registering)
+          TextButton(
+            key: const Key('auth-password-recovery'),
+            onPressed: _isLoading
+                ? null
+                : () {
+                    _passwordCtrl.clear();
+                    _show(_AuthView.recovery);
+                  },
+            child: const Text('비밀번호를 잊으셨나요?'),
+          ),
         TextButton(
           onPressed: _isLoading
               ? null
