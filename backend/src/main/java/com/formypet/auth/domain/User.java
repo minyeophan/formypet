@@ -9,6 +9,7 @@ import org.springframework.lang.NonNull;
 import java.time.LocalDateTime;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -23,6 +24,9 @@ public class User {
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
+
+    @Column(name = "auth_version", nullable = false, updatable = false)
+    private long authVersion;
 
     @Column(nullable = false)
     private String nickname;

@@ -35,6 +35,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final KakaoUserClient kakaoUserClient;
     private final OAuthSignupService oauthSignupService;
+    private final SessionGuard sessions;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final org.springframework.transaction.support.TransactionTemplate transactions;
 
     @Value("${app.jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
@@ -51,15 +54,21 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
+        SessionGuard.Snapshot snapshot;
+        try {
+            snapshot = sessions.lock(request.email());
+        } catch (BadCredentialsException invalid) {
+            throw new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다."));
-        if (!"LOCAL".equals(user.getRegistrationSource())) {
+        if (!"LOCAL".equals(snapshot.source())) {
             throw new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.password(), snapshot.passwordHash())) {
             throw new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
-        return issueTokens(user);
+        return issueTokens(user, snapshot.version());
     }
 
     // @Transactional 없음: fetchUser() 외부 HTTP 호출을 DB 트랜잭션 안에 묶으면 커넥션 점유 위험
@@ -71,7 +80,10 @@ public class AuthService {
                     return account.getUser();
                 })
                 .orElseGet(() -> signupOrReloadKakaoUser(kakaoUser));
-        return issueTokens(user);
+        return transactions.execute(status -> {
+            var current = sessions.lock(user.getId());
+            return issueTokens(user, current.version());
+        });
     }
 
     private User signupOrReloadKakaoUser(KakaoUserInfo kakaoUser) {
@@ -86,6 +98,12 @@ public class AuthService {
 
     @Transactional
     public TokenResponse refresh(String rawRefreshToken) {
+        var owners = jdbc.queryForList("SELECT user_id FROM refresh_tokens WHERE token=?", Long.class, rawRefreshToken);
+        if (owners.isEmpty()) throw SessionGuard.invalid();
+        var snapshot = sessions.lock(owners.getFirst());
+        // A reset may have deleted the token while we waited for the user lock.
+        if (jdbc.queryForList("SELECT id FROM refresh_tokens WHERE token=? AND user_id=? FOR UPDATE", Long.class,
+                rawRefreshToken, snapshot.id()).isEmpty()) throw SessionGuard.invalid();
         RefreshToken stored = refreshTokenRepository.findByToken(rawRefreshToken)
                 .orElseThrow(() -> new BadCredentialsException("유효하지 않은 Refresh Token입니다."));
         if (stored.isExpired()) {
@@ -93,7 +111,8 @@ public class AuthService {
             throw new BadCredentialsException("만료된 Refresh Token입니다.");
         }
         refreshTokenRepository.delete(stored); // 토큰 로테이션
-        return issueTokens(stored.getUser());
+        refreshTokenRepository.flush();
+        return issueTokens(stored.getUser(), snapshot.version());
     }
 
     @Transactional
@@ -103,7 +122,11 @@ public class AuthService {
     }
 
     private TokenResponse issueTokens(User user) {
-        String accessToken  = jwtService.generateAccessToken(user.getEmail());
+        return issueTokens(user, sessions.lock(user.getId()).version());
+    }
+
+    private TokenResponse issueTokens(User user, long version) {
+        String accessToken  = jwtService.generateAccessToken(user.getEmail(), version);
         String refreshToken = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000);
         refreshTokenRepository.save(RefreshToken.create(user, refreshToken, expiresAt));
