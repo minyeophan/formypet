@@ -1,3 +1,4 @@
+import '../screens/my/notification_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -181,6 +182,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
+          ),
+          GoRoute(
+            path: '/my/settings/notifications',
+            builder: (c, s) => const NotificationSettingsScreen(),
           ),
           GoRoute(path: '/my/pets', builder: (c, s) => const MyPetsScreen()),
           GoRoute(

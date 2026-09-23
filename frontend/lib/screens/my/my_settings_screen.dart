@@ -73,6 +73,12 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
             title: '앱 설정',
             children: [
               MyMenuRow(
+                label: '알림 설정',
+                icon: Icons.notifications_active_outlined,
+                onTap: () => context.push('/my/settings/notifications'),
+              ),
+              MyMenuRow(
+                showTopBorder: true,
                 label: '알림 내역',
                 icon: Icons.notifications_none_rounded,
                 onTap: () => context.push('/notifications'),
