@@ -1,5 +1,7 @@
 package com.formypet.notification;
 import com.formypet.auth.repository.UserRepository;
+import com.formypet.auth.SessionGuard;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.formypet.common.exception.ApiException;
 import com.formypet.notification.dto.*;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service @RequiredArgsConstructor
 public class NotificationService {
  private static final Logger log=LoggerFactory.getLogger(NotificationService.class);
- private final JdbcTemplate jdbc; private final UserRepository users; private final ReminderPushDispatcher pushDispatcher;
+ private final JdbcTemplate jdbc; private final UserRepository users; private final ReminderPushDispatcher pushDispatcher; private final SessionGuard sessions;
  private static final String AGE="created_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)";
  // Correlated with the recipient, so list, counts and read mutations share the same visibility rule.
  private static final String VISIBLE="""
@@ -39,6 +41,10 @@ public class NotificationService {
  }
  @Transactional public void createReminder(Long recipient,NotificationType type,String sourceType,Long sourceId,LocalDateTime scheduledFor,String title,String body){
   if(recipient==null)return;
+  // Lock the account before inserting; a concurrent opt-out must be observed.
+  var preferences = jdbc.query("SELECT notification_enabled FROM users WHERE id=? FOR UPDATE",
+      (rs, n) -> rs.getBoolean(1), recipient);
+  if (preferences.isEmpty() || !preferences.getFirst()) return;
   int inserted=jdbc.update("INSERT IGNORE INTO notifications (recipient_user_id,type,title,body,source_type,source_id,scheduled_for,created_at) VALUES (?,?,?,?,?,?,?,?)",recipient,type.name(),title,body,sourceType,sourceId,scheduledFor,LocalDateTime.now());
   if (inserted == 1) {
    Runnable send = () -> {
@@ -57,7 +63,13 @@ public class NotificationService {
   return new NotificationSettingsResponse(Boolean.TRUE.equals(enabled));
  }
  @Transactional public NotificationSettingsResponse updateSettings(String email, NotificationSettingsRequest request){
-  jdbc.update("UPDATE users SET notification_enabled=?, updated_at=? WHERE email=?",request.enabled(),LocalDateTime.now(),email);
+  var user = sessions.lock(email);
+  var authentication = SecurityContextHolder.getContext().getAuthentication();
+  if (authentication == null || !email.equals(authentication.getName())
+      || !(authentication.getDetails() instanceof Long version) || version != user.version()) {
+   throw SessionGuard.invalid();
+  }
+  jdbc.update("UPDATE users SET notification_enabled=?, updated_at=? WHERE id=?",request.enabled(),LocalDateTime.now(),user.id());
   return getSettings(email);
  }
  @Transactional public int deletePendingReminders(String sourceType, Long sourceId){
