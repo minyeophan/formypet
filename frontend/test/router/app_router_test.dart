@@ -1,3 +1,4 @@
+import 'package:frontend/screens/my/notification_settings_screen.dart';
 import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/widgets/app_visual.dart';
 import 'package:flutter/material.dart';
@@ -1444,6 +1445,7 @@ void main() {
 
     for (final entry in {
       '/my/settings': MySettingsScreen,
+      '/my/settings/notifications': NotificationSettingsScreen,
       '/my/pets': MyPetsScreen,
       '/my/profile': MyProfileScreen,
       '/my/notices': MyNoticesScreen,
@@ -1468,6 +1470,7 @@ void main() {
       await tester.pumpAndSettle();
       final expectedFallback = switch (entry.key) {
         '/my/profile' => '설정',
+        '/my/settings/notifications' => '설정',
         '/my/notices/routine' => '최근 공지',
         '/my/support/records' => '고객센터',
         '/my/support/faq/account-email' => '고객센터',

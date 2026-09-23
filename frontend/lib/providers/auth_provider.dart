@@ -15,12 +15,14 @@ class AuthState {
   final bool isAuthenticated;
   final UserProfile? profile;
   final String? initializationError;
+  final int sessionEpoch;
 
   const AuthState({
     required this.isLoading,
     required this.isAuthenticated,
     this.profile,
     this.initializationError,
+    this.sessionEpoch = 0,
   });
 
   AuthState copyWith({
@@ -29,7 +31,9 @@ class AuthState {
     UserProfile? profile,
     String? initializationError,
     bool clearInitializationError = false,
+    int? sessionEpoch,
   }) => AuthState(
+    sessionEpoch: sessionEpoch ?? this.sessionEpoch,
     isLoading: isLoading ?? this.isLoading,
     isAuthenticated: isAuthenticated ?? this.isAuthenticated,
     profile: profile ?? this.profile,
@@ -75,7 +79,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _completeSignedOut() async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     ReminderTapService.instance.reset();
     _svc.invalidatePendingAuthentication();
     await PushNotificationService.instance.endSession(disableRemote: false);
@@ -91,7 +95,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('Failed to clear pet state for signed-out user: $error');
     }
     if (!_isCurrent(operation)) return;
-    state = const AuthState(isLoading: false, isAuthenticated: false);
+    state = AuthState(
+      isLoading: false,
+      isAuthenticated: false,
+      sessionEpoch: state.sessionEpoch,
+    );
+  }
+
+  int _beginOperation() {
+    ++_operation;
+    // Account/login lifetime; token rotation must not advance this epoch.
+    state = state.copyWith(
+      sessionEpoch: state.sessionEpoch + 1,
+      isLoading: true,
+    );
+    return _operation;
   }
 
   bool _isCurrent(int operation) => mounted && operation == _operation;
@@ -108,19 +126,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (!_isCurrent(operation)) return;
     if (!_isCurrent(operation)) return;
     state = AuthState(
+      sessionEpoch: state.sessionEpoch,
       isLoading: false,
       isAuthenticated: true,
       profile: profile,
     );
     PushNotificationService.instance.beginSession(profile.id);
     // Push registration must not delay the authenticated UI or make login fail.
-    PushNotificationService.instance.registerDeviceToken(sessionKey: profile.id).catchError((error) {
-      debugPrint('Failed to register FCM device token: $error');
-    });
+    PushNotificationService.instance
+        .registerDeviceToken(sessionKey: profile.id)
+        .catchError((error) {
+          debugPrint('Failed to register FCM device token: $error');
+        });
   }
 
   Future<void> _init() async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     _notificationNotifier?.resetSession(authenticated: false);
     try {
       final token = await getAccessToken();
@@ -130,13 +151,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _setAuthenticated(profile, operation);
         return;
       }
-      state = const AuthState(isLoading: false, isAuthenticated: false);
+      state = AuthState(
+        isLoading: false,
+        isAuthenticated: false,
+        sessionEpoch: state.sessionEpoch,
+      );
     } catch (_) {
       // Invalid refresh credentials are cleared by the API interceptor, which
       // invokes _handleAuthExpired and invalidates this operation. Other errors
       // must not destroy a saved session or imply authentication succeeded.
       if (!_isCurrent(operation)) return;
-      state = const AuthState(
+      state = AuthState(
+        sessionEpoch: state.sessionEpoch,
         isLoading: false,
         isAuthenticated: false,
         initializationError: '로그인 정보를 확인하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.',
@@ -146,12 +172,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> retryInitialization() async {
     if (state.isLoading) return;
-    state = const AuthState(isLoading: true, isAuthenticated: false);
+    state = AuthState(
+      isLoading: true,
+      isAuthenticated: false,
+      sessionEpoch: state.sessionEpoch,
+    );
     await _init();
   }
 
   Future<void> login({required String email, required String password}) async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     _notificationNotifier?.resetSession(authenticated: false);
     state = state.copyWith(isLoading: true);
     try {
@@ -166,7 +196,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> loginWithKakao() async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     _notificationNotifier?.resetSession(authenticated: false);
     state = state.copyWith(isLoading: true);
     try {
@@ -190,7 +220,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     required String nickname,
   }) async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     _notificationNotifier?.resetSession(authenticated: false);
     state = state.copyWith(isLoading: true);
     try {
@@ -229,7 +259,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    final operation = ++_operation;
+    final operation = _beginOperation();
     ReminderTapService.instance.reset();
     _svc.invalidatePendingAuthentication();
     final authenticatedState = state;
@@ -244,13 +274,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _svc.logout();
     } catch (_) {
       if (!_isCurrent(operation)) return;
-      state = authenticatedState;
+      state = authenticatedState.copyWith(
+        isLoading: false,
+        sessionEpoch: state.sessionEpoch,
+      );
       final account = authenticatedState.profile?.id;
       if (authenticatedState.isAuthenticated && account != null) {
         PushNotificationService.instance.beginSession(account);
-        PushNotificationService.instance.registerDeviceToken(sessionKey: account).catchError((Object _) {
-          debugPrint('Failed to restore push registration after logout failure.');
-        });
+        PushNotificationService.instance
+            .registerDeviceToken(sessionKey: account)
+            .catchError((Object _) {
+              debugPrint(
+                'Failed to restore push registration after logout failure.',
+              );
+            });
       }
       rethrow;
     }

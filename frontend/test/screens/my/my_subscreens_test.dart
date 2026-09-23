@@ -76,6 +76,7 @@ void main() {
     expect(find.text('테마 설정'), findsNothing);
     expect(find.text('차단 목록'), findsOneWidget);
     expect(find.text('알림 내역'), findsOneWidget);
+    expect(find.text('알림 설정'), findsOneWidget);
   });
 
   testWidgets('cancelling logout keeps the account connected', (tester) async {
@@ -272,12 +273,7 @@ void main() {
   testWidgets('policies list shows only the four policy names', (tester) async {
     await _pumpPoliciesRouter(tester, '/my/policies');
 
-    for (final title in [
-      '서비스 이용약관',
-      '개인정보 처리방침',
-      '운영정책',
-      '마케팅 정보 수신 동의',
-    ]) {
+    for (final title in ['서비스 이용약관', '개인정보 처리방침', '운영정책', '마케팅 정보 수신 동의']) {
       expect(find.text(title), findsOneWidget);
     }
 
