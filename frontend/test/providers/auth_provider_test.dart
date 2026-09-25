@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/secure_storage.dart';
 import 'package:frontend/models/user_profile.dart';
@@ -17,25 +18,33 @@ void main() {
   setUp(() {
     ReminderTapService.instance.reset();
     FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
     setAuthExpiredHandler(null);
   });
 
-  test('starting logout immediately invalidates pending reminder navigation', () async {
-    final service = _FakeAuthService()..logoutCompleter = Completer<void>();
-    final notifier = AuthNotifier.test(_signedIn, service: service);
-    final taps = ReminderTapService.instance;
-    taps.receive({'type': 'ROUTINE_REMINDER', 'sourceId': '12', 'messageId': 'old'});
-    final generation = taps.generation;
-    final logout = notifier.logout();
-    try {
-      expect(taps.pending, isNull);
-      expect(taps.generation, greaterThan(generation));
-    } finally {
-      service.logoutCompleter!.complete();
-      await logout;
-      notifier.dispose();
-    }
-  });
+  test(
+    'starting logout immediately invalidates pending reminder navigation',
+    () async {
+      final service = _FakeAuthService()..logoutCompleter = Completer<void>();
+      final notifier = AuthNotifier.test(_signedIn, service: service);
+      final taps = ReminderTapService.instance;
+      taps.receive({
+        'type': 'ROUTINE_REMINDER',
+        'sourceId': '12',
+        'messageId': 'old',
+      });
+      final generation = taps.generation;
+      final logout = notifier.logout();
+      try {
+        expect(taps.pending, isNull);
+        expect(taps.generation, greaterThan(generation));
+      } finally {
+        service.logoutCompleter!.complete();
+        await logout;
+        notifier.dispose();
+      }
+    },
+  );
 
   test('logout locks loading until service completes then signs out', () async {
     final service = _FakeAuthService()..logoutCompleter = Completer<void>();
@@ -78,6 +87,35 @@ void main() {
 
     expect(petNotifier.clearCalls, 1);
     expect(notifier.state.isAuthenticated, isFalse);
+  });
+
+  test(
+    'accepted account deletion signs out and clears account state',
+    () async {
+      final service = _FakeAuthService();
+      final notifier = AuthNotifier.test(_signedIn, service: service);
+
+      await notifier.deleteAccount(password: 'Password1!');
+
+      expect(service.deleteCalls, 1);
+      expect(notifier.state.isAuthenticated, isFalse);
+      expect(notifier.state.profile, isNull);
+    },
+  );
+
+  test('failed account deletion preserves the authenticated session', () async {
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(deleteError: Exception('delete failed')),
+    );
+
+    await expectLater(
+      notifier.deleteAccount(password: 'Password1!'),
+      throwsException,
+    );
+
+    expect(notifier.state.isAuthenticated, isTrue);
+    expect(notifier.state.profile, _profile);
   });
 
   test('auth expiration clears pet state and signs out', () async {
@@ -130,23 +168,20 @@ void main() {
     },
   );
 
-  test(
-    'uploadProfileImage replaces the authenticated profile with the API response',
-    () async {
-      final notifier = AuthNotifier.test(
-        _signedIn,
-        service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
-      );
+  test('uploadProfileImage replaces the authenticated profile with the API response', () async {
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
+    );
 
-      await notifier.uploadProfileImage(
-        bytes: Uint8List.fromList([1]),
-        filename: 'portrait.webp',
-      );
+    await notifier.uploadProfileImage(
+      bytes: Uint8List.fromList([1]),
+      filename: 'portrait.webp',
+    );
 
-      expect(notifier.state.isLoading, isFalse);
-      expect(notifier.state.profile, _photoProfile);
-    },
-  );
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.profile, _photoProfile);
+  });
 
   test(
     'uploadProfileImage failure keeps the previously saved nickname and photo',
@@ -207,14 +242,17 @@ const _photoProfile = UserProfile(
 
 class _FakeAuthService extends AuthService {
   final Object? logoutError;
+  final Object? deleteError;
   final Object? profileError;
   final UserProfile? updateProfileResult;
   final UserProfile? uploadProfileImageResult;
   final Object? uploadProfileImageError;
   Completer<void>? logoutCompleter;
+  int deleteCalls = 0;
 
   _FakeAuthService({
     this.logoutError,
+    this.deleteError,
     this.profileError,
     this.updateProfileResult,
     this.uploadProfileImageResult,
@@ -225,6 +263,13 @@ class _FakeAuthService extends AuthService {
   Future<void> logout() async {
     if (logoutError != null) throw logoutError!;
     await logoutCompleter?.future;
+  }
+
+  @override
+  Future<bool> deleteAccount({String? password}) async {
+    deleteCalls++;
+    if (deleteError != null) throw deleteError!;
+    return true;
   }
 
   @override

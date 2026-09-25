@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../core/app_interaction_style.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -108,6 +110,15 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const SizedBox.shrink(),
+              ),
+              MyMenuRow(
+                label: '회원 탈퇴',
+                icon: Icons.person_remove_alt_1_outlined,
+                danger: true,
+                showTopBorder: true,
+                onTap: _loggingOut
+                    ? null
+                    : () => context.push('/my/settings/delete-account'),
               ),
             ],
           ),

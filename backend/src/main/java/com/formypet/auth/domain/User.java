@@ -28,6 +28,9 @@ public class User {
     @Column(name = "auth_version", nullable = false, updatable = false)
     private long authVersion;
 
+    @Column(name = "account_status", nullable = false, length = 20)
+    private String accountStatus = "ACTIVE";
+
     @Column(nullable = false)
     private String nickname;
 

@@ -13,6 +13,7 @@ import java.util.*;
 public class RecoveryCrypto {
     private final RecoveryProperties properties;
     private final SecureRandom random=new SecureRandom();
+    public boolean hasHmacSecret(){return properties.getHmacSecret()!=null&&!properties.getHmacSecret().isBlank();}
     public String id(){byte[] bytes=new byte[32];random.nextBytes(bytes);return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);}
     public String code(){return String.format(Locale.ROOT,"%06d",random.nextInt(1_000_000));}
     public String digest(String purpose,String value){return HexFormat.of().formatHex(hmac(properties.getHmacSecret(),purpose+"\0"+value));}

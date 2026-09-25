@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255)   NOT NULL UNIQUE,
     password_hash VARCHAR(255)   NOT NULL,
     auth_version BIGINT NOT NULL DEFAULT 0,
+    account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     nickname      VARCHAR(50)    NOT NULL,
     notification_enabled BOOLEAN  NOT NULL DEFAULT TRUE,
     registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
@@ -31,6 +32,18 @@ CREATE TABLE password_reset_challenges (
     UNIQUE KEY uq_reset_hash (reset_hash),
     INDEX idx_reset_subject (subject_key, state),
     INDEX idx_reset_cleanup (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE account_deletion_jobs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    provider_user_id VARCHAR(100) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME(6) NOT NULL,
+    locked_until DATETIME(6) NULL,
+    last_error VARCHAR(100) NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uq_account_deletion_provider (provider_user_id),
+    INDEX idx_account_deletion_due (next_attempt_at, locked_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE password_reset_limits (

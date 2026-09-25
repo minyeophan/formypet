@@ -32,7 +32,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("31", flyway.info().current().getVersion().getVersion());
+        assertEquals("32", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -56,6 +56,8 @@ class FlywayMigrationTest {
                 }
             }
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'notification_enabled'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'account_status'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'account_deletion_jobs'"));
         }
     }
 
@@ -154,7 +156,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("31", flyway.info().current().getVersion().getVersion());
+        assertEquals("32", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

@@ -81,6 +81,26 @@ class AuthService {
     return _acceptTokens(res, session);
   }
 
+  Future<bool> deleteAccount({String? password}) async {
+    final session = ++_session;
+    final credentials = <String, String>{};
+    if (password != null) {
+      credentials['password'] = password;
+    } else {
+      final token = await _loginWithKakaoSdk();
+      _requireSession(session);
+      if (token == null) return false;
+      credentials['kakaoAccessToken'] = token.accessToken;
+    }
+    final response = await dio.delete('/api/v1/users/me', data: credentials);
+    _requireSession(session);
+    final result = unwrap(response) as Map<String, dynamic>;
+    if (result['status'] != 'ACCEPTED') {
+      throw StateError('Account deletion was not accepted');
+    }
+    return true;
+  }
+
   Future<OAuthToken?> _loginWithKakaoSdk() async {
     if (await isKakaoTalkInstalled()) {
       try {

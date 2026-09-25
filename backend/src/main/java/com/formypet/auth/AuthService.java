@@ -74,6 +74,9 @@ public class AuthService {
     // @Transactional 없음: fetchUser() 외부 HTTP 호출을 DB 트랜잭션 안에 묶으면 커넥션 점유 위험
     public TokenResponse kakaoLogin(KakaoLoginRequest request) {
         KakaoUserInfo kakaoUser = kakaoUserClient.fetchUser(request.accessToken());
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM account_deletion_jobs WHERE provider_user_id=?", Integer.class, kakaoUser.id()) > 0) {
+            throw new BadCredentialsException("유효하지 않은 카카오 계정입니다.");
+        }
         User user = oauthAccountRepository.findByProviderAndProviderUserId("KAKAO", kakaoUser.id())
                 .map(account -> {
                     log.debug("Kakao login: userId={}", account.getUser().getId());

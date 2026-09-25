@@ -57,6 +57,12 @@ app:
       password: ${SUPPORT_MAIL_PASSWORD:}
       recipient: ${SUPPORT_MAIL_RECIPIENT:}
       sender-name: 포마펫 고객지원
+  account-deletion:
+    kakao-admin-key: ${KAKAO_ADMIN_KEY:}
+    interval-ms: 30000
+    scheduler-enabled: true
+  media:
+    cleanup-interval-ms: 30000
   firebase:
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
   notification:
@@ -106,3 +112,5 @@ app:
     mail:
       enabled: false
       scheduler-enabled: false
+  account-deletion:
+    scheduler-enabled: false
