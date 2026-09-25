@@ -94,16 +94,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (deletedAccountId != null) {
       try {
         await clearTokens();
-      } catch (error) {
+      } catch (_) {
         debugPrint(
-          'Failed to clear credentials after account deletion: $error',
+          'Failed to clear credentials after account deletion.',
         );
       }
       try {
         await WalletBudgetService().clearAccount(deletedAccountId);
-      } catch (error) {
+      } catch (_) {
         debugPrint(
-          'Failed to clear local account budget after deletion: $error',
+          'Failed to clear local account budget after deletion.',
         );
       }
     }

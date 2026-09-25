@@ -106,8 +106,6 @@ spring:
       ddl-auto: none
 
 app:
-  jwt:
-    secret: test-only-jwt-secret-for-automated-tests
   firebase:
     credentials-path: build/test-no-firebase-credentials.json
   support:

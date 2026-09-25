@@ -4,7 +4,6 @@ import com.formypet.auth.SessionGuard;
 import com.formypet.auth.client.KakaoUserClient;
 import com.formypet.auth.client.KakaoUserInfo;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 @Service
