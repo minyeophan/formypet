@@ -24,6 +24,14 @@ public class ReminderPushDispatcher {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatch(Long recipient, NotificationType type, Long sourceId,
                          LocalDateTime scheduledFor, String title, String body) {
+        if (jdbc.query("""
+                SELECT id FROM users
+                WHERE id=? AND account_status='ACTIVE' AND notification_enabled=1
+                FOR UPDATE
+                """, (rs, row) -> rs.getLong("id"), recipient).isEmpty()) {
+            log.info("Reminder push skipped: recipient is unavailable");
+            return;
+        }
         if (!eligible(recipient, type, sourceId, scheduledFor)) {
             log.info("Reminder push skipped: target or settings changed");
             return;
