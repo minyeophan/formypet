@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +41,25 @@ void main() {
         .load();
   });
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('account deletion removes only that account budget data', () async {
+    SharedPreferences.setMockInitialValues({
+      'wallet_monthly_budget_v2:alice:2026-09': 10000,
+      'wallet_monthly_budget_v2:bob:2026-09': 20000,
+      'wallet_monthly_budget_migration_v2':
+          '{"account":"alice","year":2026,"month":9,"value":5000}',
+    });
+
+    await WalletBudgetService().clearAccount('alice');
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.containsKey('wallet_monthly_budget_v2:alice:2026-09'),
+      isFalse,
+    );
+    expect(prefs.containsKey('wallet_monthly_budget_migration_v2'), isFalse);
+    expect(prefs.getInt('wallet_monthly_budget_v2:bob:2026-09'), 20000);
+  });
 
   for (final alreadyOpen in [false, true]) {
     testWidgets(
@@ -887,9 +907,8 @@ Future<(ProviderContainer, BudgetAuth)> pumpBudget(
       child: MaterialApp(
         theme: layoutFont ? amountTestTheme() : buildAppTheme(),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(scale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
         home: Scaffold(
@@ -930,9 +949,8 @@ Future<void> pumpAmountForm(
     MaterialApp(
       theme: amountTestTheme(),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(scale)),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),
       home: Scaffold(

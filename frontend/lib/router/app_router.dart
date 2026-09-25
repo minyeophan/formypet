@@ -1,7 +1,9 @@
 import '../screens/my/notification_settings_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/pet_provider.dart';
 import '../screens/auth/auth_screen.dart';
@@ -42,6 +44,7 @@ import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
+import '../screens/my/account_deletion_screen.dart';
 import '../screens/my/my_blocked_users_screen.dart';
 import '../screens/my/my_support_center_screen.dart';
 import '../screens/notification/notification_screen.dart';
@@ -182,6 +185,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
+          ),
+          GoRoute(
+            path: '/my/settings/delete-account',
+            builder: (c, s) => const AccountDeletionScreen(),
           ),
           GoRoute(
             path: '/my/settings/notifications',

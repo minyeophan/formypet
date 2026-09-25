@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../screens/wallet/wallet_expense_utils.dart';
 
 /// Device-local budgets, scoped to an authenticated profile and calendar month.
@@ -63,6 +65,29 @@ class WalletBudgetService {
         final prefs = await SharedPreferences.getInstance();
         await _write(prefs, storageKey(account, month), amount);
       });
+
+  Future<void> clearAccount(String account) => _serial(() async {
+    if (account.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final prefix = 'wallet_monthly_budget_v2:${Uri.encodeComponent(account)}:';
+    for (final key in prefs.getKeys().where((key) => key.startsWith(prefix))) {
+      await prefs.remove(key);
+    }
+    const claimKey = 'wallet_monthly_budget_migration_v2';
+    final claim = prefs.getString(claimKey);
+    if (claim != null) {
+      final migration = jsonDecode(claim) as Map<String, dynamic>;
+      if (migration['account'] == account) {
+        await prefs.remove(claimKey);
+        await prefs.remove('wallet_monthly_budget');
+      }
+    } else {
+      // The pre-v2 value was shared and had no account identity; remove it on
+      // deletion so a subsequent profile cannot inherit the previous owner's budget.
+      await prefs.remove('wallet_monthly_budget');
+    }
+  });
 
   Future<void> _write(SharedPreferences prefs, String key, int amount) async {
     try {

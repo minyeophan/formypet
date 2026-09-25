@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+
 import '../core/api_client.dart';
 import '../core/secure_storage.dart';
 import '../models/user_profile.dart';
@@ -9,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/foreground_notification_service.dart';
 import '../services/reminder_tap_service.dart';
+import '../services/wallet_budget_service.dart';
 
 class AuthState {
   final bool isLoading;
@@ -78,7 +80,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _completeSignedOut();
   }
 
-  Future<void> _completeSignedOut() async {
+  Future<void> _completeSignedOut({String? deletedAccountId}) async {
     final operation = _beginOperation();
     ReminderTapService.instance.reset();
     _svc.invalidatePendingAuthentication();
@@ -89,6 +91,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('Failed to clear local notifications during sign-out.');
     }
     _notificationNotifier?.resetSession(authenticated: false);
+    if (deletedAccountId != null) {
+      try {
+        await clearTokens();
+      } catch (error) {
+        debugPrint(
+          'Failed to clear credentials after account deletion: $error',
+        );
+      }
+      try {
+        await WalletBudgetService().clearAccount(deletedAccountId);
+      } catch (error) {
+        debugPrint(
+          'Failed to clear local account budget after deletion: $error',
+        );
+      }
+    }
     try {
       await _petNotifier?.clearForSignedOutUser();
     } catch (error) {
@@ -293,6 +311,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     if (!_isCurrent(operation)) return;
     await _completeSignedOut();
+  }
+
+  Future<bool> deleteAccount({String? password}) async {
+    if (!state.isAuthenticated || state.profile == null) {
+      throw StateError('Cannot delete an unauthenticated account');
+    }
+    final previous = state;
+    final operation = ++_operation;
+    state = state.copyWith(isLoading: true);
+    try {
+      final accepted = await _svc.deleteAccount(password: password);
+      if (!_isCurrent(operation)) return false;
+      if (!accepted) {
+        state = previous.copyWith(isLoading: false);
+        return false;
+      }
+      await _completeSignedOut(deletedAccountId: previous.profile!.id);
+      return true;
+    } catch (_) {
+      if (_isCurrent(operation)) state = previous.copyWith(isLoading: false);
+      rethrow;
+    }
   }
 
   @override
