@@ -12,9 +12,9 @@ public class SessionGuard {
     private final JdbcTemplate jdbc;
     public record Snapshot(long id,String email,String passwordHash,String source,long version){}
     private static final String SELECT="SELECT id,email,password_hash,registration_source,auth_version FROM users ";
-    public Optional<Snapshot> find(String email){return read("WHERE email=?",email,false);}
-    public Snapshot lock(String email){return read("WHERE email=?",email,true).orElseThrow(SessionGuard::invalid);}
-    public Snapshot lock(long id){return read("WHERE id=?",id,true).orElseThrow(SessionGuard::invalid);}
+    public Optional<Snapshot> find(String email){return read("WHERE email=? AND account_status='ACTIVE'",email,false);}
+    public Snapshot lock(String email){return read("WHERE email=? AND account_status='ACTIVE'",email,true).orElseThrow(SessionGuard::invalid);}
+    public Snapshot lock(long id){return read("WHERE id=? AND account_status='ACTIVE'",id,true).orElseThrow(SessionGuard::invalid);}
     public boolean accepts(String email,long version){
         return find(email).map(user->user.version()==version).orElse(false);
     }
