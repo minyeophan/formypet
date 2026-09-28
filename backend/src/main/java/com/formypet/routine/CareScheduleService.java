@@ -33,8 +33,8 @@ public class CareScheduleService {
     private final NotificationService notificationService;
 
     @Transactional
-    public CareScheduleResponse create(String email, Long petId, CareScheduleRequest request) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public CareScheduleResponse create(Long actorId, Long petId, CareScheduleRequest request) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         ValidatedRequest validated = validate(request);
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -52,8 +52,8 @@ public class CareScheduleService {
     }
 
     @Transactional(readOnly = true)
-    public List<CareScheduleResponse> list(String email, Long petId) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public List<CareScheduleResponse> list(Long actorId, Long petId) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         return jdbcTemplate.query("""
                 SELECT id, pet_id, category_id, title, start_date, start_time, end_date, end_time,
                        all_day, place, memo, reminder, created_at
@@ -78,14 +78,14 @@ public class CareScheduleService {
     }
 
     @Transactional(readOnly = true)
-    public CareScheduleResponse get(String email, Long petId, Long scheduleId) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public CareScheduleResponse get(Long actorId, Long petId, Long scheduleId) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         return findResponse(pet.id(), scheduleId);
     }
 
     @Transactional
-    public CareScheduleResponse update(String email, Long petId, Long scheduleId, CareScheduleRequest request) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public CareScheduleResponse update(Long actorId, Long petId, Long scheduleId, CareScheduleRequest request) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         notificationService.deletePendingReminders("CARE_SCHEDULE", scheduleId);
         findResponse(pet.id(), scheduleId);
         ValidatedRequest validated = validate(request);
@@ -112,8 +112,8 @@ public class CareScheduleService {
     }
 
     @Transactional
-    public void delete(String email, Long petId, Long scheduleId) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public void delete(Long actorId, Long petId, Long scheduleId) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         notificationService.deletePendingReminders("CARE_SCHEDULE", scheduleId);
         findResponse(pet.id(), scheduleId);
         jdbcTemplate.update("DELETE FROM care_schedules WHERE id = ? AND pet_id = ?", scheduleId, pet.id());
@@ -161,8 +161,8 @@ public class CareScheduleService {
         return rows.getFirst();
     }
 
-    private PetRow findVisibleOwnedPet(String email, Long petId) {
-        Long userId = findUserId(email);
+    private PetRow findVisibleOwnedPet(Long actorId, Long petId) {
+        Long userId = findUserId(actorId);
         List<PetRow> rows = jdbcTemplate.query("""
                 SELECT id, user_id, is_deleted
                 FROM pets
@@ -185,8 +185,8 @@ public class CareScheduleService {
         return pet;
     }
 
-    private Long findUserId(String email) {
-        List<Long> ids = jdbcTemplate.queryForList("SELECT id FROM users WHERE email = ?", Long.class, email);
+    private Long findUserId(Long actorId) {
+        List<Long> ids = jdbcTemplate.queryForList("SELECT id FROM users WHERE id = ?", Long.class, actorId);
         if (ids.isEmpty()) {
             throw InvalidInputException.invalidInput();
         }

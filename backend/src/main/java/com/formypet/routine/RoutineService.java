@@ -48,8 +48,8 @@ public class RoutineService {
     private final NotificationService notificationService;
 
     @Transactional
-    public RoutineResponse create(String email, Long petId, RoutineCreateRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+    public RoutineResponse create(Long actorId, Long petId, RoutineCreateRequest request) {
+        Pet pet = findOwnedPet(actorId, petId);
         validateLabel(request.label());
         validateActivityType(request.typeId());
         validateRepeatType(request.repeatType());
@@ -88,8 +88,8 @@ public class RoutineService {
     }
 
     @Transactional(readOnly = true)
-    public List<RoutineResponse> list(String email, Long petId) {
-        Pet pet = findOwnedPet(email, petId);
+    public List<RoutineResponse> list(Long actorId, Long petId) {
+        Pet pet = findOwnedPet(actorId, petId);
         return jdbcTemplate.queryForList("""
                         SELECT id, pet_id, label, type_id, repeat_type, days, monthly_interval,
                                start_date, end_date, times, note, detail, is_active, notification_enabled
@@ -103,8 +103,8 @@ public class RoutineService {
     }
 
     @Transactional
-    public RoutineResponse update(String email, Long petId, Long routineId, RoutineUpdateRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+    public RoutineResponse update(Long actorId, Long petId, Long routineId, RoutineUpdateRequest request) {
+        Pet pet = findOwnedPet(actorId, petId);
         Map<String, Object> current = findRoutineRow(pet.getId(), routineId);
         notificationService.deletePendingReminders("ROUTINE", routineId);
         String label = request.label() != null ? request.label() : (String) current.get("label");
@@ -152,9 +152,9 @@ public class RoutineService {
     }
 
     @Transactional
-    public RoutineCompletionResponse markCompletion(String email, Long petId, Long routineId, LocalDate date,
+    public RoutineCompletionResponse markCompletion(Long actorId, Long petId, Long routineId, LocalDate date,
                                                     RoutineCompletionRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+        Pet pet = findOwnedPet(actorId, petId);
         findRoutineRow(pet.getId(), routineId);
         String status = request.status().toUpperCase(Locale.ROOT);
         if (!SUPPORTED_COMPLETION_STATUS.contains(status)) {
@@ -173,10 +173,10 @@ public class RoutineService {
     }
 
     @Transactional
-    public TodayRoutineResponse today(String email, Long petId, LocalDate date) {
-        Pet pet = findOwnedPet(email, petId);
+    public TodayRoutineResponse today(Long actorId, Long petId, LocalDate date) {
+        Pet pet = findOwnedPet(actorId, petId);
         LocalDate targetDate = date != null ? date : LocalDate.now();
-        List<RoutineResponse> routines = list(email, pet.getId()).stream()
+        List<RoutineResponse> routines = list(actorId, pet.getId()).stream()
                 .filter(routine -> isScheduledOn(routine, targetDate))
                 .toList();
 
@@ -195,8 +195,8 @@ public class RoutineService {
     }
 
     @Transactional
-    public void delete(String email, Long petId, Long routineId) {
-        Pet pet = findOwnedPet(email, petId);
+    public void delete(Long actorId, Long petId, Long routineId) {
+        Pet pet = findOwnedPet(actorId, petId);
         findRoutineRow(pet.getId(), routineId);
         notificationService.deletePendingReminders("ROUTINE", routineId);
         jdbcTemplate.update("DELETE FROM routines WHERE id = ? AND pet_id = ?", routineId, pet.getId());
@@ -284,8 +284,8 @@ public class RoutineService {
         return dayOfWeek == DayOfWeek.SUNDAY ? 0 : dayOfWeek.getValue();
     }
 
-    private Pet findOwnedPet(String email, Long petId) {
-        User user = userRepository.findByEmail(email)
+    private Pet findOwnedPet(Long actorId, Long petId) {
+        User user = userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
         if (petId == null) {
             throw new IllegalArgumentException("Pet id must not be null.");

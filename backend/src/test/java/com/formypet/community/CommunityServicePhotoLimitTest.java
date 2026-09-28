@@ -40,7 +40,7 @@ class CommunityServicePhotoLimitTest {
 
     @BeforeEach
     void setUp() {
-        when(users.findByEmail("author@example.test")).thenReturn(Optional.of(user));
+        when(users.findById(7L)).thenReturn(Optional.of(user));
         when(user.getId()).thenReturn(7L);
     }
 
@@ -70,7 +70,7 @@ class CommunityServicePhotoLimitTest {
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(42L))).thenAnswer(call -> storedMedia);
         when(jdbc.queryForList(anyString(), eq(42L))).thenReturn(List.of());
 
-        var response = service.create("author@example.test", request, photos(count));
+        var response = service.create(7L, request, photos(count));
 
         assertThat(response.mediaUrls()).containsExactlyElementsOf(
                 count == 4
@@ -80,7 +80,7 @@ class CommunityServicePhotoLimitTest {
 
     @Test
     void rejectsSixPhotosBeforeWritingAnything() {
-        assertThatThrownBy(() -> service.create("author@example.test", request, photos(6)))
+        assertThatThrownBy(() -> service.create(7L, request, photos(6)))
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(jdbc, media, notifications);
     }

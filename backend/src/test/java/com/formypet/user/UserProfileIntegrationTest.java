@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 @Transactional
-@TestPropertySource(properties = "app.media.storage-root=build/profile-media-test-storage")
+@TestPropertySource(properties = {"app.media.storage-root=build/profile-media-test-storage", "app.media.cleanup-interval-ms=3600000"})
 class UserProfileIntegrationTest extends IntegrationTestSupport {
 
     @Autowired MockMvc mockMvc;
@@ -41,6 +41,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired com.formypet.media.MediaCleanupRunner cleanup;
 
     @BeforeEach
     void setUp() {
@@ -117,7 +118,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void replacingMyProfileImageKeepsOnlyTheLatestMediaAndDeletesThePreviousFileAfterCommit() throws Exception {
+    void replacingMyProfileImageRevokesOldMetadataAndQueuesFileCleanup() throws Exception {
         String email = "replace-profile@example.com";
         String token = registerAndGetToken(email, "replace");
 
@@ -144,6 +145,9 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         assertThat(latestMediaId).isNotEqualTo(previousMediaId);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM media_resources WHERE id = ?", Integer.class, previousMediaId)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_cleanup_queue WHERE storage_key=?",
+                Integer.class, previousStorageKey)).isEqualTo(1);
+        cleanup.cleanPending();
         assertThat(Files.exists(profileStoragePath(previousStorageKey))).isFalse();
         assertThat(Files.exists(profileStoragePath(latestStorageKey))).isTrue();
     }

@@ -13,9 +13,9 @@ public class MyActivityController {
     private final CommunityService service;
 
     @GetMapping
-    public ApiResponse<MyActivityResponse> list(@AuthenticationPrincipal String email,
+    public ApiResponse<MyActivityResponse> list(@AuthenticationPrincipal(expression = "id") Long actorId,
             @RequestParam String type, @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int limit) {
-        return ApiResponse.of(service.myActivities(email, type, cursor, limit));
+        return ApiResponse.of(service.myActivities(actorId, type, cursor, limit));
     }
 }

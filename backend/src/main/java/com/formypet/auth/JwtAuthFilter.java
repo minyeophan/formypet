@@ -26,22 +26,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        if (request.getServletPath().startsWith("/api/v1/auth/")) {
+        String path = request.getServletPath();
+        if (path.startsWith("/api/v1/auth/") || path.equals("/api/v1/public/policies")
+                || path.startsWith("/api/v1/public/policies/") || path.equals("/privacy")
+                || path.equals("/terms") || path.startsWith("/policies/")) {
             filterChain.doFilter(request, response);
             return;
         }
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             if (jwtService.isValid(token)) {
-                String email = jwtService.extractEmail(token);
                 try {
+                    long userId = jwtService.extractUserId(token);
                     long version = jwtService.extractVersion(token);
-                    if (sessions.accepts(email, version)) {
-                        var auth = new UsernamePasswordAuthenticationToken(email, null, List.of());
-                        auth.setDetails(version);
+                    if (sessions.accepts(userId, version)) {
+                        var auth = new UsernamePasswordAuthenticationToken(new AuthenticatedUser(userId, version), null, List.of());
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
-                } catch (IllegalArgumentException ignored) {
+                } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ignored) {
                     // An invalid session is anonymous; protected routes return 401.
                 }
             }

@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class NotificationService {
  private static final Logger log=LoggerFactory.getLogger(NotificationService.class);
  private final JdbcTemplate jdbc; private final UserRepository users; private final ReminderPushDispatcher pushDispatcher; private final SessionGuard sessions;
+ private final com.formypet.policy.PolicyConsentService policies;
  private static final String AGE="created_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)";
  // Correlated with the recipient, so list, counts and read mutations share the same visibility rule.
  private static final String VISIBLE="""
@@ -58,33 +59,29 @@ public class NotificationService {
    } else send.run();
   }
  }
- @Transactional(readOnly=true) public NotificationSettingsResponse getSettings(String email){
-  Boolean enabled=jdbc.queryForObject("SELECT notification_enabled FROM users WHERE email=?",Boolean.class,email);
+ @Transactional(readOnly=true) public NotificationSettingsResponse getSettings(Long actorId){
+  Boolean enabled=jdbc.queryForObject("SELECT notification_enabled FROM users WHERE id=?",Boolean.class,actorId);
   return new NotificationSettingsResponse(Boolean.TRUE.equals(enabled));
  }
- @Transactional public NotificationSettingsResponse updateSettings(String email, NotificationSettingsRequest request){
-  var user = sessions.lock(email);
-  var authentication = SecurityContextHolder.getContext().getAuthentication();
-  if (authentication == null || !email.equals(authentication.getName())
-      || !(authentication.getDetails() instanceof Long version) || version != user.version()) {
-   throw SessionGuard.invalid();
-  }
+ @Transactional public NotificationSettingsResponse updateSettings(Long actorId, NotificationSettingsRequest request){
+  var user = sessions.lockCurrent(actorId);
+  if(Boolean.TRUE.equals(request.enabled())) policies.requireAccepted(user.id());
   jdbc.update("UPDATE users SET notification_enabled=?, updated_at=? WHERE id=?",request.enabled(),LocalDateTime.now(),user.id());
-  return getSettings(email);
+  return getSettings(actorId);
  }
  @Transactional public int deletePendingReminders(String sourceType, Long sourceId){
   return jdbc.update("DELETE FROM notifications WHERE source_type=? AND source_id=? AND read_at IS NULL AND scheduled_for >= ?", sourceType, sourceId, LocalDateTime.now());
  }
- @Transactional(readOnly=true) public NotificationFeedResponse list(String email,String cursor,int limit){
-  Long uid=users.findByEmail(email).orElseThrow().getId(); int size=Math.max(1,Math.min(limit,50)); List<Object> p=new ArrayList<>(List.of(uid));
+ @Transactional(readOnly=true) public NotificationFeedResponse list(Long actorId,String cursor,int limit){
+  Long uid=users.findById(actorId).orElseThrow().getId(); int size=Math.max(1,Math.min(limit,50)); List<Object> p=new ArrayList<>(List.of(uid));
   String sql="SELECT id,actor_user_id,actor_nickname,type,post_id,comment_id,source_type,source_id,scheduled_for,title,body,read_at,created_at FROM notifications WHERE recipient_user_id=? AND "+AGE+" AND "+VISIBLE;
   if(cursor!=null&&!cursor.isBlank()){sql+=" AND id < ?";p.add(Long.valueOf(cursor));} sql+=" ORDER BY id DESC LIMIT ?";p.add(size+1);
   List<Map<String,Object>> rows=jdbc.queryForList(sql,p.toArray()); boolean more=rows.size()>size;if(more)rows=rows.subList(0,size);List<NotificationResponse> items=rows.stream().map(this::map).toList();
   int unread=jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE recipient_user_id=? AND read_at IS NULL AND "+AGE+" AND "+VISIBLE,Integer.class,uid);
   return new NotificationFeedResponse(items,more?items.getLast().id().toString():null,more,unread);
  }
- @Transactional public void read(String email,Long id){Long uid=users.findByEmail(email).orElseThrow().getId();if(jdbc.update("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? AND recipient_user_id=? AND "+AGE+" AND "+VISIBLE,LocalDateTime.now(),id,uid)==0)throw new ApiException(HttpStatus.NOT_FOUND,"notification-not-found","Notification Not Found","Notification not found.","NOTIFICATION_NOT_FOUND");}
- @Transactional public void readAll(String email){Long uid=users.findByEmail(email).orElseThrow().getId();jdbc.update("UPDATE notifications SET read_at=? WHERE recipient_user_id=? AND read_at IS NULL AND "+AGE+" AND "+VISIBLE,LocalDateTime.now(),uid);}
+ @Transactional public void read(Long actorId,Long id){Long uid=users.findById(actorId).orElseThrow().getId();if(jdbc.update("UPDATE notifications SET read_at=COALESCE(read_at,?) WHERE id=? AND recipient_user_id=? AND "+AGE+" AND "+VISIBLE,LocalDateTime.now(),id,uid)==0)throw new ApiException(HttpStatus.NOT_FOUND,"notification-not-found","Notification Not Found","Notification not found.","NOTIFICATION_NOT_FOUND");}
+ @Transactional public void readAll(Long actorId){Long uid=users.findById(actorId).orElseThrow().getId();jdbc.update("UPDATE notifications SET read_at=? WHERE recipient_user_id=? AND read_at IS NULL AND "+AGE+" AND "+VISIBLE,LocalDateTime.now(),uid);}
  @Transactional public int cleanup(){return jdbc.update("DELETE FROM notifications WHERE created_at < DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)");}
  private NotificationResponse map(Map<String,Object> r){return new NotificationResponse(((Number)r.get("id")).longValue(),num(r.get("actor_user_id")),(String)r.get("actor_nickname"),NotificationType.valueOf((String)r.get("type")),num(r.get("post_id")),num(r.get("comment_id")),(String)r.get("source_type"),num(r.get("source_id")),date(r.get("scheduled_for")),(String)r.get("title"),(String)r.get("body"),date(r.get("read_at")),date(r.get("created_at")));}
  private Long num(Object x){return x==null?null:((Number)x).longValue();} private LocalDateTime date(Object x){return x instanceof Timestamp t?t.toLocalDateTime():(LocalDateTime)x;}

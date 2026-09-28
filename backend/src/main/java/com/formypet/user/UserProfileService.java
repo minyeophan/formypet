@@ -17,24 +17,27 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final MediaService mediaService;
+    private final com.formypet.auth.SessionGuard sessions;
 
     @Transactional(readOnly = true)
-    public UserProfileResponse getProfile(String email) {
-        return UserProfileResponse.of(findUser(email));
+    public UserProfileResponse getProfile(Long actorId) {
+        return UserProfileResponse.of(findUser(actorId));
     }
 
     @Transactional
-    public UserProfileResponse updateProfile(String email, UserProfileUpdateRequest request) {
-        User user = findUser(email);
+    public UserProfileResponse updateProfile(Long actorId, UserProfileUpdateRequest request) {
+        sessions.lockCurrent(actorId);
+        User user = findUser(actorId);
         user.updateNickname(request.nickname().trim());
         return UserProfileResponse.of(user);
     }
 
     @Transactional
-    public UserProfileResponse uploadProfileImage(String email, MultipartFile file) {
-        User user = findUser(email);
+    public UserProfileResponse uploadProfileImage(Long actorId, MultipartFile file) {
+        sessions.lockCurrent(actorId);
+        User user = findUser(actorId);
         Long previousMediaId = user.getProfileMediaId();
-        MediaResponse media = mediaService.uploadUserProfileMedia(email, file);
+        MediaResponse media = mediaService.uploadUserProfileMedia(actorId, file);
         user.updateProfileMediaId(media.id());
         userRepository.flush();
         if (previousMediaId != null && !previousMediaId.equals(media.id())) {
@@ -43,8 +46,8 @@ public class UserProfileService {
         return UserProfileResponse.of(user);
     }
 
-    private User findUser(String email) {
-        return userRepository.findByEmail(email)
+    private User findUser(Long actorId) {
+        return userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
     }
 }

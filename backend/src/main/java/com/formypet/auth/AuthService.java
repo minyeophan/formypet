@@ -36,6 +36,10 @@ public class AuthService {
     private final KakaoUserClient kakaoUserClient;
     private final OAuthSignupService oauthSignupService;
     private final SessionGuard sessions;
+    private final OAuthLifecycleGuard oauthLifecycle;
+    private final com.formypet.policy.PolicyConsentService policyConsents;
+    private final com.formypet.policy.PolicyCatalog policyCatalog;
+    private final KakaoSignupIntents signupIntents;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final org.springframework.transaction.support.TransactionTemplate transactions;
 
@@ -44,11 +48,13 @@ public class AuthService {
 
     @Transactional
     public TokenResponse register(RegisterRequest request) {
+        policyConsents.validate(request.policyAcceptance());
         if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
         User user = User.create(request.email(), passwordEncoder.encode(request.password()), request.nickname());
         userRepository.save(user);
+        policyConsents.recordSignup(user.getId(), request.policyAcceptance());
         return issueTokens(user);
     }
 
@@ -74,28 +80,27 @@ public class AuthService {
     // @Transactional 없음: fetchUser() 외부 HTTP 호출을 DB 트랜잭션 안에 묶으면 커넥션 점유 위험
     public TokenResponse kakaoLogin(KakaoLoginRequest request) {
         KakaoUserInfo kakaoUser = kakaoUserClient.fetchUser(request.accessToken());
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM account_deletion_jobs WHERE provider_user_id=?", Integer.class, kakaoUser.id()) > 0) {
-            throw new BadCredentialsException("유효하지 않은 카카오 계정입니다.");
-        }
-        User user = oauthAccountRepository.findByProviderAndProviderUserId("KAKAO", kakaoUser.id())
-                .map(account -> {
-                    log.debug("Kakao login: userId={}", account.getUser().getId());
-                    return account.getUser();
-                })
-                .orElseGet(() -> signupOrReloadKakaoUser(kakaoUser));
-        return transactions.execute(status -> {
-            var current = sessions.lock(user.getId());
-            return issueTokens(user, current.version());
-        });
-    }
-
-    private User signupOrReloadKakaoUser(KakaoUserInfo kakaoUser) {
         try {
-            return oauthSignupService.signupKakaoUser(kakaoUser);
+            return transactions.execute(status -> {
+                oauthLifecycle.lock(kakaoUser.id());
+                oauthLifecycle.requireNoCleanup(kakaoUser.id());
+                User user = oauthAccountRepository.findByProviderAndProviderUserId("KAKAO", kakaoUser.id())
+                        .map(account -> account.getUser()).orElse(null);
+                if (user == null) {
+                    if (policyCatalog.enforced() && request.signupToken() == null)
+                        return TokenResponse.signup(signupIntents.begin(kakaoUser.id()));
+                    if (policyCatalog.enforced() || request.signupToken() != null)
+                        signupIntents.validate(kakaoUser.id(),request.signupToken());
+                    policyConsents.validate(request.policyAcceptance());
+                    user=oauthSignupService.signupKakaoUser(kakaoUser);
+                    policyConsents.recordSignup(user.getId(),request.policyAcceptance());
+                    signupIntents.complete(kakaoUser.id());
+                }
+                var current = sessions.lock(user.getId());
+                return issueTokens(user, current.version());
+            });
         } catch (DataIntegrityViolationException ex) {
-            return oauthAccountRepository.findByProviderAndProviderUserId("KAKAO", kakaoUser.id())
-                    .map(account -> account.getUser())
-                    .orElseThrow(() -> new OAuthLoginConflictException("OAuth login conflict"));
+            throw new OAuthLoginConflictException("OAuth login conflict");
         }
     }
 
@@ -129,7 +134,7 @@ public class AuthService {
     }
 
     private TokenResponse issueTokens(User user, long version) {
-        String accessToken  = jwtService.generateAccessToken(user.getEmail(), version);
+        String accessToken  = jwtService.generateAccessToken(user.getId(), version);
         String refreshToken = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000);
         refreshTokenRepository.save(RefreshToken.create(user, refreshToken, expiresAt));

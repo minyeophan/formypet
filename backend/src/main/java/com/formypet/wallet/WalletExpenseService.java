@@ -46,8 +46,8 @@ public class WalletExpenseService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public WalletExpenseResponse create(String email, Long petId, WalletExpenseCreateRequest request) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public WalletExpenseResponse create(Long actorId, Long petId, WalletExpenseCreateRequest request) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         String currency = normalizeCurrency(request.currency());
         String category = normalizeCategory(request.category());
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -73,9 +73,9 @@ public class WalletExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public WalletExpenseListResponse list(String email, Long petId, String cursor, Integer limit,
+    public WalletExpenseListResponse list(Long actorId, Long petId, String cursor, Integer limit,
                                           LocalDate from, LocalDate to, String category) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         int normalizedLimit = normalizeLimit(limit);
         validateDateRange(from, to);
         String normalizedCategory = normalizeOptionalCategory(category);
@@ -116,8 +116,8 @@ public class WalletExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public WalletExpenseSummaryResponse summary(String email, Long petId, LocalDate from, LocalDate to, String category) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public WalletExpenseSummaryResponse summary(Long actorId, Long petId, LocalDate from, LocalDate to, String category) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         validateDateRange(from, to);
         String normalizedCategory = normalizeOptionalCategory(category);
 
@@ -157,14 +157,14 @@ public class WalletExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public WalletExpenseResponse get(String email, Long petId, Long expenseId) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public WalletExpenseResponse get(Long actorId, Long petId, Long expenseId) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         return findResponse(pet.id(), expenseId);
     }
 
     @Transactional
-    public WalletExpenseResponse update(String email, Long petId, Long expenseId, WalletExpenseUpdateRequest request) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public WalletExpenseResponse update(Long actorId, Long petId, Long expenseId, WalletExpenseUpdateRequest request) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         findResponse(pet.id(), expenseId);
         String currency = normalizeCurrency(request.currency());
         String category = normalizeCategory(request.category());
@@ -186,8 +186,8 @@ public class WalletExpenseService {
     }
 
     @Transactional
-    public void delete(String email, Long petId, Long expenseId) {
-        PetRow pet = findVisibleOwnedPet(email, petId);
+    public void delete(Long actorId, Long petId, Long expenseId) {
+        PetRow pet = findVisibleOwnedPet(actorId, petId);
         findResponse(pet.id(), expenseId);
         jdbcTemplate.update("DELETE FROM wallet_expenses WHERE id = ? AND pet_id = ?", expenseId, pet.id());
     }
@@ -215,8 +215,8 @@ public class WalletExpenseService {
         return rows.getFirst();
     }
 
-    private PetRow findVisibleOwnedPet(String email, Long petId) {
-        Long userId = findUserId(email);
+    private PetRow findVisibleOwnedPet(Long actorId, Long petId) {
+        Long userId = findUserId(actorId);
         List<PetRow> rows = jdbcTemplate.query("""
                 SELECT id, user_id, is_deleted
                 FROM pets
@@ -239,8 +239,8 @@ public class WalletExpenseService {
         return pet;
     }
 
-    private Long findUserId(String email) {
-        List<Long> ids = jdbcTemplate.queryForList("SELECT id FROM users WHERE email = ?", Long.class, email);
+    private Long findUserId(Long actorId) {
+        List<Long> ids = jdbcTemplate.queryForList("SELECT id FROM users WHERE id = ?", Long.class, actorId);
         if (ids.isEmpty()) {
             throw new InvalidInputException("User not found.", "INVALID_INPUT");
         }

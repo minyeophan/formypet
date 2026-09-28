@@ -1,6 +1,5 @@
 package com.formypet.user;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -14,9 +13,19 @@ import java.util.Map;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class RestKakaoAccountUnlinker implements KakaoAccountUnlinker {
     private final RestClient.Builder restClientBuilder;
+
+    public RestKakaoAccountUnlinker() {
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(java.time.Duration.ofSeconds(3));
+        factory.setReadTimeout(java.time.Duration.ofSeconds(5));
+        this.restClientBuilder = RestClient.builder().requestFactory(factory);
+    }
+
+    RestKakaoAccountUnlinker(RestClient.Builder builder) {
+        this.restClientBuilder = builder;
+    }
 
     @Value("${app.account-deletion.kakao-admin-key:}")
     private String adminKey;

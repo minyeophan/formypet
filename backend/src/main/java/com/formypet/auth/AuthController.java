@@ -20,6 +20,12 @@ import io.swagger.v3.oas.annotations.Operation;
 public class AuthController {
 
     private final AuthService authService;
+    private final KakaoSignupIntents signupIntents;
+    public record CancelSignup(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=200) String signupToken) {}
+    @PostMapping("/kakao/signup-cancellation")
+    public ApiResponse<KakaoSignupIntents.Cancellation> cancelSignup(@Valid @RequestBody CancelSignup body) {
+        return ApiResponse.of(signupIntents.cancel(body.signupToken()));
+    }
 
     @PostMapping("/register")
     @Operation(summary = "회원가입", description = "새 계정을 생성하고 access/refresh token을 반환합니다.")
@@ -39,8 +45,15 @@ public class AuthController {
     @PostMapping("/kakao")
     @Operation(summary = "카카오 로그인")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "카카오 로그인 성공")
-    public ApiResponse<TokenResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
-        return ApiResponse.of(authService.kakaoLogin(request));
+    public ApiResponse<TokenResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request,
+            @RequestHeader(value="X-Policy-Flow", required=false) String policyFlow) {
+        var response = authService.kakaoLogin(request);
+        if (response.signupRequired() && !"1".equals(policyFlow)) {
+            // The committed intent expires into cleanup even for an old client.
+            throw com.formypet.policy.PolicyCatalog.error(HttpStatus.UPGRADE_REQUIRED,
+                    "APP_UPDATE_REQUIRED", "가입 동의를 지원하는 최신 앱으로 업데이트해 주세요.");
+        }
+        return ApiResponse.of(response);
     }
 
     @PostMapping("/refresh")

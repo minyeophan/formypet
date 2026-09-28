@@ -35,46 +35,46 @@ public class CareScheduleController {
     @Operation(summary = "케어 일정 생성")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "케어 일정 생성 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<CareScheduleResponse> create(@AuthenticationPrincipal String email,
+    public ApiResponse<CareScheduleResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                     @PathVariable Long petId,
                                                     @Valid @RequestBody CareScheduleRequest request) {
-        return ApiResponse.of(careScheduleService.create(email, petId, request));
+        return ApiResponse.of(careScheduleService.create(actorId, petId, request));
     }
 
     @GetMapping
     @Operation(summary = "케어 일정 목록 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "케어 일정 목록 조회 성공")
-    public ApiResponse<List<CareScheduleResponse>> list(@AuthenticationPrincipal String email,
+    public ApiResponse<List<CareScheduleResponse>> list(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                         @PathVariable Long petId) {
-        return ApiResponse.of(careScheduleService.list(email, petId));
+        return ApiResponse.of(careScheduleService.list(actorId, petId));
     }
 
     @GetMapping("/{scheduleId}")
     @Operation(summary = "케어 일정 상세 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "케어 일정 조회 성공")
-    public ApiResponse<CareScheduleResponse> get(@AuthenticationPrincipal String email,
+    public ApiResponse<CareScheduleResponse> get(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                  @PathVariable Long petId,
                                                  @PathVariable Long scheduleId) {
-        return ApiResponse.of(careScheduleService.get(email, petId, scheduleId));
+        return ApiResponse.of(careScheduleService.get(actorId, petId, scheduleId));
     }
 
     @PutMapping("/{scheduleId}")
     @Operation(summary = "케어 일정 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "케어 일정 수정 성공")
-    public ApiResponse<CareScheduleResponse> update(@AuthenticationPrincipal String email,
+    public ApiResponse<CareScheduleResponse> update(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                     @PathVariable Long petId,
                                                     @PathVariable Long scheduleId,
                                                     @Valid @RequestBody CareScheduleRequest request) {
-        return ApiResponse.of(careScheduleService.update(email, petId, scheduleId, request));
+        return ApiResponse.of(careScheduleService.update(actorId, petId, scheduleId, request));
     }
 
     @DeleteMapping("/{scheduleId}")
     @Operation(summary = "케어 일정 삭제")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "케어 일정 삭제 성공")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@AuthenticationPrincipal String email,
+    public void delete(@AuthenticationPrincipal(expression = "id") Long actorId,
                        @PathVariable Long petId,
                        @PathVariable Long scheduleId) {
-        careScheduleService.delete(email, petId, scheduleId);
+        careScheduleService.delete(actorId, petId, scheduleId);
     }
 }

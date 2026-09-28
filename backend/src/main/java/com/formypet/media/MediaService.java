@@ -41,25 +41,26 @@ public class MediaService {
     private final PetRepository petRepository;
     private final JdbcTemplate jdbcTemplate;
     private final MediaStorage mediaStorage;
+    private final OrphanMediaCleanup orphanCleanup;
 
     @Transactional
-    public MediaResponse uploadPetMedia(String email, Long petId, MultipartFile file) {
-        User user = findUser(email);
+    public MediaResponse uploadPetMedia(Long actorId, Long petId, MultipartFile file) {
+        User user = findUser(actorId);
         Pet pet = findOwnedPet(user, petId);
         return storeAndInsert(user.getId(), pet.getId(), null, "PRIVATE", "pet-" + pet.getId(), file);
     }
 
     @Transactional
-    public MediaResponse uploadRecordMedia(String email, Long petId, Long recordId, MultipartFile file) {
-        User user = findUser(email);
+    public MediaResponse uploadRecordMedia(Long actorId, Long petId, Long recordId, MultipartFile file) {
+        User user = findUser(actorId);
         Pet pet = findOwnedPet(user, petId);
         ensureRecordBelongsToPet(pet.getId(), recordId);
         return storeAndInsert(user.getId(), pet.getId(), recordId, "PRIVATE", "pet-" + pet.getId(), file);
     }
 
     @Transactional
-    public MediaResponse uploadUserProfileMedia(String email, MultipartFile file) {
-        User user = findUser(email);
+    public MediaResponse uploadUserProfileMedia(Long actorId, MultipartFile file) {
+        User user = findUser(actorId);
         return storeAndInsert(user.getId(), null, null, "PRIVATE", "profile", file);
     }
 
@@ -75,8 +76,8 @@ public class MediaService {
         }
 
         String storageKey = (String) rows.getFirst().get("storage_key");
+        jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)", storageKey);
         jdbcTemplate.update("DELETE FROM media_resources WHERE id = ? AND user_id = ?", mediaId, userId);
-        registerAfterCommitCleanup(storageKey);
     }
 
     @Transactional
@@ -85,8 +86,8 @@ public class MediaService {
     }
 
     @Transactional(readOnly = true)
-    public LoadedMedia load(String email, Long mediaId) {
-        User user = findUser(email);
+    public LoadedMedia load(Long actorId, Long mediaId) {
+        User user = findUser(actorId);
         Map<String, Object> media = findMedia(mediaId);
         Long ownerId = ((Number) media.get("user_id")).longValue();
         if (!ownerId.equals(user.getId())) {
@@ -234,24 +235,11 @@ public class MediaService {
         });
     }
 
-    private void registerAfterCommitCleanup(String storageKey) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(storageKey);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                deleteQuietly(storageKey);
-            }
-        });
-    }
-
     private void deleteQuietly(String storageKey) {
         try {
             mediaStorage.delete(storageKey);
-        } catch (IOException ignored) {
-            // Best-effort orphan cleanup.
+        } catch (IOException failure) {
+            orphanCleanup.enqueue(storageKey);
         }
     }
 
@@ -288,8 +276,8 @@ public class MediaService {
                 .orElseThrow(() -> new AccessDeniedException("Cannot access this pet."));
     }
 
-    private User findUser(String email) {
-        return userRepository.findByEmail(email)
+    private User findUser(Long actorId) {
+        return userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
     }
 }

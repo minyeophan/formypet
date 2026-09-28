@@ -45,8 +45,8 @@ public class ActivityRecordService {
     private final MediaStorage mediaStorage;
 
     @Transactional
-    public ActivityRecordResponse create(String email, Long petId, ActivityRecordCreateRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+    public ActivityRecordResponse create(Long actorId, Long petId, ActivityRecordCreateRequest request) {
+        Pet pet = findOwnedPet(actorId, petId);
         validateType(request.typeId());
         validateRoutineBelongsToPet(pet.getId(), request.routineId());
 
@@ -74,8 +74,8 @@ public class ActivityRecordService {
     }
 
     @Transactional(readOnly = true)
-    public List<ActivityRecordResponse> list(String email, Long petId, LocalDate date, String typeId, Integer limit) {
-        Pet pet = findOwnedPet(email, petId);
+    public List<ActivityRecordResponse> list(Long actorId, Long petId, LocalDate date, String typeId, Integer limit) {
+        Pet pet = findOwnedPet(actorId, petId);
         if (typeId != null && !typeId.isBlank()) {
             validateType(typeId);
         }
@@ -115,14 +115,14 @@ public class ActivityRecordService {
     }
 
     @Transactional(readOnly = true)
-    public ActivityRecordResponse get(String email, Long petId, Long recordId) {
-        Pet pet = findOwnedPet(email, petId);
+    public ActivityRecordResponse get(Long actorId, Long petId, Long recordId) {
+        Pet pet = findOwnedPet(actorId, petId);
         return findResponse(pet.getId(), recordId);
     }
 
     @Transactional
-    public ActivityRecordResponse update(String email, Long petId, Long recordId, ActivityRecordUpdateRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+    public ActivityRecordResponse update(Long actorId, Long petId, Long recordId, ActivityRecordUpdateRequest request) {
+        Pet pet = findOwnedPet(actorId, petId);
         Map<String, Object> current = findBaseRecord(pet.getId(), recordId);
         String typeId = (String) current.get("type_id");
         validateRoutineBelongsToPet(pet.getId(), request.routineId());
@@ -148,8 +148,8 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public void delete(String email, Long petId, Long recordId) {
-        Pet pet = findOwnedPet(email, petId);
+    public void delete(Long actorId, Long petId, Long recordId) {
+        Pet pet = findOwnedPet(actorId, petId);
         findBaseRecord(pet.getId(), recordId);
         List<String> storageKeys = findRecordMediaStorageKeys(recordId);
         jdbcTemplate.update("DELETE FROM activity_records WHERE id = ? AND pet_id = ?", recordId, pet.getId());
@@ -325,8 +325,8 @@ public class ActivityRecordService {
         jdbcTemplate.update("DELETE FROM " + table + " WHERE record_id = ?", recordId);
     }
 
-    private Pet findOwnedPet(String email, Long petId) {
-        User user = userRepository.findByEmail(email)
+    private Pet findOwnedPet(Long actorId, Long petId) {
+        User user = userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다."));
         if (petId == null) {
             throw new IllegalArgumentException("Pet id must not be null.");

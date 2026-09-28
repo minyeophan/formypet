@@ -44,8 +44,8 @@ public class CommunityService {
 
     @Transactional(readOnly = true)
     public com.formypet.community.dto.MyActivityResponse myActivities(
-            String email, String type, String cursor, int limit) {
-        User user = findUser(email);
+            Long actorId, String type, String cursor, int limit) {
+        User user = findUser(actorId);
         if (type == null || !Set.of("written", "liked", "commented").contains(type)
                 || limit < 1 || limit > 50) throw InvalidInputException.invalidInput();
         String activity = switch (type) {
@@ -131,8 +131,8 @@ public class CommunityService {
     private final NotificationService notificationService;
 
     @Transactional
-    public PostResponse create(String email, PostCreateRequest request, List<MultipartFile> files) {
-        User user = findUser(email);
+    public PostResponse create(Long actorId, PostCreateRequest request, List<MultipartFile> files) {
+        User user = findUser(actorId);
         validateCreate(request, files);
         requireCategoryWritePermission(user, normalizeCategory(request.category()));
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -159,8 +159,8 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
-    public PostFeedResponse feed(String email, String keyword, String category, String sort, String cursor, int limit) {
-        User user = findUser(email);
+    public PostFeedResponse feed(Long actorId, String keyword, String category, String sort, String cursor, int limit) {
+        User user = findUser(actorId);
         String normalizedSort = SORTS.contains(sort) ? sort : "latest";
         String normalizedKeyword = normalizeKeyword(keyword);
         int pageSize = Math.max(1, Math.min(limit, 50));
@@ -205,15 +205,15 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
-    public PostResponse detail(String email, Long postId) {
-        User user = findUser(email);
+    public PostResponse detail(Long actorId, Long postId) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         return findPostResponse(postId, user.getId());
     }
 
     @Transactional
-    public PostResponse update(String email, Long postId, PostUpdateRequest request) {
-        User user = findUser(email);
+    public PostResponse update(Long actorId, Long postId, PostUpdateRequest request) {
+        User user = findUser(actorId);
         ensurePostExists(postId);
         Long authorId = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
         if (!user.getId().equals(authorId)) {
@@ -236,19 +236,30 @@ public class CommunityService {
     }
 
     @Transactional
-    public void delete(String email, Long postId) {
-        User user = findUser(email);
+    public void delete(Long actorId, Long postId) {
+        User user = findUser(actorId);
         ensurePostExists(postId);
         Long authorId = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
         if (!user.getId().equals(authorId)) {
             throw new ForbiddenException("Forbidden post.", "POST_FORBIDDEN");
         }
+        List<Long> mediaIds = jdbcTemplate.queryForList(
+                "SELECT media_id FROM post_media WHERE post_id=?", Long.class, postId);
         jdbcTemplate.update("DELETE FROM posts WHERE id = ?", postId);
+        for (Long mediaId : mediaIds) {
+            Integer references = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM post_media WHERE media_id=?", Integer.class, mediaId);
+            if (references != null && references == 0) {
+                jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) SELECT storage_key FROM media_resources WHERE id=? AND user_id=?",
+                        mediaId, user.getId());
+                jdbcTemplate.update("DELETE FROM media_resources WHERE id=? AND user_id=?", mediaId, user.getId());
+            }
+        }
     }
 
     @Transactional(readOnly = true)
-    public PostCommentFeedResponse comments(String email, Long postId, String cursor, int limit, int replyLimit) {
-        User user = findUser(email);
+    public PostCommentFeedResponse comments(Long actorId, Long postId, String cursor, int limit, int replyLimit) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         int pageSize = Math.max(1, Math.min(limit, 50));
         int nestedPageSize = validateReplyLimit(replyLimit);
@@ -286,8 +297,8 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
-    public PostCommentResponse commentThread(String email, Long postId, Long commentId, int replyLimit) {
-        User user = findUser(email);
+    public PostCommentResponse commentThread(Long actorId, Long postId, Long commentId, int replyLimit) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         Map<String, Object> row = requireComment(postId, commentId);
         if (row.get("deleted_at") != null && ((Number) row.get("reply_count")).intValue() == 0) {
@@ -303,8 +314,8 @@ public class CommunityService {
     }
 
     @Transactional(readOnly = true)
-    public PostCommentFeedResponse replies(String email, Long postId, Long commentId, String cursor, int limit) {
-        User user = findUser(email);
+    public PostCommentFeedResponse replies(Long actorId, Long postId, Long commentId, String cursor, int limit) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         Map<String, Object> parent = requireComment(postId, commentId);
         if (parent.get("deleted_at") != null && ((Number) parent.get("reply_count")).intValue() == 0) {
@@ -338,8 +349,8 @@ public class CommunityService {
     }
 
     @Transactional
-    public PostCommentResponse createComment(String email, Long postId, PostCommentCreateRequest request) {
-        User user = findUser(email);
+    public PostCommentResponse createComment(Long actorId, Long postId, PostCommentCreateRequest request) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         if (request == null) {
             throw new IllegalArgumentException("Comment content must be between 1 and 1000 characters.");
@@ -383,9 +394,9 @@ public class CommunityService {
     }
 
     @Transactional
-    public PostCommentResponse updateComment(String email, Long postId, Long commentId,
+    public PostCommentResponse updateComment(Long actorId, Long postId, Long commentId,
                                              PostCommentUpdateRequest request) {
-        User user = findUser(email);
+        User user = findUser(actorId);
         ensurePostExists(postId);
         Map<String, Object> comment = requireActiveComment(postId, commentId);
         if (!user.getId().equals(((Number) comment.get("user_id")).longValue())) {
@@ -406,8 +417,8 @@ public class CommunityService {
     }
 
     @Transactional
-    public void deleteComment(String email, Long postId, Long commentId) {
-        User user = findUser(email);
+    public void deleteComment(Long actorId, Long postId, Long commentId) {
+        User user = findUser(actorId);
         ensurePostExists(postId);
         Map<String, Object> comment = requireActiveComment(postId, commentId);
         Long postAuthorId = jdbcTemplate.queryForObject(
@@ -428,9 +439,9 @@ public class CommunityService {
     }
 
     @Transactional
-    public PostCommentReportResponse reportComment(String email, Long postId, Long commentId,
+    public PostCommentReportResponse reportComment(Long actorId, Long postId, Long commentId,
                                                     PostCommentReportRequest request) {
-        User reporter = findUser(email);
+        User reporter = findUser(actorId);
         ensurePostExists(postId);
         Map<String, Object> comment = requireActiveComment(postId, commentId);
         if (reporter.getId().equals(((Number) comment.get("user_id")).longValue())) {
@@ -469,8 +480,8 @@ public class CommunityService {
     }
 
     @Transactional
-    public PostLikeResponse toggleLike(String email, Long postId) {
-        User user = findUser(email);
+    public PostLikeResponse toggleLike(Long actorId, Long postId) {
+        User user = findUser(actorId);
         ensurePostExists(postId);
 
         boolean alreadyLiked = countLike(user.getId(), postId) > 0;
@@ -493,8 +504,8 @@ public class CommunityService {
     }
 
     @Transactional
-    public PostResponse vote(String email, Long postId, Long optionId) {
-        User user = findUser(email);
+    public PostResponse vote(Long actorId, Long postId, Long optionId) {
+        User user = findUser(actorId);
         ensurePostVisible(postId, user.getId());
         Long pollId = pollIdForPost(postId);
         ensureOptionBelongsToPoll(pollId, optionId);
@@ -951,8 +962,8 @@ public class CommunityService {
         return normalized;
     }
 
-    private User findUser(String email) {
-        return userRepository.findByEmail(email)
+    private User findUser(Long actorId) {
+        return userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("User not found."));
     }
 

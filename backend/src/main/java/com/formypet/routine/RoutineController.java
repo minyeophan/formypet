@@ -28,59 +28,59 @@ public class RoutineController {
     @Operation(summary = "루틴 생성")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "루틴 생성 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<RoutineResponse> create(@AuthenticationPrincipal String email,
+    public ApiResponse<RoutineResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                @PathVariable Long petId,
                                                @Valid @RequestBody RoutineCreateRequest request) {
-        return ApiResponse.of(routineService.create(email, petId, request));
+        return ApiResponse.of(routineService.create(actorId, petId, request));
     }
 
     @GetMapping
     @Operation(summary = "루틴 목록 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "루틴 목록 조회 성공")
-    public ApiResponse<List<RoutineResponse>> list(@AuthenticationPrincipal String email,
+    public ApiResponse<List<RoutineResponse>> list(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                    @PathVariable Long petId) {
-        return ApiResponse.of(routineService.list(email, petId));
+        return ApiResponse.of(routineService.list(actorId, petId));
     }
 
     @GetMapping("/today")
     @Operation(summary = "오늘의 루틴 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "오늘의 루틴 조회 성공")
-    public ApiResponse<TodayRoutineResponse> today(@AuthenticationPrincipal String email,
+    public ApiResponse<TodayRoutineResponse> today(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                    @PathVariable Long petId,
                                                    @RequestParam(required = false)
                                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ApiResponse.of(routineService.today(email, petId, date));
+        return ApiResponse.of(routineService.today(actorId, petId, date));
     }
 
     @PutMapping("/{routineId}")
     @Operation(summary = "루틴 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "루틴 수정 성공")
-    public ApiResponse<RoutineResponse> update(@AuthenticationPrincipal String email,
+    public ApiResponse<RoutineResponse> update(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                @PathVariable Long petId,
                                                @PathVariable Long routineId,
                                                @RequestBody RoutineUpdateRequest request) {
-        return ApiResponse.of(routineService.update(email, petId, routineId, request));
+        return ApiResponse.of(routineService.update(actorId, petId, routineId, request));
     }
 
     @PatchMapping("/{routineId}/completions/{date}")
     @Operation(summary = "루틴 완료 상태 변경")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "완료 상태 변경 성공")
-    public ApiResponse<RoutineCompletionResponse> markCompletion(@AuthenticationPrincipal String email,
+    public ApiResponse<RoutineCompletionResponse> markCompletion(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                                  @PathVariable Long petId,
                                                                  @PathVariable Long routineId,
                                                                  @PathVariable
                                                                  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                                                  @Valid @RequestBody RoutineCompletionRequest request) {
-        return ApiResponse.of(routineService.markCompletion(email, petId, routineId, date, request));
+        return ApiResponse.of(routineService.markCompletion(actorId, petId, routineId, date, request));
     }
 
     @DeleteMapping("/{routineId}")
     @Operation(summary = "루틴 삭제")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "루틴 삭제 성공")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@AuthenticationPrincipal String email,
+    public void delete(@AuthenticationPrincipal(expression = "id") Long actorId,
                        @PathVariable Long petId,
                        @PathVariable Long routineId) {
-        routineService.delete(email, petId, routineId);
+        routineService.delete(actorId, petId, routineId);
     }
 }

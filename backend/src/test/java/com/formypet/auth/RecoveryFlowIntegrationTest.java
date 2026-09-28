@@ -224,7 +224,7 @@ class RecoveryFlowIntegrationTest extends IntegrationTestSupport {
             .expiration(new java.util.Date(System.currentTimeMillis()+60000))
             .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
             .compact();
-        mvc.perform(get("/api/v1/pets").header("Authorization","Bearer "+legacy)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/pets").header("Authorization","Bearer "+legacy)).andExpect(status().isUnauthorized());
         var other=postJson("register",Map.of("email",UUID.randomUUID()+"@example.com","password","Original123!","nickname","other"),201).path("data");
         String id=request().path("challengeId").asText();
         String token=verify(id,code(),UUID.randomUUID().toString()).path("resetToken").asText();
@@ -240,12 +240,12 @@ class RecoveryFlowIntegrationTest extends IntegrationTestSupport {
         String id=request().path("challengeId").asText();
         String token=verify(id,code(),UUID.randomUUID().toString()).path("resetToken").asText();
         postJson("password-reset/confirm",Map.of("resetToken",token,"newPassword","Replacement123!","requestId",UUID.randomUUID().toString()),200);
-        var stale=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(email,null,List.of());
+        var stale=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(new AuthenticatedUser(uid,0),null,List.of());
         stale.setDetails(0L);
         var context=org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();context.setAuthentication(stale);
         org.springframework.security.core.context.SecurityContextHolder.setContext(context);
         try{
-            org.assertj.core.api.Assertions.assertThatThrownBy(()->devices.register(email,
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->devices.register(uid,
                 new com.formypet.notification.dto.DeviceTokenRequest("recovery-device-"+uid,"ANDROID")))
                 .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
         }finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}

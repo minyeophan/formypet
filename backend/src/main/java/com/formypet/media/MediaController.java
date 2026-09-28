@@ -25,10 +25,10 @@ public class MediaController {
     @SecurityRequirement(name = "bearerAuth")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "업로드 성공")
     @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
-    public ApiResponse<MediaResponse> uploadPetMedia(@AuthenticationPrincipal String email,
+    public ApiResponse<MediaResponse> uploadPetMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                      @PathVariable Long petId,
                                                      @RequestParam("file") MultipartFile file) {
-        return ApiResponse.of(mediaService.uploadPetMedia(email, petId, file));
+        return ApiResponse.of(mediaService.uploadPetMedia(actorId, petId, file));
     }
 
     @PostMapping("/api/v1/pets/{petId}/records/{recordId}/media")
@@ -36,20 +36,20 @@ public class MediaController {
     @SecurityRequirement(name = "bearerAuth")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "업로드 성공")
     @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
-    public ApiResponse<MediaResponse> uploadRecordMedia(@AuthenticationPrincipal String email,
+    public ApiResponse<MediaResponse> uploadRecordMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                         @PathVariable Long petId,
                                                         @PathVariable Long recordId,
                                                         @RequestParam("file") MultipartFile file) {
-        return ApiResponse.of(mediaService.uploadRecordMedia(email, petId, recordId, file));
+        return ApiResponse.of(mediaService.uploadRecordMedia(actorId, petId, recordId, file));
     }
 
     @GetMapping("/api/v1/media/{mediaId}")
     @Operation(summary = "비공개 미디어 조회")
     @SecurityRequirement(name = "bearerAuth")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "미디어 조회 성공")
-    public ResponseEntity<byte[]> load(@AuthenticationPrincipal String email,
+    public ResponseEntity<byte[]> load(@AuthenticationPrincipal(expression = "id") Long actorId,
                                        @PathVariable Long mediaId) {
-        LoadedMedia media = mediaService.load(email, mediaId);
+        LoadedMedia media = mediaService.load(actorId, mediaId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(media.contentType()))
                 .body(media.bytes());

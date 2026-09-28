@@ -13,19 +13,19 @@ public class UserBlockController {
     private final UserBlockService service;
 
     @GetMapping
-    public ApiResponse<UserBlockService.BlockList> list(@AuthenticationPrincipal String email) {
-        return ApiResponse.of(service.list(email));
+    public ApiResponse<UserBlockService.BlockList> list(@AuthenticationPrincipal(expression = "id") Long actorId) {
+        return ApiResponse.of(service.list(actorId));
     }
 
     @PutMapping("/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void block(@AuthenticationPrincipal String email, @PathVariable Long userId) {
-        service.block(email, userId);
+    public void block(@AuthenticationPrincipal(expression = "id") Long actorId, @PathVariable Long userId) {
+        service.block(actorId, userId);
     }
 
     @DeleteMapping("/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unblock(@AuthenticationPrincipal String email, @PathVariable Long userId) {
-        service.unblock(email, userId);
+    public void unblock(@AuthenticationPrincipal(expression = "id") Long actorId, @PathVariable Long userId) {
+        service.unblock(actorId, userId);
     }
 }
