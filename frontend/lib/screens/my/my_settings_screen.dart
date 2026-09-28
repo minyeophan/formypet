@@ -75,6 +75,16 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
             title: '앱 설정',
             children: [
               MyMenuRow(
+                label: '약관 및 정책',
+                icon: Icons.description_outlined,
+                onTap: () => context.push('/my/policies'),
+              ),
+              MyMenuRow(
+                label: '나의 동의 이력',
+                icon: Icons.history,
+                onTap: () => context.push('/policy-history'),
+              ),
+              MyMenuRow(
                 label: '알림 설정',
                 icon: Icons.notifications_active_outlined,
                 onTap: () => context.push('/my/settings/notifications'),

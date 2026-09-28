@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,10 +11,94 @@ import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/policy_service.dart';
+import 'package:frontend/services/account_deletion_cleanup.dart';
 import 'package:frontend/services/reminder_tap_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'late deletion cleanup does not clear a newer account pet state',
+    () async {
+      final started = Completer<void>(), finish = Completer<void>();
+      final pets = _FakePetNotifier();
+      final cleanup = AccountDeletionCleanup(
+        actions: {
+          'delayed': (_) async {
+            started.complete();
+            await finish.future;
+          },
+        },
+      );
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(),
+        petNotifier: pets,
+        deletionCleanup: cleanup,
+      );
+      final deleting = notifier.deleteAccount(password: 'Password1!');
+      await started.future;
+      await notifier.login(email: 'new@example.test', password: 'Password1!');
+      finish.complete();
+      await deleting;
+      expect(notifier.state.profile?.id, 'user-new');
+      expect(pets.clearCalls, 0);
+      notifier.dispose();
+    },
+  );
+
+  test('deletion intent is durable before the server answers', () async {
+    final service = _FakeAuthService()..deleteCompleter = Completer<bool>();
+    final notifier = AuthNotifier.test(_signedIn, service: service);
+    final deletion = notifier.deleteAccount(password: 'Password1!');
+    await _waitUntil(() => service.deleteCalls == 1);
+    final prefs = await SharedPreferences.getInstance();
+    final marker = prefs.getStringList('pending_account_deletion_cleanup_v1');
+    service.deleteCompleter!.complete(false);
+    await deletion;
+    expect(marker, contains(_profile.id));
+    notifier.dispose();
+  });
+
+  test('late policy acceptance cannot restore a logged out account', () async {
+    final policy = _DelayedPolicyService();
+    final notifier = AuthNotifier.test(
+      _signedIn,
+      service: _FakeAuthService(),
+      policyService: policy,
+    );
+    final acceptance = notifier.acceptPolicies({});
+    await policy.started.future;
+    await notifier.logout();
+    policy.finished.complete();
+    await acceptance;
+    expect(notifier.state.isAuthenticated, isFalse);
+    expect(notifier.state.profile, isNull);
+    notifier.dispose();
+  });
+
+  test(
+    'lost deletion response requires confirmation instead of restoring the session',
+    () async {
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(
+          deleteError: DioException(
+            requestOptions: RequestOptions(path: '/api/v1/users/me'),
+            type: DioExceptionType.receiveTimeout,
+          ),
+        ),
+      );
+      await expectLater(
+        notifier.deleteAccount(password: 'Password1!'),
+        throwsException,
+      );
+      expect(notifier.state.isAuthenticated, isFalse);
+      expect(notifier.state.initializationError, contains('탈퇴 결과'));
+      notifier.dispose();
+    },
+  );
 
   setUp(() {
     ReminderTapService.instance.reset();
@@ -103,20 +188,30 @@ void main() {
     },
   );
 
-  test('failed account deletion preserves the authenticated session', () async {
-    final notifier = AuthNotifier.test(
-      _signedIn,
-      service: _FakeAuthService(deleteError: Exception('delete failed')),
-    );
+  test(
+    'definitively rejected account deletion preserves the session',
+    () async {
+      final request = RequestOptions(path: '/api/v1/users/me');
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(
+          deleteError: DioException(
+            requestOptions: request,
+            response: Response(requestOptions: request, statusCode: 400),
+            type: DioExceptionType.badResponse,
+          ),
+        ),
+      );
 
-    await expectLater(
-      notifier.deleteAccount(password: 'Password1!'),
-      throwsException,
-    );
+      await expectLater(
+        notifier.deleteAccount(password: 'Password1!'),
+        throwsException,
+      );
 
-    expect(notifier.state.isAuthenticated, isTrue);
-    expect(notifier.state.profile, _profile);
-  });
+      expect(notifier.state.isAuthenticated, isTrue);
+      expect(notifier.state.profile, _profile);
+    },
+  );
 
   test('auth expiration clears pet state and signs out', () async {
     final petNotifier = _FakePetNotifier();
@@ -168,20 +263,23 @@ void main() {
     },
   );
 
-  test('uploadProfileImage replaces the authenticated profile with the API response', () async {
-    final notifier = AuthNotifier.test(
-      _signedIn,
-      service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
-    );
+  test(
+    'uploadProfileImage replaces the authenticated profile with the API response',
+    () async {
+      final notifier = AuthNotifier.test(
+        _signedIn,
+        service: _FakeAuthService(uploadProfileImageResult: _photoProfile),
+      );
 
-    await notifier.uploadProfileImage(
-      bytes: Uint8List.fromList([1]),
-      filename: 'portrait.webp',
-    );
+      await notifier.uploadProfileImage(
+        bytes: Uint8List.fromList([1]),
+        filename: 'portrait.webp',
+      );
 
-    expect(notifier.state.isLoading, isFalse);
-    expect(notifier.state.profile, _photoProfile);
-  });
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.profile, _photoProfile);
+    },
+  );
 
   test(
     'uploadProfileImage failure keeps the previously saved nickname and photo',
@@ -240,6 +338,19 @@ const _photoProfile = UserProfile(
   profileImageUrl: '/api/v1/media/12',
 );
 
+class _DelayedPolicyService extends PolicyService {
+  final started = Completer<void>();
+  final finished = Completer<void>();
+  @override
+  Future<void> accept(Map<String, dynamic> acceptance) async {
+    started.complete();
+    await finished.future;
+  }
+
+  @override
+  Future<Map<String, dynamic>> status() async => {'acceptanceRequired': false};
+}
+
 class _FakeAuthService extends AuthService {
   final Object? logoutError;
   final Object? deleteError;
@@ -248,6 +359,7 @@ class _FakeAuthService extends AuthService {
   final UserProfile? uploadProfileImageResult;
   final Object? uploadProfileImageError;
   Completer<void>? logoutCompleter;
+  Completer<bool>? deleteCompleter;
   int deleteCalls = 0;
 
   _FakeAuthService({
@@ -266,9 +378,20 @@ class _FakeAuthService extends AuthService {
   }
 
   @override
+  Future<UserProfile> login({
+    required String email,
+    required String password,
+  }) async => const UserProfile(
+    id: 'user-new',
+    email: 'new@example.test',
+    nickname: 'new',
+  );
+
+  @override
   Future<bool> deleteAccount({String? password}) async {
     deleteCalls++;
     if (deleteError != null) throw deleteError!;
+    if (deleteCompleter != null) return deleteCompleter!.future;
     return true;
   }
 
@@ -298,6 +421,9 @@ class _FakePetNotifier extends PetNotifier {
   int clearCalls = 0;
 
   _FakePetNotifier({this.clearError}) : super.test(_emptyPetState);
+
+  @override
+  Future<void> loadForAuthenticatedUser() async {}
 
   @override
   Future<void> clearForSignedOutUser() async {

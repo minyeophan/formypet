@@ -27,6 +27,9 @@ void main() {
     token = () async => 'device';
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'Messaging#setAutoInitEnabled') {
+            return {'isAutoInitEnabled': call.arguments['enabled']};
+          }
           if (call.method == 'Messaging#getNotificationSettings') {
             return {'authorizationStatus': 1};
           }
@@ -93,21 +96,21 @@ void main() {
   );
 
   test(
-    'late logout token lookup cannot disable the next account device',
+    'logout never obtains a fresh token and cannot disable the next account',
     () async {
-      final delayed = Completer<String>();
       var calls = 0;
-      token = () => ++calls == 1 ? delayed.future : Future.value('device');
+      token = () async {
+        calls++;
+        return 'device';
+      };
       final api = AuditApi((_) => null);
       useAuditApi(api);
       final logout = service.endSession(disableRemote: true);
-      final rejected = expectLater(logout, throwsException);
-      await until(() => calls == 1);
       await saveTokens(access: 'account-b', refresh: 'refresh-b');
       service.beginSession('b');
       await service.registerDeviceToken(requestPermission: false);
-      delayed.complete('device');
-      await rejected;
+      await logout;
+      expect(calls, 1);
       expect(api.requests.length, 1);
       expect(api.requests.single.method, 'POST');
       expect(api.requests.single.headers['Authorization'], 'Bearer account-b');

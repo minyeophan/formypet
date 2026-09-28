@@ -5,6 +5,10 @@ import 'secure_storage.dart';
 // Singleton Dio instance used by all services
 late final Dio dio;
 Future<void> Function()? _authExpiredHandler;
+Future<void> Function()? _policyRequiredHandler;
+void setPolicyRequiredHandler(Future<void> Function()? handler) {
+  _policyRequiredHandler = handler;
+}
 
 void setAuthExpiredHandler(Future<void> Function()? handler) {
   _authExpiredHandler = handler;
@@ -162,6 +166,12 @@ class _AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
+    if (err.response?.statusCode == 403 &&
+        parseApiError(err).errorCode == 'POLICY_ACCEPTANCE_REQUIRED' &&
+        err.requestOptions.extra['_requestCredentialRevision'] ==
+            credentialRevision) {
+      await _policyRequiredHandler?.call();
+    }
     if (err.response?.statusCode == 401 &&
         !err.requestOptions.path.contains('/auth/')) {
       final request = err.requestOptions;

@@ -38,7 +38,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
       builder: (context) => AlertDialog(
         title: const Text('계정을 탈퇴할까요?'),
         content: const Text(
-          '탈퇴하면 계정과 연결된 기록, 게시글, 댓글, 투표, 사진이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
+          '탈퇴하면 계정과 연결된 기록, 게시글, 댓글, 투표, 사진이 삭제됩니다. 이 작업은 되돌릴 수 없습니다. 진행 중 연결이 끊겨도 이 기기에 저장된 예산과 캐시는 삭제될 수 있습니다. 계정 삭제 결과를 확인하지 못한 경우 다시 로그인하거나 문의해 주세요.',
         ),
         actions: [
           TextButton(
@@ -102,7 +102,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
           ),
           const SizedBox(height: 12),
           const AppText(
-            '삭제 요청 후에는 다시 로그인할 수 없습니다. 카카오 연결과 첨부파일 정리는 서버에서 이어질 수 있습니다.',
+            '삭제된 계정은 다시 사용할 수 없습니다. 카카오 연결과 첨부파일 정리는 서버에서 이어질 수 있습니다. 본인 게시글이 삭제되면 그 글에 달린 다른 회원의 댓글도 함께 삭제됩니다. 다른 기기의 오프라인 사본까지 즉시 지워지는 것은 아닙니다.',
             fontSize: 13,
             color: AppColors.textSecondary,
           ),

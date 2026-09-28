@@ -11,6 +11,7 @@ import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/policy_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
@@ -358,6 +359,7 @@ Future<void> _pumpAuth(WidgetTester tester, {AuthService? service}) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
+        policyServiceProvider.overrideWithValue(_UnpublishedPolicies()),
         authProvider.overrideWith(
           (ref) => AuthNotifier.test(
             const AuthState(isLoading: false, isAuthenticated: false),
@@ -388,7 +390,9 @@ class _FakeAuthService extends AuthService {
   Completer<UserProfile>? pendingLogin;
 
   @override
-  Future<UserProfile?> loginWithKakao() async {
+  Future<UserProfile?> loginWithKakao({
+    Future<Map<String, dynamic>?> Function()? requestConsent,
+  }) async {
     if (kakaoError != null) throw kakaoError!;
     return null;
   }
@@ -398,6 +402,7 @@ class _FakeAuthService extends AuthService {
     required String email,
     required String password,
     required String nickname,
+    Map<String, dynamic>? policyAcceptance,
   }) async {
     registerCalls++;
     registeredEmail = email;
@@ -415,6 +420,15 @@ class _FakeAuthService extends AuthService {
     if (pendingLogin != null) return pendingLogin!.future;
     return _profile;
   }
+}
+
+class _UnpublishedPolicies extends PolicyService {
+  @override
+  Future<Map<String, dynamic>> catalog() async => {
+    'enforcementEnabled': false,
+    'published': false,
+    'documents': [],
+  };
 }
 
 const _profile = UserProfile(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'services/kakao_bootstrap.dart';
+import 'services/push_notification_service.dart';
 
 import 'core/api_client.dart';
 import 'core/app_theme.dart';
@@ -39,9 +41,40 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  const configuredUrl = String.fromEnvironment('API_BASE_URL');
+  final baseUrl = configuredUrl.isNotEmpty
+      ? configuredUrl
+      : kReleaseMode
+      ? ''
+      : kIsWeb
+      ? 'http://localhost:8083'
+      : 'http://10.0.2.2:8083';
+  // A release with no HTTPS deployment cannot send account data over HTTP.
+  initApiClient(kReleaseMode && !baseUrl.startsWith('https://') ? '' : baseUrl);
+  final container = ProviderContainer();
+  runApp(
+    UncontrolledProviderScope(container: container, child: const FormypetApp()),
+  );
+  unawaited(
+    _initializeMessaging(container).catchError((Object _) {
+      debugPrint(
+        'Notification initialization failed; public policies remain available.',
+      );
+    }),
+  );
+  unawaited(
+    KakaoBootstrap.ensureReady().catchError((Object _) {
+      debugPrint(
+        'Kakao initialization unavailable; public policies remain available.',
+      );
+    }),
+  );
+}
 
+Future<void> _initializeMessaging(ProviderContainer container) async {
   if (!kIsWeb) {
     await Firebase.initializeApp();
+    await FirebaseMessaging.instance.setAutoInitEnabled(false);
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     FirebaseMessaging.onMessageOpenedApp.listen(_openPushTarget);
     await ForegroundNotificationService.instance.initialize(
@@ -62,17 +95,16 @@ void main() async {
     });
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) _openPushTarget(initialMessage);
+    final auth = container.read(authProvider);
+    if (auth.isAuthenticated &&
+        !auth.policyAcceptanceRequired &&
+        auth.profile != null) {
+      PushNotificationService.instance.beginSession(auth.profile!.id);
+      await PushNotificationService.instance.registerDeviceToken(
+        sessionKey: auth.profile!.id,
+      );
+    }
   }
-
-  final baseUrl = kIsWeb ? 'http://localhost:8083' : 'http://10.0.2.2:8083';
-  initApiClient(baseUrl);
-  const kakaoNativeAppKey = String.fromEnvironment('KAKAO_NATIVE_APP_KEY');
-  if (kakaoNativeAppKey.isEmpty) {
-    throw StateError('KAKAO_NATIVE_APP_KEY is not configured');
-  }
-  await KakaoSdk.init(nativeAppKey: kakaoNativeAppKey);
-
-  runApp(const ProviderScope(child: FormypetApp()));
 }
 
 class FormypetApp extends ConsumerStatefulWidget {

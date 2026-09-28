@@ -2,12 +2,17 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _accessKey = 'access_token';
 const _refreshKey = 'refresh_token';
+const _pushKey = 'registered_push_token';
 
 const _storage = FlutterSecureStorage(
   aOptions: AndroidOptions(encryptedSharedPreferences: true),
 );
 
 Future<void> _credentialWrites = Future.value();
+Future<String?> readRegisteredPushToken() => _storage.read(key: _pushKey);
+Future<void> saveRegisteredPushToken(String token) =>
+    _storage.write(key: _pushKey, value: token);
+Future<void> clearRegisteredPushToken() => _storage.delete(key: _pushKey);
 // Advance on login/logout intent, so a queued refresh cannot overwrite it.
 int _credentialRevision = 0;
 int get credentialRevision => _credentialRevision;
@@ -63,8 +68,18 @@ Future<int?> replaceTokensIfCurrent({
 });
 
 Future<void> _deleteTokens() async {
-  await _storage.delete(key: _accessKey);
-  await _storage.delete(key: _refreshKey);
+  Object? failure;
+  try {
+    await _storage.delete(key: _accessKey);
+  } catch (error) {
+    failure = error;
+  }
+  try {
+    await _storage.delete(key: _refreshKey);
+  } catch (error) {
+    failure ??= error;
+  }
+  if (failure != null) throw failure;
 }
 
 Future<void> clearTokens() {

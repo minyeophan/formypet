@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/pet_provider.dart';
 import '../screens/auth/auth_screen.dart';
+import '../screens/auth/policy_acceptance_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -65,8 +66,30 @@ class _RouterNotifier extends ChangeNotifier {
     final petState = _ref.read(petProvider);
     final matchedPath = state.matchedLocation;
 
+    if (matchedPath == '/my/policies' ||
+        matchedPath.startsWith('/my/policies/') ||
+        matchedPath == '/privacy' ||
+        matchedPath == '/terms' ||
+        matchedPath.startsWith('/policies/')) {
+      return null;
+    }
+
     if (authState.initializationError != null) {
       return matchedPath == '/' ? null : '/';
+    }
+
+    if (authState.isAuthenticated && authState.policyAcceptanceRequired) {
+      const allowed = {
+        '/policy-consent',
+        '/policy-history',
+        '/my/inquiry',
+        '/my/settings/delete-account',
+        '/my/settings/notifications',
+      };
+      return allowed.contains(matchedPath) ? null : '/policy-consent';
+    }
+    if (matchedPath == '/policy-consent' && authState.isAuthenticated) {
+      return '/home';
     }
 
     if (authState.isLoading || petState.isLoading) return null;
@@ -116,6 +139,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/auth', builder: (c, s) => const AuthScreen()),
+      GoRoute(
+        path: '/policy-consent',
+        builder: (c, s) => const PolicyAcceptanceScreen(),
+      ),
+      GoRoute(
+        path: '/policy-history',
+        builder: (c, s) => const PolicyHistoryScreen(),
+      ),
+      GoRoute(path: '/privacy', redirect: (c, s) => '/my/policies/privacy'),
+      GoRoute(path: '/terms', redirect: (c, s) => '/my/policies/terms'),
+      GoRoute(
+        path: '/my/policies',
+        builder: (c, s) => const MyPoliciesScreen(),
+      ),
+      GoRoute(
+        path: '/my/policies/:policyId',
+        builder: (c, s) =>
+            MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
+      ),
+      GoRoute(
+        path: '/policies/:type/:version',
+        builder: (c, s) => MyPolicyDetailScreen(
+          policyId: s.pathParameters['type']!,
+          version: s.pathParameters['version']!,
+        ),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (c, s) => const OnboardingScreen(mode: PetEntryMode.firstPet),
@@ -204,15 +253,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/my/profile',
             builder: (c, s) => const MyProfileScreen(),
-          ),
-          GoRoute(
-            path: '/my/policies',
-            builder: (c, s) => const MyPoliciesScreen(),
-          ),
-          GoRoute(
-            path: '/my/policies/:policyId',
-            builder: (c, s) =>
-                MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
           ),
           GoRoute(
             path: '/my/notices',

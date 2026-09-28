@@ -19,6 +19,22 @@ public class MainActivity extends FlutterActivity {
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), "com.formypet/public_web")
+                .setMethodCallHandler((call, result) -> {
+                    if (!"open".equals(call.method) || !(call.arguments instanceof String)) {
+                        result.notImplemented();
+                        return;
+                    }
+                    Uri uri = Uri.parse((String) call.arguments);
+                    if (!"https".equals(uri.getScheme()) || uri.getHost() == null) {
+                        result.success(false);
+                        return;
+                    }
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE));
+                        result.success(true);
+                    } catch (ActivityNotFoundException | SecurityException ignored) { result.success(false); }
+                });
         new MethodChannel(
                 flutterEngine.getDartExecutor().getBinaryMessenger(),
                 "com.formypet/notification_settings"
