@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @TestPropertySource(properties = "app.media.storage-root=build/community-media-test-storage")
 class CommunityIntegrationTest extends IntegrationTestSupport {
+    private Long accountId(String email) { return jdbcTemplate.queryForObject("SELECT id FROM users WHERE email=?", Long.class, email); }
 
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
@@ -534,7 +535,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> communityService.createComment(email, postId, null));
+                () -> communityService.createComment(accountId(email), postId, null));
         assertEquals("Comment content must be between 1 and 1000 characters.", exception.getMessage());
     }
 
@@ -940,13 +941,13 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
         Long postId = createPost(other, "activity", "FREE", "body");
         Long userId = userRepository.findByEmail("activity-mutations@example.com").orElseThrow().getId();
         String url = "/api/v1/me/community/activities";
-        communityService.toggleLike("activity-mutations@example.com", postId);
+        communityService.toggleLike(accountId("activity-mutations@example.com"), postId);
         mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
                 .andExpect(jsonPath("$.data.items[0].post.id").value(postId));
-        communityService.toggleLike("activity-mutations@example.com", postId);
+        communityService.toggleLike(accountId("activity-mutations@example.com"), postId);
         mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
                 .andExpect(jsonPath("$.data.items", hasSize(0)));
-        communityService.toggleLike("activity-mutations@example.com", postId);
+        communityService.toggleLike(accountId("activity-mutations@example.com"), postId);
         mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
                 .andExpect(jsonPath("$.data.items", hasSize(1)));
         jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'root','2026-09-10 12:00:00')", postId, userId);
@@ -967,7 +968,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.items", hasSize(0)));
         mockMvc.perform(get(url).header("Authorization", "Bearer " + other).param("type", "commented"))
                 .andExpect(jsonPath("$.data.items", hasSize(0)));
-        communityService.delete("activity-author@example.com", postId);
+        communityService.delete(accountId("activity-author@example.com"), postId);
         mockMvc.perform(get(url).header("Authorization", "Bearer " + token).param("type", "liked"))
                 .andExpect(jsonPath("$.data.items", hasSize(0)));
     }
@@ -980,34 +981,34 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
         Long second = createPost(token, "second", "FREE", "body");
         Long userId = userRepository.findByEmail(email).orElseThrow().getId();
         for (Long postId : List.of(first, second)) {
-            communityService.toggleLike(email, postId);
+            communityService.toggleLike(accountId(email), postId);
             jdbcTemplate.update("UPDATE post_likes SET created_at='2000-01-01 12:00:00' WHERE user_id=? AND post_id=?", userId, postId);
             jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'first comment','2000-01-01 12:00:00')", postId, userId);
         }
         jdbcTemplate.update("INSERT INTO post_comments(post_id,user_id,content,created_at) VALUES (?,?,'tie winner','2000-01-01 12:00:00')", first, userId);
         Long lastComment = jdbcTemplate.queryForObject("SELECT MAX(id) FROM post_comments WHERE post_id=?", Long.class, first);
         for (String type : List.of("liked", "commented")) {
-            var page = communityService.myActivities(email, type, null, 1);
+            var page = communityService.myActivities(accountId(email), type, null, 1);
             assertEquals(second, page.items().getFirst().post().id());
-            var next = communityService.myActivities(email, type, page.nextCursor(), 1);
+            var next = communityService.myActivities(accountId(email), type, page.nextCursor(), 1);
             assertEquals(first, next.items().getFirst().post().id());
             assertEquals(null, next.nextCursor());
             if (type.equals("commented")) {
                 assertEquals(lastComment, next.items().getFirst().comment().id());
             }
         }
-        var beforeEdit = communityService.myActivities(email, "commented", null, 20);
+        var beforeEdit = communityService.myActivities(accountId(email), "commented", null, 20);
         jdbcTemplate.update("UPDATE post_comments SET content='edited', updated_at=NOW() WHERE id=?", lastComment);
-        var afterEdit = communityService.myActivities(email, "commented", null, 20);
+        var afterEdit = communityService.myActivities(accountId(email), "commented", null, 20);
         assertEquals(beforeEdit.items().stream().map(i -> i.post().id()).toList(),
                 afterEdit.items().stream().map(i -> i.post().id()).toList());
         assertEquals(beforeEdit.items().get(1).activityAt(), afterEdit.items().get(1).activityAt());
         assertEquals("edited", afterEdit.items().get(1).comment().content());
         jdbcTemplate.update("UPDATE post_comments SET deleted_at=NOW() WHERE id=?", lastComment);
-        assertEquals("first comment", communityService.myActivities(email, "commented", null, 20).items().get(1).comment().content());
-        communityService.toggleLike(email, first);
-        communityService.toggleLike(email, first);
-        assertEquals(first, communityService.myActivities(email, "liked", null, 20).items().getFirst().post().id());
+        assertEquals("first comment", communityService.myActivities(accountId(email), "commented", null, 20).items().get(1).comment().content());
+        communityService.toggleLike(accountId(email), first);
+        communityService.toggleLike(accountId(email), first);
+        assertEquals(first, communityService.myActivities(accountId(email), "liked", null, 20).items().getFirst().post().id());
     }
 
     private Long createPost(String token, String title, String category, String content) throws Exception {

@@ -80,6 +80,9 @@ Map<String, Object?> auditFeed(List<String> ids, {String? cursor}) => {
 
 Object? auditDefaultResponse(RequestOptions request) {
   final path = request.path;
+  if (path == '/api/v1/users/me/policy-status') {
+    return {'acceptanceRequired': false};
+  }
   if (path == '/api/v1/users/me') {
     return {'id': 'user-a', 'email': 'a@example.test', 'nickname': 'A'};
   }

@@ -27,12 +27,35 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void reportAuthorMigrationPreservesUnresolvedHistoryAndLinksResolvableSnapshots() throws Exception {
+        flyway("32").migrate();
+        try (Connection connection = connection()) {
+            execute(connection, "INSERT INTO users(id,email,password_hash,nickname) VALUES (70001,'author@example.test','hash','author'),(70002,'reporter@example.test','hash','reporter')");
+            execute(connection, """
+                    INSERT INTO support_tickets(id,requester_user_id,kind,request_id,payload_hash,category,title,content,target_post_id,target_snapshot,created_at)
+                    VALUES (70001,70002,'POST_REPORT','known',REPEAT('a',64),'SPAM','report','body',90001,'{"user_id":70001}',UTC_TIMESTAMP(6)),
+                           (70002,70002,'POST_REPORT','unknown',REPEAT('b',64),'SPAM','report','body',90002,'not-json',UTC_TIMESTAMP(6))
+                    """);
+            execute(connection, "INSERT INTO support_mail_outbox(ticket_id,next_attempt_at) VALUES (70001,UTC_TIMESTAMP(6)),(70002,UTC_TIMESTAMP(6))");
+        }
+        flyway(null).migrate();
+        try (Connection connection = connection()) {
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM support_tickets WHERE id=70001 AND target_author_id=70001"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM support_tickets WHERE id=70002 AND target_author_id IS NULL"));
+            execute(connection, "DELETE FROM users WHERE id=70001");
+            assertEquals(0, count(connection, "SELECT COUNT(*) FROM support_tickets WHERE id=70001"));
+            assertEquals(0, count(connection, "SELECT COUNT(*) FROM support_mail_outbox WHERE ticket_id=70001"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM support_tickets WHERE id=70002"));
+        }
+    }
+
+    @Test
     void migratesEmptyDatabaseFromV1ThroughLatest() throws Exception {
         Flyway flyway = flyway(null);
 
         flyway.migrate();
 
-        assertEquals("32", flyway.info().current().getVersion().getVersion());
+        assertEquals("37", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -156,7 +179,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("32", flyway.info().current().getVersion().getVersion());
+        assertEquals("37", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

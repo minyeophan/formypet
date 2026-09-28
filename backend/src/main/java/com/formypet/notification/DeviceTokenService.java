@@ -15,13 +15,8 @@ public class DeviceTokenService {
     private final com.formypet.auth.SessionGuard sessions;
 
     @Transactional
-    public void register(String email, DeviceTokenRequest request) {
-        var user = sessions.lock(email);
-        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !email.equals(authentication.getName())
-                || !(authentication.getDetails() instanceof Long version) || version != user.version()) {
-            throw com.formypet.auth.SessionGuard.invalid();
-        }
+    public void register(Long actorId, DeviceTokenRequest request) {
+        var user = sessions.lockCurrent(actorId);
         Long userId = user.id();
         String platform = request.platform().trim().toUpperCase();
         if (!platform.equals("ANDROID") && !platform.equals("IOS")) {
@@ -35,8 +30,8 @@ public class DeviceTokenService {
     }
 
     @Transactional
-    public void disable(String email, String token) {
-        Long userId = users.findByEmail(email).orElseThrow().getId();
+    public void disable(Long actorId, String token) {
+        Long userId = sessions.lockCurrent(actorId).id();
         jdbc.update("UPDATE device_tokens SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP(6) WHERE user_id = ? AND token = ?", userId, token);
     }
 }

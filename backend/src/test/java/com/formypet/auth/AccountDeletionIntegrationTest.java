@@ -137,6 +137,34 @@ class AccountDeletionIntegrationTest extends IntegrationTestSupport {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM account_deletion_jobs WHERE provider_user_id=?", Integer.class, providerId)).isEqualTo(1);
     }
 
+    @Test
+    void deletedAccountsTokenCannotAuthenticateAReplacementWithTheSameEmail() throws Exception {
+        String email = UUID.randomUUID() + "@example.test";
+        String oldToken = register(email);
+        mvc.perform(delete("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + oldToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("password", PASSWORD))))
+                .andExpect(status().isAccepted());
+        String newToken = register(email);
+        mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + oldToken))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + newToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void pendingKakaoCleanupReturnsConflictWithoutCreatingAnAccount() throws Exception {
+        String id = Long.toString(System.nanoTime());
+        when(kakao.fetchUser("pending-token")).thenReturn(new KakaoUserInfo(id, null, false, "Kakao"));
+        jdbc.update("INSERT INTO account_deletion_jobs(provider_user_id,next_attempt_at) VALUES (?,UTC_TIMESTAMP(6))", id);
+        mvc.perform(post("/api/v1/auth/kakao").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accessToken\":\"pending-token\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("KAKAO_CLEANUP_PENDING"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM oauth_accounts WHERE provider_user_id=?", Integer.class, id)).isZero();
+    }
+
     private String register(String email) throws Exception {
         MvcResult result = mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

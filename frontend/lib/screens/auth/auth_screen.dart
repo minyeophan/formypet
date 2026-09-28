@@ -1,7 +1,9 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_interaction_style.dart';
@@ -9,6 +11,8 @@ import '../../core/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/password_policy.dart';
 import 'password_recovery_form.dart';
+import 'policy_consent_dialog.dart';
+import '../../services/policy_service.dart';
 import '../../widgets/brand_logo.dart';
 
 enum _AuthView { welcome, login, register, recovery }
@@ -80,10 +84,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           password: _passwordCtrl.text,
         );
       } else {
+        final acceptance = await collectPolicyAcceptance(
+          context,
+          policyService: ref.read(policyServiceProvider),
+        );
+        if (acceptance == null) return;
         await auth.register(
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
           nickname: _nicknameCtrl.text.trim(),
+          policyAcceptance: acceptance,
         );
       }
     } catch (error) {
@@ -101,7 +111,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _formError = null;
     });
     try {
-      await ref.read(authProvider.notifier).loginWithKakao();
+      await ref
+          .read(authProvider.notifier)
+          .loginWithKakao(
+            requestConsent: () => collectPolicyAcceptance(
+              context,
+              policyService: ref.read(policyServiceProvider),
+            ),
+          );
     } catch (error) {
       if (!mounted) return;
       _applyAuthError(error);
@@ -153,6 +170,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   String _friendlyMessage(Object error, ApiException? apiError) {
+    if (error is KakaoSignupInterrupted) return error.message;
+    switch (apiError?.errorCode) {
+      case 'POLICY_VERSION_CHANGED':
+        return '정책이 변경됐어요. 최신 전문을 확인하고 다시 가입해 주세요.';
+      case 'POLICY_ACCEPTANCE_REQUIRED':
+        return '이용약관 동의와 만 14세 이상 확인이 필요해요. 최신 앱을 이용해 주세요.';
+      case 'KAKAO_CLEANUP_PENDING':
+        return '카카오 연결 정리가 진행 중이에요. 잠시 후 다시 시도해 주세요.';
+      case 'KAKAO_SIGNUP_EXPIRED':
+        return '가입 확인 시간이 만료됐어요. 카카오 로그인부터 다시 진행해 주세요.';
+      case 'APP_UPDATE_REQUIRED':
+        return '가입 동의를 지원하는 최신 앱으로 업데이트해 주세요.';
+    }
     if (error is DioException &&
         (error.type == DioExceptionType.connectionError ||
             error.type == DioExceptionType.connectionTimeout ||
@@ -351,9 +381,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           child: const Text('회원가입', style: TextStyle(color: AppColors.text)),
         ),
         if (_formError != null) _errorMessage(),
+        _policyLink(),
       ],
     );
   }
+
+  Widget _policyLink() => TextButton(
+    onPressed: () => context.push('/my/policies'),
+    child: const Text('이용약관 · 개인정보 처리방침'),
+  );
 
   Widget _form() {
     final registering = _view == _AuthView.register;
@@ -469,6 +505,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 )
               : Text(registering ? '회원가입' : '로그인'),
         ),
+        _policyLink(),
         if (!registering)
           TextButton(
             key: const Key('auth-password-recovery'),

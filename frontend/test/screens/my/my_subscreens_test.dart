@@ -20,6 +20,7 @@ import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/policy_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -56,6 +57,8 @@ void main() {
     final service = _FakeAuthService()..logoutCompleter = Completer<void>();
     await _pump(tester, const MySettingsScreen(), authService: service);
 
+    await tester.ensureVisible(find.text('로그아웃'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('로그아웃'));
     await tester.pumpAndSettle();
     expect(find.text('로그아웃할까요?'), findsOneWidget);
@@ -83,6 +86,8 @@ void main() {
     final service = _FakeAuthService();
     await _pump(tester, const MySettingsScreen(), authService: service);
 
+    await tester.ensureVisible(find.text('로그아웃'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('로그아웃'));
     await tester.pumpAndSettle();
     expect(service.logoutCalls, 0);
@@ -270,10 +275,12 @@ void main() {
     },
   );
 
-  testWidgets('policies list shows only the four policy names', (tester) async {
+  testWidgets('policies list shows launch terms and privacy only', (
+    tester,
+  ) async {
     await _pumpPoliciesRouter(tester, '/my/policies');
 
-    for (final title in ['서비스 이용약관', '개인정보 처리방침', '운영정책', '마케팅 정보 수신 동의']) {
+    for (final title in ['서비스 이용약관', '개인정보 처리방침']) {
       expect(find.text(title), findsOneWidget);
     }
 
@@ -290,12 +297,7 @@ void main() {
   });
 
   testWidgets('policy rows open matching detail screens', (tester) async {
-    const expectedTitles = {
-      '서비스 이용약관': '서비스 이용약관',
-      '개인정보 처리방침': '개인정보 처리방침',
-      '운영정책': '운영정책',
-      '마케팅 정보 수신 동의': '마케팅 정보 수신 동의',
-    };
+    const expectedTitles = {'서비스 이용약관': '서비스 이용약관', '개인정보 처리방침': '개인정보 처리방침'};
 
     for (final entry in expectedTitles.entries) {
       await _pumpPoliciesRouter(tester, '/my/policies');
@@ -303,17 +305,17 @@ void main() {
       await tester.tap(find.text(entry.key));
       await tester.pumpAndSettle();
 
-      expect(find.text('약관 상세'), findsOneWidget);
       expect(find.text(entry.value), findsOneWidget);
       expect(find.text('약관을 찾을 수 없어요'), findsNothing);
-      expect(find.textContaining('확정된 정책이 아니에요'), findsOneWidget);
+      expect(find.text('정책 전문 게시 준비 중입니다.'), findsOneWidget);
     }
   });
 
   testWidgets('unknown policy detail shows not found message', (tester) async {
     await _pumpPoliciesRouter(tester, '/my/policies/unknown');
+    await tester.pumpAndSettle();
 
-    expect(find.text('약관 상세'), findsOneWidget);
+    expect(find.text('정책 전문'), findsOneWidget);
     expect(find.text('약관을 찾을 수 없어요'), findsOneWidget);
   });
 
@@ -453,6 +455,12 @@ Future<void> _pump(
   );
 }
 
+class _UnpublishedPolicies extends PolicyService {
+  @override
+  Future<Map<String, dynamic>> document(String type, {String? version}) async =>
+      throw StateError('Not published');
+}
+
 Future<void> _pumpPoliciesRouter(WidgetTester tester, String initialLocation) {
   final router = GoRouter(
     initialLocation: initialLocation,
@@ -476,6 +484,9 @@ Future<void> _pumpPoliciesRouter(WidgetTester tester, String initialLocation) {
   return tester.pumpWidget(
     ProviderScope(
       key: UniqueKey(),
+      overrides: [
+        policyServiceProvider.overrideWithValue(_UnpublishedPolicies()),
+      ],
       child: MaterialApp.router(routerConfig: router),
     ),
   );

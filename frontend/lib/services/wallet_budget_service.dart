@@ -72,22 +72,29 @@ class WalletBudgetService {
     await prefs.reload();
     final prefix = 'wallet_monthly_budget_v2:${Uri.encodeComponent(account)}:';
     for (final key in prefs.getKeys().where((key) => key.startsWith(prefix))) {
-      await prefs.remove(key);
+      await _remove(prefs, key);
     }
     const claimKey = 'wallet_monthly_budget_migration_v2';
     final claim = prefs.getString(claimKey);
     if (claim != null) {
       final migration = jsonDecode(claim) as Map<String, dynamic>;
       if (migration['account'] == account) {
-        await prefs.remove(claimKey);
-        await prefs.remove('wallet_monthly_budget');
+        await _remove(prefs, 'wallet_monthly_budget');
+        await _remove(prefs, claimKey);
       }
     } else {
       // The pre-v2 value was shared and had no account identity; remove it on
       // deletion so a subsequent profile cannot inherit the previous owner's budget.
-      await prefs.remove('wallet_monthly_budget');
+      await _remove(prefs, 'wallet_monthly_budget');
     }
   });
+
+  Future<void> _remove(SharedPreferences prefs, String key) async {
+    if (!await prefs.remove(key)) {
+      await prefs.reload();
+      throw StateError('Budget not removed');
+    }
+  }
 
   Future<void> _write(SharedPreferences prefs, String key, int amount) async {
     try {

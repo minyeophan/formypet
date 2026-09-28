@@ -10,38 +10,54 @@ import 'package:frontend/services/push_notification_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('denied permission after cold start disables the device token without registering it', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    setupFirebaseCoreMocks();
-    await Firebase.initializeApp();
-    FlutterSecureStorage.setMockInitialValues({'access_token': 'test-account'});
-    initApiClient('https://example.test');
-    final requests = <RequestOptions>[];
-    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
-      requests.add(request);
-      handler.resolve(Response(requestOptions: request, statusCode: 200));
-    }));
-    const channel = MethodChannel('plugins.flutter.io/firebase_messaging');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'Messaging#getNotificationSettings') {
-        return {'authorizationStatus': 0};
-      }
-      if (call.method == 'Messaging#getToken') return {'token': 'existing-device'};
-      return null;
-    });
-    final service = PushNotificationService.instance;
-    try {
-      service.beginSession('account');
-      await service.registerDeviceToken(requestPermission: false);
-      expect(requests.map((r) => r.method), ['DELETE']);
-      expect(requests.single.path, '/api/v1/notifications/device-tokens');
-      expect(requests.single.queryParameters['token'], 'existing-device');
-    } finally {
-      await service.endSession(disableRemote: false);
-      debugDefaultTargetPlatformOverride = null;
+  test(
+    'denied permission after cold start disables the device token without registering it',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      setupFirebaseCoreMocks();
+      await Firebase.initializeApp();
+      FlutterSecureStorage.setMockInitialValues({
+        'access_token': 'test-account',
+        'registered_push_token': 'existing-device',
+      });
+      initApiClient('https://example.test');
+      final requests = <RequestOptions>[];
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            requests.add(request);
+            handler.resolve(Response(requestOptions: request, statusCode: 200));
+          },
+        ),
+      );
+      const channel = MethodChannel('plugins.flutter.io/firebase_messaging');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, null);
-    }
-  });
+          .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'Messaging#setAutoInitEnabled') {
+              expect(call.arguments['enabled'], false);
+              return {'isAutoInitEnabled': false};
+            }
+            if (call.method == 'Messaging#getNotificationSettings') {
+              return {'authorizationStatus': 0};
+            }
+            if (call.method == 'Messaging#getToken') {
+              fail('Denied permission must not collect a new token');
+            }
+            return null;
+          });
+      final service = PushNotificationService.instance;
+      try {
+        service.beginSession('account');
+        await service.registerDeviceToken(requestPermission: false);
+        expect(requests.map((r) => r.method), ['DELETE']);
+        expect(requests.single.path, '/api/v1/notifications/device-tokens');
+        expect(requests.single.queryParameters['token'], 'existing-device');
+      } finally {
+        await service.endSession(disableRemote: false);
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      }
+    },
+  );
 }

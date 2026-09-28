@@ -155,7 +155,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                           ),
                           const SizedBox(height: 6),
                           const AppText(
-                            '선택한 달의 예산으로 저장돼요.',
+                            '예산은 이 기기에만 저장돼요. 앱 삭제나 기기 변경 시 복원되지 않을 수 있어요. 지출 기록은 계정에 저장됩니다.',
                             fontSize: 13,
                             color: AppColors.muted,
                           ),

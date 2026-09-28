@@ -34,7 +34,7 @@ public class FirebasePushSender implements PushSender {
                 var message = MulticastMessage.builder().addAllTokens(batch)
                     .setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder().setChannelId("formypet_reminders").build()).build())
-                    .setNotification(com.google.firebase.messaging.Notification.builder().setTitle(title).setBody(body).build())
+                    .setNotification(privateNotification())
                     .putData("type", type).putData("sourceId", String.valueOf(sourceId))
                     .putData("route", "CARE_SCHEDULE_REMINDER".equals(type)
                         ? "/routine/schedule/" + sourceId : "/routine/" + sourceId).build();
@@ -59,5 +59,12 @@ public class FirebasePushSender implements PushSender {
         }
         log.info("FCM push result: success={}, failure={}, invalidTokens={}", success, failure, invalid.size());
         return new PushSendResult(success, failure, invalid);
+    }
+
+    static com.google.firebase.messaging.Notification privateNotification() {
+        return com.google.firebase.messaging.Notification.builder()
+                .setTitle("포마펫")
+                .setBody("확인할 알림이 있어요. 앱에서 확인해 주세요.")
+                .build();
     }
 }

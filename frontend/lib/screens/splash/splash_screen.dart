@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_interaction_style.dart';
@@ -14,6 +15,12 @@ class SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.brandMint,
+      bottomNavigationBar: SafeArea(
+        child: TextButton(
+          onPressed: () => context.push('/my/policies'),
+          child: const Text('이용약관 · 개인정보 처리방침'),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

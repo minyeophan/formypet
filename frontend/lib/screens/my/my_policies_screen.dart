@@ -1,164 +1,132 @@
 import 'package:flutter/material.dart';
-import '../../widgets/app_ink_well.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../core/app_colors.dart';
-import '../../widgets/app_header.dart';
-import '../../widgets/app_navigation.dart';
-import '../../widgets/app_text.dart';
+import '../../services/policy_service.dart';
 import 'my_policy_data.dart';
 
 class MyPoliciesScreen extends StatelessWidget {
   const MyPoliciesScreen({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppHeader(
-        title: '약관 및 정책',
-        showBackButton: true,
-        centerTitle: true,
-        onBack: () => _goBack(context, '/my'),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('약관 및 정책'),
+      leading: BackButton(
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/auth');
+          }
+        },
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var index = 0; index < myPolicies.length; index++)
-                  _PolicyRow(
-                    policy: myPolicies[index],
-                    showTopBorder: index > 0,
-                  ),
-              ],
-            ),
+    ),
+    body: ListView(
+      children: [
+        for (final entry in policyTitles.entries)
+          ListTile(
+            title: Text(entry.value),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/my/policies/${entry.key}'),
           ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
-class MyPolicyDetailScreen extends StatelessWidget {
+class MyPolicyDetailScreen extends ConsumerStatefulWidget {
   final String policyId;
+  final String? version;
+  const MyPolicyDetailScreen({super.key, required this.policyId, this.version});
+  @override
+  ConsumerState<MyPolicyDetailScreen> createState() => _PolicyDetailState();
+}
 
-  const MyPolicyDetailScreen({super.key, required this.policyId});
+class _PolicyDetailState extends ConsumerState<MyPolicyDetailScreen> {
+  PolicyService get _service => ref.read(policyServiceProvider);
+  late Future<Map<String, dynamic>> _document;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _document = policyTitles.containsKey(widget.policyId)
+        ? _service.document(widget.policyId, version: widget.version)
+        : Future.error(ArgumentError('Unknown policy'));
+  }
+
+  Future<void> _web() async {
+    try {
+      await _service.openWeb(widget.policyId);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final policy = findMyPolicy(policyId);
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppHeader(
-        title: '약관 상세',
-        showBackButton: true,
-        centerTitle: true,
-        onBack: () => _goBack(context, '/my/policies'),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(policyTitles[widget.policyId] ?? '정책 전문'),
+      leading: BackButton(
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/my/policies');
+          }
+        },
       ),
-      body: policy == null
-          ? const Center(
-              child: AppText(
-                '약관을 찾을 수 없어요',
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+    ),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: _document,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppText(
-                        policy.title,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
-                      ),
-                      const SizedBox(height: 14),
-                      const AppText(
-                        '정책 전문을 준비하고 있어요. 아래 내용은 항목 소개이며 확정된 정책이 아니에요.',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(height: 14),
-                      AppText(
-                        policy.body,
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ],
-                  ),
+                Text(
+                  !policyTitles.containsKey(widget.policyId)
+                      ? '약관을 찾을 수 없어요'
+                      : snapshot.error is StateError
+                      ? '정책 전문 게시 준비 중입니다.'
+                      : '정책 전문을 불러오지 못했어요.',
                 ),
+                TextButton(
+                  onPressed: () => setState(_load),
+                  child: const Text('다시 시도'),
+                ),
+                TextButton(onPressed: _web, child: const Text('공개 웹페이지 열기')),
               ],
             ),
-    );
-  }
-}
-
-class _PolicyRow extends StatelessWidget {
-  final MyPolicy policy;
-  final bool showTopBorder;
-
-  const _PolicyRow({required this.policy, required this.showTopBorder});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      child: AppInkWell(
-        onTap: () => context.push('/my/policies/${policy.id}'),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 54),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            border: showTopBorder
-                ? const Border(top: BorderSide(color: AppColors.border))
-                : null,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppText(
-                  policy.title,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const AppDisclosureChevron(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-void _goBack(BuildContext context, String fallbackRoute) {
-  if (context.canPop()) {
-    context.pop();
-    return;
-  }
-  context.go(fallbackRoute);
+          );
+        }
+        final doc = snapshot.data!;
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              doc['title'] as String,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '버전 ${doc['version']}\n게시일 ${doc['publishedAt']}\n시행일 ${doc['effectiveAt']}',
+            ),
+            const SizedBox(height: 20),
+            SelectableText(doc['body'] as String),
+            TextButton(onPressed: _web, child: const Text('공개 웹페이지 열기')),
+          ],
+        );
+      },
+    ),
+  );
 }

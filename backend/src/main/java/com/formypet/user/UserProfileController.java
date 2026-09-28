@@ -25,24 +25,24 @@ public class UserProfileController {
     @GetMapping
     @Operation(summary = "내 프로필 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 조회 성공")
-    public ApiResponse<UserProfileResponse> getProfile(@AuthenticationPrincipal String email) {
-        return ApiResponse.of(userProfileService.getProfile(email));
+    public ApiResponse<UserProfileResponse> getProfile(@AuthenticationPrincipal(expression = "id") Long actorId) {
+        return ApiResponse.of(userProfileService.getProfile(actorId));
     }
 
     @PatchMapping
     @Operation(summary = "내 프로필 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 수정 성공")
-    public ApiResponse<UserProfileResponse> updateProfile(@AuthenticationPrincipal String email,
+    public ApiResponse<UserProfileResponse> updateProfile(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                           @Valid @RequestBody UserProfileUpdateRequest request) {
-        return ApiResponse.of(userProfileService.updateProfile(email, request));
+        return ApiResponse.of(userProfileService.updateProfile(actorId, request));
     }
 
     @PostMapping("/profile-image")
     @Operation(summary = "프로필 이미지 업로드")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "이미지 업로드 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<UserProfileResponse> uploadProfileImage(@AuthenticationPrincipal String email,
+    public ApiResponse<UserProfileResponse> uploadProfileImage(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                                @RequestParam("file") MultipartFile file) {
-        return ApiResponse.of(userProfileService.uploadProfileImage(email, file));
+        return ApiResponse.of(userProfileService.uploadProfileImage(actorId, file));
     }
 }

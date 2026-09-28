@@ -14,7 +14,7 @@ class ReminderCommitTest {
     void onlyNewCommittedReminderCanDispatch() {
         var jdbc = mock(JdbcTemplate.class);
         var dispatcher = mock(ReminderPushDispatcher.class);
-        var service = new NotificationService(jdbc, mock(UserRepository.class), dispatcher, mock(com.formypet.auth.SessionGuard.class));
+        var service = new NotificationService(jdbc, mock(UserRepository.class), dispatcher, mock(com.formypet.auth.SessionGuard.class), mock(com.formypet.policy.PolicyConsentService.class));
         when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
         when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<org.springframework.jdbc.core.RowMapper<Boolean>>any(), eq(1L))).thenReturn(java.util.List.of(true));
         var scheduled = LocalDateTime.of(2026, 9, 17, 12, 0);
@@ -32,7 +32,7 @@ class ReminderCommitTest {
     void rollbackAndDuplicateDoNotDispatch() {
         var jdbc = mock(JdbcTemplate.class);
         var dispatcher = mock(ReminderPushDispatcher.class);
-        var service = new NotificationService(jdbc, mock(UserRepository.class), dispatcher, mock(com.formypet.auth.SessionGuard.class));
+        var service = new NotificationService(jdbc, mock(UserRepository.class), dispatcher, mock(com.formypet.auth.SessionGuard.class), mock(com.formypet.policy.PolicyConsentService.class));
         when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1, 0);
         when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<org.springframework.jdbc.core.RowMapper<Boolean>>any(), eq(1L))).thenReturn(java.util.List.of(true));
         TransactionSynchronizationManager.initSynchronization();

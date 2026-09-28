@@ -432,8 +432,10 @@ CREATE TABLE support_tickets (
     reply_email VARCHAR(254) NULL,
     target_post_id BIGINT NULL,
     target_snapshot MEDIUMTEXT NULL,
+    target_author_id BIGINT NULL,
     created_at DATETIME(6) NOT NULL,
     CONSTRAINT fk_support_requester FOREIGN KEY (requester_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_support_target_author FOREIGN KEY (target_author_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE KEY uq_support_request (requester_user_id, kind, request_id),
     UNIQUE KEY uq_support_report (requester_user_id, target_post_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -448,7 +450,7 @@ CREATE TABLE support_mail_outbox (
     claim_token CHAR(36) NULL,
     sent_at DATETIME(6) NULL,
     last_error VARCHAR(100) NULL,
-    CONSTRAINT fk_support_mail_ticket FOREIGN KEY (ticket_id) REFERENCES support_tickets(id),
+    CONSTRAINT fk_support_mail_ticket_cascade FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE,
     UNIQUE KEY uq_support_mail_ticket (ticket_id),
     INDEX idx_support_mail_due (status, next_attempt_at),
     INDEX idx_support_mail_lease (status, lease_until)
@@ -475,3 +477,45 @@ CREATE TABLE device_tokens (
     INDEX idx_device_tokens_user (user_id),
     CONSTRAINT fk_device_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+-- Fixed lock buckets contain no provider or user identifiers.
+CREATE TABLE oauth_lifecycle_locks (bucket_id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO oauth_lifecycle_locks(bucket_id)
+SELECT ones.n + tens.n * 8 FROM
+(SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) ones
+CROSS JOIN
+(SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) tens;
+CREATE TABLE policy_consents (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    document_type VARCHAR(32) NOT NULL,
+    document_version VARCHAR(64) NOT NULL,
+    acceptance_revision VARCHAR(64) NULL,
+    action VARCHAR(32) NOT NULL,
+    document_hash CHAR(64) NOT NULL,
+    recorded_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_policy_consent_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_policy_action(user_id,document_type,document_version,action)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE kakao_signup_intents (
+    provider_user_id VARCHAR(100) PRIMARY KEY,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    INDEX idx_kakao_signup_expiry(expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE policy_publications (
+    document_type VARCHAR(32) NOT NULL,
+    document_version VARCHAR(64) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body MEDIUMTEXT NOT NULL,
+    published_at DATETIME(6) NOT NULL,
+    effective_at DATETIME(6) NOT NULL,
+    acceptance_revision VARCHAR(64) NULL,
+    content_hash CHAR(64) NOT NULL,
+    PRIMARY KEY(document_type,document_version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE policy_runtime (
+    id INT PRIMARY KEY,
+    enforcement_enabled BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB;
+INSERT INTO policy_runtime(id,enforcement_enabled) VALUES (1,FALSE);

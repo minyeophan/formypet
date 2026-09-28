@@ -1,0 +1,4 @@
+{"published":true,"documents":[
+ {"type":"terms","version":"test-1","title":"Test terms","body":"TEST FIXTURE ONLY","publishedAt":"2000-01-01T00:00:00Z","effectiveAt":"2000-01-01T00:00:00Z","acceptanceRevision":"test-1"},
+ {"type":"privacy","version":"test-1","title":"Test privacy","body":"TEST FIXTURE ONLY","publishedAt":"2000-01-01T00:00:00Z","effectiveAt":"2000-01-01T00:00:00Z","acceptanceRevision":null}
+]}

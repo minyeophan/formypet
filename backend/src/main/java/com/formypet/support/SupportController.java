@@ -27,15 +27,15 @@ public class SupportController {
 
     @PostMapping("/api/v1/inquiries")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<SupportService.Receipt> inquiry(@AuthenticationPrincipal String email,
+    public ApiResponse<SupportService.Receipt> inquiry(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                        @Valid @RequestBody InquiryRequest request) {
-        return ApiResponse.of(service.inquiry(email, request));
+        return ApiResponse.of(service.inquiry(actorId, request));
     }
 
     @PostMapping("/api/v1/posts/{postId}/reports")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<SupportService.Receipt> report(@AuthenticationPrincipal String email,
+    public ApiResponse<SupportService.Receipt> report(@AuthenticationPrincipal(expression = "id") Long actorId,
             @PathVariable Long postId, @Valid @RequestBody ReportRequest request) {
-        return ApiResponse.of(service.report(email, postId, request));
+        return ApiResponse.of(service.report(actorId, postId, request));
     }
 }

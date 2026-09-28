@@ -30,7 +30,7 @@ public class RecoveryRateLimiter {
             LocalDateTime last=date(row.get("last_request_at"));
             int count=((Number)row.get("request_count")).intValue();
             if(!now.isBefore(start.plusSeconds(windowSeconds))){start=now;count=0;}
-            if(count>=maximum||now.isBefore(last.plusSeconds(cooldownSeconds)))return false;
+            if(count>=maximum||(cooldownSeconds>0&&now.isBefore(last.plusSeconds(cooldownSeconds))))return false;
             jdbc.update("UPDATE password_reset_limits SET window_start=?,last_request_at=?,request_count=? WHERE bucket_key=?",
                     start,now,count+1,bucket);return true;
         }));

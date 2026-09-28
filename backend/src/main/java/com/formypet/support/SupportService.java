@@ -30,20 +30,20 @@ public class SupportService {
     public record Receipt(String id, OffsetDateTime receivedAt) {}
 
     @Transactional
-    public Receipt inquiry(String email, SupportController.InquiryRequest request) {
-        long uid = lockUser(email);
+    public Receipt inquiry(Long actorId, SupportController.InquiryRequest request) {
+        long uid = lockUser(actorId);
         String title = request.title().trim();
         String body = request.body().trim();
         String reply = request.replyEmail().trim();
         String hash = hash(List.of(request.type(), title, body, reply));
         Receipt existing = existing(uid, "INQUIRY", request.requestId(), hash);
         if (existing != null) return existing;
-        return insert(uid, "INQUIRY", request.requestId(), hash, request.type(), title, body, reply, null, null);
+        return insert(uid, "INQUIRY", request.requestId(), hash, request.type(), title, body, reply, null, null, null);
     }
 
     @Transactional
-    public Receipt report(String email, long postId, SupportController.ReportRequest request) {
-        long uid = lockUser(email);
+    public Receipt report(Long actorId, long postId, SupportController.ReportRequest request) {
+        long uid = lockUser(actorId);
         String detail = request.detail() == null ? "" : request.detail().trim();
         if (request.reason().equals("OTHER") && detail.isEmpty()) {
             throw error(HttpStatus.BAD_REQUEST, "REPORT_DETAIL_REQUIRED", "기타 사유의 상세 내용을 입력해 주세요.");
@@ -66,12 +66,12 @@ public class SupportService {
             throw error(HttpStatus.FORBIDDEN, "SELF_REPORT_FORBIDDEN", "본인 게시글은 신고할 수 없어요.");
         }
         return insert(uid, "POST_REPORT", request.requestId(), hash, request.reason(), "게시글 신고", detail,
-                null, postId, encode(post));
+                null, postId, encode(post), ((Number) post.get("user_id")).longValue());
     }
 
-    private long lockUser(String email) {
+    private long lockUser(Long actorId) {
         // Serializes this user's submissions, including concurrent retries with different request IDs.
-        var ids = jdbc.queryForList("SELECT id FROM users WHERE email=? FOR UPDATE", Long.class, email);
+        var ids = jdbc.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, actorId);
         if (ids.isEmpty()) throw error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "로그인이 필요해요.");
         return ids.getFirst();
     }
@@ -87,16 +87,16 @@ public class SupportService {
     }
 
     private Receipt insert(long uid, String kind, String requestId, String hash, String category, String title,
-                           String content, String reply, Long postId, String snapshot) {
+                           String content, String reply, Long postId, String snapshot, Long authorId) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         GeneratedKeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             var statement = connection.prepareStatement("""
                     INSERT INTO support_tickets
-                    (requester_user_id,kind,request_id,payload_hash,category,title,content,reply_email,target_post_id,target_snapshot,created_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                    (requester_user_id,kind,request_id,payload_hash,category,title,content,reply_email,target_post_id,target_snapshot,created_at,target_author_id)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                     """, Statement.RETURN_GENERATED_KEYS);
-            Object[] values = {uid, kind, requestId, hash, category, title, content, reply, postId, snapshot, now};
+            Object[] values = {uid, kind, requestId, hash, category, title, content, reply, postId, snapshot, now, authorId};
             for (int i = 0; i < values.length; i++) statement.setObject(i + 1, values[i]);
             return statement;
         }, key);

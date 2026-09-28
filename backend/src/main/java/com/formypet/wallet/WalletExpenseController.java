@@ -41,62 +41,62 @@ public class WalletExpenseController {
     @Operation(summary = "지출 내역 생성")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "지출 생성 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<WalletExpenseResponse> create(@AuthenticationPrincipal String email,
+    public ApiResponse<WalletExpenseResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                      @PathVariable Long petId,
                                                      @Valid @RequestBody WalletExpenseCreateRequest request) {
-        return ApiResponse.of(walletExpenseService.create(email, petId, request));
+        return ApiResponse.of(walletExpenseService.create(actorId, petId, request));
     }
 
     @GetMapping
     @Operation(summary = "지출 내역 목록 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "지출 목록 조회 성공")
-    public ApiResponse<WalletExpenseListResponse> list(@AuthenticationPrincipal String email,
+    public ApiResponse<WalletExpenseListResponse> list(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                        @PathVariable Long petId,
                                                        @Parameter(description = "다음 페이지 cursor", required = false) @RequestParam(required = false) String cursor,
                                                        @Parameter(description = "페이지 크기 (1~100)", required = false, example = "20") @RequestParam(required = false) Integer limit,
                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                        @RequestParam(required = false) String category) {
-        return ApiResponse.of(walletExpenseService.list(email, petId, cursor, limit, from, to, category));
+        return ApiResponse.of(walletExpenseService.list(actorId, petId, cursor, limit, from, to, category));
     }
 
     @GetMapping("/summary")
     @Operation(summary = "지출 요약 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "지출 요약 조회 성공")
-    public ApiResponse<WalletExpenseSummaryResponse> summary(@AuthenticationPrincipal String email,
+    public ApiResponse<WalletExpenseSummaryResponse> summary(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                              @PathVariable Long petId,
                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                              @RequestParam(required = false) String category) {
-        return ApiResponse.of(walletExpenseService.summary(email, petId, from, to, category));
+        return ApiResponse.of(walletExpenseService.summary(actorId, petId, from, to, category));
     }
 
     @GetMapping("/{expenseId}")
     @Operation(summary = "지출 상세 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "지출 조회 성공")
-    public ApiResponse<WalletExpenseResponse> get(@AuthenticationPrincipal String email,
+    public ApiResponse<WalletExpenseResponse> get(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                   @PathVariable Long petId,
                                                   @PathVariable Long expenseId) {
-        return ApiResponse.of(walletExpenseService.get(email, petId, expenseId));
+        return ApiResponse.of(walletExpenseService.get(actorId, petId, expenseId));
     }
 
     @PutMapping("/{expenseId}")
     @Operation(summary = "지출 내역 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "지출 수정 성공")
-    public ApiResponse<WalletExpenseResponse> update(@AuthenticationPrincipal String email,
+    public ApiResponse<WalletExpenseResponse> update(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                      @PathVariable Long petId,
                                                      @PathVariable Long expenseId,
                                                      @Valid @RequestBody WalletExpenseUpdateRequest request) {
-        return ApiResponse.of(walletExpenseService.update(email, petId, expenseId, request));
+        return ApiResponse.of(walletExpenseService.update(actorId, petId, expenseId, request));
     }
 
     @DeleteMapping("/{expenseId}")
     @Operation(summary = "지출 내역 삭제")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "지출 삭제 성공")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@AuthenticationPrincipal String email,
+    public void delete(@AuthenticationPrincipal(expression = "id") Long actorId,
                        @PathVariable Long petId,
                        @PathVariable Long expenseId) {
-        walletExpenseService.delete(email, petId, expenseId);
+        walletExpenseService.delete(actorId, petId, expenseId);
     }
 }

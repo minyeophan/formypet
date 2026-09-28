@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -16,7 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @ConditionalOnProperty(name = "app.account-deletion.scheduler-enabled", havingValue = "true", matchIfMissing = true)
 public class KakaoAccountDeletionWorker {
     private final JdbcTemplate jdbc;
-    private final TransactionTemplate transactionTemplate;
     private final KakaoAccountUnlinker unlinker;
     private final AtomicBoolean running = new AtomicBoolean();
 
@@ -28,19 +26,61 @@ public class KakaoAccountDeletionWorker {
         processOne();
     }
 
+    @Scheduled(fixedDelayString = "${app.account-deletion.monitor-interval-ms:3600000}")
+    public void monitorPending() {
+        var counts = jdbc.queryForMap("""
+                SELECT COUNT(*) AS total,
+                       COALESCE(SUM(created_at < DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 DAY)),0) AS overdue
+                FROM account_deletion_jobs
+                """);
+        long total = ((Number) counts.get("total")).longValue();
+        long overdue = ((Number) counts.get("overdue")).longValue();
+        if (total > 0 && (!unlinker.isConfigured() || overdue > 0)) {
+            // One day is an operational alert threshold, not a retention period or deletion promise.
+            log.warn("Account cleanup needs operator attention: pending={}, olderThanOneDay={}, unlinkConfigured={}",
+                    total, overdue, unlinker.isConfigured());
+        }
+    }
+
     public boolean processOne() {
         if (!running.compareAndSet(false, true)) return false;
         try {
-            Job job = claim();
+            // A renewable row lease alone cannot stop an old HTTP call after lease expiry.
+            // Keep one database session lock across dispatch, without holding row locks
+            // during provider I/O. The connection is reserved only by the elected worker.
+            return Boolean.TRUE.equals(jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+                try (var statement = connection.prepareStatement("SELECT GET_LOCK(CONCAT(DATABASE(), ':kakao-unlink'),0)")) {
+                    try (var result = statement.executeQuery()) {
+                        if (!result.next() || result.getInt(1) != 1) return false;
+                    }
+                }
+                try {
+                    var workerJdbc = new JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(connection, true));
+                    return processClaimed(workerJdbc);
+                }
+                finally {
+                    try (var statement = connection.prepareStatement("SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':kakao-unlink'))")) {
+                        statement.execute();
+                    } catch (java.sql.SQLException releaseFailure) {
+                        connection.abort(Runnable::run);
+                        throw releaseFailure;
+                    }
+                }
+            }));
+        } finally { running.set(false); }
+    }
+
+    private boolean processClaimed(JdbcTemplate workerJdbc) {
+            Job job = claim(workerJdbc);
             if (job == null) return false;
             try {
                 unlinker.unlink(job.providerUserId());
-                jdbc.update("DELETE FROM account_deletion_jobs WHERE id=?", job.id());
+                workerJdbc.update("DELETE FROM account_deletion_jobs WHERE id=?", job.id());
                 return true;
             } catch (RuntimeException failure) {
-                int attempts = jdbc.queryForObject("SELECT attempts FROM account_deletion_jobs WHERE id=?", Integer.class, job.id());
+                int attempts = workerJdbc.queryForObject("SELECT attempts FROM account_deletion_jobs WHERE id=?", Integer.class, job.id());
                 long delaySeconds = Math.min(86400L, 30L << Math.min(attempts, 11));
-                jdbc.update("""
+                workerJdbc.update("""
                         UPDATE account_deletion_jobs
                         SET attempts=attempts+1,
                             next_attempt_at=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL ? SECOND),
@@ -51,23 +91,18 @@ public class KakaoAccountDeletionWorker {
                         failure.getClass().getSimpleName());
                 return false;
             }
-        } finally {
-            running.set(false);
-        }
     }
 
-    private Job claim() {
-        return transactionTemplate.execute(status -> {
-            var jobs = jdbc.query("""
+    private Job claim(JdbcTemplate workerJdbc) {
+            var jobs = workerJdbc.query("""
                     SELECT id,provider_user_id FROM account_deletion_jobs
                     WHERE next_attempt_at<=UTC_TIMESTAMP(6)
                       AND (locked_until IS NULL OR locked_until<UTC_TIMESTAMP(6))
-                    ORDER BY next_attempt_at,id LIMIT 1 FOR UPDATE SKIP LOCKED
+                    ORDER BY next_attempt_at,id LIMIT 1
                     """, (rs, row) -> new Job(rs.getLong("id"), rs.getString("provider_user_id")));
             if (jobs.isEmpty()) return null;
             Job job = jobs.getFirst();
-            jdbc.update("UPDATE account_deletion_jobs SET locked_until=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 5 MINUTE) WHERE id=?", job.id());
+            workerJdbc.update("UPDATE account_deletion_jobs SET locked_until=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 5 MINUTE) WHERE id=?", job.id());
             return job;
-        });
     }
 }

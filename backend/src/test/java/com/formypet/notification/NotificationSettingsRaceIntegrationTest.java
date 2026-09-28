@@ -32,7 +32,7 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
         jdbc.update("DELETE FROM users WHERE id=?", userId);
     }
     void authenticate(long version) {
-        var auth = new UsernamePasswordAuthenticationToken(email, null, List.of());
+        var auth = new UsernamePasswordAuthenticationToken(new com.formypet.auth.AuthenticatedUser(userId, version), null, List.of());
         auth.setDetails(version);
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
@@ -46,12 +46,12 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
         authenticate(0);
         jdbc.update("UPDATE users SET auth_version=1 WHERE id=?", userId);
         assertThrows(BadCredentialsException.class,
-            () -> service.updateSettings(email, new NotificationSettingsRequest(false)));
-        assertTrue(service.getSettings(email).enabled());
+            () -> service.updateSettings(userId, new NotificationSettingsRequest(false)));
+        assertTrue(service.getSettings(userId).enabled());
     }
     @Test void currentSessionChangesOnlyPreference() {
         authenticate(0);
-        assertFalse(service.updateSettings(email, new NotificationSettingsRequest(false)).enabled());
+        assertFalse(service.updateSettings(userId, new NotificationSettingsRequest(false)).enabled());
         assertEquals(0L, jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, userId));
     }
     @Test void disabledUserDoesNotReceiveEitherReminderType() {
@@ -63,7 +63,7 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
     @Test void disabledPreferenceKeepsExistingHistory() {
         reminder(NotificationType.ROUTINE_REMINDER);
         authenticate(0);
-        service.updateSettings(email, new NotificationSettingsRequest(false));
+        service.updateSettings(userId, new NotificationSettingsRequest(false));
         assertEquals(1, count());
     }
     @Test @Timeout(20) void queuedCreationRechecksPreferenceAfterUserLock() throws Exception {
@@ -95,7 +95,7 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
                 pending[0] = executor.submit(() -> {
                     authenticate(0);
                     started.countDown();
-                    try { service.updateSettings(email, new NotificationSettingsRequest(false)); }
+                    try { service.updateSettings(userId, new NotificationSettingsRequest(false)); }
                     finally { SecurityContextHolder.clearContext(); }
                 });
                 try { assertTrue(started.await(5, TimeUnit.SECONDS)); }
@@ -104,7 +104,7 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
             });
             var error = assertThrows(ExecutionException.class, () -> pending[0].get(10, TimeUnit.SECONDS));
             assertInstanceOf(BadCredentialsException.class, error.getCause());
-            assertTrue(service.getSettings(email).enabled());
+            assertTrue(service.getSettings(userId).enabled());
         } finally { executor.shutdownNow(); }
     }
 }

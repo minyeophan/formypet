@@ -25,14 +25,12 @@ public class JwtService {
         this.accessTokenExpiration = accessTokenExpiration;
     }
 
-    public String generateAccessToken(String email) {
-        return generateAccessToken(email, 0);
-    }
-
-    public String generateAccessToken(String email, long version) {
+    public String generateAccessToken(long userId, long version) {
+        new AuthenticatedUser(userId, version);
         long now = System.currentTimeMillis();
         return Jwts.builder()
-                .subject(email)
+                .subject(Long.toString(userId))
+                .claim("uid", userId)
                 .claim("av", version)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + accessTokenExpiration))
@@ -40,13 +38,19 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return parseClaims(token).getSubject();
+    public long extractUserId(String token) {
+        Claims claims = parseClaims(token);
+        Object value = claims.get("uid");
+        if (!(value instanceof Number number) || number.longValue() <= 0
+                || number.doubleValue() != number.longValue()
+                || !Long.toString(number.longValue()).equals(claims.getSubject())) {
+            throw new IllegalArgumentException("Invalid account identity");
+        }
+        return number.longValue();
     }
 
     public long extractVersion(String token) {
         Object value = parseClaims(token).get("av");
-        if (value == null) return 0;
         if (!(value instanceof Number number) || number.longValue() < 0
                 || number.doubleValue() != number.longValue()) throw new IllegalArgumentException("Invalid session version");
         return number.longValue();

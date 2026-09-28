@@ -28,32 +28,32 @@ public class PetController {
     @Operation(summary = "반려동물 등록")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "등록 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<PetResponse> create(@AuthenticationPrincipal String email,
+    public ApiResponse<PetResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                            @Valid @RequestBody PetCreateRequest request) {
-        return ApiResponse.of(petService.create(email, request));
+        return ApiResponse.of(petService.create(actorId, request));
     }
 
     @GetMapping
     @Operation(summary = "내 반려동물 목록 조회")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-    public ApiResponse<List<PetResponse>> list(@AuthenticationPrincipal String email) {
-        return ApiResponse.of(petService.list(email));
+    public ApiResponse<List<PetResponse>> list(@AuthenticationPrincipal(expression = "id") Long actorId) {
+        return ApiResponse.of(petService.list(actorId));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "반려동물 수정")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
-    public ApiResponse<PetResponse> update(@AuthenticationPrincipal String email,
+    public ApiResponse<PetResponse> update(@AuthenticationPrincipal(expression = "id") Long actorId,
                                            @PathVariable Long id,
                                            @Valid @RequestBody PetUpdateRequest request) {
-        return ApiResponse.of(petService.update(email, id, request));
+        return ApiResponse.of(petService.update(actorId, id, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "반려동물 삭제")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@AuthenticationPrincipal String email, @PathVariable Long id) {
-        petService.delete(email, id);
+    public void delete(@AuthenticationPrincipal(expression = "id") Long actorId, @PathVariable Long id) {
+        petService.delete(actorId, id);
     }
 }

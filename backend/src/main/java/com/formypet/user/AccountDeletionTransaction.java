@@ -17,12 +17,14 @@ import java.util.List;
 public class AccountDeletionTransaction {
     private final JdbcTemplate jdbc;
     private final SessionGuard sessions;
+    private final com.formypet.auth.OAuthLifecycleGuard oauthLifecycle;
     private final PasswordEncoder passwords;
     private final RecoveryCrypto recoveryCrypto;
 
     @Transactional
-    public AccountDeletionReceipt delete(String email, String password, String kakaoUserId) {
-        SessionGuard.Snapshot user = sessions.lock(email);
+    public AccountDeletionReceipt delete(Long actorId, String password, String kakaoUserId) {
+        if (kakaoUserId != null) oauthLifecycle.lock(kakaoUserId);
+        SessionGuard.Snapshot user = sessions.lockCurrent(actorId);
         if ("LOCAL".equals(user.source())) {
             if (password == null || !passwords.matches(password, user.passwordHash())) throw SessionGuard.invalid();
             if (kakaoUserId != null) throw SessionGuard.invalid();
@@ -78,6 +80,13 @@ public class AccountDeletionTransaction {
             jdbc.update("DELETE FROM password_reset_limits WHERE bucket_key=?", resetLimit);
         }
 
+        jdbc.update("""
+                UPDATE post_comments reply
+                JOIN post_comments parent ON parent.id=reply.parent_comment_id
+                JOIN posts post ON post.id=reply.post_id
+                SET reply.parent_comment_id=NULL
+                WHERE parent.user_id=? AND reply.user_id<>? AND post.user_id<>?
+                """, user.id(), user.id(), user.id());
         jdbc.update("UPDATE users SET account_status='DELETION_PENDING',auth_version=auth_version+1 WHERE id=?", user.id());
         if (jdbc.update("DELETE FROM users WHERE id=? AND account_status='DELETION_PENDING'", user.id()) != 1) {
             throw new ApiException(HttpStatus.CONFLICT, "account-deletion", "Account deletion",

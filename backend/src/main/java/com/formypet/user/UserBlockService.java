@@ -19,8 +19,8 @@ public class UserBlockService {
     public record BlockList(List<BlockedUser> items) {}
 
     @Transactional(readOnly = true)
-    public BlockList list(String email) {
-        Long viewer = userId(email);
+    public BlockList list(Long actorId) {
+        Long viewer = userId(actorId);
         return new BlockList(jdbc.query("""
                 SELECT u.id, u.nickname FROM user_blocks b JOIN users u ON u.id = b.blocked_user_id
                 WHERE b.blocker_user_id = ? ORDER BY b.created_at DESC, b.blocked_user_id DESC
@@ -28,8 +28,8 @@ public class UserBlockService {
     }
 
     @Transactional
-    public void block(String email, Long target) {
-        Long viewer = userId(email);
+    public void block(Long actorId, Long target) {
+        Long viewer = userId(actorId);
         if (viewer.equals(target)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "self-user-block", "Invalid User Block",
                     "You cannot block yourself.", "SELF_USER_BLOCK");
@@ -45,11 +45,11 @@ public class UserBlockService {
     }
 
     @Transactional
-    public void unblock(String email, Long target) {
-        jdbc.update("DELETE FROM user_blocks WHERE blocker_user_id = ? AND blocked_user_id = ?", userId(email), target);
+    public void unblock(Long actorId, Long target) {
+        jdbc.update("DELETE FROM user_blocks WHERE blocker_user_id = ? AND blocked_user_id = ?", userId(actorId), target);
     }
 
-    private Long userId(String email) {
-        return users.findByEmail(email).orElseThrow(() -> new IllegalStateException("User not found.")).getId();
+    private Long userId(Long actorId) {
+        return users.findById(actorId).orElseThrow(() -> new IllegalStateException("User not found.")).getId();
     }
 }

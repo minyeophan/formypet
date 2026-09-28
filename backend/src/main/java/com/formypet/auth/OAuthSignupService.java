@@ -25,7 +25,7 @@ public class OAuthSignupService {
     private final OAuthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.MANDATORY)
     public User signupKakaoUser(KakaoUserInfo kakaoUser) {
         String email = resolveEmail(kakaoUser);
         String nickname = resolveNickname(kakaoUser);
@@ -33,7 +33,6 @@ public class OAuthSignupService {
         User user = User.createOAuth(email, passwordEncoder.encode(randomSecret), nickname, KAKAO_PROVIDER);
         userRepository.save(user);
         oauthAccountRepository.save(OAuthAccount.create(user, KAKAO_PROVIDER, kakaoUser.id()));
-        log.info("Kakao signup: providerUserId={}", kakaoUser.id());
         return user;
     }
 

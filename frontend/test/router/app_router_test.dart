@@ -54,6 +54,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets(
+    'policy route remains accessible during unauthenticated startup failure',
+    (tester) async {
+      await _pumpRouter(
+        tester,
+        authState: const AuthState(
+          isLoading: false,
+          isAuthenticated: false,
+          initializationError: 'offline',
+        ),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+        initialLocation: '/my/policies',
+      );
+      expect(find.text('약관 및 정책'), findsOneWidget);
+      expect(find.byType(SplashScreen), findsNothing);
+    },
+  );
   setUp(() => SharedPreferences.setMockInitialValues({}));
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;

@@ -20,8 +20,8 @@ public class AccountDeletionController {
     @DeleteMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<AccountDeletionReceipt> delete(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal(expression = "id") Long actorId,
             @Valid @RequestBody AccountDeletionRequest request) {
-        return ApiResponse.of(service.delete(email, request));
+        return ApiResponse.of(service.delete(actorId, request));
     }
 }

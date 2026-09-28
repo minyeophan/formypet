@@ -9,11 +9,13 @@ import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/secure_storage.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() => initApiClient('https://example.test'));
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     await saveTokens(access: 'account-a', refresh: 'refresh-a');
   });

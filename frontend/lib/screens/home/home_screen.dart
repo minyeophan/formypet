@@ -443,7 +443,6 @@ class _QuickMenu extends StatelessWidget {
         Colors.green,
         () => context.push('/routine'),
       ),
-      ('pet-log', '반려로그', AppVisualId.homePetLog, Colors.purple, onPreparing),
     ];
     return Row(
       key: const Key('home-menu-panel'),

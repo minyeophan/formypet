@@ -35,8 +35,8 @@ public class PetService {
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional
-    public PetResponse create(String email, PetCreateRequest request) {
-        User user = findUserByEmail(email);
+    public PetResponse create(Long actorId, PetCreateRequest request) {
+        User user = findUserById(actorId);
         int colorIdx = (int) (petRepository.findByUserId(user.getId()).size() % ACCENT_COLORS.length);
         String accentColor = fallbackIfBlank(request.accentColor(), ACCENT_COLORS[colorIdx]);
         String bgLight = fallbackIfBlank(request.bgLight(), BG_LIGHTS[colorIdx]);
@@ -52,16 +52,16 @@ public class PetService {
     }
 
     @Transactional(readOnly = true)
-    public List<PetResponse> list(String email) {
-        User user = findUserByEmail(email);
+    public List<PetResponse> list(Long actorId) {
+        User user = findUserById(actorId);
         return petRepository.findByUserId(user.getId()).stream()
                 .map(pet -> PetResponse.of(pet, latestPetMediaUrl(pet.getId())))
                 .toList();
     }
 
     @Transactional
-    public PetResponse update(String email, Long petId, PetUpdateRequest request) {
-        Pet pet = findOwnedPet(email, petId);
+    public PetResponse update(Long actorId, Long petId, PetUpdateRequest request) {
+        Pet pet = findOwnedPet(actorId, petId);
         pet.update(request.name(), request.species() != null ? request.species() : pet.getSpecies(),
                 resolveBirthDate(pet, request),
                 request.gender(), request.weight(), request.animalRegistrationNumber(),
@@ -74,12 +74,12 @@ public class PetService {
     }
 
     @Transactional
-    public void delete(String email, Long petId) {
-        findOwnedPet(email, petId).softDelete();
+    public void delete(Long actorId, Long petId) {
+        findOwnedPet(actorId, petId).softDelete();
     }
 
-    private Pet findOwnedPet(String email, Long petId) {
-        User user = findUserByEmail(email);
+    private Pet findOwnedPet(Long actorId, Long petId) {
+        User user = findUserById(actorId);
         if (petId == null) {
             throw new IllegalArgumentException("Pet id must not be null.");
         }
@@ -88,8 +88,8 @@ public class PetService {
                 .orElseThrow(() -> new AccessDeniedException("해당 펫에 접근할 권한이 없습니다."));
     }
 
-    private User findUserByEmail(String email) {
-        return userRepository.findByEmail(email)
+    private User findUserById(Long actorId) {
+        return userRepository.findById(actorId)
                 .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다."));
     }
 
