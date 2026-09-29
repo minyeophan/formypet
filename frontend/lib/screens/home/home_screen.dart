@@ -430,6 +430,13 @@ class _QuickMenu extends StatelessWidget {
         () => context.push('/records'),
       ),
       (
+        'pet-log',
+        '반려로그',
+        AppVisualId.homePetLog,
+        Colors.orange,
+        onPreparing,
+      ),
+      (
         'wallet',
         '지갑',
         AppVisualId.homeWallet,
