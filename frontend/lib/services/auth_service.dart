@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import '../core/api_client.dart';
@@ -168,13 +167,22 @@ class AuthService {
 
   Future<OAuthToken?> _loginWithKakaoSdk() async {
     await KakaoBootstrap.ensureReady();
-    if (await isKakaoTalkInstalled()) {
+    final kakaoTalkAvailable = await isKakaoTalkInstalled();
+    if (kakaoTalkAvailable) {
       try {
         return await UserApi.instance.loginWithKakaoTalk();
       } on KakaoClientException catch (e) {
         if (_isUserCancelled(e)) {
           return null;
         }
+      } catch (e) {
+        final accountNotConnected = e is PlatformException &&
+            e.code == 'NotSupportError' &&
+            (e.message?.toLowerCase().contains(
+                  'not connected to kakao account',
+                ) ??
+                false);
+        if (!accountNotConnected) rethrow;
       }
     }
 

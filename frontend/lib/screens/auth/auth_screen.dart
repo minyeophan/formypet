@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_interaction_style.dart';
@@ -104,6 +105,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  void _logKakaoFailure(Object error) {
+    if (error is KakaoAuthException) {
+      debugPrint('Kakao sign-in failed: providerCause=${error.error.name}');
+      return;
+    }
+    if (error is DioException) {
+      final apiError = error.error is ApiException
+          ? error.error! as ApiException
+          : null;
+      debugPrint(
+        'Kakao sign-in failed: type=${error.type.name}, '
+        'path=${error.requestOptions.path}, '
+        'status=${apiError?.statusCode ?? error.response?.statusCode}, '
+        'code=${apiError?.errorCode ?? "unknown"}',
+      );
+      return;
+    }
+    debugPrint('Kakao sign-in failed: type=${error.runtimeType}');
+  }
+
   Future<void> _loginWithKakao() async {
     if (_isLoading) return;
     setState(() {
@@ -120,6 +141,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           );
     } catch (error) {
+      _logKakaoFailure(error);
       if (!mounted) return;
       _applyAuthError(error);
     } finally {
