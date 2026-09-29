@@ -64,6 +64,19 @@ void main() {
     expect(find.text('오늘 하루도 포마이펫과 함께!'), findsOneWidget);
   });
 
+  testWidgets('pet log menu shows preparing message when tapped', (tester) async {
+    final popular = await _popularNotifier(const []);
+    await tester.pumpWidget(_app(popular: popular));
+    await tester.pumpAndSettle();
+
+    final petLog = find.byKey(const Key('home-menu-pet-log'));
+    expect(petLog, findsOneWidget);
+    expect(find.text('반려로그'), findsOneWidget);
+
+    await tester.tap(petLog);
+    await tester.pump();
+    expect(find.text('준비중'), findsOneWidget);
+  });
   testWidgets('news empty state replaces preparing content', (tester) async {
     final popular = await _popularNotifier(const []);
     await tester.pumpWidget(_app(popular: popular));
