@@ -1,6 +1,7 @@
 package com.formypet.media.storage;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @Component
+@ConditionalOnProperty(prefix = "app.media.storage", name = "provider", havingValue = "local", matchIfMissing = true)
 public class LocalMediaStorage implements MediaStorage {
 
     private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyyMM");
