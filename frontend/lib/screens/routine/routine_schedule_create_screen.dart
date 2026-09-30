@@ -254,7 +254,10 @@ class _RoutineScheduleCreateScreenState
                       key: const Key('schedule-reminder-button'),
                       borderRadius: BorderRadius.circular(14),
                       onTap: _pickReminder,
-                      child: _ValueField(value: _reminder),
+                      child: _ValueField(
+                        value: _reminder,
+                        showDropdownIndicator: true,
+                      ),
                     ),
                   ),
                 ),
@@ -665,9 +668,9 @@ class _ValueButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
+            color: AppColors.surfaceSoft,
             borderRadius: BorderRadius.circular(14),
           ),
           child: ConstrainedBox(
@@ -694,8 +697,9 @@ class _ValueButton extends StatelessWidget {
 
 class _ValueField extends StatelessWidget {
   final String value;
+  final bool showDropdownIndicator;
 
-  const _ValueField({required this.value});
+  const _ValueField({required this.value, this.showDropdownIndicator = false});
 
   @override
   Widget build(BuildContext context) {
@@ -705,10 +709,26 @@ class _ValueField extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: showDropdownIndicator
+              ? AppColors.surfaceSoft
+              : AppColors.white,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: AppText(value, fontSize: 13, color: AppColors.text),
+        child: showDropdownIndicator
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: AppText(value, fontSize: 13, color: AppColors.text),
+                  ),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              )
+            : AppText(value, fontSize: 13, color: AppColors.text),
       ),
     );
   }

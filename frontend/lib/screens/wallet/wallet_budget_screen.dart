@@ -181,6 +181,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                               controller: _controller,
                               illustrationWidth: 118,
                               inputHorizontalPadding: 36,
+                              minimumInlineFontSize: 16,
                               amountBuilder: (style) => TextField(
                                 key: const Key('wallet-budget-input'),
                                 controller: _controller,
@@ -199,7 +200,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                                 style: style,
                                 decoration: const InputDecoration(
                                   filled: true,
-                                  fillColor: AppInteractionStyle.inputFill,
+                                  fillColor: Colors.transparent,
                                   hintText: '0원',
                                   // Filled Material 3 fields add 4px on each side.
                                   contentPadding: EdgeInsets.symmetric(

@@ -67,6 +67,43 @@ void main() {
       });
     }
   }
+  testWidgets('weekday choices stay on one horizontally scrollable row', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpScreen(
+      tester,
+      _FakePetNotifier(_petState()),
+      editingRoutine: _editFixture(repeat: 'weekly'),
+      textScale: 2,
+    );
+
+    final firstDay = find.byKey(const Key('routine-day-0'));
+    final horizontalScroll = find.ancestor(
+      of: firstDay,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is SingleChildScrollView &&
+            widget.scrollDirection == Axis.horizontal,
+      ),
+    );
+    expect(horizontalScroll, findsOneWidget);
+    final dayTops = List.generate(
+      7,
+      (index) => tester.getTopLeft(find.byKey(Key('routine-day-$index'))).dy,
+    );
+    expect(dayTops.toSet(), hasLength(1));
+
+    final lastDay = find.byKey(const Key('routine-day-6'));
+    await tester.ensureVisible(lastDay);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ChoiceChip>(lastDay).selected, isFalse);
+    await tester.tap(lastDay);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ChoiceChip>(lastDay).selected, isTrue);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'failed confirmation reload is a connection error and keeps the form',
     (tester) async {

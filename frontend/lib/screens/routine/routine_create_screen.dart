@@ -493,34 +493,46 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                         ),
                         if (_usesDays(_repeatType)) ...[
                           const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 8,
-                            children: List.generate(
-                              _weekDays.length,
-                              (index) => AppFocusIndicator(
-                                filled: false,
-                                shape: chipShape,
-                                child: ChoiceChip(
-                                  key: Key('routine-day-$index'),
-                                  label: AppText(_weekDays[index]),
-                                  selected: _days.contains(index),
-                                  color: WidgetStateProperty.resolveWith(
-                                    (states) =>
-                                        states.contains(WidgetState.disabled)
-                                        ? AppColors.surfaceSoft
-                                        : states.contains(WidgetState.selected)
-                                        ? AppColors.primary.withValues(
-                                            alpha: 0.22,
-                                          )
-                                        : AppColors.white,
+                          SingleChildScrollView(
+                            key: const Key('routine-weekday-scroll'),
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < _weekDays.length;
+                                  index++
+                                ) ...[
+                                  if (index > 0) const SizedBox(width: 6),
+                                  AppFocusIndicator(
+                                    filled: false,
+                                    shape: chipShape,
+                                    child: ChoiceChip(
+                                      key: Key('routine-day-$index'),
+                                      label: AppText(_weekDays[index]),
+                                      selected: _days.contains(index),
+                                      showCheckmark: false,
+                                      color: WidgetStateProperty.resolveWith(
+                                        (states) =>
+                                            states.contains(
+                                              WidgetState.disabled,
+                                            )
+                                            ? AppColors.surfaceSoft
+                                            : states.contains(
+                                                WidgetState.selected,
+                                              )
+                                            ? AppColors.primary.withValues(
+                                                alpha: 0.22,
+                                              )
+                                            : AppColors.white,
+                                      ),
+                                      selectedColor: AppColors.primary
+                                          .withValues(alpha: 0.22),
+                                      onSelected: (_) => _toggleDay(index),
+                                    ),
                                   ),
-                                  selectedColor: AppColors.primary.withValues(
-                                    alpha: 0.22,
-                                  ),
-                                  onSelected: (_) => _toggleDay(index),
-                                ),
-                              ),
+                                ],
+                              ],
                             ),
                           ),
                         ],

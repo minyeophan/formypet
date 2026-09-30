@@ -307,6 +307,35 @@ void main() {
     expect(find.byKey(const Key('schedule-end-time-button')), findsNothing);
   });
 
+  testWidgets(
+    'date, time, and reminder selectors share a soft dropdown style',
+    (tester) async {
+      await _pumpScreen(tester);
+
+      for (final key in [
+        const Key('schedule-start-date-button'),
+        const Key('schedule-start-time-button'),
+        const Key('schedule-reminder-button'),
+      ]) {
+        final ink = tester.widget<Ink>(
+          find
+              .descendant(of: find.byKey(key), matching: find.byType(Ink))
+              .first,
+        );
+        final decoration = ink.decoration! as BoxDecoration;
+        expect(decoration.color, AppColors.surfaceSoft);
+        expect(decoration.border, isNull);
+        expect(
+          find.descendant(
+            of: find.byKey(key),
+            matching: find.byIcon(Icons.keyboard_arrow_down),
+          ),
+          findsOneWidget,
+        );
+      }
+    },
+  );
+
   testWidgets('header has no save button and bottom save starts disabled', (
     tester,
   ) async {

@@ -9,6 +9,7 @@ class WalletAmountLayout extends StatelessWidget {
   final double illustrationWidth;
   final Widget illustration;
   final double inputHorizontalPadding;
+  final double minimumInlineFontSize;
   final Widget Function(TextStyle style) amountBuilder;
 
   const WalletAmountLayout({
@@ -18,6 +19,7 @@ class WalletAmountLayout extends StatelessWidget {
     required this.illustration,
     required this.amountBuilder,
     this.inputHorizontalPadding = 0,
+    this.minimumInlineFontSize = 32,
   });
 
   @override
@@ -53,22 +55,27 @@ class WalletAmountLayout extends StatelessWidget {
 
             // Include InputDecorator padding and the editable's caret margin.
             final available = constraints.maxWidth - inputHorizontalPadding - 4;
-            final width = measure(32);
-            final stacked = width > available - illustrationWidth;
-            var fontSize = 32.0;
-            if (stacked && width > available) {
+            double fitFontSize(double maxWidth) {
+              if (measure(32) <= maxWidth) return 32;
               var low = 0.0;
               var high = 32.0;
               for (var i = 0; i < 16; i++) {
                 final candidate = (low + high) / 2;
-                if (measure(candidate) <= available) {
+                if (measure(candidate) <= maxWidth) {
                   low = candidate;
                 } else {
                   high = candidate;
                 }
               }
-              fontSize = low;
+              return low;
             }
+
+            final inlineFontSize = fitFontSize(available - illustrationWidth);
+            final renderedInlineFontSize = MediaQuery.textScalerOf(
+              context,
+            ).scale(inlineFontSize);
+            final stacked = renderedInlineFontSize < minimumInlineFontSize;
+            final fontSize = stacked ? fitFontSize(available) : inlineFontSize;
             painter.dispose();
             // The same Flex/Flexible ancestry preserves the editable and focus
             // when a keystroke changes the layout direction.
