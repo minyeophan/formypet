@@ -67,4 +67,8 @@ tasks.named('test') {
     useJUnitPlatform()
     jvmArgs '-XX:+EnableDynamicAgentLoading'
     maxParallelForks = 1
+
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        systemProperty 'docker.client.strategy', 'com.formypet.support.LocalDockerClientStrategy'
+    }
 }

@@ -36,3 +36,28 @@ jobs:
 
       - name: Run tests
         run: flutter test --no-pub --reporter expanded
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            backend/*.gradle*
+            backend/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Run backend tests
+        run: bash ./gradlew test --no-daemon
