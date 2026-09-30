@@ -219,14 +219,14 @@ void main() {
                   budgetField.decoration!.fillColor!,
                   {},
                 ),
-                AppColors.white,
+                Colors.transparent,
               );
               expect(
                 WidgetStateProperty.resolveAs<Color>(
                   budgetField.decoration!.fillColor!,
                   {WidgetState.disabled},
                 ),
-                AppColors.surfaceSoft,
+                Colors.transparent,
               );
               expect(
                 find.ancestor(
@@ -306,6 +306,76 @@ void main() {
     );
   }
 
+  testWidgets('budget amount and puppy keep their positions as digits grow', (
+    tester,
+  ) async {
+    await pumpBudget(tester, width: 360, layoutFont: true);
+    await openBudget(tester);
+
+    final key = const Key('wallet-budget-input');
+    final field = find.byKey(key);
+    final puppy = find.byWidgetPredicate(
+      (widget) => widget is SvgPicture && widget.width == 118,
+    );
+    final card = find.ancestor(
+      of: field,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Container &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration! as BoxDecoration).color ==
+                AppV2Tokens.mintSurface,
+      ),
+    );
+    final initialCard = tester.getRect(card);
+    final initialField = tester.getRect(field);
+    final initialPuppy = tester.getRect(puppy);
+
+    await tester.enterText(field, '50000');
+    tester.testTextInput.hide();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(card).size, initialCard.size);
+    expect(tester.getRect(field).center.dy, closeTo(initialField.center.dy, 1));
+    expect(tester.getRect(puppy).center.dy, closeTo(initialPuppy.center.dy, 1));
+
+    await tester.enterText(field, '1960000');
+    tester.testTextInput.hide();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(card).size, initialCard.size);
+    expect(tester.getRect(field).center.dy, closeTo(initialField.center.dy, 1));
+    expect(tester.getRect(puppy).center.dy, closeTo(initialPuppy.center.dy, 1));
+  });
+
+  testWidgets('maximum budget stays beside puppy with enlarged text', (
+    tester,
+  ) async {
+    await pumpBudget(tester, width: 360, scale: 1.8, layoutFont: true);
+    await openBudget(tester);
+
+    final field = find.byKey(const Key('wallet-budget-input'));
+    final puppy = find.byWidgetPredicate(
+      (widget) => widget is SvgPicture && widget.width == 118,
+    );
+    await tester.enterText(field, '100000000');
+    tester.testTextInput.hide();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expectWholeAmount(tester, const Key('wallet-budget-input'), '100,000,000원');
+    expect(
+      tester.getRect(field).right,
+      lessThanOrEqualTo(tester.getRect(puppy).left),
+    );
+    expect(
+      tester.getRect(field).center.dy,
+      inInclusiveRange(tester.getRect(puppy).top, tester.getRect(puppy).bottom),
+    );
+  });
+
   testWidgets('enlarged date field shows the complete date at 360px', (
     tester,
   ) async {
@@ -327,7 +397,7 @@ void main() {
   });
 
   testWidgets(
-    'app theme fills budget amount white and preserves its frameless border',
+    'budget amount blends into the mint card and keeps its frameless border',
     (tester) async {
       await pumpBudget(tester);
       await tester.tap(find.text('예산 설정'));
@@ -344,13 +414,39 @@ void main() {
           decorator.decoration.fillColor!,
           {},
         ),
-        AppColors.white,
+        Colors.transparent,
       );
       expect(decorator.decoration.enabledBorder, InputBorder.none);
       expect(decorator.decoration.focusedBorder, InputBorder.none);
       expect(decorator.decoration.disabledBorder, InputBorder.none);
     },
   );
+
+  testWidgets('budget amount is transparent over mint and keeps the puppy', (
+    tester,
+  ) async {
+    await pumpBudget(tester);
+    await tester.tap(find.text('예산 설정'));
+    await tester.pumpAndSettle();
+
+    final decorator = tester.widget<InputDecorator>(
+      find.descendant(
+        of: find.byKey(const Key('wallet-budget-input')),
+        matching: find.byType(InputDecorator),
+      ),
+    );
+    expect(decorator.decoration.filled, isTrue);
+    expect(
+      WidgetStateProperty.resolveAs<Color>(decorator.decoration.fillColor!, {}),
+      Colors.transparent,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is SvgPicture && widget.width == 118,
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('app theme keeps expense amount white with a green underline', (
     tester,
@@ -907,8 +1003,9 @@ Future<(ProviderContainer, BudgetAuth)> pumpBudget(
       child: MaterialApp(
         theme: layoutFont ? amountTestTheme() : buildAppTheme(),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(scale)),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         ),
         home: Scaffold(
@@ -949,8 +1046,9 @@ Future<void> pumpAmountForm(
     MaterialApp(
       theme: amountTestTheme(),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context)
-            .copyWith(textScaler: TextScaler.linear(scale)),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),
       home: Scaffold(
