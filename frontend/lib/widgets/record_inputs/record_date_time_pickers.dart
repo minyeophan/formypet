@@ -12,6 +12,7 @@ Future<DateTime?> showRecordDatePickerSheet(
   required DateTime initialDate,
   DateTime? firstDate,
   DateTime? lastDate,
+  VoidCallback? onClear,
 }) {
   final first = firstDate ?? calendarFirstDate;
   final last = lastDate ?? recordCalendarLastDate(DateTime.now());
@@ -21,6 +22,15 @@ Future<DateTime?> showRecordDatePickerSheet(
       initialDate: clampCalendarDate(initialDate, first, last),
       firstDate: first,
       lastDate: last,
+      footer: onClear == null
+          ? null
+          : TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onClear();
+              },
+              child: const Text('종료일 없음'),
+            ),
     ),
   );
 }
@@ -28,10 +38,22 @@ Future<DateTime?> showRecordDatePickerSheet(
 Future<TimeOfDay?> showRecordTimePickerSheet(
   BuildContext context, {
   required TimeOfDay initialTime,
+  VoidCallback? onDelete,
 }) {
   return showRecordPickerSheet<TimeOfDay>(
     context,
-    builder: (context) => _RecordTimePickerSheet(initialTime: initialTime),
+    builder: (context) => _RecordTimePickerSheet(
+      initialTime: initialTime,
+      footer: onDelete == null
+          ? null
+          : TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onDelete();
+              },
+              child: const Text('이 시간 삭제'),
+            ),
+    ),
   );
 }
 
@@ -39,11 +61,13 @@ class _RecordDatePickerSheet extends StatefulWidget {
   final DateTime initialDate;
   final DateTime firstDate;
   final DateTime lastDate;
+  final Widget? footer;
 
   const _RecordDatePickerSheet({
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
+    this.footer,
   });
 
   @override
@@ -89,6 +113,7 @@ class _RecordDatePickerSheetState extends State<_RecordDatePickerSheet> {
   @override
   Widget build(BuildContext context) {
     return RecordPickerSheet<DateTime>(
+      footer: widget.footer,
       value: () => clampRecordDate(
         DateTime(_year, _month, _day),
         widget.firstDate,
@@ -157,8 +182,9 @@ class _RecordDatePickerSheetState extends State<_RecordDatePickerSheet> {
 
 class _RecordTimePickerSheet extends StatefulWidget {
   final TimeOfDay initialTime;
+  final Widget? footer;
 
-  const _RecordTimePickerSheet({required this.initialTime});
+  const _RecordTimePickerSheet({required this.initialTime, this.footer});
 
   @override
   State<_RecordTimePickerSheet> createState() => _RecordTimePickerSheetState();
@@ -195,6 +221,7 @@ class _RecordTimePickerSheetState extends State<_RecordTimePickerSheet> {
   @override
   Widget build(BuildContext context) {
     return RecordPickerSheet<TimeOfDay>(
+      footer: widget.footer,
       value: () => recordTimeFromWheelValues(
         periodIndex: _periodIndex,
         hour12: _hour12,

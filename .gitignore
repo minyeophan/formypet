@@ -1,40 +1,48 @@
 node_modules
-
-# Local credentials and machine-specific configuration
 .env
 .env.*
-.idea/
-backend/local.properties
-backend/src/main/resources/application-local.yml
-backend/firebase-service-account.json
-frontend/android/app/google-services.json
-frontend/ios/Runner/GoogleService-Info.plist
 
 # local agent/config artifacts
 .codex/
 .claude/
 .superpowers/
 .worktrees/
+ui-reference/
 .vscode/
 scripts/
 CHANGES.md
 docs/superpowers/plans/
+docs/superpowers/specs/
 docs/devlog-drafts/
 
 # backend build/runtime artifacts
 backend/.gradle/
 backend/build/
 backend/storage/
+backend/local.properties
+backend/.env
+backend/.env.*
+backend/src/main/resources/application-local.yml
+
+# Runtime uploaded files
+/storage/
 backend/hs_err_pid*.log
 backend/replay_pid*.log
 hs_err_pid*.log
+.idea/
+node_modules/
 
 # frontend local runtime artifacts
 frontend/.env
 frontend/.env.*
+!frontend/.env.example
 frontend/*.log
 frontend/*.err.log
 frontend/devtools_options.yaml
+
+# Firebase platform configuration (keep credentials out of Git)
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
 
 # Flutter build outputs
 frontend/build/
@@ -62,6 +70,14 @@ docs/mockups/
 docs/PHASE_PLAN.md
 docs/PRD.md
 docs/ERD.md
+docs/BACKEND_STATUS.md
+docs/NOTIFICATIONS_STATUS.md
+/docs/PASSWORD_RECOVERY_OPERATIONS.md
+docs/api-screen-inventory.md
+# Local status and audit notes; keep GitHub focused on the public README.
 backend/bin/
 TODOS.md
 gstack/
+
+# Firebase Admin service account (keep secrets out of Git)
+backend/firebase-service-account.json

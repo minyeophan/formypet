@@ -1,3 +1,4 @@
+import '../app_ink_well.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -71,7 +72,8 @@ class RecordFormSubmitButton extends StatelessWidget {
     return Material(
       color: canTap ? AppColors.primary : AppColors.surfaceSoft,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
         borderRadius: BorderRadius.circular(16),
         onTap: canTap ? onPressed : null,
         child: Container(

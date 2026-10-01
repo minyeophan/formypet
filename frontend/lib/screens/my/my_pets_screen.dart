@@ -1,3 +1,4 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,14 +30,14 @@ class MyPetsScreen extends ConsumerWidget {
               child: AppText('등록된 펫이 없어요', color: AppColors.textSecondary),
             )
           : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               itemCount: state.pets.length + 1,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 if (index == state.pets.length) {
                   return OutlinedButton.icon(
                     onPressed: () => context.push('/pets/new'),
-                    icon: const Icon(Icons.add_rounded),
+                    icon: const AppIcon(Icons.add_rounded),
                     label: const AppText('펫 추가하기'),
                   );
                 }

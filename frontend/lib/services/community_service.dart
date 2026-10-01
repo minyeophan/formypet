@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
 import '../models/post.dart';
+import '../models/my_community_activity.dart';
 
 class PollDraft {
   final String question;
@@ -24,20 +25,39 @@ enum CommunityFeedSort {
 }
 
 class CommunityService {
+  Future<MyActivityPage> getMyActivities(
+    MyActivityType type, {
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/api/v1/me/community/activities',
+      queryParameters: {'type': type.name, 'limit': 20, 'cursor': ?cursor},
+    );
+    return MyActivityPage.fromJson(unwrap(response) as Map<String, dynamic>);
+  }
+
   Future<PostFeed> getFeed({
     String? category,
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
+    String? keyword,
   }) async {
     final normalizedCategory = category?.toUpperCase();
-    final params = <String, dynamic>{'limit': limit, 'sort': sort.apiValue};
+    final normalizedKeyword = keyword?.trim();
+    final params = <String, dynamic>{
+      'limit': _pageLimit(limit),
+      'sort': sort.apiValue,
+    };
     if (normalizedCategory != null &&
         normalizedCategory != 'ALL' &&
         normalizedCategory != 'POPULAR') {
       params['category'] = normalizedCategory;
     }
     if (cursor != null) params['cursor'] = cursor;
+    if (normalizedKeyword != null && normalizedKeyword.isNotEmpty) {
+      params['keyword'] = normalizedKeyword;
+    }
 
     final res = await dio.get('/api/v1/posts', queryParameters: params);
     return PostFeed.fromJson(unwrap(res) as Map<String, dynamic>);
@@ -45,7 +65,7 @@ class CommunityService {
 
   Future<Post> createPost({
     required String content,
-    String? title,
+    required String title,
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
@@ -53,7 +73,7 @@ class CommunityService {
     final payload = {
       'content': content,
       'category': category.toUpperCase(),
-      'title': ?title,
+      'title': title,
       if (poll case final poll?) 'poll': poll.toJson(),
     };
 
@@ -106,8 +126,8 @@ class CommunityService {
       '/api/v1/posts/$postId/comments',
       queryParameters: {
         'cursor': ?cursor,
-        'limit': limit,
-        'replyLimit': replyLimit,
+        'limit': _pageLimit(limit),
+        'replyLimit': _pageLimit(replyLimit),
       },
     );
     return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
@@ -120,7 +140,7 @@ class CommunityService {
   }) async {
     final res = await dio.get(
       '/api/v1/posts/$postId/comments/$commentId',
-      queryParameters: {'replyLimit': replyLimit},
+      queryParameters: {'replyLimit': _pageLimit(replyLimit)},
     );
     return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
   }
@@ -133,7 +153,7 @@ class CommunityService {
   }) async {
     final res = await dio.get(
       '/api/v1/posts/$postId/comments/$commentId/replies',
-      queryParameters: {'cursor': ?cursor, 'limit': limit},
+      queryParameters: {'cursor': ?cursor, 'limit': _pageLimit(limit)},
     );
     return PostCommentFeed.fromJson(unwrap(res) as Map<String, dynamic>);
   }
@@ -150,6 +170,60 @@ class CommunityService {
     return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
+  Future<PostComment> updateComment(
+    String postId,
+    String commentId,
+    String content,
+  ) async {
+    final res = await dio.patch(
+      '/api/v1/posts/$postId/comments/$commentId',
+      data: {'content': content.trim()},
+    );
+    return PostComment.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await dio.delete('/api/v1/posts/$postId/comments/$commentId');
+  }
+
+  Future<Post> updatePost(
+    String postId, {
+    required String title,
+    required String content,
+    required String category,
+    String? petSpecies,
+  }) async {
+    final res = await dio.put(
+      '/api/v1/posts/$postId',
+      data: {
+        'title': title.trim(),
+        'content': content.trim(),
+        'category': category.toUpperCase(),
+        'petSpecies': petSpecies,
+      },
+    );
+    return Post.fromJson(unwrap(res) as Map<String, dynamic>);
+  }
+
+  Future<void> deletePost(String postId) async {
+    await dio.delete('/api/v1/posts/$postId');
+  }
+
+  Future<void> reportComment(
+    String postId,
+    String commentId,
+    String reason, {
+    String? detail,
+  }) async {
+    await dio.post(
+      '/api/v1/posts/$postId/comments/$commentId/reports',
+      data: {
+        'reason': reason,
+        if (detail != null && detail.trim().isNotEmpty) 'detail': detail.trim(),
+      },
+    );
+  }
+
   String _filenameFor(XFile file, int index) {
     if (file.name.isNotEmpty) return file.name;
     final path = file.path.replaceAll('\\', '/');
@@ -159,3 +233,5 @@ class CommunityService {
     return 'upload-$index';
   }
 }
+
+int _pageLimit(int value) => value.clamp(1, 50).toInt();

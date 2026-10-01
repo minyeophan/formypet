@@ -15,6 +15,19 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
+  testWidgets('registration offers adoption and optional edit information', (
+    tester,
+  ) async {
+    await _pump(tester, PetEntryMode.firstPet);
+    expect(find.byType(PetDateField), findsNWidgets(2));
+    final extra = find.text('추가 정보 (선택)');
+    await tester.ensureVisible(extra);
+    await tester.tap(extra);
+    await tester.pumpAndSettle();
+    expect(find.text('성격'), findsOneWidget);
+    expect(find.text('주치의·병원'), findsOneWidget);
+  });
+
   testWidgets('first pet onboarding has shared title without back', (
     tester,
   ) async {
@@ -28,7 +41,7 @@ void main() {
     expect(find.text('이색(기타)'), findsOneWidget);
     expect(find.text('품종/하위종'), findsOneWidget);
     expect(find.byType(PetTextField), findsOneWidget);
-    expect(find.byType(PetDateField), findsOneWidget);
+    expect(find.byType(PetDateField), findsNWidgets(2));
     expect(find.byType(PetPickerField), findsOneWidget);
     expect(find.byType(PetChoiceButton), findsWidgets);
   });
@@ -39,12 +52,12 @@ void main() {
     final notifier = _AddPetNotifier(_state());
     await _pumpWithNotifier(tester, PetEntryMode.firstPet, notifier);
 
-    final submitButton = find.widgetWithText(ElevatedButton, '등록하기');
+    final submitButton = find.widgetWithText(ElevatedButton, '등록');
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('이름을 입력해 주세요'), findsOneWidget);
+    expect(find.text('반려동물 이름을 입력해 주세요.'), findsOneWidget);
     expect(notifier.createdBody, isNull);
 
     final nameField = find.byType(TextField).first;

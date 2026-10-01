@@ -1,3 +1,6 @@
+import '../../core/app_interaction_style.dart';
+import '../app_ink_well.dart';
+import '../app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -49,7 +52,7 @@ class RecordNumberInput extends StatelessWidget {
         hintText: hintText,
         suffixText: suffixText,
         filled: true,
-        fillColor: AppColors.white,
+        fillColor: AppInteractionStyle.inputFill,
         hintStyle: const TextStyle(color: AppColors.muted),
         suffixStyle: const TextStyle(
           color: AppColors.textSecondary,
@@ -146,10 +149,7 @@ class _RecordNumberPadSheetState extends State<_RecordNumberPadSheet> {
         suffixText: widget.suffixText,
         placeholderText: widget.placeholderText,
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxHeight: RecordInputStyle.numberPadMaxHeight,
-        ),
+      child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             RecordInputStyle.sheetHorizontalPadding,
@@ -247,7 +247,7 @@ class _NumberKey extends StatelessWidget {
     return Material(
       color: keyValue == '.' ? AppColors.surfaceSoft : AppColors.white,
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      child: AppInkWell(
         key: Key('record-number-key-$keyName'),
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
@@ -259,7 +259,7 @@ class _NumberKey extends StatelessWidget {
             border: Border.all(color: RecordInputStyle.borderColor),
           ),
           child: isBackspace
-              ? const Icon(
+              ? const AppIcon(
                   Icons.backspace_outlined,
                   size: 21,
                   color: AppColors.textSecondary,

@@ -1,4 +1,6 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
+import 'app_ink_well.dart';
 
 import '../core/app_colors.dart';
 
@@ -8,12 +10,21 @@ class AppMoreButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onPressed;
   final _AppMoreButtonVariant _variant;
+  final Color? plainColor;
+  final Color? plainSplashColor;
 
   const AppMoreButton.surface({super.key, this.tooltip = '더보기', this.onPressed})
-    : _variant = _AppMoreButtonVariant.surface;
+    : plainColor = null,
+      plainSplashColor = null,
+      _variant = _AppMoreButtonVariant.surface;
 
-  const AppMoreButton.plain({super.key, this.tooltip = '더보기', this.onPressed})
-    : _variant = _AppMoreButtonVariant.plain;
+  const AppMoreButton.plain({
+    super.key,
+    this.tooltip = '더보기',
+    this.onPressed,
+    this.plainColor,
+    this.plainSplashColor,
+  }) : _variant = _AppMoreButtonVariant.plain;
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +35,11 @@ class AppMoreButton extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: AppInkWell(
           onTap: onPressed,
+          splashColor: isSurface ? null : plainSplashColor,
           borderRadius: BorderRadius.circular(isSurface ? 14 : 22),
-          child: Container(
+          child: Ink(
             width: size,
             height: size,
             decoration: isSurface
@@ -37,11 +49,12 @@ class AppMoreButton extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                   )
                 : null,
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.more_vert_rounded,
-              size: 20,
-              color: AppColors.textSecondary,
+            child: Center(
+              child: AppIcon(
+                Icons.more_vert_rounded,
+                size: 20,
+                color: plainColor ?? AppColors.textSecondary,
+              ),
             ),
           ),
         ),

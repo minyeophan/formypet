@@ -1,3 +1,5 @@
+import '../../widgets/app_ink_well.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,11 +11,14 @@ import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
+import 'expense_form.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseDetailScreen extends ConsumerStatefulWidget {
   final String expenseId;
+  final String? petId;
 
-  const ExpenseDetailScreen({super.key, required this.expenseId});
+  const ExpenseDetailScreen({super.key, required this.expenseId, this.petId});
 
   @override
   ConsumerState<ExpenseDetailScreen> createState() =>
@@ -22,14 +27,45 @@ class ExpenseDetailScreen extends ConsumerStatefulWidget {
 
 class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
   var _deleting = false;
+  var _confirming = false;
+  int? _session;
+  String? _ownerPetId;
   String? _errorText;
   Future<WalletExpense>? _expenseFuture;
+  (int, String, String)? _expenseKey;
 
   @override
   Widget build(BuildContext context) {
-    final petId = ref.watch(petProvider).activePetId;
-    if (petId == null) {
-      return const _ExpenseNotFoundScreen();
+    final pets = ref.watch(petProvider);
+    final wallet = ref.watch(walletExpenseProvider);
+    if (_session != wallet.session) {
+      _session = wallet.session;
+      _ownerPetId = widget.petId;
+      _expenseKey = null;
+      _expenseFuture = null;
+      _deleting = false;
+      _confirming = false;
+      _errorText = null;
+    }
+    if (pets.isLoading) {
+      return const ExpenseLoadScreen(loading: true);
+    }
+    _ownerPetId ??= pets.activePetId;
+    final petId = widget.petId ?? _ownerPetId;
+    if (petId == null || !pets.pets.any((pet) => pet.id == petId)) {
+      return ExpenseLoadScreen(
+        error: pets.dataErrorText,
+        onRetry: pets.dataErrorText == null
+            ? null
+            : () => ref.read(petProvider.notifier).refreshPets(),
+      );
+    }
+    final expenseKey = (wallet.session, petId, widget.expenseId);
+    if (_expenseKey != expenseKey) {
+      _expenseKey = expenseKey;
+      _expenseFuture = null;
+      _deleting = false;
+      _errorText = null;
     }
     _expenseFuture ??= ref
         .read(walletExpenseProvider.notifier)
@@ -39,25 +75,43 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       future: _expenseFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const ExpenseLoadScreen(loading: true);
         }
         if (!snapshot.hasData) {
-          return const _ExpenseNotFoundScreen();
+          return ExpenseLoadScreen(
+            error: snapshot.error,
+            onRetry: () => setState(() => _expenseFuture = null),
+          );
         }
+        final matchingPets = ref
+            .read(petProvider)
+            .pets
+            .where((pet) => pet.id == petId)
+            .toList();
         return _ExpenseDetailBody(
-          expense: snapshot.data!,
+          expense:
+              [...?wallet.expensesByPet[petId], ...wallet.items]
+                  .where(
+                    (item) =>
+                        item.id == widget.expenseId && item.petId == petId,
+                  )
+                  .firstOrNull ??
+              snapshot.data!,
+          petName: matchingPets.isEmpty ? null : matchingPets.first.name,
           deleting: _deleting,
+          busy: _deleting || _confirming,
           errorText: _errorText,
-          onDelete: _deleting ? null : _confirmDelete,
+          onDelete: _deleting || _confirming ? null : _confirmDelete,
         );
       },
     );
   }
 
   Future<void> _confirmDelete(WalletExpense expense) async {
+    if (_deleting || _confirming) return;
+    final session = ref.read(walletExpenseProvider).session;
+    final expenseKey = _expenseKey;
+    setState(() => _confirming = true);
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -68,7 +122,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.border),
             ),
             child: Column(
@@ -107,16 +161,25 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       },
     );
 
-    if (confirmed == true) {
-      await _delete(expense);
+    if (!mounted ||
+        ref.read(walletExpenseProvider).session != session ||
+        expenseKey != _expenseKey) {
+      return;
     }
+    setState(() => _confirming = false);
+    if (confirmed == true) await _delete(expense);
   }
 
   Future<void> _delete(WalletExpense expense) async {
-    final petId = ref.read(petProvider).activePetId;
-    if (petId == null) {
+    if (_deleting || _session != ref.read(walletExpenseProvider).session) {
       return;
     }
+    final petId = expense.petId;
+    if (ref.read(petProvider).isLoading ||
+        !ref.read(petProvider).pets.any((pet) => pet.id == petId)) {
+      return;
+    }
+    final session = ref.read(walletExpenseProvider).session;
     setState(() {
       _deleting = true;
       _errorText = null;
@@ -126,10 +189,15 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
       await ref
           .read(walletExpenseProvider.notifier)
           .deleteExpense(petId, expense.id);
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
       context.go('/wallet');
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       setState(() {
         _deleting = false;
         _errorText =
@@ -141,13 +209,17 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
 
 class _ExpenseDetailBody extends StatelessWidget {
   final WalletExpense expense;
+  final String? petName;
   final bool deleting;
+  final bool busy;
   final String? errorText;
   final ValueChanged<WalletExpense>? onDelete;
 
   const _ExpenseDetailBody({
     required this.expense,
+    required this.petName,
     required this.deleting,
+    required this.busy,
     required this.errorText,
     required this.onDelete,
   });
@@ -158,7 +230,7 @@ class _ExpenseDetailBody extends StatelessWidget {
     final note = expense.note?.trim();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.white,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -170,8 +242,11 @@ class _ExpenseDetailBody extends StatelessWidget {
                   onBack: () => _goBack(context),
                   trailing: TextButton(
                     key: const Key('expense-detail-edit-button'),
-                    onPressed: () =>
-                        context.push('/wallet/expenses/${expense.id}/edit'),
+                    onPressed: busy
+                        ? null
+                        : () => context.push(
+                            '/wallet/expenses/${expense.id}/edit?petId=${Uri.encodeQueryComponent(expense.petId)}',
+                          ),
                     child: const AppText(
                       '\uC218\uC815',
                       fontSize: 13,
@@ -186,47 +261,73 @@ class _ExpenseDetailBody extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
               sliver: SliverList.list(
                 children: [
-                  _SectionBlock(
-                    title: '\uB0A0\uC9DC/\uC2DC\uAC04',
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('expense-detail-date-label'),
-                            text: expense.expenseDate,
-                          ),
+                  Column(
+                    key: const Key('expense-detail-hero'),
+                    children: [
+                      ExpenseCategoryVisual(
+                        category: expense.category,
+                        size: 56,
+                      ),
+                      const SizedBox(height: 16),
+                      AppText(
+                        walletExpenseCategoryLabel(expense),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(height: 8),
+                      AppText(
+                        walletExpenseAmountLabel(expense),
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
+                      if (itemName?.isNotEmpty == true) ...[
+                        const SizedBox(height: 8),
+                        AppText(
+                          itemName!,
+                          fontSize: 15,
+                          color: AppColors.textSecondary,
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ValueBox(
-                            key: const Key('expense-detail-time-label'),
-                            text: normalizeExpenseTime(expense.expenseTime),
-                          ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _ValueRow(
+                    key: const Key('expense-detail-pet-row'),
+                    label: '반려동물',
+                    value: petName ?? '-',
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionBlock(
+                    title: '날짜/시간',
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        AppText(
+                          expense.expenseDate,
+                          key: const Key('expense-detail-date-label'),
+                          fontSize: 15,
+                          color: AppColors.text,
+                        ),
+                        AppText(
+                          normalizeExpenseTime(expense.expenseTime),
+                          key: const Key('expense-detail-time-label'),
+                          fontSize: 15,
+                          color: AppColors.text,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   _SectionBlock(
-                    title: '\uC9C0\uCD9C \uC815\uBCF4',
-                    child: Column(
-                      children: [
-                        _ValueRow(
-                          label: '\uAE08\uC561',
-                          value: walletExpenseAmountLabel(expense),
-                        ),
-                        _ValueRow(
-                          label: '\uCE74\uD14C\uACE0\uB9AC',
-                          value: walletExpenseCategoryLabel(expense),
-                        ),
-                        if (itemName != null && itemName.isNotEmpty)
-                          _ValueRow(
-                            label: '\uD488\uBAA9\uBA85',
-                            value: itemName,
-                          ),
-                        if (note != null && note.isNotEmpty)
-                          _ValueRow(label: '\uBA54\uBAA8', value: note),
-                      ],
+                    title: '메모',
+                    child: AppText(
+                      note?.isNotEmpty == true ? note! : '-',
+                      fontSize: 15,
+                      color: AppColors.text,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -248,60 +349,75 @@ class _ExpenseDetailBody extends StatelessWidget {
   }
 }
 
-class _ExpenseNotFoundScreen extends StatelessWidget {
-  const _ExpenseNotFoundScreen();
+/// Shared loading, not-found and retry states for detail and edit.
+class ExpenseLoadScreen extends StatelessWidget {
+  final bool loading;
+  final Object? error;
+  final VoidCallback? onRetry;
+  final String title;
+  final VoidCallback? onBack;
+
+  const ExpenseLoadScreen({
+    super.key,
+    this.loading = false,
+    this.error,
+    this.onRetry,
+    this.title = '지출 상세',
+    this.onBack,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final missing =
+        error == null ||
+        (error is DioException &&
+            (error as DioException).response?.statusCode == 404);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.white,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: AppInlineHeader(
-                title: '\uC9C0\uCD9C \uC0C1\uC138',
-                onBack: () => _goBack(context),
-              ),
+            AppFormHeader(
+              title: title,
+              onBack: onBack ?? () => _goBack(context),
             ),
             Expanded(
               child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Container(
-                    key: const Key('expense-detail-not-found'),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceSoft,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const AppText(
-                          '\uC9C0\uCD9C \uAE30\uB85D\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC5B4\uC694',
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                          textAlign: TextAlign.center,
+                child: loading
+                    ? const CircularProgressIndicator()
+                    : Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppText(
+                              missing ? '지출 기록을 찾을 수 없어요' : '지출 정보를 불러오지 못했어요.',
+                              key: Key(
+                                missing
+                                    ? 'expense-detail-not-found'
+                                    : 'expense-load-error',
+                              ),
+                              fontSize: 15,
+                              color: AppColors.text,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            if (!missing && onRetry != null)
+                              TextButton(
+                                onPressed: onRetry,
+                                child: const Text('다시 시도'),
+                              )
+                            else
+                              TextButton(
+                                key: const Key(
+                                  'expense-not-found-wallet-button',
+                                ),
+                                onPressed: () => context.go('/wallet'),
+                                child: const Text('지갑으로 돌아가기'),
+                              ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          key: const Key('expense-not-found-wallet-button'),
-                          onPressed: () => context.go('/wallet'),
-                          child: const AppText(
-                            '\uC9C0\uAC11\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
               ),
             ),
           ],
@@ -338,60 +454,22 @@ class _SectionBlock extends StatelessWidget {
 class _ValueRow extends StatelessWidget {
   final String label;
   final String value;
-
-  const _ValueRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 13),
-              child: AppText(
-                label,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-            ),
-          ),
-          Expanded(child: _ValueBox(text: value)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ValueBox extends StatelessWidget {
-  final String text;
-
-  const _ValueBox({super.key, required this.text});
+  const _ValueRow({super.key, required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) {
-    final value = text.trim();
-    return Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: AppText(
-        value.isEmpty ? '-' : value,
-        fontSize: 14,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      AppText(
+        label,
+        fontSize: 15,
         fontWeight: FontWeight.bold,
-        color: value.isEmpty ? AppColors.muted : AppColors.text,
+        color: AppColors.text,
       ),
-    );
-  }
+      const SizedBox(height: 10),
+      AppText(value, fontSize: 15, color: AppColors.textSecondary),
+    ],
+  );
 }
 
 class _InlineError extends StatelessWidget {
@@ -406,7 +484,7 @@ class _InlineError extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: AppText(
@@ -429,17 +507,17 @@ class _DetailActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       key: const Key('expense-delete-button'),
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      color: const Color(0xFFFFF1F2),
+      borderRadius: BorderRadius.circular(20),
+      child: AppInkWell(
+        danger: true,
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
           height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF1F2),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFFECACA)),
           ),
           child: deleting
@@ -476,15 +554,16 @@ class _SheetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: danger ? const Color(0xFFFFF1F2) : AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(20),
+      child: AppInkWell(
+        danger: danger,
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
           height: 48,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: danger ? const Color(0xFFFECACA) : AppColors.border,
             ),

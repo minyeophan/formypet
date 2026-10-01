@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
@@ -72,6 +73,9 @@ class MySupportCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -87,21 +91,19 @@ class MySupportRow extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool showTopBorder;
-  final String? iconLabel;
 
   const MySupportRow({
     super.key,
     required this.title,
     required this.onTap,
     this.showTopBorder = false,
-    this.iconLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 56),
@@ -113,10 +115,6 @@ class MySupportRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (iconLabel != null) ...[
-                _TextIconTile(label: iconLabel!),
-                const SizedBox(width: 10),
-              ],
               Expanded(
                 child: AppText(
                   title,
@@ -202,34 +200,6 @@ class MySupportNotFound extends StatelessWidget {
         fontWeight: FontWeight.bold,
         color: AppColors.textSecondary,
         textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _TextIconTile extends StatelessWidget {
-  final String label;
-
-  const _TextIconTile({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 34,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: AppText(
-            label,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-          ),
-        ),
       ),
     );
   }

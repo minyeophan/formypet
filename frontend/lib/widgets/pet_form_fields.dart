@@ -1,3 +1,6 @@
+import '../core/app_interaction_style.dart';
+import 'app_ink_well.dart';
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -91,7 +94,13 @@ class PetTextField extends StatelessWidget {
             ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.white,
+            fillColor: AppInteractionStyle.inputFillFor(
+              readOnly
+                  ? (onTap == null
+                        ? AppInputAccess.readOnly
+                        : AppInputAccess.picker)
+                  : AppInputAccess.editable,
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 13,
@@ -144,9 +153,12 @@ class PetDateField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.white,
+          color: AppInteractionStyle.inputFillFor(
+            AppInputAccess.picker,
+            enabled: onTap != null,
+          ),
           borderRadius: BorderRadius.circular(14),
-          child: InkWell(
+          child: AppInkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: onTap,
             child: Container(
@@ -168,7 +180,7 @@ class PetDateField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  const AppIcon(
                     Icons.calendar_today_rounded,
                     size: 20,
                     color: AppColors.textSecondary,
@@ -208,9 +220,12 @@ class PetPickerField extends StatelessWidget {
         AppText(label, fontWeight: FontWeight.bold),
         const SizedBox(height: 8),
         Material(
-          color: AppColors.surface,
+          color: AppInteractionStyle.inputFillFor(
+            AppInputAccess.picker,
+            enabled: enabled && onTap != null,
+          ),
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: enabled ? onTap : null,
             child: Container(
@@ -234,7 +249,7 @@ class PetPickerField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  const AppIcon(
                     Icons.expand_more_rounded,
                     size: 22,
                     color: AppColors.textSecondary,
@@ -250,6 +265,7 @@ class PetPickerField extends StatelessWidget {
 }
 
 class PetChoiceButton extends StatelessWidget {
+  final Widget? leading;
   final String label;
   final bool selected;
   final VoidCallback? onTap;
@@ -258,6 +274,7 @@ class PetChoiceButton extends StatelessWidget {
 
   const PetChoiceButton({
     super.key,
+    this.leading,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -270,41 +287,52 @@ class PetChoiceButton extends StatelessWidget {
     final textColor = enabled ? AppColors.text : AppColors.muted;
     final minHeight = dense ? 44.0 : 48.0;
     final minWidth = dense ? 0.0 : 74.0;
-    final horizontalPadding = dense ? 8.0 : 14.0;
+    final horizontalPadding = leading != null ? 6.0 : (dense ? 8.0 : 14.0);
     final verticalPadding = dense ? 10.0 : 11.0;
     final fontSize = dense ? 12.0 : 14.0;
     return Opacity(
       opacity: enabled ? 1 : 0.56,
-      child: Material(
-        color: selected ? AppColors.surfaceSoft : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: Material(
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          onTap: enabled ? onTap : null,
-          child: Container(
-            constraints: BoxConstraints(
-              minHeight: minHeight,
-              minWidth: minWidth,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: verticalPadding,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: selected ? AppColors.text : AppColors.border,
-                width: selected ? 1.4 : 1,
+          child: AppInkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: enabled ? onTap : null,
+            child: Container(
+              constraints: BoxConstraints(
+                minHeight: minHeight,
+                minWidth: minWidth,
               ),
-            ),
-            alignment: Alignment.center,
-            child: AppText(
-              label,
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: selected ? AppColors.text : textColor,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.border,
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (leading != null) ...[leading!, const SizedBox(height: 4)],
+                  AppText(
+                    label,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    textAlign: TextAlign.center,
+                    maxLines: leading == null ? 1 : null,
+                    overflow: leading == null ? TextOverflow.ellipsis : null,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,13 +1,18 @@
+server:
+  port: ${SERVER_PORT:8083}
+
 spring:
+  config:
+    import: optional:file:.env[.properties],optional:file:../.env[.properties],optional:file:.env.support[.properties]
   application:
-    name: petyilgi
+    name: formypet
 
   threads:
     virtual:
       enabled: true
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/petyilgi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3308/formypet?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -32,8 +37,41 @@ spring:
     baseline-on-migrate: false
 
 app:
+  password-reset:
+    enabled: ${PASSWORD_RESET_ENABLED:false}
+    hmac-secret: ${PASSWORD_RESET_HMAC_SECRET:}
+    token-secret: ${PASSWORD_RESET_TOKEN_SECRET:}
+    mail:
+      host: ${PASSWORD_RESET_SMTP_HOST:smtp.gmail.com}
+      port: ${PASSWORD_RESET_SMTP_PORT:587}
+      username: ${PASSWORD_RESET_SMTP_USERNAME:}
+      password: ${PASSWORD_RESET_SMTP_PASSWORD:}
+      from: ${PASSWORD_RESET_SMTP_FROM:}
+  support:
+    mail:
+      enabled: ${SUPPORT_MAIL_ENABLED:false}
+      scheduler-enabled: true
+      host: smtp.gmail.com
+      port: 587
+      username: ${SUPPORT_MAIL_USERNAME:}
+      password: ${SUPPORT_MAIL_PASSWORD:}
+      recipient: ${SUPPORT_MAIL_RECIPIENT:}
+      sender-name: 포마펫 고객지원
+  account-deletion:
+    kakao-admin-key: ${KAKAO_ADMIN_KEY:}
+    interval-ms: 30000
+    scheduler-enabled: true
+  media:
+    cleanup-interval-ms: 30000
+  firebase:
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
+  notification:
+    interval-ms: 60000
+    lookback-minutes: 5
+    timezone: Asia/Seoul
+    scheduler-enabled: true
   jwt:
-    secret: ${JWT_SECRET}
+    secret: "${JWT_SECRET}"
     access-token-expiration: 1800000    # 30분 (ms)
     refresh-token-expiration: 2592000000 # 30일 (ms)
 
@@ -50,7 +88,7 @@ logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   level:
-    com.petyilgi: DEBUG
+    com.formypet: DEBUG
     org.hibernate.SQL: DEBUG
     org.flywaydb: INFO
 
@@ -66,3 +104,13 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+
+app:
+  firebase:
+    credentials-path: build/test-no-firebase-credentials.json
+  support:
+    mail:
+      enabled: false
+      scheduler-enabled: false
+  account-deletion:
+    scheduler-enabled: false

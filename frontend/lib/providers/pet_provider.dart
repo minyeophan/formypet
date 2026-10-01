@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,8 +13,15 @@ import '../services/routine_service.dart';
 import '../services/care_schedule_service.dart';
 import '../core/record_utils.dart';
 
+const _removedQuickTypeIds = {'bath', 'groom'};
+
+List<String> _removeRemovedQuickTypeIds(List<String> ids) =>
+    ids.where((id) => !_removedQuickTypeIds.contains(id)).toList();
+
 class PetState {
   final bool isLoading;
+  final String? dataErrorText;
+  final String? routineRefreshError;
   final bool hasOnboarded;
   final List<Pet> pets;
   final String? activePetId;
@@ -30,6 +38,8 @@ class PetState {
 
   const PetState({
     required this.isLoading,
+    this.dataErrorText,
+    this.routineRefreshError,
     required this.hasOnboarded,
     required this.pets,
     this.activePetId,
@@ -47,6 +57,10 @@ class PetState {
   // clearActivePetId: true이면 activePetId를 null로 강제 설정
   PetState copyWith({
     bool? isLoading,
+    String? dataErrorText,
+    bool clearDataError = false,
+    String? routineRefreshError,
+    bool clearRoutineRefreshError = false,
     bool? hasOnboarded,
     List<Pet>? pets,
     String? activePetId,
@@ -61,6 +75,12 @@ class PetState {
     List<String>? quickTypeIds,
   }) => PetState(
     isLoading: isLoading ?? this.isLoading,
+    routineRefreshError: clearRoutineRefreshError
+        ? null
+        : routineRefreshError ?? this.routineRefreshError,
+    dataErrorText: clearDataError
+        ? null
+        : (dataErrorText ?? this.dataErrorText),
     hasOnboarded: hasOnboarded ?? this.hasOnboarded,
     pets: pets ?? this.pets,
     activePetId: clearActivePetId ? null : (activePetId ?? this.activePetId),
@@ -83,6 +103,14 @@ class PetPhotoUpload {
   const PetPhotoUpload({required this.bytes, required this.filename});
 }
 
+/// Profile fields are persisted; callers must retry this pet, not create another.
+class PetPhotoSaveException implements Exception {
+  final String petId;
+  const PetPhotoSaveException(this.petId);
+  @override
+  String toString() => '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.';
+}
+
 class RecordPhotoUpload {
   final Uint8List bytes;
   final String filename;
@@ -97,6 +125,85 @@ class PetNotifier extends StateNotifier<PetState> {
   final RoutineService _routSvc;
   final CareScheduleService? _scheduleSvc;
   late final Future<void> _preferencesReady;
+  Future<void>? _refreshInFlight;
+  int _session = 0;
+  int _dataVersion = 0;
+  int _routineMutationVersion = 0;
+  int _routineReadVersion = 0;
+  int _selectionVersion = 0;
+  final _routineWrites = <(int, int, String?), int>{};
+  final _routineWriteDrains = <(int, int, String?), Completer<void>>{};
+  int get _pendingRoutineWrites => _routineWrites[routineContext] ?? 0;
+  void _beginRoutineWrite((int, int, String?) token) {
+    _routineWriteDrains.putIfAbsent(token, Completer<void>.new);
+    _routineWrites[token] = (_routineWrites[token] ?? 0) + 1;
+    _routineMutationVersion++;
+  }
+
+  void _endRoutineWrite((int, int, String?) token) {
+    final remaining = (_routineWrites[token] ?? 1) - 1;
+    if (remaining == 0) {
+      _routineWrites.remove(token);
+      _routineWriteDrains.remove(token)?.complete();
+    } else {
+      _routineWrites[token] = remaining;
+    }
+    if (isRoutineContextCurrent(token)) _routineMutationVersion++;
+  }
+
+  int _todayRequest = 0;
+  Future<void>? _routineRead;
+  (int, int, String?)? _routineReadContext;
+  (int, int, String?) get routineContext =>
+      (_session, _selectionVersion, state.activePetId);
+  bool isRoutineContextCurrent((int, int, String?) token) =>
+      mounted && token == routineContext;
+
+  Future<void> reloadRoutines() {
+    final token = routineContext;
+    if (_routineRead != null && _routineReadContext == token) {
+      return _routineRead!;
+    }
+    _routineReadContext = token;
+    late final Future<void> request;
+    request = _reloadRoutines(token).whenComplete(() {
+      if (identical(_routineRead, request)) _routineRead = null;
+    });
+    return _routineRead = request;
+  }
+
+  Future<void> _reloadRoutines((int, int, String?) token) async {
+    if (token.$3 == null) return;
+    while (isRoutineContextCurrent(token)) {
+      if (_pendingRoutineWrites > 0) {
+        await _routineWriteDrains[token]!.future;
+        continue;
+      }
+      final version = _routineMutationVersion;
+      final request = ++_routineReadVersion;
+      final routines = await _routSvc.getRoutines(token.$3!);
+      if (!isRoutineContextCurrent(token)) return;
+      if (version != _routineMutationVersion ||
+          request != _routineReadVersion ||
+          _pendingRoutineWrites > 0) {
+        continue;
+      }
+      state = state.copyWith(routines: routines);
+      return;
+    }
+  }
+
+  Future<void> retryTodayRoutines() async {
+    final petId = state.activePetId;
+    if (petId != null) await _refreshTodayRoutinesBestEffort(petId);
+  }
+
+  bool _isCurrent(int session) => mounted && session == _session;
+
+  bool _isCurrentPet(int session, int version, String petId) =>
+      _isCurrent(session) &&
+      version == _dataVersion &&
+      state.activePetId == petId;
 
   PetNotifier(
     this._petSvc,
@@ -119,7 +226,7 @@ class PetNotifier extends StateNotifier<PetState> {
            quickTypeIds: kDefaultQuickIds,
          ),
        ) {
-    _preferencesReady = _loadQuickTypeIds();
+    _preferencesReady = _initializeQuickTypeIds(_readStoredQuickTypeIds);
   }
 
   PetNotifier.test(super.initialState)
@@ -138,26 +245,61 @@ class PetNotifier extends StateNotifier<PetState> {
     RoutineService? routineService,
     MediaService? mediaService,
     CareScheduleService? scheduleService,
+    Future<List<String>> Function()? quickTypeIdsLoader,
   }) : _petSvc = petService ?? PetService(),
        _mediaSvc = mediaService ?? MediaService(),
        _recSvc = recordService ?? RecordService(),
        _routSvc = routineService ?? RoutineService(),
        _scheduleSvc = scheduleService {
-    _preferencesReady = Future.value();
+    _preferencesReady = quickTypeIdsLoader == null
+        ? Future.value()
+        : _initializeQuickTypeIds(quickTypeIdsLoader);
   }
 
-  Future<void> _loadQuickTypeIds() async {
+  Future<List<String>> _readStoredQuickTypeIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedQuickIds =
-        prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
-    state = state.copyWith(isLoading: false, quickTypeIds: savedQuickIds);
+    final stored = prefs.getStringList('quickTypeIds') ?? kDefaultQuickIds;
+    final cleaned = _removeRemovedQuickTypeIds(stored);
+    if (!listEquals(stored, cleaned)) {
+      await prefs.setStringList('quickTypeIds', cleaned);
+    }
+    return cleaned;
+  }
+
+  Future<void> _initializeQuickTypeIds(
+    Future<List<String>> Function() loader,
+  ) async {
+    try {
+      final quickTypeIds = _removeRemovedQuickTypeIds(await loader());
+      if (!mounted) return;
+      state = state.copyWith(isLoading: false, quickTypeIds: quickTypeIds);
+    } catch (error) {
+      if (!mounted) return;
+      debugPrint('Failed to load quick type ids: $error');
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   Future<void> loadForAuthenticatedUser() async {
+    final session = ++_session;
+    _dataVersion++;
+    _refreshInFlight = null;
+    state = PetState(
+      isLoading: true,
+      hasOnboarded: false,
+      pets: const [],
+      records: const [],
+      routines: const [],
+      todayRoutineItems: const [],
+      routineCompletions: const {},
+      quickTypeIds: state.quickTypeIds,
+    );
     await _preferencesReady;
+    if (!_isCurrent(session)) return;
     state = state.copyWith(isLoading: true);
     try {
       final pets = await _petSvc.getPets();
+      if (!_isCurrent(session)) return;
       final activePetId = pets.isNotEmpty ? pets.first.id : null;
       if (activePetId == null) {
         state = PetState(
@@ -188,13 +330,20 @@ class PetNotifier extends StateNotifier<PetState> {
       );
       await _loadPetData(activePetId);
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (!_isCurrent(session)) return;
+      state = state.copyWith(
+        isLoading: false,
+        dataErrorText: '반려동물 정보를 불러오지 못했어요. 다시 시도해 주세요.',
+      );
       rethrow;
     }
   }
 
   Future<void> clearForSignedOutUser() async {
-    await _preferencesReady;
+    _session++;
+    _dataVersion++;
+    _refreshInFlight = null;
+    if (!mounted) return;
     state = PetState(
       isLoading: false,
       hasOnboarded: false,
@@ -208,7 +357,7 @@ class PetNotifier extends StateNotifier<PetState> {
     );
   }
 
-  Future<void> _loadPetData(String petId) async {
+  Future<_PetData> _fetchPetData(String petId) async {
     final results = await Future.wait([
       _recSvc.getRecords(petId),
       _routSvc.getRoutines(petId),
@@ -229,7 +378,7 @@ class PetNotifier extends StateNotifier<PetState> {
       completions[key] = item.completion.status;
     }
 
-    state = state.copyWith(
+    return _PetData(
       records: records,
       routines: routines,
       schedules: schedules,
@@ -239,9 +388,150 @@ class PetNotifier extends StateNotifier<PetState> {
     );
   }
 
+  Future<void> _loadPetData(String petId) async {
+    final session = _session;
+    final version = ++_dataVersion;
+    final routineVersion = _routineMutationVersion;
+    final routineWritePending = _pendingRoutineWrites > 0;
+    final routineRequest = ++_routineReadVersion;
+    final todayRequest = ++_todayRequest;
+    state = state.copyWith(isLoading: true, clearDataError: true);
+    try {
+      final data = await _fetchPetData(petId);
+      if (!_isCurrentPet(session, version, petId)) return;
+      if (routineWritePending ||
+          routineRequest != _routineReadVersion ||
+          todayRequest != _todayRequest ||
+          routineVersion != _routineMutationVersion ||
+          _pendingRoutineWrites > 0) {
+        state = state.copyWith(
+          records: data.records,
+          schedules: data.schedules,
+          isLoading: false,
+          clearDataError: true,
+        );
+        unawaited(
+          reloadRoutines().catchError((Object error) {
+            if (_isCurrentPet(session, version, petId)) {
+              state = state.copyWith(dataErrorText: '루틴 목록을 갱신하지 못했어요.');
+            }
+          }),
+        );
+        return;
+      }
+      state = data
+          .applyTo(state)
+          .copyWith(isLoading: false, clearDataError: true);
+    } catch (_) {
+      if (!_isCurrentPet(session, version, petId)) return;
+      state = state.copyWith(
+        isLoading: false,
+        dataErrorText: '반려동물 기록을 불러오지 못했어요. 다시 시도해 주세요.',
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> refreshPets() {
+    final session = _session;
+    return _refreshInFlight ??= _refreshPets().whenComplete(() {
+      if (_isCurrent(session)) _refreshInFlight = null;
+    });
+  }
+
+  Future<void> _refreshPets() async {
+    final session = _session;
+    final version = _dataVersion;
+    final pets = await _petSvc.getPets();
+    if (!_isCurrent(session) || version != _dataVersion) return;
+    if (pets.isEmpty) {
+      state = PetState(
+        isLoading: false,
+        hasOnboarded: false,
+        pets: const [],
+        records: const [],
+        routines: const [],
+        schedules: const [],
+        todayRoutineItems: const [],
+        routineCompletions: const {},
+        quickTypeIds: state.quickTypeIds,
+      );
+      return;
+    }
+
+    final activeId = state.activePetId;
+    if (activeId != null && pets.any((pet) => pet.id == activeId)) {
+      state = state.copyWith(pets: pets, hasOnboarded: true);
+      return;
+    }
+
+    final nextId = pets.first.id;
+    state = state.copyWith(pets: pets, hasOnboarded: true);
+    await setActivePet(nextId);
+  }
+
   Future<void> setActivePet(String petId) async {
-    state = state.copyWith(activePetId: petId);
+    if (!state.pets.any((pet) => pet.id == petId)) {
+      throw StateError('Pet not found');
+    }
+    _selectionVersion++;
+    state = state.copyWith(
+      clearRoutineRefreshError: true,
+      activePetId: petId,
+      records: const [],
+      routines: const [],
+      schedules: const [],
+      todayRoutineItems: const [],
+      routineCompletions: const {},
+      clearTodaySummary: true,
+      clearDataError: true,
+    );
     await _loadPetData(petId);
+  }
+
+  Future<void> retryDataLoad() => state.activePetId == null
+      ? loadForAuthenticatedUser()
+      : _loadPetData(state.activePetId!);
+
+  Future<bool> activateReminderTarget({
+    required String sourceId,
+    required bool isSchedule,
+    bool Function()? isRequestCurrent,
+  }) async {
+    final session = _session;
+    final version = _dataVersion;
+    final pets = await _petSvc.getPets();
+    if (!_isCurrent(session) ||
+        version != _dataVersion ||
+        isRequestCurrent?.call() == false) {
+      return false;
+    }
+    for (final pet in pets) {
+      final found = isSchedule
+          ? (await _requireScheduleService().getSchedules(
+              pet.id,
+            )).any((item) => item.id == sourceId && item.petId == pet.id)
+          : (await _routSvc.getRoutines(
+              pet.id,
+            )).any((item) => item.id == sourceId && item.petId == pet.id);
+      if (!_isCurrent(session) ||
+          version != _dataVersion ||
+          isRequestCurrent?.call() == false) {
+        return false;
+      }
+      if (!found) continue;
+      state = state.copyWith(pets: pets, hasOnboarded: true);
+      await setActivePet(pet.id);
+      if (!_isCurrent(session) || state.activePetId != pet.id) return false;
+      return isSchedule
+          ? state.schedules.any(
+              (item) => item.id == sourceId && item.petId == pet.id,
+            )
+          : state.routines.any(
+              (item) => item.id == sourceId && item.petId == pet.id,
+            );
+    }
+    return false;
   }
 
   // Pet CRUD
@@ -249,11 +539,14 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     PetPhotoUpload? photo,
   }) async {
+    final session = _session;
     await _preferencesReady;
+    if (!_isCurrent(session)) return;
     final pet = await _petSvc.createPet(body);
+    if (!_isCurrent(session)) return;
     state = PetState(
       isLoading: false,
-      hasOnboarded: true,
+      hasOnboarded: state.hasOnboarded,
       pets: [...state.pets, pet],
       activePetId: pet.id,
       records: const [],
@@ -264,12 +557,19 @@ class PetNotifier extends StateNotifier<PetState> {
       quickTypeIds: state.quickTypeIds,
     );
     if (photo != null) {
-      final savedPet = await _uploadPhoto(pet, photo);
+      final savedPet = await _uploadSavedPetPhoto(pet, photo);
+      if (!_isCurrent(session)) return;
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == pet.id ? savedPet : p).toList(),
       );
     }
-    await _loadPetData(pet.id);
+    try {
+      await _loadPetData(pet.id);
+    } catch (error) {
+      // Creation already succeeded; a refresh failure must not invite duplication.
+      debugPrint('Failed to refresh new pet data: $error');
+    }
+    if (_isCurrent(session)) state = state.copyWith(hasOnboarded: true);
   }
 
   Future<void> updatePet(
@@ -277,15 +577,27 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     PetPhotoUpload? photo,
   }) async {
+    final session = _session;
     final updated = await _petSvc.updatePet(petId, body);
+    if (!_isCurrent(session)) return;
     state = state.copyWith(
       pets: state.pets.map((p) => p.id == petId ? updated : p).toList(),
     );
     if (photo != null) {
-      final savedPet = await _uploadPhoto(updated, photo);
+      final savedPet = await _uploadSavedPetPhoto(updated, photo);
+      if (!_isCurrent(session)) return;
       state = state.copyWith(
         pets: state.pets.map((p) => p.id == petId ? savedPet : p).toList(),
       );
+    }
+    state = state.copyWith(hasOnboarded: true);
+  }
+
+  Future<Pet> _uploadSavedPetPhoto(Pet pet, PetPhotoUpload photo) async {
+    try {
+      return await _uploadPhoto(pet, photo);
+    } catch (_) {
+      throw PetPhotoSaveException(pet.id);
     }
   }
 
@@ -299,7 +611,9 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> deletePet(String petId) async {
+    final session = _session;
     await _petSvc.deletePet(petId);
+    if (!_isCurrent(session)) return;
     final oldActivePetId = state.activePetId;
     final remaining = state.pets.where((p) => p.id != petId).toList();
     if (remaining.isEmpty) {
@@ -318,9 +632,14 @@ class PetNotifier extends StateNotifier<PetState> {
       final nextId = remaining.any((p) => p.id == state.activePetId)
           ? state.activePetId!
           : remaining.first.id;
-      state = state.copyWith(pets: remaining, activePetId: nextId);
+      state = state.copyWith(pets: remaining);
       if (nextId != oldActivePetId) {
-        await _loadPetData(nextId);
+        try {
+          await setActivePet(nextId);
+        } catch (error) {
+          // Deletion is committed; the next pet's data can be retried separately.
+          debugPrint('Failed to load the next pet after deletion: $error');
+        }
       }
     }
   }
@@ -330,6 +649,8 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     RecordPhotoUpload? photo,
   }) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final record = photo == null
         ? await _recSvc.createRecord(petId, body)
@@ -340,12 +661,16 @@ class PetNotifier extends StateNotifier<PetState> {
               RecordMediaUpload(bytes: photo.bytes, filename: photo.filename),
             ],
           );
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(records: [...state.records, record]);
   }
 
   Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final updated = await _recSvc.updateRecord(petId, recordId, body);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(
       records: state.records
           .map((r) => r.id == recordId ? updated : r)
@@ -354,8 +679,11 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> deleteRecord(String recordId) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     await _recSvc.deleteRecord(petId, recordId);
+    if (!_isCurrentPet(session, version, petId)) return;
     state = state.copyWith(
       records: state.records.where((r) => r.id != recordId).toList(),
     );
@@ -363,15 +691,20 @@ class PetNotifier extends StateNotifier<PetState> {
 
   // Routine CRUD
   Future<CareSchedule> addCareSchedule(CareSchedule schedule) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final scheduleSvc = _requireScheduleService();
     final saved = await scheduleSvc.createSchedule(petId, schedule);
+    if (!_isCurrentPet(session, version, petId)) return saved;
     final next = [...state.schedules, saved];
     state = state.copyWith(schedules: next);
     return saved;
   }
 
   Future<CareSchedule> updateCareSchedule(CareSchedule schedule) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId;
     final scheduleSvc = _requireScheduleService();
     if (petId == null || schedule.petId != petId) {
@@ -388,13 +721,17 @@ class PetNotifier extends StateNotifier<PetState> {
       schedule.id,
       schedule,
     );
-    final next = [...state.schedules];
-    next[index] = saved;
+    if (!_isCurrentPet(session, version, petId)) return saved;
+    final next = state.schedules
+        .map((item) => item.id == saved.id ? saved : item)
+        .toList();
     state = state.copyWith(schedules: next);
     return saved;
   }
 
   Future<void> deleteCareSchedule(String scheduleId) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId;
     if (petId == null) {
       throw StateError('Care schedule not found');
@@ -407,47 +744,86 @@ class PetNotifier extends StateNotifier<PetState> {
       throw StateError('Care schedule not found');
     }
     await scheduleSvc.deleteSchedule(petId, scheduleId);
+    if (!_isCurrentPet(session, version, petId)) return;
     final next = state.schedules
         .where((schedule) => schedule.id != scheduleId)
         .toList();
     state = state.copyWith(schedules: next);
   }
 
-  Future<void> addRoutine(Map<String, dynamic> body) async {
+  Future<bool> addRoutine(Map<String, dynamic> body) async {
+    final token = routineContext;
     final petId = state.activePetId!;
-    final routine = await _routSvc.createRoutine(petId, body);
-    state = state.copyWith(routines: [...state.routines, routine]);
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      final routine = await _routSvc.createRoutine(petId, body);
+      if (!isRoutineContextCurrent(token)) return false;
+      state = state.copyWith(routines: [...state.routines, routine]);
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      await _refreshTodayRoutinesBestEffort(petId);
+    }
+    return isRoutineContextCurrent(token);
   }
 
-  Future<void> updateRoutine(
+  Future<bool> updateRoutine(
     String routineId,
     Map<String, dynamic> body,
   ) async {
+    final token = routineContext;
     final petId = state.activePetId!;
-    final updated = await _routSvc.updateRoutine(petId, routineId, body);
-    state = state.copyWith(
-      routines: state.routines
-          .map((r) => r.id == routineId ? updated : r)
-          .toList(),
-    );
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      final updated = await _routSvc.updateRoutine(petId, routineId, body);
+      if (!isRoutineContextCurrent(token)) return false;
+      state = state.copyWith(
+        routines: state.routines.any((r) => r.id == routineId)
+            ? state.routines
+                  .map((r) => r.id == routineId ? updated : r)
+                  .toList()
+            : [...state.routines, updated],
+      );
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      unawaited(_refreshTodayRoutinesBestEffort(petId));
+    }
+    return isRoutineContextCurrent(token);
   }
 
-  Future<void> deleteRoutine(String routineId) async {
+  Future<bool> deleteRoutine(String routineId) async {
+    final token = routineContext;
     final petId = state.activePetId!;
-    await _routSvc.deleteRoutine(petId, routineId);
-    final completions = Map<String, CompletionStatus>.from(
-      state.routineCompletions,
-    )..removeWhere((key, _) => key.startsWith('$routineId:'));
-    state = state.copyWith(
-      routines: state.routines.where((r) => r.id != routineId).toList(),
-      routineCompletions: completions,
-    );
-    await _refreshTodayRoutinesBestEffort(petId);
+    _beginRoutineWrite(token);
+    try {
+      await _routSvc.deleteRoutine(petId, routineId);
+      if (!isRoutineContextCurrent(token)) return false;
+      final completions = Map<String, CompletionStatus>.from(
+        state.routineCompletions,
+      )..removeWhere((key, _) => key.startsWith('$routineId:'));
+      state = state.copyWith(
+        routines: state.routines.where((r) => r.id != routineId).toList(),
+        todayRoutineItems: state.todayRoutineItems
+            .where((item) => item.routine.id != routineId)
+            .toList(),
+        routineCompletions: completions,
+      );
+      state = state.copyWith(todaySummary: _todaySummaryFrom(completions));
+    } finally {
+      _endRoutineWrite(token);
+    }
+    if (isRoutineContextCurrent(token)) {
+      unawaited(_refreshTodayRoutinesBestEffort(petId));
+    }
+    return isRoutineContextCurrent(token);
   }
 
   Future<void> toggleRoutineCompletion(String routineId, String date) async {
+    final session = _session;
+    final version = _dataVersion;
     final petId = state.activePetId!;
     final key = '$routineId:$date';
     final current = state.routineCompletions[key] ?? CompletionStatus.pending;
@@ -461,6 +837,7 @@ class PetNotifier extends StateNotifier<PetState> {
       date: date,
       status: next,
     );
+    if (!_isCurrentPet(session, version, petId)) return;
     final newMap = Map<String, CompletionStatus>.from(state.routineCompletions);
     newMap[key] = completion.status;
     final isTodayItem = state.todayRoutineItems.any(
@@ -474,9 +851,18 @@ class PetNotifier extends StateNotifier<PetState> {
   }
 
   Future<void> _refreshTodayRoutinesBestEffort(String petId) async {
+    final token = routineContext;
+    final request = ++_todayRequest;
+    final routineVersion = _routineMutationVersion;
+    if (_pendingRoutineWrites > 0) return;
     try {
       final todayData = await _routSvc.getTodayRoutines(petId);
-      if (state.activePetId != petId) return;
+      if (!isRoutineContextCurrent(token) ||
+          request != _todayRequest ||
+          routineVersion != _routineMutationVersion ||
+          _pendingRoutineWrites > 0) {
+        return;
+      }
 
       final completions = Map<String, CompletionStatus>.from(
         state.routineCompletions,
@@ -488,11 +874,19 @@ class PetNotifier extends StateNotifier<PetState> {
         completions[_completionKey(item)] = item.completion.status;
       }
       state = state.copyWith(
+        clearRoutineRefreshError: true,
         todayRoutineItems: todayData.items,
         todaySummary: todayData.summary,
         routineCompletions: completions,
       );
     } catch (error) {
+      if (isRoutineContextCurrent(token) &&
+          request == _todayRequest &&
+          routineVersion == _routineMutationVersion) {
+        state = state.copyWith(
+          routineRefreshError: '저장은 완료됐지만 오늘 루틴을 갱신하지 못했어요',
+        );
+      }
       debugPrint('Failed to refresh today routines: $error');
     }
   }
@@ -526,10 +920,39 @@ class PetNotifier extends StateNotifier<PetState> {
 
   // QuickTypeIds persistence
   Future<void> setQuickTypeIds(List<String> ids) async {
+    final cleaned = _removeRemovedQuickTypeIds(ids);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('quickTypeIds', ids);
-    state = state.copyWith(quickTypeIds: ids);
+    await prefs.setStringList('quickTypeIds', cleaned);
+    state = state.copyWith(quickTypeIds: cleaned);
   }
+}
+
+class _PetData {
+  final List<ActivityRecord> records;
+  final List<Routine> routines;
+  final List<CareSchedule> schedules;
+  final List<TodayRoutineItem> todayRoutineItems;
+  final Map<String, CompletionStatus> routineCompletions;
+  final TodayRoutineSummary? todaySummary;
+
+  const _PetData({
+    required this.records,
+    required this.routines,
+    required this.schedules,
+    required this.todayRoutineItems,
+    required this.routineCompletions,
+    required this.todaySummary,
+  });
+
+  PetState applyTo(PetState state) => state.copyWith(
+    records: records,
+    routines: routines,
+    schedules: schedules,
+    todayRoutineItems: todayRoutineItems,
+    routineCompletions: routineCompletions,
+    todaySummary: todaySummary,
+    clearTodaySummary: todaySummary == null,
+  );
 }
 
 final petServiceProvider = Provider<PetService>((_) => PetService());

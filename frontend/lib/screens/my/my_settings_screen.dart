@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_interaction_style.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,7 +9,6 @@ import '../../core/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
-import '../../widgets/preparing_toast.dart';
 import 'my_widgets.dart';
 
 class MySettingsScreen extends ConsumerStatefulWidget {
@@ -50,7 +52,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
         onBack: () => _goBack(context),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           MyMenuCard(
             title: '계정',
@@ -64,7 +66,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 label: '계정 정보',
                 icon: Icons.badge_outlined,
                 showTopBorder: true,
-                onTap: () => showPreparingToast(context),
+                onTap: () => context.push('/my/profile'),
               ),
             ],
           ),
@@ -73,21 +75,37 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
             title: '앱 설정',
             children: [
               MyMenuRow(
-                label: '알림 설정',
-                icon: Icons.notifications_none_rounded,
-                onTap: () => showPreparingToast(context),
+                label: '약관 및 정책',
+                icon: Icons.description_outlined,
+                onTap: () => context.push('/my/policies'),
               ),
               MyMenuRow(
-                label: '테마 설정',
-                icon: Icons.palette_outlined,
+                label: '나의 동의 이력',
+                icon: Icons.history,
+                onTap: () => context.push('/policy-history'),
+              ),
+              MyMenuRow(
+                label: '알림 설정',
+                icon: Icons.notifications_active_outlined,
+                onTap: () => context.push('/my/settings/notifications'),
+              ),
+              MyMenuRow(
                 showTopBorder: true,
-                onTap: () => showPreparingToast(context),
+                label: '알림 내역',
+                icon: Icons.notifications_none_rounded,
+                onTap: () => context.push('/notifications'),
+              ),
+              MyMenuRow(
+                label: '차단 목록',
+                icon: Icons.block_rounded,
+                showTopBorder: true,
+                onTap: () => context.push('/my/blocked-users'),
               ),
             ],
           ),
           const SizedBox(height: 16),
           MyMenuCard(
-            title: '위험 액션',
+            title: '계정 관리',
             danger: true,
             children: [
               MyMenuRow(
@@ -102,6 +120,15 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const SizedBox.shrink(),
+              ),
+              MyMenuRow(
+                label: '회원 탈퇴',
+                icon: Icons.person_remove_alt_1_outlined,
+                danger: true,
+                showTopBorder: true,
+                onTap: _loggingOut
+                    ? null
+                    : () => context.push('/my/settings/delete-account'),
               ),
             ],
           ),
@@ -118,10 +145,13 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
 Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
   return showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 600),
     backgroundColor: AppColors.surface,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -142,11 +172,15 @@ Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
             const SizedBox(height: 18),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
               child: const AppText('로그아웃', color: AppColors.white),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
               child: const AppText('취소', color: AppColors.textSecondary),
             ),
           ],

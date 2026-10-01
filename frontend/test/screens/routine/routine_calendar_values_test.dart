@@ -3,6 +3,22 @@ import 'package:frontend/models/routine.dart';
 import 'package:frontend/screens/routine/routine_calendar_values.dart';
 
 void main() {
+  test('repeat and time summaries reflect actual settings', () {
+    expect(
+      routineRepeatLabel(_routine(repeatType: 'monthly', monthlyInterval: 3)),
+      '매 3개월',
+    );
+    expect(
+      routineRepeatLabel(_routine(repeatType: 'monthly', monthlyInterval: 1)),
+      '매월',
+    );
+    expect(routineTimeSummary(_routine(times: [])), '시간 없음');
+    expect(
+      routineTimeSummary(_routine(times: ['20:00', '08:00'])),
+      '08:00 외 1개',
+    );
+    expect(routineTimeSummary(_routine(times: ['08:00'])), '08:00');
+  });
   test('routineDayNumber maps Sunday through Saturday to zero through six', () {
     expect(routineDayNumber(DateTime(2026, 5, 31)), 0);
     expect(routineDayNumber(DateTime(2026, 6, 1)), 1);
@@ -65,13 +81,14 @@ Routine _routine({
   String? endDate,
   int monthlyInterval = 1,
   bool active = true,
+  List<String> times = const ['08:00'],
 }) => Routine(
   id: id,
   petId: 'pet',
   label: '루틴',
   typeId: 'medicine',
   repeatType: repeatType,
-  times: const ['08:00'],
+  times: times,
   days: days,
   startDate: startDate,
   endDate: endDate,

@@ -5,6 +5,7 @@ import 'package:frontend/core/visuals/app_visual_catalog.dart';
 import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/screens/community/community_constants.dart';
 import 'package:frontend/screens/routine/routine_schedule_values.dart';
+import 'package:frontend/screens/wallet/expense_wallet_screen.dart';
 
 void main() {
   test('catalog contains every AppVisualId', () {
@@ -31,5 +32,14 @@ void main() {
   test('communityVisualId maps known and unknown community categories', () {
     expect(communityVisualId('POPULAR'), AppVisualId.communityPopular);
     expect(communityVisualId('unknown'), AppVisualId.genericUnknown);
+  });
+
+  test('wallet expenses use the approved record visuals instead of emoji', () {
+    expect(walletExpenseVisualId('food'), AppVisualId.recordMeal);
+    expect(walletExpenseVisualId('snack'), AppVisualId.mealSnack);
+    expect(walletExpenseVisualId('hospital'), AppVisualId.recordVet);
+    expect(walletExpenseVisualId('medicine'), AppVisualId.recordMedicine);
+    expect(walletExpenseVisualId('grooming'), AppVisualId.recordGroom);
+    expect(walletExpenseVisualId('other'), AppVisualId.recordEtc);
   });
 }

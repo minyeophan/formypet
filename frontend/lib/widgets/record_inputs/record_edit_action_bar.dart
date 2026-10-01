@@ -1,3 +1,5 @@
+import '../../core/app_interaction_style.dart';
+import '../app_ink_well.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -36,15 +38,17 @@ class RecordEditActionBar extends StatelessWidget {
     final busy = isSaving || isDeleting;
     final canSave = enabled && !busy;
     final canDelete = !busy;
+    final saveActive = canSave || isSaving;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Material(
-          color: canSave ? AppColors.primary : AppColors.surfaceSoft,
+          color: saveActive ? AppColors.primary : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             key: saveKey,
+            filled: true,
             borderRadius: BorderRadius.circular(16),
             onTap: canSave ? onSave : null,
             child: Container(
@@ -53,14 +57,14 @@ class RecordEditActionBar extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: canSave ? AppColors.primary : AppColors.border,
+                  color: saveActive ? AppColors.primary : AppColors.border,
                 ),
               ),
               child: AppText(
                 isSaving ? savingLabel : saveLabel,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: canSave ? AppColors.white : AppColors.muted,
+                color: saveActive ? AppColors.white : AppColors.muted,
               ),
             ),
           ),
@@ -69,8 +73,9 @@ class RecordEditActionBar extends StatelessWidget {
         Material(
           color: AppColors.dangerSoft,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
+          child: AppInkWell(
             key: deleteKey,
+            danger: true,
             borderRadius: BorderRadius.circular(16),
             onTap: canDelete ? onDelete : null,
             child: Container(
@@ -113,10 +118,13 @@ Future<bool?> showDeleteConfirmationSheet(
 }) {
   return showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 600),
     backgroundColor: AppColors.surface,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -134,11 +142,15 @@ Future<bool?> showDeleteConfirmationSheet(
             FilledButton(
               key: confirmKey,
               onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
               child: AppText(confirmLabel, color: AppColors.white),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
               child: const AppText('취소', color: AppColors.textSecondary),
             ),
           ],

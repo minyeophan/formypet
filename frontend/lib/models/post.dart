@@ -131,6 +131,9 @@ class PostComment {
   final String? authorProfileImageUrl;
   final String content;
   final String createdAt;
+  final String? updatedAt;
+  final bool deleted;
+  final bool blocked;
   final int commentsCount;
   final String? parentCommentId;
   final int replyCount;
@@ -144,6 +147,9 @@ class PostComment {
     this.authorProfileImageUrl,
     required this.content,
     required this.createdAt,
+    this.updatedAt,
+    this.deleted = false,
+    this.blocked = false,
     required this.commentsCount,
     this.parentCommentId,
     this.replyCount = 0,
@@ -153,11 +159,14 @@ class PostComment {
 
   factory PostComment.fromJson(Map<String, dynamic> j) => PostComment(
     id: j['id'].toString(),
-    userId: j['userId'].toString(),
+    userId: j['userId']?.toString() ?? '',
     authorNickname: j['authorNickname'] as String? ?? '',
     authorProfileImageUrl: j['authorProfileImageUrl'] as String?,
     content: j['content'] as String? ?? '',
     createdAt: j['createdAt'] as String? ?? '',
+    updatedAt: j['updatedAt'] as String?,
+    deleted: j['deleted'] as bool? ?? false,
+    blocked: j['blocked'] as bool? ?? false,
     commentsCount: j['commentsCount'] as int? ?? 0,
     parentCommentId: j['parentCommentId']?.toString(),
     replyCount: j['replyCount'] as int? ?? 0,
@@ -168,6 +177,13 @@ class PostComment {
   );
 
   PostComment copyWith({
+    String? userId,
+    String? authorNickname,
+    String? authorProfileImageUrl,
+    String? content,
+    String? updatedAt,
+    bool? deleted,
+    bool? blocked,
     int? commentsCount,
     int? replyCount,
     List<PostComment>? replies,
@@ -175,11 +191,14 @@ class PostComment {
     bool clearRepliesNextCursor = false,
   }) => PostComment(
     id: id,
-    userId: userId,
-    authorNickname: authorNickname,
-    authorProfileImageUrl: authorProfileImageUrl,
-    content: content,
+    userId: userId ?? this.userId,
+    authorNickname: authorNickname ?? this.authorNickname,
+    authorProfileImageUrl: authorProfileImageUrl ?? this.authorProfileImageUrl,
+    content: content ?? this.content,
     createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+    blocked: blocked ?? this.blocked,
     commentsCount: commentsCount ?? this.commentsCount,
     parentCommentId: parentCommentId,
     replyCount: replyCount ?? this.replyCount,

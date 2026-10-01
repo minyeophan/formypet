@@ -77,7 +77,10 @@ class _AuthenticatedNetworkImageState extends State<AuthenticatedNetworkImage> {
   Future<Uint8List> _fetch(String url) async {
     final response = await dio.get<List<int>>(
       url,
-      options: Options(responseType: ResponseType.bytes),
+      options: Options(
+        responseType: ResponseType.bytes,
+        extra: const {'_noTransientRetry': true},
+      ),
     );
     final bytes = Uint8List.fromList(response.data ?? const []);
     if (bytes.isEmpty) {

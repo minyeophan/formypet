@@ -1,4 +1,6 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
@@ -6,6 +8,7 @@ import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 
 class MyMenuCard extends StatelessWidget {
@@ -73,7 +76,7 @@ class MyMenuRow extends StatelessWidget {
     final color = danger ? AppColors.danger : AppColors.text;
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 54),
@@ -89,7 +92,7 @@ class MyMenuRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: color),
+              AppIcon(icon, size: 20, color: color),
               const SizedBox(width: 12),
               Expanded(
                 child: AppText(
@@ -125,7 +128,7 @@ class MyPetCard extends StatelessWidget {
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+      child: AppInkWell(
         onTap: onTap ?? () => context.push('/pet/${pet.id}'),
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -146,9 +149,9 @@ class MyPetCard extends StatelessWidget {
                   fallback: Container(
                     color: AppColors.surfaceSoft,
                     alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.pets_rounded,
-                      color: AppColors.textSecondary,
+                    child: AppVisual(
+                      id: speciesVisualId(pet.species),
+                      size: 42,
                     ),
                   ),
                 ),

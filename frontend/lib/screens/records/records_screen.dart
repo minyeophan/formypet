@@ -1,3 +1,5 @@
+import '../../widgets/app_ink_well.dart';
+import '../../widgets/app_icon.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/preparing_toast.dart';
+import '../../widgets/pet_data_status.dart';
 import 'record_support.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
@@ -41,7 +44,12 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(petProvider);
     final pet = state.activePet;
-    final accent = colorPairForHex(pet?.accentColor ?? '#F4A460');
+    final accent = const PetColorPair(
+      accent: AppColors.primary,
+      bgLight: AppColors.surfaceSoft,
+      accentHex: '#32B982',
+      bgLightHex: '#F5F6F5',
+    );
     final records = state.records;
     final visibleRecords = records
         .where((record) => isRecordDetailSupported(record.typeId))
@@ -62,7 +70,8 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                 ),
               ),
             ),
-            if (pet == null)
+            const SliverToBoxAdapter(child: PetDataStatus()),
+            if (pet == null && !state.isLoading && state.dataErrorText == null)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -125,10 +134,12 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                         },
                       ),
                       const SizedBox(height: 14),
-                      _SelectedDateSummary(
-                        selectedDate: _selectedDate,
-                        records: selectedRecords,
-                      ),
+                      if (selectedRecords.isNotEmpty ||
+                          (!state.isLoading && state.dataErrorText == null))
+                        _SelectedDateSummary(
+                          selectedDate: _selectedDate,
+                          records: selectedRecords,
+                        ),
                     ],
                   ),
                 ),
@@ -145,6 +156,7 @@ class GrowthRecordsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(petProvider);
     final records =
         ref
             .watch(petProvider)
@@ -170,12 +182,15 @@ class GrowthRecordsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            if (records.isEmpty)
+            const SliverToBoxAdapter(child: PetDataStatus()),
+            if (records.isEmpty &&
+                !state.isLoading &&
+                state.dataErrorText == null)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(child: _EmptyRecordsPanel(message: '체중 기록이 없어요')),
               )
-            else
+            else if (records.isNotEmpty)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                 sliver: SliverList(
@@ -277,9 +292,15 @@ class _CalendarCard extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: calendarDays.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1,
+              mainAxisExtent:
+                  48 +
+                  (MediaQuery.textScalerOf(context).scale(13) - 13).clamp(
+                        0,
+                        double.infinity,
+                      ) *
+                      1.6,
             ),
             itemBuilder: (context, index) {
               final date = calendarDays[index];
@@ -317,7 +338,7 @@ class _CalendarNavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon),
+      icon: AppIcon(icon),
       color: AppColors.textSecondary,
       tooltip: '월 이동',
     );
@@ -356,13 +377,19 @@ class _CalendarDayCell extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Center(
-          child: Container(
+          child: Ink(
             width: 38,
-            height: 42,
+            height:
+                42 +
+                (MediaQuery.textScalerOf(context).scale(13) - 13).clamp(
+                      0,
+                      double.infinity,
+                    ) *
+                    1.6,
             decoration: BoxDecoration(
               color: isSelected ? accentColor : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
@@ -376,6 +403,7 @@ class _CalendarDayCell extends StatelessWidget {
                 AppText(
                   '${date.day}',
                   fontSize: 13,
+                  maxLines: 1,
                   fontWeight: isSelected || isToday
                       ? FontWeight.bold
                       : FontWeight.normal,
@@ -432,11 +460,17 @@ class _RecordTypeGrid extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: visibleTypes.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          mainAxisExtent: 92,
+          mainAxisExtent:
+              92 +
+              (MediaQuery.textScalerOf(context).scale(12) - 12).clamp(
+                    0,
+                    double.infinity,
+                  ) *
+                  1.6,
         ),
         itemBuilder: (context, index) {
           final type = visibleTypes[index];
@@ -460,9 +494,9 @@ class _RecordTypeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceSoft,
+      color: AppColors.background,
       borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+      child: AppInkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
@@ -478,14 +512,11 @@ class _RecordTypeCard extends StatelessWidget {
                 width: 38,
                 height: 38,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: type.color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+
                 child: AppVisual(
                   id: type.visualId,
                   color: type.color,
-                  size: 23,
+                  size: 32,
                 ),
               ),
               const SizedBox(height: 8),
@@ -592,7 +623,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
     return Material(
       key: Key('selected-date-record-${record.id}'),
       color: Colors.transparent,
-      child: InkWell(
+      child: AppInkWell(
         onTap: () => context.push('/records/${record.id}'),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -602,10 +633,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: type.color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+
                 child: AppVisual(
                   id: type.visualId,
                   color: type.color,
@@ -650,7 +678,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              const AppIcon(
                 Icons.chevron_right_rounded,
                 color: AppColors.muted,
                 size: 22,
@@ -863,12 +891,6 @@ const _recordTypes = [
     label: '병원',
     visualId: AppVisualId.recordVet,
     color: Color(0xFFEF5350),
-  ),
-  _RecordTypeConfig(
-    id: 'checkup',
-    label: '접종',
-    visualId: AppVisualId.recordCheckup,
-    color: Color(0xFF5C6BC0),
   ),
   _RecordTypeConfig(
     id: 'weight',

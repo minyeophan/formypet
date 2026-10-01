@@ -1,3 +1,5 @@
+import '../../widgets/app_ink_well.dart';
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/pet_data_status.dart';
 import '../../widgets/authenticated_network_image.dart';
 import 'record_support.dart';
 
@@ -28,7 +31,9 @@ class RecordDetailScreen extends ConsumerWidget {
         .firstOrNull;
 
     if (record == null) {
-      return const _RecordNotFoundScreen();
+      return _RecordNotFoundScreen(
+        pending: state.isLoading || state.dataErrorText != null,
+      );
     }
 
     return Scaffold(
@@ -104,7 +109,8 @@ class _RecordDetailEditButton extends StatelessWidget {
     return Material(
       color: AppColors.primary,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
         key: const Key('record-detail-edit-button'),
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -128,7 +134,8 @@ class _RecordDetailEditButton extends StatelessWidget {
 }
 
 class _RecordNotFoundScreen extends StatelessWidget {
-  const _RecordNotFoundScreen();
+  final bool pending;
+  const _RecordNotFoundScreen({this.pending = false});
 
   @override
   Widget build(BuildContext context) {
@@ -145,42 +152,47 @@ class _RecordNotFoundScreen extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Container(
-                    key: const Key('record-detail-not-found'),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceSoft,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const AppText(
-                          '기록을 찾을 수 없어요',
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () => context.go('/records'),
-                          child: const AppText(
-                            '기록으로 돌아가기',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
+              child: pending
+                  ? const Align(
+                      alignment: Alignment.topCenter,
+                      child: PetDataStatus(),
+                    )
+                  : Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Container(
+                          key: const Key('record-detail-not-found'),
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceSoft,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const AppText(
+                                '기록을 찾을 수 없어요',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () => context.go('/records'),
+                                child: const AppText(
+                                  '기록으로 돌아가기',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -359,7 +371,7 @@ class _MealPhotoSection extends StatelessWidget {
                         height: 108,
                         color: AppColors.surfaceSoft,
                         alignment: Alignment.center,
-                        child: const Icon(
+                        child: const AppIcon(
                           Icons.image_outlined,
                           color: AppColors.muted,
                         ),

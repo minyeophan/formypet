@@ -1,7 +1,11 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/core/app_v2_tokens.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/community_screen.dart';
@@ -12,11 +16,91 @@ import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../support/ui_test_fonts.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  for (final category in [false, true]) {
+    testWidgets(
+      'community FAB keeps circle and route with hover and Tab category=$category',
+      (tester) async {
+        await installUiTestFonts();
+        final router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => category
+                  ? const CommunityCategoryScreen(initialCategory: 'CARE')
+                  : const CommunityScreen(),
+            ),
+            GoRoute(
+              path: '/community/write',
+              builder: (_, _) =>
+                  const Scaffold(body: Text('write destination')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await _pumpRouter(tester, router, service: _FakeCommunityService());
+        await tester.pumpAndSettle();
+        final fab = find.byKey(const Key('community-write-fab'));
+        expect(tester.getSize(fab), const Size(56, 56));
+        final control = tester.widget<FloatingActionButton>(fab);
+        expect(control.shape, const CircleBorder());
+        expect(control.hoverColor, Colors.transparent);
+        expect(control.focusColor, Colors.transparent);
+        final indicator = find
+            .ancestor(of: fab, matching: find.byType(AppFocusIndicator))
+            .first;
+        final ring = find
+            .descendant(of: indicator, matching: find.byType(AppFocusRing))
+            .first;
+        expect(tester.widget<AppFocusRing>(ring).shape, const CircleBorder());
+        expect(tester.widget<AppFocusRing>(ring).filled, isTrue);
+        CustomPainter? painter() => tester
+            .widget<CustomPaint>(
+              find
+                  .descendant(of: ring, matching: find.byType(CustomPaint))
+                  .first,
+            )
+            .foregroundPainter;
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        await mouse.moveTo(tester.getCenter(fab));
+        await tester.pumpAndSettle();
+        expect(painter(), isNull);
+        final ink = tester.widget<InkWell>(
+          find.descendant(of: fab, matching: find.byType(InkWell)).first,
+        );
+        expect(ink.hoverColor, Colors.transparent);
+        expect(ink.focusColor, Colors.transparent);
+        expect(
+          Theme.of(tester.element(fab)).highlightColor,
+          Colors.transparent,
+        );
+        for (
+          var i = 0;
+          i < 60 && !tester.widget<AppFocusRing>(ring).focused;
+          i++
+        ) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+        }
+        expect(tester.widget<AppFocusRing>(ring).focused, isTrue);
+        expect(painter(), isNotNull);
+        await mouse.moveTo(tester.getCenter(fab) + const Offset(1, 0));
+        await tester.pump();
+        expect(painter(), isNull);
+        await tester.tap(fab);
+        await tester.pumpAndSettle();
+        expect(find.text('write destination'), findsOneWidget);
+      },
+    );
+  }
 
   testWidgets('main community screen shows popular feed, carousel, and FAB', (
     tester,
@@ -41,6 +125,8 @@ void main() {
       find.byKey(const Key('community-category-tile-CARE')),
       findsOneWidget,
     );
+    await tester.drag(_categoryCarouselScrollable(), const Offset(-600, 0));
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const Key('community-category-tile-EVENT')),
       findsOneWidget,
@@ -62,7 +148,7 @@ void main() {
     expect(find.text('준비중'), findsOneWidget);
 
     expect(find.byKey(const Key('community-write-fab')), findsOneWidget);
-    expect(find.text('popular-1'), findsOneWidget);
+    expect(find.text('제목 없음'), findsOneWidget);
   });
 
   testWidgets('main popular feed renders the compact post card layout', (
@@ -113,7 +199,10 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: card, matching: find.text('Momo · 2시간 전')),
+      find.descendant(
+        of: card,
+        matching: find.byKey(const Key('community-post-meta')),
+      ),
       findsOneWidget,
     );
     expect(
@@ -135,6 +224,121 @@ void main() {
     expect(find.text('(54)'), findsNothing);
   });
 
+  testWidgets('post card is a flat row with V2 divider and 20px padding', (
+    tester,
+  ) async {
+    final post = _post(
+      '포커스 카드 본문',
+      'CARE',
+      id: 'focus-card-1',
+      title: '포커스 카드',
+    );
+
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [post]),
+    );
+    await tester.pumpAndSettle();
+
+    final cardFinder = find.byKey(
+      const ValueKey('community-post-card-focus-card-1'),
+    );
+    expect(
+      find.descendant(of: cardFinder, matching: find.byType(Card)),
+      findsNothing,
+    );
+
+    final row = tester.widget<DecoratedBox>(
+      find
+          .descendant(of: cardFinder, matching: find.byType(DecoratedBox))
+          .first,
+    );
+    final decoration = row.decoration as BoxDecoration;
+    expect(
+      decoration.border,
+      const Border(bottom: BorderSide(color: AppV2Tokens.border)),
+    );
+
+    final padding = tester.widget<Padding>(
+      find.descendant(of: cardFinder, matching: find.byType(Padding)).first,
+    );
+    expect(
+      padding.padding,
+      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+
+    final inkWell = tester.widget<InkWell>(
+      find.descendant(of: cardFinder, matching: find.byType(InkWell)).first,
+    );
+
+    expect(inkWell.hoverColor, Colors.transparent);
+    expect(inkWell.focusColor, Colors.transparent);
+    expect(inkWell.highlightColor, Colors.transparent);
+    expect(inkWell.splashColor, AppV2Tokens.primary.withValues(alpha: 0.10));
+    final sizeBeforeFocus = tester.getSize(cardFinder);
+    inkWell.focusNode!.requestFocus();
+    await tester.pumpAndSettle();
+    final rings = find.descendant(
+      of: cardFinder,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is AppFocusRing && widget.focused,
+      ),
+    );
+    expect(rings, findsOneWidget);
+    expect(tester.getSize(cardFinder), sizeBeforeFocus);
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+  });
+
+  testWidgets('post thumbnail is exactly 80 square and absent for text rows', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(
+        posts: [
+          _post(
+            'body-1',
+            'CARE',
+            id: 'image-row',
+            title: '한 줄 제목',
+            imageUrls: const ['https://example.com/a.jpg'],
+          ),
+          _post('body-2', 'CARE', id: 'text-row', title: '한 줄 제목'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final imageRow = find.byKey(
+      const ValueKey('community-post-card-image-row'),
+    );
+    final textRow = find.byKey(const ValueKey('community-post-card-text-row'));
+    final thumbnail = find.descendant(
+      of: imageRow,
+      matching: find.byKey(const Key('community-post-thumbnail')),
+    );
+    expect(tester.getSize(thumbnail), const Size(80, 80));
+    final headline = find.descendant(
+      of: imageRow,
+      matching: find.text('한 줄 제목'),
+    );
+    expect(tester.getTopLeft(thumbnail).dy, tester.getTopLeft(headline).dy);
+    expect(
+      find.descendant(
+        of: textRow,
+        matching: find.byKey(const Key('community-post-thumbnail')),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.getSize(textRow).height,
+      lessThan(tester.getSize(imageRow).height),
+    );
+  });
+
   testWidgets('main category carousel renders two fixed panels', (
     tester,
   ) async {
@@ -152,7 +356,7 @@ void main() {
     final secondPanel = find.byKey(const Key('community-category-panel-1'));
 
     expect(firstPanel, findsOneWidget);
-    expect(secondPanel, findsOneWidget);
+    expect(secondPanel, findsNothing);
     expect(find.byKey(const Key('community-category-panel-2')), findsNothing);
 
     for (final category in [
@@ -190,18 +394,15 @@ void main() {
       ),
       findsNothing,
     );
+    await tester.drag(_categoryCarouselScrollable(), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('community-category-panel-1')), findsOneWidget);
     expect(
-      find.descendant(
-        of: secondPanel,
-        matching: find.byKey(const Key('community-category-tile-NEWS')),
-      ),
+      find.byKey(const Key('community-category-tile-NEWS')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: secondPanel,
-        matching: find.byKey(const Key('community-category-tile-EVENT')),
-      ),
+      find.byKey(const Key('community-category-tile-EVENT')),
       findsOneWidget,
     );
   });
@@ -241,7 +442,31 @@ void main() {
     await tester.drag(scroller, const Offset(-240, 0));
     await tester.pumpAndSettle();
 
-    expect(_categoryScrollPosition(tester).pixels, closeTo(370, 0.5));
+    expect(_categoryScrollPosition(tester).pixels, closeTo(390, 0.5));
+  });
+
+  testWidgets('category carousel accepts mouse drag on web', (tester) async {
+    _setMobileViewport(tester);
+    await _pump(
+      tester,
+      const CommunityScreen(),
+      service: _FakeCommunityService(posts: [_post('popular-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.flingFrom(
+      tester.getCenter(_categoryCarouselScrollable()),
+      const Offset(-260, 0),
+      1000,
+      deviceKind: PointerDeviceKind.mouse,
+    );
+    await tester.pumpAndSettle();
+
+    expect(_categoryScrollPosition(tester).pixels, closeTo(390, 0.5));
+    expect(
+      find.byKey(const Key('community-category-tile-NEWS')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('news and event category tiles keep their category routes', (
@@ -328,7 +553,7 @@ void main() {
 
       final mainFeed = find.byKey(const Key('community-main-popular-feed'));
       expect(
-        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        find.descendant(of: mainFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
 
@@ -337,7 +562,7 @@ void main() {
 
       final categoryFeed = find.byKey(const Key('community-category-feed'));
       expect(
-        find.descendant(of: categoryFeed, matching: find.text('care-1')),
+        find.descendant(of: categoryFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
 
@@ -345,7 +570,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.descendant(of: mainFeed, matching: find.text('popular-1')),
+        find.descendant(of: mainFeed, matching: find.text('제목 없음')),
         findsOneWidget,
       );
       expect(
@@ -370,7 +595,12 @@ void main() {
       expect(find.byKey(const Key('community-tab-ALL')), findsOneWidget);
       expect(find.byKey(const Key('community-tab-POPULAR')), findsOneWidget);
       expect(find.byKey(const Key('community-tab-CARE')), findsOneWidget);
-      expect(find.text('care-1'), findsOneWidget);
+      expect(find.byKey(const Key('community-tab-EVENT')), findsOneWidget);
+      final activeSemantics = tester.getSemantics(
+        find.byKey(const Key('community-tab-CARE')),
+      );
+      expect(activeSemantics, isSemantics(isButton: true, isSelected: true));
+      expect(find.text('제목 없음'), findsOneWidget);
     },
   );
 
@@ -422,6 +652,29 @@ void main() {
       find.descendant(of: card, matching: find.byType(CircleAvatar)),
       findsNothing,
     );
+  });
+
+  testWidgets('category guide is collapsed and toggles four rules', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const CommunityCategoryScreen(initialCategory: 'CARE'),
+      service: _FakeCommunityService(posts: [_post('care-1', 'CARE')]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsNothing);
+    await tester.tap(find.byKey(const Key('community-guide-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsOneWidget);
+    expect(find.text('건강 상담은 수의사 문의 권장'), findsOneWidget);
+    expect(find.text('상업적 광고·홍보 제한'), findsOneWidget);
+    expect(find.text('사진과 함께 일상 공유 권장'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('community-guide-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('서로를 존중하는 따뜻한 언어 사용'), findsNothing);
   });
 
   testWidgets('category screen header title stays community and left aligned', (
@@ -528,6 +781,19 @@ void main() {
 
     expect(service.createPostCallCount, 1);
     expect(find.text('community-root'), findsOneWidget);
+  });
+
+  testWidgets('write screen enforces a thirty character title limit', (
+    tester,
+  ) async {
+    await _pump(tester, const WriteScreen(), service: _FakeCommunityService());
+    final field = find.byKey(const Key('community-title-field'));
+    final textField = tester.widget<TextField>(field);
+    expect(textField.maxLength, 30);
+    expect(textField.maxLengthEnforcement, MaxLengthEnforcement.enforced);
+
+    await tester.enterText(field, 'a' * 31);
+    expect(tester.widget<TextField>(field).controller!.text, 'a' * 30);
   });
 
   testWidgets('write screen category picker updates the selected board', (
@@ -681,8 +947,18 @@ void main() {
         find.byKey(const Key('community-add-poll-button')),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.image_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.poll_outlined), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AppIcon && widget.icon == Icons.image_outlined,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AppIcon && widget.icon == Icons.poll_outlined,
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const Key('community-add-poll-button')));
       await tester.pumpAndSettle();
@@ -752,32 +1028,34 @@ void _expectCommunityHeaderStyle(WidgetTester tester) {
     find.byKey(const Key('community-header')),
   );
   final decoration = header.decoration as BoxDecoration;
-  expect(decoration.color, AppColors.background);
+  expect(decoration.color, AppV2Tokens.background);
   expect(decoration.border, isNull);
 
   final title = tester.widget<AppText>(
     find.byKey(const Key('community-header-title')),
   );
-  expect(title.color, AppColors.text);
+  expect(title.color, AppV2Tokens.text);
+  expect(title.fontSize, 20);
 }
 
 void _expectHeaderActionSurface(WidgetTester tester, String key) {
   final finder = find.byKey(Key(key));
-  expect(tester.getSize(finder), const Size(38, 38));
+  expect(tester.getSize(finder), const Size(44, 44));
 
-  final container = tester.widget<Container>(
-    find.descendant(of: finder, matching: find.byType(Container)).first,
+  final container = tester.widget<Ink>(
+    find.descendant(of: finder, matching: find.byType(Ink)).first,
   );
   final decoration = container.decoration as BoxDecoration;
-  expect(decoration.color, AppColors.surface);
+  expect(decoration.color, AppV2Tokens.surface);
+  expect(decoration.shape, BoxShape.rectangle);
   expect(decoration.borderRadius, BorderRadius.circular(14));
-  expect(decoration.border, Border.all(color: AppColors.border));
+  expect(decoration.border, Border.all(color: AppV2Tokens.border));
 
-  final icon = tester.widget<Icon>(
-    find.descendant(of: finder, matching: find.byType(Icon)).first,
+  final icon = tester.widget<AppIcon>(
+    find.descendant(of: finder, matching: find.byType(AppIcon)).first,
   );
   expect(icon.size, 20);
-  expect(icon.color, AppColors.textSecondary);
+  expect(icon.color, AppV2Tokens.textSecondary);
 }
 
 Future<void> _pump(
@@ -905,6 +1183,7 @@ class _FakeCommunityService extends CommunityService {
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
+    String? keyword,
   }) async {
     final key = sort == CommunityFeedSort.popular
         ? 'popular'
@@ -915,7 +1194,7 @@ class _FakeCommunityService extends CommunityService {
   @override
   Future<Post> createPost({
     required String content,
-    String? title,
+    required String title,
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,

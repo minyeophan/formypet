@@ -1,14 +1,21 @@
+import 'package:frontend/screens/my/notification_settings_screen.dart';
+import 'package:frontend/core/visuals/app_visual_id.dart';
+import 'package:frontend/widgets/app_visual.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/care_schedule.dart';
+import 'package:frontend/models/notification.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/routine.dart';
 import 'package:frontend/models/wallet_expense.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/router/app_router.dart';
@@ -17,15 +24,15 @@ import 'package:frontend/screens/community/community_comments_screen.dart';
 import 'package:frontend/screens/community/community_routes.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
-import 'package:frontend/screens/community/mock/community_mock_detail_screen.dart';
-import 'package:frontend/screens/community/mock/community_mock_feed_screen.dart';
 import 'package:frontend/screens/home/home_screen.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/screens/my/my_notices_screen.dart';
 import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
+import 'package:frontend/screens/my/my_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
+import 'package:frontend/screens/notification/notification_screen.dart';
 import 'package:frontend/screens/onboarding/onboarding_screen.dart';
 import 'package:frontend/screens/wallet/expense_add_screen.dart';
 import 'package:frontend/screens/wallet/expense_detail_screen.dart';
@@ -38,12 +45,33 @@ import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
 import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
+import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets(
+    'policy route remains accessible during unauthenticated startup failure',
+    (tester) async {
+      await _pumpRouter(
+        tester,
+        authState: const AuthState(
+          isLoading: false,
+          isAuthenticated: false,
+          initializationError: 'offline',
+        ),
+        petState: _petState(isLoading: false, hasOnboarded: false),
+        initialLocation: '/my/policies',
+      );
+      expect(find.text('약관 및 정책'), findsOneWidget);
+      expect(find.byType(SplashScreen), findsNothing);
+    },
+  );
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
@@ -70,46 +98,44 @@ void main() {
     expect(find.byType(AuthScreen), findsOneWidget);
   });
 
-  testWidgets('public community mock bypasses auth and onboarding redirects', (
-    tester,
-  ) async {
-    for (final entry in [
-      (
-        authState: const AuthState(isLoading: false, isAuthenticated: false),
-        petState: _petState(isLoading: false, hasOnboarded: false),
-      ),
-      (
-        authState: const AuthState(isLoading: false, isAuthenticated: true),
-        petState: _petState(isLoading: false, hasOnboarded: false),
-      ),
-    ]) {
+  testWidgets(
+    'startup outage keeps retry on splash without asking for login again',
+    (tester) async {
+      final notifier = _StartupRetryAuthNotifier();
       await _pumpRouter(
         tester,
-        initialLocation: '/community/mock',
-        authState: entry.authState,
-        petState: entry.petState,
+        authState: notifier.state,
+        authNotifier: notifier,
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1')],
+          activePetId: '1',
+        ),
       );
-
-      expect(find.byType(CommunityMockFeedScreen), findsOneWidget);
-      final navigation = tester.widget<BottomNavigationBar>(
-        find.byType(BottomNavigationBar),
-      );
-      expect(navigation.currentIndex, 1);
-    }
-  });
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(AuthScreen), findsNothing);
+      await tester.tap(find.text('다시 시도'));
+      await tester.pumpAndSettle();
+      expect(notifier.retries, 1);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    },
+  );
 
   testWidgets(
-    'public community mock detail bypasses auth and hides bottom navigation',
+    'pet loading failure does not misroute signed-in user to onboarding',
     (tester) async {
       await _pumpRouter(
         tester,
-        initialLocation: '/community/mock/posts/story-1',
-        authState: const AuthState(isLoading: false, isAuthenticated: false),
-        petState: _petState(isLoading: false, hasOnboarded: false),
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: false,
+        ).copyWith(dataErrorText: '반려동물 정보를 불러오지 못했어요.'),
       );
-
-      expect(find.byType(CommunityMockDetailScreen), findsOneWidget);
-      expect(find.byType(BottomNavigationBar), findsNothing);
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('다시 시도'), findsOneWidget);
     },
   );
 
@@ -380,25 +406,6 @@ void main() {
     expect(find.text('사료 종류'), findsOneWidget);
   });
 
-  testWidgets('/records/expense/new redirects to wallet expense add', (
-    tester,
-  ) async {
-    final pet = _pet('1');
-    await _pumpRouter(
-      tester,
-      initialLocation: '/records/expense/new',
-      authState: const AuthState(isLoading: false, isAuthenticated: true),
-      petState: _petState(
-        isLoading: false,
-        hasOnboarded: true,
-        pets: [pet],
-        activePetId: pet.id,
-      ),
-    );
-
-    expect(find.byType(ExpenseAddScreen), findsOneWidget);
-  });
-
   testWidgets('unsupported record form routes redirect to records main', (
     tester,
   ) async {
@@ -412,16 +419,27 @@ void main() {
 
     await _pumpRouter(
       tester,
-      initialLocation: '/records/checkup/new?date=2026-05-09',
+      initialLocation: '/records/unsupported-type/new?date=2026-05-09',
       authState: const AuthState(isLoading: false, isAuthenticated: true),
       petState: petState,
     );
     expect(find.byType(RecordsScreen), findsOneWidget);
     _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
 
+    for (final typeId in ['expense', 'unsupported-type']) {
+      await _pumpRouter(
+        tester,
+        initialLocation: '/records/$typeId/new?date=2026-05-09',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: petState,
+      );
+      expect(find.byType(RecordsScreen), findsOneWidget);
+      _expectSelectedRecordsDate(tester, DateTime(2026, 5, 9));
+    }
+
     await _pumpRouter(
       tester,
-      initialLocation: '/records/checkup/new?date=2026-02-30',
+      initialLocation: '/records/unsupported-type/new?date=2026-02-30',
       authState: const AuthState(isLoading: false, isAuthenticated: true),
       petState: petState,
     );
@@ -504,6 +522,40 @@ void main() {
     expect(find.byType(ExpenseEditScreen), findsOneWidget);
   });
 
+  testWidgets('expense detail and edit retain the owner from the URL', (
+    tester,
+  ) async {
+    for (final editing in [false, true]) {
+      await _pumpRouter(
+        tester,
+        initialLocation:
+            '/wallet/expenses/expense-1${editing ? '/edit' : ''}?petId=2',
+        authState: const AuthState(isLoading: false, isAuthenticated: true),
+        petState: _petState(
+          isLoading: false,
+          hasOnboarded: true,
+          pets: [_pet('1'), _pet('2')],
+          activePetId: '1',
+        ),
+      );
+      if (editing) {
+        expect(
+          tester
+              .widget<ExpenseEditScreen>(find.byType(ExpenseEditScreen))
+              .petId,
+          '2',
+        );
+      } else {
+        expect(
+          tester
+              .widget<ExpenseDetailScreen>(find.byType(ExpenseDetailScreen))
+              .petId,
+          '2',
+        );
+      }
+    }
+  });
+
   testWidgets('home wallet menu opens wallet route', (tester) async {
     final pet = _pet('1');
     await _pumpRouter(
@@ -518,7 +570,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.account_balance_wallet_rounded));
+    await tester.tap(find.byKey(const Key('home-menu-wallet')));
     await tester.pumpAndSettle();
 
     expect(find.byType(ExpenseWalletScreen), findsOneWidget);
@@ -540,7 +592,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.tap(find.byKey(const Key('wallet-add-button')));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseAddScreen), findsOneWidget);
 
@@ -556,7 +608,20 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.receipt_long_rounded));
+    await tester.scrollUntilVisible(
+      find.text('전체보기'),
+      250,
+      scrollable: find
+          .byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+          )
+          .first,
+    );
+    // scrollUntilVisible can finish with an ensureVisible jump; lay it out
+    // before computing the tap position (the fixed add action is below it).
+    await tester.pumpAndSettle();
+    expect(find.text('전체보기').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('전체보기'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpenseReportScreen), findsOneWidget);
   });
@@ -740,6 +805,46 @@ void main() {
     expect(find.text('루틴 추가'), findsOneWidget);
   });
 
+  testWidgets('/routine/:id opens routine detail with saved information', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/routine/r1',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+        routines: const [
+          Routine(
+            id: 'r1',
+            petId: '1',
+            label: '심장약',
+            typeId: 'medicine',
+            repeatType: 'weekly',
+            times: ['08:30'],
+            days: [1, 3],
+            note: '식후 복용',
+            startDate: '2026-09-01',
+            endDate: '2026-12-31',
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('루틴 상세'), findsOneWidget);
+    expect(find.text('심장약'), findsOneWidget);
+    expect(find.text('투약'), findsOneWidget);
+    expect(find.text('2026년 9월 1일'), findsOneWidget);
+    expect(find.text('2026년 12월 31일'), findsOneWidget);
+    expect(find.text('매주 · 월, 수'), findsOneWidget);
+    expect(find.text('08:30'), findsOneWidget);
+    expect(find.text('식후 복용'), findsOneWidget);
+  });
+
   testWidgets('/routine/schedule/new opens schedule creation screen', (
     tester,
   ) async {
@@ -782,7 +887,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-hero')),
-        matching: find.byIcon(Icons.content_cut_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppVisual && widget.id == AppVisualId.scheduleGrooming,
+        ),
       ),
       findsOneWidget,
     );
@@ -803,7 +911,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-info-row-date-time')),
-        matching: find.text('6월 17일 10:30 - 11:00'),
+        matching: find.text('2026년 6월 17일 10:30 - 11:00'),
       ),
       findsOneWidget,
     );
@@ -896,19 +1004,18 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-info-row-date-time')),
-        matching: find.text('6월 17일 - 6월 19일 종일'),
+        matching: find.text('2026년 6월 17일 - 2026년 6월 19일 종일'),
       ),
       findsOneWidget,
     );
-    for (final rowKey in const [
-      'schedule-detail-info-row-place',
-      'schedule-detail-info-row-memo',
-    ]) {
-      expect(
-        find.descendant(of: find.byKey(Key(rowKey)), matching: find.text('-')),
-        findsOneWidget,
-      );
-    }
+    expect(
+      find.byKey(const Key('schedule-detail-info-row-place')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('schedule-detail-info-row-memo')),
+      findsNothing,
+    );
   });
 
   testWidgets('routine schedule card detail button opens detail route', (
@@ -1066,6 +1173,119 @@ void main() {
     expect(decoration.border!.top.color, AppColors.border);
   });
 
+  testWidgets('actual home navigation retains three existing focus targets', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/home',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      communityService: _FakeCommunityService(),
+      notificationService: _EmptyNotificationService(),
+    );
+    final nav = find.byType(BottomNavigationBar);
+    var navNodes = find
+        .descendant(of: nav, matching: find.byType(AppVisual))
+        .evaluate()
+        .map((element) => Focus.of(element))
+        .toSet()
+        .toList();
+    expect(navNodes, hasLength(3));
+    expect(
+      navNodes.every((node) => node.canRequestFocus && !node.skipTraversal),
+      isTrue,
+    );
+
+    // Traverse the actual page and shell, not a simplified empty ShellRoute.
+    // Mount each direction fresh so manual refocusing after auto-scroll does
+    // not change ReadingOrderTraversalPolicy's geometry-based starting order.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    var first = FocusManager.instance.primaryFocus!;
+    for (final reverse in [false, true]) {
+      if (reverse) {
+        await _pumpRouter(
+          tester,
+          initialLocation: '/home',
+          authState: const AuthState(isLoading: false, isAuthenticated: true),
+          petState: _petState(
+            isLoading: false,
+            hasOnboarded: true,
+            pets: [pet],
+            activePetId: pet.id,
+          ),
+          communityService: _FakeCommunityService(),
+          notificationService: _EmptyNotificationService(),
+        );
+        navNodes = find
+            .descendant(of: nav, matching: find.byType(AppVisual))
+            .evaluate()
+            .map((element) => Focus.of(element))
+            .toSet()
+            .toList();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        first = FocusManager.instance.primaryFocus!;
+      }
+      first.requestFocus();
+      await tester.pumpAndSettle();
+      final reachedNavNodes = <FocusNode>{};
+      for (var step = 0; step < 80; step++) {
+        if (reverse) {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        if (reverse) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        final node = FocusManager.instance.primaryFocus!;
+        if (navNodes.contains(node)) reachedNavNodes.add(node);
+        if (reachedNavNodes.length == 3) break;
+      }
+      expect(
+        reachedNavNodes,
+        unorderedEquals(navNodes),
+        reason:
+            '${reverse ? 'Shift+Tab' : 'Tab'} from actual home must reach every navigation target',
+      );
+    }
+
+    // Existing shell/page traversal policy is independent of the ring. Once
+    // an existing nav node is focused, keyboard traversal must not gain stops.
+    navNodes.first.requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(navNodes[1].hasPrimaryFocus, isTrue);
+    final focusedRing = find.descendant(
+      of: nav,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is AppFocusRing && widget.focused,
+      ),
+    );
+    expect(focusedRing, findsOneWidget);
+    expect(
+      find.descendant(
+        of: focusedRing,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is CustomPaint && widget.foregroundPainter != null,
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(navNodes.first.hasPrimaryFocus, isTrue);
+  });
+
   testWidgets('/community/category/:category opens inside main scaffold', (
     tester,
   ) async {
@@ -1115,6 +1335,120 @@ void main() {
     expect(bottomNavigationBar.currentIndex, 1);
   });
 
+  for (final origin in {
+    '/my': MyScreen,
+    '/my/settings': MySettingsScreen,
+  }.entries) {
+    for (final systemBack in [false, true]) {
+      testWidgets(
+        'notifications from ${origin.key} hide tabs and ${systemBack ? 'system' : 'header'} back restores the origin',
+        (tester) async {
+          final pet = _pet('1');
+          await _pumpRouter(
+            tester,
+            initialLocation: origin.key,
+            authState: const AuthState(isLoading: false, isAuthenticated: true),
+            petState: _petState(
+              isLoading: false,
+              hasOnboarded: true,
+              pets: [pet],
+              activePetId: pet.id,
+            ),
+            notificationService: _EmptyNotificationService(),
+          );
+
+          final inboxLink = find.text('알림 내역');
+          await tester.ensureVisible(inboxLink);
+          await tester.pumpAndSettle();
+          await tester.tap(inboxLink);
+          await tester.pumpAndSettle();
+
+          expect(find.byType(NotificationScreen), findsOneWidget);
+          expect(find.byType(BottomNavigationBar), findsNothing);
+
+          if (systemBack) {
+            await tester.binding.handlePopRoute();
+          } else {
+            await tester.tap(find.byTooltip('뒤로가기'));
+          }
+          await tester.pumpAndSettle();
+
+          expect(find.byType(NotificationScreen), findsNothing);
+          expect(find.byType(origin.value), findsOneWidget);
+          expect(
+            tester
+                .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+                .currentIndex,
+            2,
+          );
+        },
+      );
+    }
+  }
+
+  testWidgets('notifications direct entry back falls back to home', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/notifications',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+      notificationService: _EmptyNotificationService(),
+      communityService: _FakeCommunityService(),
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NotificationScreen)),
+    );
+    expect(container.read(routerProvider).canPop(), isFalse);
+    await tester.tap(find.byTooltip('뒤로가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NotificationScreen), findsNothing);
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(
+      container.read(routerProvider).routeInformationProvider.value.uri.path,
+      '/home',
+    );
+    expect(
+      tester
+          .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+          .currentIndex,
+      0,
+    );
+  });
+
+  for (final authenticated in [false, true]) {
+    testWidgets(
+      'notifications direct entry preserves ${authenticated ? 'onboarding' : 'auth'} guard',
+      (tester) async {
+        await _pumpRouter(
+          tester,
+          initialLocation: '/notifications',
+          authState: AuthState(
+            isLoading: false,
+            isAuthenticated: authenticated,
+          ),
+          petState: _petState(isLoading: false, hasOnboarded: false),
+          notificationService: _EmptyNotificationService(),
+        );
+
+        expect(find.byType(NotificationScreen), findsNothing);
+        expect(
+          find.byType(authenticated ? OnboardingScreen : AuthScreen),
+          findsOneWidget,
+        );
+      },
+    );
+  }
+
   testWidgets('my subroutes keep bottom navigation and direct URL fallbacks', (
     tester,
   ) async {
@@ -1128,6 +1462,7 @@ void main() {
 
     for (final entry in {
       '/my/settings': MySettingsScreen,
+      '/my/settings/notifications': NotificationSettingsScreen,
       '/my/pets': MyPetsScreen,
       '/my/profile': MyProfileScreen,
       '/my/notices': MyNoticesScreen,
@@ -1135,7 +1470,6 @@ void main() {
       '/my/support': MySupportCenterScreen,
       '/my/support/records': MyFaqCategoryScreen,
       '/my/support/faq/account-email': MyFaqDetailScreen,
-      '/my/inquiry': MyInquiryScreen,
     }.entries) {
       await _pumpRouter(
         tester,
@@ -1153,6 +1487,7 @@ void main() {
       await tester.pumpAndSettle();
       final expectedFallback = switch (entry.key) {
         '/my/profile' => '설정',
+        '/my/settings/notifications' => '설정',
         '/my/notices/routine' => '최근 공지',
         '/my/support/records' => '고객센터',
         '/my/support/faq/account-email' => '고객센터',
@@ -1160,6 +1495,34 @@ void main() {
       };
       expect(find.text(expectedFallback), findsWidgets);
     }
+  });
+
+  testWidgets('inquiry direct URL hides bottom navigation and returns to my', (
+    tester,
+  ) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/my/inquiry',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+    expect(find.byType(MyInquiryScreen), findsOneWidget);
+    expect(find.byType(BottomNavigationBar), findsNothing);
+    await tester.tap(find.byTooltip('뒤로가기'));
+    await tester.pumpAndSettle();
+    expect(find.text('마이페이지'), findsOneWidget);
+    expect(
+      tester
+          .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+          .currentIndex,
+      2,
+    );
   });
 
   testWidgets('logout loading does not expose onboarding before auth', (
@@ -1207,6 +1570,7 @@ Future<void> _pumpRouter(
   required AuthState authState,
   required PetState petState,
   CommunityService? communityService,
+  NotificationService? notificationService,
   AuthNotifier? authNotifier,
   PetNotifier? petNotifier,
 }) async {
@@ -1223,6 +1587,8 @@ Future<void> _pumpRouter(
         ),
         if (communityService != null)
           communityServiceProvider.overrideWithValue(communityService),
+        if (notificationService != null)
+          notificationServiceProvider.overrideWithValue(notificationService),
         walletExpenseProvider.overrideWith((ref) => _RouterWalletNotifier()),
       ],
       child: Consumer(
@@ -1250,6 +1616,7 @@ PetState _petState({
   List<Pet> pets = const [],
   String? activePetId,
   List<ActivityRecord> records = const [],
+  List<Routine> routines = const [],
   List<CareSchedule> schedules = const [],
 }) => PetState(
   isLoading: isLoading,
@@ -1257,7 +1624,7 @@ PetState _petState({
   pets: pets,
   activePetId: activePetId,
   records: records,
-  routines: const [],
+  routines: routines,
   schedules: schedules,
   todayRoutineItems: const [],
   routineCompletions: const {},
@@ -1327,6 +1694,7 @@ class _FakeCommunityService extends CommunityService {
     CommunityFeedSort sort = CommunityFeedSort.latest,
     String? cursor,
     int limit = 20,
+    String? keyword,
   }) async => const PostFeed(items: [], nextCursor: null);
 
   @override
@@ -1353,6 +1721,12 @@ class _FakeCommunityService extends CommunityService {
   }) async => const PostCommentFeed(items: []);
 }
 
+class _EmptyNotificationService extends NotificationService {
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async =>
+      const NotificationFeed(items: [], hasMore: false, unreadCount: 0);
+}
+
 class _RouterWalletNotifier extends WalletExpenseNotifier {
   _RouterWalletNotifier() : super(_FakeWalletExpenseService()) {
     state = WalletExpenseState(
@@ -1373,7 +1747,25 @@ class _RouterWalletNotifier extends WalletExpenseNotifier {
   Future<void> loadFirstPage(String petId) async {}
 }
 
-class _FakeWalletExpenseService extends WalletExpenseService {}
+class _FakeWalletExpenseService extends WalletExpenseService {
+  @override
+  Future<List<WalletExpense>> listAllExpenses(String petId) async => [
+    _walletExpense().copyWith(petId: petId),
+  ];
+
+  @override
+  Future<WalletExpense> getExpense(String petId, String expenseId) async =>
+      WalletExpense(
+        id: expenseId,
+        petId: petId,
+        expenseDate: '2026-05-09',
+        expenseTime: '09:10',
+        amount: 12000,
+        currency: 'KRW',
+        category: 'snack',
+        categoryLabel: '간식',
+      );
+}
 
 WalletExpense _walletExpense() => const WalletExpense(
   id: 'expense-1',
@@ -1385,6 +1777,23 @@ WalletExpense _walletExpense() => const WalletExpense(
   category: 'snack',
   categoryLabel: '\uAC04\uC2DD',
 );
+
+class _StartupRetryAuthNotifier extends AuthNotifier {
+  _StartupRetryAuthNotifier()
+    : super.test(
+        const AuthState(
+          isLoading: false,
+          isAuthenticated: false,
+          initializationError: '연결을 확인해 주세요.',
+        ),
+      );
+  int retries = 0;
+  @override
+  Future<void> retryInitialization() async {
+    retries++;
+    state = const AuthState(isLoading: false, isAuthenticated: true);
+  }
+}
 
 class _MutableAuthNotifier extends AuthNotifier {
   _MutableAuthNotifier(super.initialState) : super.test();

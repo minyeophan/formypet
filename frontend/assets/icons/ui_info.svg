@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="matrix(1 0 0 1 10 10)" opacity="1">
+<path d="M 22.0004 18.1407 L 22.0004 34.5445 M 44.0009 22.0004 C 44.0009 34.1509 34.1509 44.0009 22.0004 44.0009 C 9.8499 44.0009 0 34.1509 0 22.0004 C 0 9.8499 9.8499 0 22.0004 0 C 34.1509 0 44.0009 9.8499 44.0009 22.0004 Z" fill-rule="nonzero" fill="none" stroke="#363a3d" stroke-opacity="1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="matrix(1 0 0 1 30.2623 18.6839)" opacity="1">
+<path d="M 3.4745 1.7373 C 3.4745 2.6967 2.6967 3.4745 1.7373 3.4745 C 0.7778 3.4745 0 2.6967 0 1.7373 C 0 0.7778 0.7778 0 1.7373 0 C 2.6967 0 3.4745 0.7778 3.4745 1.7373 Z" fill-rule="nonzero" fill="#363a3d" fill-opacity="1"/>
+</g>
+</svg>

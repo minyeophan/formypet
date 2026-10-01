@@ -1,6 +1,9 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
+import 'app_ink_well.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_v2_tokens.dart';
 import 'app_navigation.dart';
 import 'app_text.dart';
 
@@ -9,7 +12,11 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBackButton;
   final bool centerTitle;
+  final bool showDivider;
   final VoidCallback? onBack;
+  final Widget? leading;
+  final Key? titleKey;
+  final Key? leadingKey;
 
   const AppHeader({
     super.key,
@@ -17,7 +24,11 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.showBackButton = false,
     this.centerTitle = false,
+    this.showDivider = false,
     this.onBack,
+    this.leading,
+    this.titleKey,
+    this.leadingKey,
   }) : assert(!showBackButton || onBack != null);
 
   @override
@@ -26,20 +37,41 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      toolbarHeight: 56,
+      leadingWidth: (leading != null || showBackButton) ? 44 : null,
+      titleSpacing: (leading != null || showBackButton) ? 0 : null,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
-      leading: showBackButton
-          ? Align(child: AppBackButton(onPressed: onBack!))
-          : null,
+      leading: leadingKey == null
+          ? (leading ??
+                (showBackButton
+                    ? Align(child: AppBackButton(onPressed: onBack!))
+                    : null))
+          : KeyedSubtree(
+              key: leadingKey,
+              child:
+                  leading ??
+                  (showBackButton
+                      ? Align(child: AppBackButton(onPressed: onBack!))
+                      : const SizedBox.shrink()),
+            ),
       centerTitle: centerTitle,
       title: AppText(
         title,
-        fontSize: 19,
+        key: titleKey,
+        fontSize: AppV2Tokens.headerTitleSize,
         fontWeight: FontWeight.bold,
         color: AppColors.text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       backgroundColor: AppColors.background,
       surfaceTintColor: AppColors.background,
       actions: actions,
+      shape: showDivider
+          ? const Border(bottom: BorderSide(color: AppColors.border))
+          : null,
     );
   }
 }
@@ -48,24 +80,32 @@ class AppInlineHeader extends StatelessWidget {
   final String title;
   final VoidCallback onBack;
   final Widget? trailing;
+  final bool showDivider;
 
   const AppInlineHeader({
     super.key,
     required this.title,
     required this.onBack,
     this.trailing,
+    this.showDivider = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: showDivider
+            ? const Border(bottom: BorderSide(color: AppColors.border))
+            : null,
+      ),
       child: Row(
         children: [
           SizedBox(
             key: const Key('app-inline-header-leading-slot'),
-            width: 84,
-            height: 52,
+            width: trailing == null ? 44 : 84,
+            height: 56,
             child: Align(
               alignment: Alignment.centerLeft,
               child: AppBackButton(onPressed: onBack),
@@ -74,7 +114,7 @@ class AppInlineHeader extends StatelessWidget {
           Expanded(
             child: AppText(
               title,
-              fontSize: 18,
+              fontSize: AppV2Tokens.headerTitleSize,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
               textAlign: TextAlign.center,
@@ -84,8 +124,8 @@ class AppInlineHeader extends StatelessWidget {
           ),
           SizedBox(
             key: const Key('app-inline-header-trailing-slot'),
-            width: 84,
-            height: 52,
+            width: trailing == null ? 44 : 84,
+            height: 56,
             child: Align(alignment: Alignment.centerRight, child: trailing),
           ),
         ],
@@ -98,27 +138,31 @@ class AppFormHeader extends StatelessWidget {
   final String title;
   final VoidCallback onBack;
   final Widget? trailing;
+  final bool showDivider;
 
   const AppFormHeader({
     super.key,
     required this.title,
     required this.onBack,
     this.trailing,
+    this.showDivider = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 56,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+        border: showDivider
+            ? const Border(bottom: BorderSide(color: AppColors.border))
+            : null,
       ),
       child: Row(
         children: [
           SizedBox(
             key: const Key('app-form-header-leading-slot'),
-            width: 96,
+            width: trailing == null ? 44 : 96,
             height: 56,
             child: Align(
               alignment: Alignment.centerLeft,
@@ -128,7 +172,7 @@ class AppFormHeader extends StatelessWidget {
           Expanded(
             child: AppText(
               title,
-              fontSize: 18,
+              fontSize: AppV2Tokens.headerTitleSize,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
               textAlign: TextAlign.center,
@@ -138,7 +182,7 @@ class AppFormHeader extends StatelessWidget {
           ),
           SizedBox(
             key: const Key('app-form-header-trailing-slot'),
-            width: 96,
+            width: trailing == null ? 44 : 96,
             height: 56,
             child: Align(alignment: Alignment.centerRight, child: trailing),
           ),
@@ -148,7 +192,7 @@ class AppFormHeader extends StatelessWidget {
   }
 }
 
-class AppHeaderIconButton extends StatelessWidget {
+class AppHeaderIconButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
@@ -161,24 +205,48 @@ class AppHeaderIconButton extends StatelessWidget {
   });
 
   @override
+  State<AppHeaderIconButton> createState() => _AppHeaderIconButtonState();
+}
+
+class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
+  bool _pressed = false;
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tooltip,
+      message: widget.tooltip,
       child: Material(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        child: InkWell(
+        child: AppInkWell(
+          onHighlightChanged: (value) => setState(() => _pressed = value),
+          onFocusChange: (value) => setState(() => _focused = value),
           borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+          onTap: widget.onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Ink(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: AppIcon(
+                  widget.icon,
+                  size: 20,
+                  color:
+                      (_pressed || _focused) &&
+                          widget.icon == Icons.search_rounded
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                ),
+              ),
             ),
-            child: Icon(icon, size: 20, color: AppColors.textSecondary),
           ),
         ),
       ),

@@ -20,23 +20,33 @@ class MyNoticesScreen extends StatelessWidget {
         onBack: () => goBackOrFallback(context, '/my'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
           const MySupportLead('서비스 변경, 점검, 새 기능 소식을 시간순으로 확인합니다.'),
           const SizedBox(height: 14),
           const MySupportSectionTitle('최근 공지'),
           const SizedBox(height: 10),
-          MySupportCard(
-            children: [
-              for (var index = 0; index < myNotices.length; index++)
-                MySupportRow(
-                  title: myNotices[index].title,
-                  showTopBorder: index > 0,
-                  onTap: () =>
-                      context.push('/my/notices/${myNotices[index].id}'),
-                ),
-            ],
-          ),
+          if (myNotices.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+              child: Text(
+                '등록된 공지사항이 없어요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            )
+          else
+            MySupportCard(
+              children: [
+                for (var index = 0; index < myNotices.length; index++)
+                  MySupportRow(
+                    title: myNotices[index].title,
+                    showTopBorder: index > 0,
+                    onTap: () =>
+                        context.push('/my/notices/${myNotices[index].id}'),
+                  ),
+              ],
+            ),
         ],
       ),
     );
@@ -63,7 +73,7 @@ class MyNoticeDetailScreen extends StatelessWidget {
       body: notice == null
           ? const MySupportNotFound('공지사항을 찾을 수 없어요')
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 MySupportArticleCard(
                   title: notice.title,

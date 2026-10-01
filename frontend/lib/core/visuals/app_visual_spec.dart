@@ -19,9 +19,23 @@ final class EmojiVisualSource extends AppVisualSource {
 final class SvgAssetVisualSource extends AppVisualSource {
   final String path;
   final bool tintable;
+  final Rect? drawingBounds;
+  final double? strokeWidth;
 
   const SvgAssetVisualSource(this.path, {this.tintable = false})
-    : assert(path.length > 0);
+    : drawingBounds = null,
+      strokeWidth = null,
+      assert(path.length > 0);
+
+  /// Approved exports use a 64px canvas with a centered 48px drawing area.
+  /// The asset remains untouched; only its app viewport is normalized.
+  const SvgAssetVisualSource.figma(
+    this.path, {
+    this.tintable = false,
+    this.strokeWidth,
+  }) : drawingBounds = const Rect.fromLTWH(8, 8, 48, 48),
+       assert(path.length > 0),
+       assert(strokeWidth == null || strokeWidth > 0);
 }
 
 final class RasterAssetVisualSource extends AppVisualSource {
@@ -58,7 +72,7 @@ class AppVisualSpec {
     : assert(
         source is MaterialVisualSource ||
             source is EmojiVisualSource ||
+            source is SvgAssetVisualSource ||
             fallback != null,
-        'Asset visual sources require a Material or emoji fallback.',
       );
 }

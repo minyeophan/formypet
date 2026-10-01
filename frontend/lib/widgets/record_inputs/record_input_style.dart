@@ -1,3 +1,4 @@
+import '../../core/app_interaction_style.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -29,5 +30,5 @@ class RecordInputStyle {
   static ButtonStyle get headerButtonStyle => TextButton.styleFrom(
     foregroundColor: accentColor,
     textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-  );
+  ).copyWith(overlayColor: AppInteractionStyle.overlay());
 }

@@ -1,18 +1,31 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_ink_well.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_v2_tokens.dart';
 import '../../providers/community_provider.dart';
-import '../../widgets/app_header.dart';
+import '../../providers/content_visibility_provider.dart';
 import '../../widgets/app_navigation.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/preparing_toast.dart';
 import 'community_constants.dart';
 import 'community_routes.dart';
 import 'post_card.dart';
 
-const Color _communityTeal = Color(0xFF14B8A6);
+const Color _communitySecondary = Color(0xFF6E5E0D);
+const Color _communityError = Color(0xFFBA1A1A);
+
+TextStyle _communityStyle({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+}) => TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
@@ -34,15 +47,25 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppV2Tokens.background,
       body: const _CommunityMainBody(),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('community-write-fab'),
+      floatingActionButton: AppFocusIndicator(
+        filled: true,
         shape: const CircleBorder(),
-        backgroundColor: _communityTeal,
-        foregroundColor: AppColors.white,
-        onPressed: () => context.push('/community/write'),
-        child: const Icon(Icons.edit),
+        child: Theme(
+          data: Theme.of(context).copyWith(highlightColor: Colors.transparent),
+          child: FloatingActionButton(
+            key: const Key('community-write-fab'),
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            splashColor: AppColors.primary.withValues(alpha: .10),
+            shape: const CircleBorder(),
+            backgroundColor: AppV2Tokens.primary,
+            foregroundColor: Colors.white,
+            onPressed: () => context.push('/community/write'),
+            child: const AppIcon(Icons.edit),
+          ),
+        ),
       ),
     );
   }
@@ -60,38 +83,59 @@ class CommunityCategoryScreen extends ConsumerStatefulWidget {
 
 class _CommunityCategoryScreenState
     extends ConsumerState<CommunityCategoryScreen> {
+  bool _activated = false;
+
+  String get _routeFeedKey => normalizeCommunityFeedKey(widget.initialCategory);
+
+  void _activateRouteFeed() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await ref.read(communityProvider.notifier).setFeedKey(_routeFeedKey);
+      if (mounted) setState(() => _activated = true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(communityProvider.notifier).setFeedKey(widget.initialCategory);
-    });
+    ref.listenManual(contentVisibilityProvider, (_, _) => _activateRouteFeed());
+    _activateRouteFeed();
   }
 
   @override
   void didUpdateWidget(covariant CommunityCategoryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialCategory != widget.initialCategory) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref.read(communityProvider.notifier).setFeedKey(widget.initialCategory);
-      });
+      _activated = false;
+      _activateRouteFeed();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: const _CommunityCategoryBody(),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('community-write-fab'),
+      backgroundColor: AppV2Tokens.background,
+      body: _CommunityCategoryBody(
+        routeFeedKey: _routeFeedKey,
+        activated: _activated,
+      ),
+      floatingActionButton: AppFocusIndicator(
+        filled: true,
         shape: const CircleBorder(),
-        backgroundColor: _communityTeal,
-        foregroundColor: AppColors.white,
-        onPressed: () => context.push('/community/write'),
-        child: const Icon(Icons.edit),
+        child: Theme(
+          data: Theme.of(context).copyWith(highlightColor: Colors.transparent),
+          child: FloatingActionButton(
+            key: const Key('community-write-fab'),
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            splashColor: AppColors.primary.withValues(alpha: .10),
+            shape: const CircleBorder(),
+            backgroundColor: AppV2Tokens.primary,
+            foregroundColor: Colors.white,
+            onPressed: () => context.push('/community/write'),
+            child: const AppIcon(Icons.edit),
+          ),
+        ),
       ),
     );
   }
@@ -106,14 +150,7 @@ class _CommunityMainBody extends StatelessWidget {
       child: Column(
         children: const [
           _CommunityHeader(),
-          _CategoryCarousel(),
-          _CommunitySectionHeader(),
-          Expanded(
-            child: _FeedList(
-              key: Key('community-main-popular-feed'),
-              feedKey: 'popular',
-            ),
-          ),
+          Expanded(child: _CommunityMainScroll()),
         ],
       ),
     );
@@ -121,30 +158,75 @@ class _CommunityMainBody extends StatelessWidget {
 }
 
 class _CommunityCategoryBody extends ConsumerWidget {
-  const _CommunityCategoryBody();
+  final String routeFeedKey;
+  final bool activated;
+
+  const _CommunityCategoryBody({
+    required this.routeFeedKey,
+    required this.activated,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeKey = ref.watch(communityProvider).activeFeedKey;
+    final state = ref.watch(communityProvider);
+    final posts = state.postsForFeed(routeFeedKey);
     return SafeArea(
       child: Column(
         children: [
           const _CommunityHeader(showBack: true),
           Expanded(
-            child: ColoredBox(
-              color: AppColors.surface,
-              child: Column(
-                children: [
-                  const _CategoryTabs(),
-                  const _CategoryFilterRow(),
-                  const _GuidePanel(),
-                  Expanded(
-                    child: _FeedList(
-                      key: const Key('community-category-feed'),
-                      feedKey: activeKey,
+            child: RefreshIndicator(
+              color: AppV2Tokens.primary,
+              onRefresh: () => ref
+                  .read(communityProvider.notifier)
+                  .loadFeed(feedKey: routeFeedKey, refresh: true),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) => _handlePagination(
+                  notification,
+                  ref,
+                  routeFeedKey,
+                  state,
+                  posts,
+                ),
+                child: CustomScrollView(
+                  key: const Key('community-category-feed'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(
+                        child: _CategoryTabs(routeFeedKey: routeFeedKey),
+                      ),
                     ),
-                  ),
-                ],
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(
+                        child: _GuidePanel(key: ValueKey(routeFeedKey)),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _FeedWidth(child: const _CategorySectionHeader()),
+                    ),
+                    if (!activated && posts.isEmpty)
+                      SliverList(
+                        delegate: SliverChildListDelegate(
+                          List.generate(
+                            3,
+                            (index) =>
+                                _FeedWidth(child: _FeedSkeleton(index: index)),
+                          ),
+                        ),
+                      )
+                    else
+                      ..._feedSlivers(
+                        context,
+                        ref,
+                        routeFeedKey,
+                        state,
+                        posts,
+                        isMain: false,
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 92)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -163,59 +245,50 @@ class _CommunityHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const Key('community-header'),
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(color: AppColors.background),
-      child: Row(
-        children: [
-          SizedBox(
-            key: const Key('community-header-leading-slot'),
-            width: showBack ? 44 : 0,
-            height: 44,
-            child: showBack
-                ? AppBackButton(
-                    onPressed: () {
-                      if (Navigator.of(context).canPop()) {
-                        context.pop();
-                        return;
-                      }
-                      context.go('/community');
-                    },
-                  )
-                : const SizedBox.shrink(),
+      decoration: const BoxDecoration(color: AppV2Tokens.background),
+      child: AppHeader(
+        title: '커뮤니티',
+        titleKey: const Key('community-header-title'),
+        leadingKey: const Key('community-header-leading-slot'),
+        showBackButton: showBack,
+        onBack: () {
+          if (Navigator.of(context).canPop()) {
+            context.pop();
+            return;
+          }
+          context.go('/community');
+        },
+        leading: showBack
+            ? null
+            : const AppIcon(Icons.pets, size: 25, color: AppV2Tokens.primary),
+        actions: [
+          AppHeaderIconButton(
+            key: const Key('community-search-button'),
+            icon: Icons.search_rounded,
+            tooltip: '검색',
+            onTap: () {
+              final router = GoRouter.maybeOf(context);
+              if (router == null) {
+                showPreparingToast(context);
+              } else {
+                router.push('/community/search');
+              }
+            },
           ),
-          if (showBack) const SizedBox(width: 8),
-          const Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: AppText(
-                '커뮤니티',
-                key: Key('community-header-title'),
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text,
-              ),
-            ),
+          AppHeaderIconButton(
+            key: const Key('community-notification-button'),
+            icon: Icons.notifications_none_rounded,
+            tooltip: '알림',
+            onTap: () {
+              final router = GoRouter.maybeOf(context);
+              if (router == null) {
+                showPreparingToast(context);
+              } else {
+                router.push('/notifications');
+              }
+            },
           ),
-          Row(
-            key: const Key('community-header-actions'),
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppHeaderIconButton(
-                key: const Key('community-notification-button'),
-                icon: Icons.notifications_none_rounded,
-                tooltip: '알림',
-                onTap: () => _showCommunityToast(context, '준비중'),
-              ),
-              const SizedBox(width: 4),
-              AppHeaderIconButton(
-                key: const Key('community-search-button'),
-                icon: Icons.search_rounded,
-                tooltip: '검색',
-                onTap: () => _showCommunityToast(context, '준비중'),
-              ),
-            ],
-          ),
+          const SizedBox(width: 12),
         ],
       ),
     );
@@ -227,18 +300,19 @@ class _CommunitySectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 10, 20, 6),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
       child: Row(
         children: [
           Expanded(
-            child: AppText('지금 인기글', fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          AppText(
-            'popular · 전체',
-            fontSize: 11,
-            color: AppColors.muted,
-            fontWeight: FontWeight.w700,
+            child: Text(
+              '지금 인기글',
+              style: _communityStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppV2Tokens.text,
+              ),
+            ),
           ),
         ],
       ),
@@ -254,8 +328,8 @@ class _CategoryCarousel extends StatefulWidget {
 }
 
 class _CategoryCarouselState extends State<_CategoryCarousel> {
-  final ScrollController _controller = ScrollController();
-  bool _isSnapping = false;
+  final PageController _controller = PageController();
+  int _page = 0;
 
   @override
   void dispose() {
@@ -263,66 +337,69 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
     super.dispose();
   }
 
-  Future<void> _snapToNearestPanel() async {
-    if (!_controller.hasClients) return;
-    if (_isSnapping) return;
-
-    final position = _controller.position;
-    final panelWidth = _communityCategoryPanelWidth(context);
-    final nextPanelOffset = (panelWidth + 12).clamp(
-      0.0,
-      position.maxScrollExtent,
-    );
-    final target = position.pixels < nextPanelOffset / 2
-        ? 0.0
-        : nextPanelOffset;
-
-    if ((position.pixels - target).abs() <= 0.5) return;
-
-    _isSnapping = true;
-    try {
-      await position.animateTo(
-        target,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    } finally {
-      _isSnapping = false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       key: const Key('community-category-carousel'),
-      height: 184,
-      child: Listener(
-        onPointerUp: (_) => _snapToNearestPanel(),
-        onPointerCancel: (_) => _snapToNearestPanel(),
-        child: NotificationListener<ScrollEndNotification>(
-          onNotification: (notification) {
-            if (notification.depth != 0) return false;
-            _snapToNearestPanel();
-            return true;
-          },
-          child: ListView(
-            controller: _controller,
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-            children: const [
-              _CategoryPanel(index: 0, entries: _communityPrimaryCategories),
-              _CategoryPanel(index: 1, entries: _communitySecondaryCategories),
-            ],
+      height: 204,
+      child: Column(
+        children: [
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: const {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: PageView(
+                controller: _controller,
+                onPageChanged: (page) => setState(() => _page = page),
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 10, 20, 8),
+                    child: _CategoryPanel(
+                      index: 0,
+                      entries: _communityPrimaryCategories,
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 10, 20, 8),
+                    child: _CategoryPanel(
+                      index: 1,
+                      entries: _communitySecondaryCategories,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              2,
+              (index) => AnimatedContainer(
+                key: Key('community-category-page-dot-$index'),
+                duration: const Duration(milliseconds: 180),
+                width: _page == index ? 18 : 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: _page == index
+                      ? AppV2Tokens.primary
+                      : AppV2Tokens.border,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-}
-
-double _communityCategoryPanelWidth(BuildContext context) {
-  final viewport = MediaQuery.sizeOf(context).width;
-  return viewport > 390 ? 350.0 : viewport - 32;
 }
 
 class _CategoryPanel extends StatelessWidget {
@@ -333,17 +410,9 @@ class _CategoryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final panelWidth = _communityCategoryPanelWidth(context);
     return Container(
       key: Key('community-category-panel-$index'),
-      width: panelWidth,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(18),
-      ),
+      color: Colors.transparent,
       child: Column(
         children: [
           for (var row = 0; row < 2; row++) ...[
@@ -352,13 +421,13 @@ class _CategoryPanel extends StatelessWidget {
                 for (var column = 0; column < 5; column++) ...[
                   Expanded(
                     child: SizedBox(
-                      height: 63,
+                      height: 72,
                       child: row * 5 + column < entries.length
                           ? _CategoryTile(category: entries[row * 5 + column])
                           : const SizedBox.shrink(),
                     ),
                   ),
-                  if (column != 4) const SizedBox(width: 8),
+                  if (column != 4) const SizedBox(width: 4),
                 ],
               ],
             ),
@@ -378,29 +447,328 @@ class _CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _communityAccentFor(category);
-    return InkWell(
+    return AppInkWell(
       key: Key('community-category-tile-$category'),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/community/category/$category'),
       child: Ink(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(14),
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Center(
+                child: AppVisual(
+                  id: communityVisualId(category),
+                  color: accent,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                kCommunityCategoryLabels[category] ?? category,
+                style: _communityStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppV2Tokens.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppVisual(id: communityVisualId(category), color: accent, size: 21),
-            const SizedBox(height: 5),
-            AppText(
-              kCommunityCategoryLabels[category] ?? category,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _CategoryTabs extends StatefulWidget {
+  final String routeFeedKey;
+
+  const _CategoryTabs({required this.routeFeedKey});
+
+  @override
+  State<_CategoryTabs> createState() => _CategoryTabsState();
+}
+
+class _CategoryTabsState extends State<_CategoryTabs> {
+  late final List<GlobalKey> _chipKeys = List.generate(
+    kCommunityFeedTabs.length,
+    (_) => GlobalKey(),
+  );
+
+  void _revealActiveChip() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final index = kCommunityFeedTabs.indexWhere(
+        (tab) => normalizeCommunityFeedKey(tab) == widget.routeFeedKey,
+      );
+      final context = index < 0 ? null : _chipKeys[index].currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 180),
+        );
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _revealActiveChip();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CategoryTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.routeFeedKey != widget.routeFeedKey) _revealActiveChip();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: const Key('community-category-tabs'),
+      height: 60,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+        child: Row(
+          children: List.generate(kCommunityFeedTabs.length, (index) {
+            final tab = kCommunityFeedTabs[index];
+            final tabKey = tab == 'POPULAR'
+                ? 'popular'
+                : tab == 'ALL'
+                ? 'all'
+                : tab;
+            final isActive = widget.routeFeedKey == tabKey;
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == kCommunityFeedTabs.length - 1 ? 0 : 28,
+              ),
+              child: Semantics(
+                button: true,
+                selected: isActive,
+                child: AppInkWell(
+                  key: Key('community-tab-$tab'),
+                  borderRadius: BorderRadius.zero,
+                  onTap: isActive
+                      ? () {}
+                      : () =>
+                            context.pushReplacement('/community/category/$tab'),
+                  child: Container(
+                    key: _chipKeys[index],
+                    constraints: const BoxConstraints(minHeight: 60),
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isActive
+                              ? AppV2Tokens.primary
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      kCommunityCategoryLabels[tab] ?? tab,
+                      style: _communityStyle(
+                        fontSize: 14,
+                        fontWeight: isActive
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isActive
+                            ? AppV2Tokens.text
+                            : AppV2Tokens.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuidePanel extends StatefulWidget {
+  const _GuidePanel({super.key});
+
+  @override
+  State<_GuidePanel> createState() => _GuidePanelState();
+}
+
+class _GuidePanelState extends State<_GuidePanel> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('community-guide-panel'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Material(
+        color: AppV2Tokens.surfaceSoft,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Semantics(
+          button: true,
+          expanded: _expanded,
+          child: AppInkWell(
+            key: const Key('community-guide-toggle'),
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const AppIcon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: AppV2Tokens.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          '커뮤니티 이용 가이드',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppV2Tokens.text,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const AppDisclosureChevron(size: 20),
+                      ),
+                    ],
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 180),
+                    child: _expanded
+                        ? const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Column(
+                              children: [
+                                _GuideBullet('서로를 존중하는 따뜻한 언어 사용'),
+                                _GuideBullet('건강 상담은 수의사 문의 권장'),
+                                _GuideBullet('상업적 광고·홍보 제한'),
+                                _GuideBullet('사진과 함께 일상 공유 권장'),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuideBullet extends StatelessWidget {
+  final String text;
+  const _GuideBullet(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('•', style: TextStyle(color: AppV2Tokens.textSecondary)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: _communityStyle(
+              fontSize: 14,
+              color: AppV2Tokens.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CategorySectionHeader extends StatelessWidget {
+  const _CategorySectionHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '최신 게시글',
+              style: _communityStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppV2Tokens.text,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommunityMainScroll extends ConsumerWidget {
+  const _CommunityMainScroll();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const feedKey = 'popular';
+    final state = ref.watch(communityProvider);
+    final posts = state.postsForFeed(feedKey);
+    return RefreshIndicator(
+      color: AppV2Tokens.primary,
+      onRefresh: () => ref
+          .read(communityProvider.notifier)
+          .loadFeed(feedKey: feedKey, refresh: true),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) =>
+            _handlePagination(notification, ref, feedKey, state, posts),
+        child: CustomScrollView(
+          key: const Key('community-main-popular-feed'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 672),
+                  child: _CategoryCarousel(),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: 672),
+                  child: _CommunitySectionHeader(),
+                ),
+              ),
+            ),
+            ..._feedSlivers(context, ref, feedKey, state, posts, isMain: true),
+            const SliverToBoxAdapter(child: SizedBox(height: 92)),
           ],
         ),
       ),
@@ -408,171 +776,254 @@ class _CategoryTile extends StatelessWidget {
   }
 }
 
-class _CategoryTabs extends ConsumerWidget {
-  const _CategoryTabs();
+bool _handlePagination(
+  ScrollNotification notification,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts,
+) {
+  if (notification.depth != 0 ||
+      notification.metrics.axis != Axis.vertical ||
+      posts.isEmpty ||
+      notification.metrics.extentAfter >= 200 ||
+      state.nextCursorForFeed(feedKey) == null ||
+      state.isLoadingFeed(feedKey)) {
+    return false;
+  }
+  ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
+  return false;
+}
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeKey = ref.watch(communityProvider).activeFeedKey;
-    return SizedBox(
-      key: const Key('community-category-tabs'),
-      height: 56,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        itemBuilder: (context, index) {
-          final tab = kCommunityFeedTabs[index];
-          final tabKey = tab == 'POPULAR'
-              ? 'popular'
-              : tab == 'ALL'
-              ? 'all'
-              : tab;
-          final isActive = activeKey == tabKey;
-          return InkWell(
-            key: Key('community-tab-$tab'),
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => ref.read(communityProvider.notifier).setFeedKey(tab),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(3, 8, 3, 8),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? AppColors.text : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-              ),
-              child: AppText(
-                kCommunityCategoryLabels[tab] ?? tab,
-                fontSize: 15,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                color: isActive ? AppColors.text : AppColors.textSecondary,
-              ),
-            ),
-          );
-        },
-        separatorBuilder: (_, index) => const SizedBox(width: 20),
-        itemCount: kCommunityFeedTabs.length,
+List<Widget> _feedBoxChildren(
+  BuildContext context,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts, {
+  required bool isMain,
+}) {
+  final failure = state.failureForFeed(feedKey);
+  final children = <Widget>[];
+  if (posts.isEmpty && state.isLoadingFeed(feedKey)) {
+    return List.generate(
+      3,
+      (index) => _FeedWidth(child: _FeedSkeleton(index: index)),
+    );
+  }
+  if (posts.isEmpty &&
+      failure?.requestKind == CommunityFeedRequestKind.initial) {
+    return [
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-error'),
+          message: isMain ? '인기글을 불러오지 못했어요' : '게시글을 불러오지 못했어요',
+          retry: () =>
+              ref.read(communityProvider.notifier).loadFeed(feedKey: feedKey),
+        ),
+      ),
+    ];
+  }
+  if (posts.isEmpty) {
+    return [
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-empty'),
+          message: isMain ? '아직 인기글이 없어요' : '이 카테고리에는 아직 게시글이 없어요',
+        ),
+      ),
+    ];
+  }
+  if (failure?.requestKind == CommunityFeedRequestKind.refresh) {
+    children.add(
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-refresh-error'),
+          message: isMain ? '인기글을 새로고침하지 못했어요' : '게시글을 새로고침하지 못했어요',
+          retry: () => ref
+              .read(communityProvider.notifier)
+              .loadFeed(feedKey: feedKey, refresh: true),
+        ),
       ),
     );
   }
-}
-
-class _CategoryFilterRow extends StatelessWidget {
-  const _CategoryFilterRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Row(
-        children: [
-          Container(
-            key: const Key('community-filter-pill'),
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const AppText(
-              '전체⌄',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GuidePanel extends StatelessWidget {
-  const _GuidePanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const Key('community-guide-panel'),
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFFAF8),
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: const [
-          Icon(Icons.info_outline_rounded, size: 18, color: AppColors.muted),
-          SizedBox(width: 8),
-          Expanded(
-            child: AppText(
-              '커뮤니티 이용 가이드',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          AppDisclosureChevron(size: 20),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeedList extends ConsumerWidget {
-  final String feedKey;
-
-  const _FeedList({super.key, required this.feedKey});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(communityProvider);
-    final posts = state.postsForFeed(feedKey);
-    final isLoading = state.isLoadingFeed(feedKey);
-    final nextCursor = state.nextCursorForFeed(feedKey);
-
-    if (posts.isEmpty && isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (posts.isEmpty) {
-      return const Center(child: AppText('게시글이 없습니다', color: AppColors.muted));
-    }
-
-    return RefreshIndicator(
-      onRefresh: () => ref
-          .read(communityProvider.notifier)
-          .loadFeed(feedKey: feedKey, refresh: true),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is ScrollEndNotification &&
-              notification.metrics.extentAfter < 200) {
-            ref.read(communityProvider.notifier).loadMore(feedKey: feedKey);
-          }
-          return false;
-        },
-        child: ListView.builder(
-          padding: const EdgeInsets.only(bottom: 92),
-          itemCount: posts.length + (nextCursor != null ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == posts.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final post = posts[index];
-            return PostCard(
-              post: post,
-              onOpen: () => context.push(communityPostPath(post.id, feedKey)),
-              onLike: () => ref
+  for (final post in posts.cast<dynamic>()) {
+    children.add(
+      _FeedWidth(
+        child: PostCard(
+          post: post,
+          isLiking: state.isLiking(post.id),
+          onOpen: () => context.push(communityPostPath(post.id, feedKey)),
+          onLike: () async {
+            try {
+              await ref
                   .read(communityProvider.notifier)
-                  .toggleLike(post.id, feedKey: feedKey),
-            );
+                  .toggleLike(post.id, feedKey: feedKey);
+            } catch (_) {
+              if (context.mounted) {
+                _showCommunityToast(context, '좋아요를 반영하지 못했어요');
+              }
+            }
           },
         ),
       ),
     );
   }
+  if (state.isLoadingMoreFeed(feedKey)) {
+    children.add(
+      const Padding(
+        key: Key('community-feed-load-more-progress'),
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  } else if (failure?.requestKind == CommunityFeedRequestKind.loadMore) {
+    children.add(
+      _FeedWidth(
+        child: _FeedMessage(
+          key: const Key('community-feed-load-more-retry'),
+          message: isMain ? '인기글을 더 불러오지 못했어요' : '게시글을 더 불러오지 못했어요',
+          retry: () =>
+              ref.read(communityProvider.notifier).loadMore(feedKey: feedKey),
+        ),
+      ),
+    );
+  }
+  return children;
+}
+
+List<Widget> _feedSlivers(
+  BuildContext context,
+  WidgetRef ref,
+  String feedKey,
+  CommunityState state,
+  List posts, {
+  required bool isMain,
+}) => [
+  SliverList(
+    delegate: SliverChildListDelegate(
+      _feedBoxChildren(context, ref, feedKey, state, posts, isMain: isMain),
+    ),
+  ),
+];
+
+class _FeedSkeleton extends StatelessWidget {
+  final int index;
+  const _FeedSkeleton({required this.index});
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = index.isEven;
+    return Container(
+      key: Key('community-feed-skeleton-$index'),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SkeletonBar(width: 52, height: 20, radius: 999),
+              const Spacer(),
+              const _SkeletonBar(width: 42, height: 12),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SkeletonBar(height: 20),
+                    SizedBox(height: 7),
+                    _SkeletonBar(width: 150, height: 20),
+                  ],
+                ),
+              ),
+              if (hasImage) ...[
+                const SizedBox(width: 16),
+                const _SkeletonBar(
+                  key: Key('community-skeleton-thumbnail'),
+                  width: 80,
+                  height: 80,
+                  radius: 16,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              _SkeletonBar(width: 32, height: 32, radius: 999),
+              SizedBox(width: 8),
+              _SkeletonBar(width: 72, height: 12),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBar extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+
+  const _SkeletonBar({
+    super.key,
+    this.width,
+    required this.height,
+    this.radius = 6,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: AppV2Tokens.surfaceSoft,
+      borderRadius: BorderRadius.circular(radius),
+    ),
+  );
+}
+
+class _FeedMessage extends StatelessWidget {
+  final String message;
+  final VoidCallback? retry;
+  const _FeedMessage({super.key, required this.message, this.retry});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        AppText(message, color: AppColors.muted, textAlign: TextAlign.center),
+        if (retry != null) ...[
+          const SizedBox(height: 10),
+          TextButton(
+            key: const Key('community-feed-retry'),
+            onPressed: retry,
+            child: const Text('다시 시도'),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _FeedWidth extends StatelessWidget {
+  final Widget child;
+  const _FeedWidth({required this.child});
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 672),
+      child: child,
+    ),
+  );
 }
 
 const List<String> _communityPrimaryCategories = [
@@ -591,11 +1042,9 @@ const List<String> _communityPrimaryCategories = [
 const List<String> _communitySecondaryCategories = ['NEWS', 'EVENT'];
 
 Color _communityAccentFor(String category) => switch (category) {
-  'POPULAR' || 'FOOD' || 'RESCUE' => const Color(0xFFFF8A65),
-  'CARE' || 'FREE' => const Color(0xFF81C784),
-  'OUTING' || 'QUESTION' || 'NEWS' => const Color(0xFF64B5F6),
-  'SHOW' || 'ADOPTION' || 'EVENT' => const Color(0xFFBA68C8),
-  _ => AppColors.textSecondary,
+  'POPULAR' || 'FOOD' || 'QUESTION' || 'ADOPTION' => _communitySecondary,
+  'RESCUE' => _communityError,
+  _ => AppV2Tokens.textSecondary,
 };
 
 void _showCommunityToast(BuildContext context, String message) {

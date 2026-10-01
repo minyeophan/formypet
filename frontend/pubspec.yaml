@@ -1,5 +1,5 @@
 name: frontend
-description: "petyilgi - 반려동물 케어 앱"
+description: "formypet - 반려동물 케어 앱"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -27,10 +27,13 @@ dependencies:
   fl_chart: ^0.70.2
   flutter_svg: ^2.0.12
   cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
 
   # Device
   image_picker: ^1.1.2
   flutter_local_notifications: ^18.0.1
+  firebase_core: ^3.15.0
+  firebase_messaging: ^15.2.0
 
   # Utils
   intl: ^0.19.0
@@ -40,6 +43,9 @@ dependencies:
   kakao_flutter_sdk_user: ^2.0.0+1 # 카카오 로그인 API 패키지
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
+  firebase_core_platform_interface: ^6.0.3
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
@@ -47,4 +53,31 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
+      - assets/images/
+      - assets/icons/
+      - assets/illustrations/
+      - assets/fonts/OFL.txt
+  fonts:
+    - family: NotoSansKR
+      fonts:
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 100
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 200
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 300
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 800
+        - asset: assets/fonts/NotoSansKR-Variable.ttf
+          weight: 900
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf

@@ -1,3 +1,4 @@
+import 'app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -19,8 +20,12 @@ class AppBackButton extends StatelessWidget {
     return IconButton(
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Icon(Icons.chevron_left_rounded, color: color ?? AppColors.text),
-      iconSize: 28,
+      icon: AppIcon(
+        Icons.chevron_left_rounded,
+        size: 22,
+        color: color ?? AppColors.text,
+      ),
+      iconSize: 22,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 44, height: 44),
       style: IconButton.styleFrom(
@@ -35,11 +40,11 @@ class AppDisclosureChevron extends StatelessWidget {
   final double size;
   final Color? color;
 
-  const AppDisclosureChevron({super.key, this.size = 22, this.color});
+  const AppDisclosureChevron({super.key, this.size = 18, this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Icon(
+    return AppIcon(
       Icons.chevron_right_rounded,
       size: size,
       color: color ?? AppColors.muted,

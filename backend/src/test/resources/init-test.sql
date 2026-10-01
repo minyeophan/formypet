@@ -1,29 +1,58 @@
--- Testcontainers 전용 초기화 (Flyway 대체)
--- MySQL 8.0.13+: SRID 4326에서 ST_GeomFromText WKT 좌표 순서는 (위도, 경도)
-CREATE TABLE IF NOT EXISTS spatial_test (
-    id       BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name     VARCHAR(100) NOT NULL,
-    location POINT NOT NULL SRID 4326,
-    SPATIAL INDEX idx_location (location)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
-INSERT INTO spatial_test (name, location) VALUES
-    ('강남역',   ST_GeomFromText('POINT(37.4979 127.0276)', 4326)),
-    ('서울역',   ST_GeomFromText('POINT(37.5547 126.9726)', 4326)),
-    ('홍대입구', ST_GeomFromText('POINT(37.5571 126.9228)', 4326)),
-    ('잠실역',   ST_GeomFromText('POINT(37.5133 127.1000)', 4326)),
-    ('판교역',   ST_GeomFromText('POINT(37.3952 127.1109)', 4326));
-
 CREATE TABLE IF NOT EXISTS users (
     id            BIGINT         AUTO_INCREMENT PRIMARY KEY,
     email         VARCHAR(255)   NOT NULL UNIQUE,
     password_hash VARCHAR(255)   NOT NULL,
+    auth_version BIGINT NOT NULL DEFAULT 0,
+    account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     nickname      VARCHAR(50)    NOT NULL,
+    notification_enabled BOOLEAN  NOT NULL DEFAULT TRUE,
     registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
     profile_media_id BIGINT      NULL,
     created_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE password_reset_challenges (
+    id CHAR(43) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    subject_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    user_id BIGINT NULL,
+    code_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    state VARCHAR(20) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    created_at DATETIME(6) NOT NULL,
+    expires_at DATETIME(6) NOT NULL,
+    verify_request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    reset_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    reset_expires_at DATETIME(6) NULL,
+    confirm_request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    confirm_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    completed_at DATETIME(6) NULL,
+    CONSTRAINT fk_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_reset_hash (reset_hash),
+    INDEX idx_reset_subject (subject_key, state),
+    INDEX idx_reset_cleanup (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE account_deletion_jobs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    provider_user_id VARCHAR(100) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME(6) NOT NULL,
+    locked_until DATETIME(6) NULL,
+    last_error VARCHAR(100) NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uq_account_deletion_provider (provider_user_id),
+    INDEX idx_account_deletion_due (next_attempt_at, locked_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE password_reset_limits (
+    bucket_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    window_start DATETIME(6) NOT NULL,
+    last_request_at DATETIME(6) NOT NULL,
+    request_count INT NOT NULL,
+    INDEX idx_reset_limit_cleanup (last_request_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS oauth_accounts (
     id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -90,9 +119,6 @@ INSERT INTO activity_types (id, name, display_order) VALUES
     ('poop',     'poop',     5),
     ('weight',   'weight',   6),
     ('vet',      'vet',      7),
-    ('sleep',    'sleep',    8),
-    ('play',     'play',     9),
-    ('checkup',  'checkup', 10),
     ('diary',    'diary',   11),
     ('etc',      'etc',     12);
 
@@ -152,8 +178,6 @@ CREATE TABLE IF NOT EXISTS record_walk (
     record_id      BIGINT PRIMARY KEY,
     distance       DECIMAL(8,2),
     duration       INT,
-    start_location POINT SRID 4326,
-    end_location   POINT SRID 4326,
     CONSTRAINT fk_record_walk_record FOREIGN KEY (record_id) REFERENCES activity_records (id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
@@ -166,7 +190,6 @@ CREATE TABLE IF NOT EXISTS record_weight (
 CREATE TABLE IF NOT EXISTS record_vet (
     record_id           BIGINT PRIMARY KEY,
     vet_clinic_name     VARCHAR(100),
-    clinic_location     POINT SRID 4326,
     vet_visit_reason    VARCHAR(30),
     vet_diagnosis       TEXT,
     vet_treatment       TEXT,
@@ -287,11 +310,26 @@ CREATE TABLE IF NOT EXISTS post_comments (
     parent_comment_id BIGINT NULL,
     content    VARCHAR(1000) NOT NULL,
     created_at DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6)   NULL,
+    deleted_at DATETIME(6)   NULL,
     CONSTRAINT fk_post_comment_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
     CONSTRAINT fk_post_comment_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_post_comment_parent FOREIGN KEY (parent_comment_id) REFERENCES post_comments (id) ON DELETE CASCADE,
     INDEX idx_post_comment_cursor (post_id, id DESC),
-    INDEX idx_post_comment_thread_cursor (post_id, parent_comment_id, id DESC)
+    INDEX idx_post_comments_active_thread (post_id, parent_comment_id, deleted_at, id DESC)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS post_comment_reports (
+    id               BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    comment_id       BIGINT        NOT NULL,
+    reporter_user_id BIGINT        NOT NULL,
+    reason           VARCHAR(30)   NOT NULL,
+    detail           VARCHAR(500)  NULL,
+    content_snapshot VARCHAR(1000) NOT NULL,
+    created_at       DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_post_comment_report_comment FOREIGN KEY (comment_id) REFERENCES post_comments (id) ON DELETE CASCADE,
+    CONSTRAINT fk_post_comment_report_user FOREIGN KEY (reporter_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT uk_post_comment_reporter UNIQUE (comment_id, reporter_user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS media_resources (
@@ -314,6 +352,11 @@ CREATE TABLE IF NOT EXISTS media_resources (
     INDEX idx_media_pet (pet_id),
     INDEX idx_media_record (record_id),
     INDEX idx_media_visibility (visibility)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS media_cleanup_queue (
+    storage_key VARCHAR(500) PRIMARY KEY,
+    created_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS post_media (
@@ -359,3 +402,120 @@ ALTER TABLE users
     ADD CONSTRAINT fk_user_profile_media
         FOREIGN KEY (profile_media_id) REFERENCES media_resources (id)
         ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id BIGINT NOT NULL, actor_user_id BIGINT NULL,
+    actor_nickname VARCHAR(50) NULL, type VARCHAR(40) NOT NULL,
+    post_id BIGINT NULL, comment_id BIGINT NULL,
+    source_type VARCHAR(30) NULL, source_id BIGINT NULL, scheduled_for DATETIME(6) NULL,
+    title VARCHAR(120) NOT NULL, body VARCHAR(500) NOT NULL,
+    read_at DATETIME(6) NULL, created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    FOREIGN KEY (recipient_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
+    INDEX idx_notifications_recipient_cursor (recipient_user_id, id DESC),
+    INDEX idx_notifications_unread (recipient_user_id, read_at),
+    UNIQUE KEY uq_notification_reminder (recipient_user_id, source_type, source_id, scheduled_for, type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE support_tickets (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    requester_user_id BIGINT NULL,
+    kind VARCHAR(20) NOT NULL,
+    request_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    payload_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    reply_email VARCHAR(254) NULL,
+    target_post_id BIGINT NULL,
+    target_snapshot MEDIUMTEXT NULL,
+    target_author_id BIGINT NULL,
+    created_at DATETIME(6) NOT NULL,
+    CONSTRAINT fk_support_requester FOREIGN KEY (requester_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_support_target_author FOREIGN KEY (target_author_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_support_request (requester_user_id, kind, request_id),
+    UNIQUE KEY uq_support_report (requester_user_id, target_post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE support_mail_outbox (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME(6) NOT NULL,
+    lease_until DATETIME(6) NULL,
+    claim_token CHAR(36) NULL,
+    sent_at DATETIME(6) NULL,
+    last_error VARCHAR(100) NULL,
+    CONSTRAINT fk_support_mail_ticket_cascade FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_support_mail_ticket (ticket_id),
+    INDEX idx_support_mail_due (status, next_attempt_at),
+    INDEX idx_support_mail_lease (status, lease_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_blocks (
+    blocker_user_id BIGINT NOT NULL,
+    blocked_user_id BIGINT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (blocker_user_id, blocked_user_id),
+    CONSTRAINT fk_user_blocks_blocker FOREIGN KEY (blocker_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_blocks_blocked FOREIGN KEY (blocked_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE device_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token VARCHAR(512) NOT NULL,
+    platform VARCHAR(20) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uk_device_token (token),
+    INDEX idx_device_tokens_user (user_id),
+    CONSTRAINT fk_device_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+-- Fixed lock buckets contain no provider or user identifiers.
+CREATE TABLE oauth_lifecycle_locks (bucket_id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO oauth_lifecycle_locks(bucket_id)
+SELECT ones.n + tens.n * 8 FROM
+(SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) ones
+CROSS JOIN
+(SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) tens;
+CREATE TABLE policy_consents (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    document_type VARCHAR(32) NOT NULL,
+    document_version VARCHAR(64) NOT NULL,
+    acceptance_revision VARCHAR(64) NULL,
+    action VARCHAR(32) NOT NULL,
+    document_hash CHAR(64) NOT NULL,
+    recorded_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_policy_consent_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_policy_action(user_id,document_type,document_version,action)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE kakao_signup_intents (
+    provider_user_id VARCHAR(100) PRIMARY KEY,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    INDEX idx_kakao_signup_expiry(expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE policy_publications (
+    document_type VARCHAR(32) NOT NULL,
+    document_version VARCHAR(64) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body MEDIUMTEXT NOT NULL,
+    published_at DATETIME(6) NOT NULL,
+    effective_at DATETIME(6) NOT NULL,
+    acceptance_revision VARCHAR(64) NULL,
+    content_hash CHAR(64) NOT NULL,
+    PRIMARY KEY(document_type,document_version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE policy_runtime (
+    id INT PRIMARY KEY,
+    enforcement_enabled BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB;
+INSERT INTO policy_runtime(id,enforcement_enabled) VALUES (1,FALSE);

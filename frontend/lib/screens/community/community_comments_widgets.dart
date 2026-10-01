@@ -1,0 +1,642 @@
+import '../../widgets/app_icon.dart';
+import 'package:flutter/material.dart';
+
+import '../../core/app_v2_tokens.dart';
+import '../../core/app_interaction_style.dart';
+import '../../widgets/app_ink_well.dart';
+import '../../core/visuals/app_visual_id.dart';
+import '../../models/post.dart';
+import '../../widgets/app_more_button.dart';
+import '../../widgets/app_visual.dart';
+
+import 'community_comment_widgets.dart';
+import 'community_constants.dart';
+
+String communityCommentAuthor(String value) =>
+    value.trim().isEmpty ? '익명집사' : value.trim();
+
+class CommunityCommentsSortRow extends StatelessWidget {
+  const CommunityCommentsSortRow({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Text(
+    '최신순',
+    key: Key('community-comments-sort-latest'),
+    style: TextStyle(fontSize: 14, color: AppV2Tokens.textSecondary),
+  );
+}
+
+class CommunityCommentGroup extends StatelessWidget {
+  const CommunityCommentGroup({
+    super.key,
+    required this.root,
+    required this.canManage,
+    required this.onRootMore,
+    required this.onReply,
+    required this.onReplyMore,
+    this.onLoadEarlierReplies,
+    this.loadingReplies = false,
+    this.threadKey,
+    this.targetCommentId,
+    this.targetCommentKey,
+  });
+
+  final PostComment root;
+  final bool Function(PostComment) canManage;
+  final VoidCallback onRootMore;
+  final VoidCallback onReply;
+  final ValueChanged<PostComment> onReplyMore;
+  final VoidCallback? onLoadEarlierReplies;
+  final bool loadingReplies;
+  final Key? threadKey;
+  final String? targetCommentId;
+  final Key? targetCommentKey;
+
+  @override
+  Widget build(BuildContext context) => KeyedSubtree(
+    key: threadKey,
+    child: Container(
+      key: Key('community-root-${root.id}'),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
+      ),
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        children: [
+          _CommentRow(
+            key: root.id == targetCommentId ? targetCommentKey : null,
+            comment: root,
+            avatarSize: 40,
+            bodySize: 16,
+            onMore: canManage(root) ? onRootMore : null,
+            onReply: onReply,
+          ),
+          if (root.replies.isNotEmpty || onLoadEarlierReplies != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 56, top: 16),
+              child: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppV2Tokens.border, width: 2),
+                  ),
+                ),
+                padding: const EdgeInsets.only(left: 14),
+                child: Column(
+                  children: [
+                    if (onLoadEarlierReplies != null)
+                      _FocusAction(
+                        key: Key('community-replies-load-more-${root.id}'),
+                        label: '이전 답글 더보기',
+                        loading: loadingReplies,
+                        onPressed: loadingReplies ? null : onLoadEarlierReplies,
+                      ),
+                    for (var i = 0; i < root.replies.length; i++) ...[
+                      if (i > 0 || onLoadEarlierReplies != null)
+                        const SizedBox(height: 16),
+                      KeyedSubtree(
+                        key: root.replies[i].id == targetCommentId
+                            ? targetCommentKey
+                            : null,
+                        child: _CommentRow(
+                          key: Key('community-reply-${root.replies[i].id}'),
+                          comment: root.replies[i],
+                          avatarSize: 32,
+                          bodySize: 14,
+                          onMore: canManage(root.replies[i])
+                              ? () => onReplyMore(root.replies[i])
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _CommentRow extends StatelessWidget {
+  const _CommentRow({
+    super.key,
+    required this.comment,
+    required this.avatarSize,
+    required this.bodySize,
+    required this.onMore,
+    this.onReply,
+  });
+
+  final PostComment comment;
+  final double avatarSize;
+  final double bodySize;
+  final VoidCallback? onMore;
+  final VoidCallback? onReply;
+
+  @override
+  Widget build(BuildContext context) {
+    if (comment.deleted || comment.blocked) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: avatarSize, height: avatarSize),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              comment.blocked ? '차단한 사용자의 댓글입니다' : '삭제된 댓글입니다',
+              style: TextStyle(
+                color: AppV2Tokens.textSecondary,
+                fontSize: bodySize,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          if (!comment.deleted && comment.blocked && onMore != null)
+            _CommentMoreButton(commentId: comment.id, onPressed: onMore!),
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CommunityCommentAvatar(
+          key: Key('community-comment-avatar-${comment.id}'),
+          url: comment.authorProfileImageUrl,
+          size: avatarSize,
+          fallbackColor: AppV2Tokens.surfaceSoft,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      communityCommentAuthor(comment.authorNickname),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppV2Tokens.text,
+                        fontSize: avatarSize == 40 ? 14 : 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (onMore != null)
+                    _CommentMoreButton(
+                      commentId: comment.id,
+                      onPressed: onMore!,
+                    ),
+                ],
+              ),
+              Text(
+                comment.content,
+                style: TextStyle(
+                  color: AppV2Tokens.textSecondary,
+                  fontSize: bodySize,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    formatCommunityRelativeTime(comment.createdAt) ?? '',
+                    style: const TextStyle(
+                      color: AppV2Tokens.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (onReply != null) ...[
+                    const SizedBox(width: 16),
+                    _FocusAction(
+                      key: Key('community-comment-reply-${comment.id}'),
+                      label: '답글 달기',
+                      onPressed: onReply,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CommentMoreButton extends StatelessWidget {
+  const _CommentMoreButton({required this.commentId, required this.onPressed});
+  final String commentId;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => AppMoreButton.plain(
+    key: Key('community-comment-more-$commentId'),
+    tooltip: '댓글 메뉴',
+    onPressed: onPressed,
+  );
+}
+
+class _FocusAction extends StatelessWidget {
+  const _FocusAction({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.loading = false,
+  });
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    style: ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 4),
+      ),
+      overlayColor: AppInteractionStyle.overlay(),
+      backgroundBuilder: AppFocusRing.buttonBuilder,
+      foregroundColor: const WidgetStatePropertyAll(AppV2Tokens.textSecondary),
+    ),
+    onPressed: onPressed,
+    child: loading
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+  );
+}
+
+enum CommunityCommentMenuKind { commentOwner, postOwner }
+
+enum CommunityCommentMenuAction { edit, delete }
+
+Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
+  BuildContext context, {
+  required CommunityCommentMenuKind kind,
+}) async {
+  final actions = switch (kind) {
+    CommunityCommentMenuKind.commentOwner => const [
+      (CommunityCommentMenuAction.edit, '수정하기', Icons.edit_outlined, false),
+      (
+        CommunityCommentMenuAction.delete,
+        '삭제하기',
+        Icons.delete_outline_rounded,
+        true,
+      ),
+    ],
+    CommunityCommentMenuKind.postOwner => const [
+      (
+        CommunityCommentMenuAction.delete,
+        '삭제하기',
+        Icons.delete_outline_rounded,
+        true,
+      ),
+    ],
+  };
+  return showModalBottomSheet<CommunityCommentMenuAction>(
+    context: context,
+    backgroundColor: AppV2Tokens.background,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final action in actions)
+              AppFocusIndicator(
+                child: Theme(
+                  data: Theme.of(sheetContext).copyWith(
+                    hoverColor: Colors.transparent,
+                    focusColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    splashColor:
+                        (action.$4 ? AppV2Tokens.error : AppV2Tokens.primary)
+                            .withValues(alpha: .10),
+                  ),
+                  child: ListTile(
+                    minTileHeight: 52,
+                    leading: AppIcon(
+                      action.$3,
+                      color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
+                    ),
+                    title: Text(
+                      action.$2,
+                      style: TextStyle(
+                        color: action.$4 ? AppV2Tokens.error : AppV2Tokens.text,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(sheetContext, action.$1),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Future<bool?> showCommunityCommentDeleteConfirmationSheet(
+  BuildContext context,
+) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    backgroundColor: AppV2Tokens.background,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '댓글을 삭제할까요?',
+              style: TextStyle(
+                color: AppV2Tokens.text,
+
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '삭제한 댓글은 다시 되돌릴 수 없어요.',
+              style: TextStyle(color: AppV2Tokens.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              key: const Key('community-comment-delete-confirm'),
+              onPressed: () => Navigator.pop(sheetContext, true),
+              style: FilledButton.styleFrom(backgroundColor: AppV2Tokens.error)
+                  .copyWith(
+                    overlayColor: AppInteractionStyle.overlay(danger: true),
+                  ),
+              child: const Text('삭제'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext, false),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class CommunityCommentsStatus extends StatelessWidget {
+  const CommunityCommentsStatus({
+    super.key,
+    required this.message,
+    this.onRetry,
+    this.loading = false,
+    this.empty = false,
+  });
+  final String message;
+  final VoidCallback? onRetry;
+  final bool loading;
+  final bool empty;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: loading
+          ? const _CommentsSkeleton()
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (empty) ...[
+                  const AppVisual(id: AppVisualId.communityPaw, size: 42),
+                  const SizedBox(height: 10),
+                ],
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppV2Tokens.textSecondary,
+
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 12),
+                  _FocusAction(label: '재시도', onPressed: onRetry),
+                ],
+              ],
+            ),
+    ),
+  );
+}
+
+class _CommentsSkeleton extends StatelessWidget {
+  const _CommentsSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    key: const Key('community-comments-skeleton'),
+    mainAxisSize: MainAxisSize.min,
+    children: List.generate(
+      3,
+      (_) => Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 20,
+              backgroundColor: AppV2Tokens.surfaceSoft,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                children: [
+                  Container(height: 12, color: AppV2Tokens.surfaceSoft),
+                  const SizedBox(height: 10),
+                  Container(height: 36, color: AppV2Tokens.surfaceSoft),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class CommunityCommentsComposer extends StatelessWidget {
+  const CommunityCommentsComposer({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required this.enabled,
+    required this.canSubmit,
+    required this.submitting,
+    required this.onSubmit,
+    required this.onCancelReply,
+    this.replyTo,
+    this.editing = false,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool enabled;
+  final bool canSubmit;
+  final bool submitting;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancelReply;
+  final String? replyTo;
+  final bool editing;
+
+  @override
+  Widget build(BuildContext context) {
+    final author = replyTo == null ? null : communityCommentAuthor(replyTo!);
+    final hasMode = editing || author != null;
+    return SafeArea(
+      top: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Container(
+          key: const Key('community-comments-composer'),
+          decoration: const BoxDecoration(
+            color: AppV2Tokens.background,
+            border: Border(top: BorderSide(color: AppV2Tokens.border)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasMode)
+                SizedBox(
+                  key: const Key('community-reply-composer-target'),
+                  height: 44,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          editing ? '댓글 수정 중' : '$author님에게 답글',
+                          style: const TextStyle(
+                            color: AppV2Tokens.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('community-reply-cancel'),
+                        onPressed: onCancelReply,
+                        icon: const AppIcon(Icons.close_rounded, size: 18),
+                        tooltip: editing ? '수정 취소' : '답글 취소',
+                      ),
+                    ],
+                  ),
+                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const Key('community-comments-input'),
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: enabled,
+                      minLines: 1,
+                      maxLines: 4,
+                      style: const TextStyle(),
+                      decoration: InputDecoration(
+                        hintText: author == null
+                            ? editing
+                                  ? '수정할 댓글을 입력하세요'
+                                  : '댓글을 해주세요'
+                            : '$author님에게 답글 하기',
+                        filled: true,
+                        fillColor: AppInteractionStyle.inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(
+                            color: AppV2Tokens.primary,
+                            width: 2,
+                          ),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Semantics(
+                    button: true,
+                    enabled: canSubmit && !submitting,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: IconButton.filled(
+                        key: const Key('community-comments-submit'),
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(
+                            canSubmit && !submitting
+                                ? AppV2Tokens.primary
+                                : AppV2Tokens.surfaceSoft,
+                          ),
+                          foregroundColor: WidgetStatePropertyAll(
+                            canSubmit && !submitting
+                                ? Colors.white
+                                : AppV2Tokens.textSecondary,
+                          ),
+                        ),
+                        onPressed: canSubmit && !submitting ? onSubmit : null,
+                        icon: submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppV2Tokens.primary,
+                                ),
+                              )
+                            : const AppIcon(Icons.send_rounded),
+                        tooltip: '전송',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

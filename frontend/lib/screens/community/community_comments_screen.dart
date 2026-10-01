@@ -1,28 +1,22 @@
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 
-import '../../core/app_colors.dart';
-import '../../core/visuals/app_visual_id.dart';
+import '../../core/app_v2_tokens.dart';
 import '../../models/post.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
-import '../../widgets/app_text.dart';
-import '../../widgets/app_visual.dart';
-import '../../widgets/preparing_toast.dart';
+import '../../providers/content_visibility_provider.dart';
+
 import 'community_comment_widgets.dart';
+import 'community_comments_widgets.dart';
 import 'community_routes.dart';
 
 class CommunityCommentsScreen extends ConsumerStatefulWidget {
-  final String postId;
-  final String? sourceKey;
-  final bool autofocus;
-  final String? initialThreadId;
-  final String? initialReplyToCommentId;
-
   const CommunityCommentsScreen({
     super.key,
     required this.postId,
@@ -30,7 +24,17 @@ class CommunityCommentsScreen extends ConsumerStatefulWidget {
     this.autofocus = false,
     this.initialThreadId,
     this.initialReplyToCommentId,
+    this.targetCommentId,
+    this.manageTarget = false,
   });
+
+  final String postId;
+  final String? sourceKey;
+  final bool autofocus;
+  final String? initialThreadId;
+  final String? initialReplyToCommentId;
+  final String? targetCommentId;
+  final bool manageTarget;
 
   @override
   ConsumerState<CommunityCommentsScreen> createState() =>
@@ -42,28 +46,56 @@ class _CommunityCommentsScreenState
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
+  final Map<String, GlobalKey> _threadKeys = {};
+  final _targetCommentKey = GlobalKey();
+  bool _managementOpened = false;
+  final Set<String> _loadingReplies = {};
+
   List<PostComment> _comments = const [];
   String? _nextCursor;
-  bool _loading = true;
+  String? _replyToCommentId;
+  String? _editingCommentId;
+  final Set<String> _mutatingCommentIds = {};
+  bool _initialLoading = true;
+  bool _reloadLocked = false;
   bool _loadingMore = false;
   bool _submitting = false;
-  String? _errorText;
-  int _displayedCount = 0;
-  String? _replyToCommentId;
   bool _resolvingTarget = false;
-  final Set<String> _loadingReplies = {};
-  final Map<String, GlobalKey> _threadKeys = {};
-  int _requestGeneration = 0;
+  bool _postUnavailable = false;
+  String? _firstPageError;
+  int _displayedCount = 0;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onInputChanged);
-    final cached = ref.read(communityProvider).postsById[widget.postId];
-    _displayedCount = cached?.commentsCount ?? 0;
+    _displayedCount =
+        ref.read(communityProvider).postsById[widget.postId]?.commentsCount ??
+        0;
     _replyToCommentId = widget.initialReplyToCommentId;
     _resolvingTarget = widget.initialThreadId != null;
-    _load();
+    ref.listenManual(contentVisibilityProvider, (_, _) {
+      _generation++;
+      setState(() {
+        _comments = const [];
+        _nextCursor = null;
+        _displayedCount = 0;
+        _reloadLocked = false;
+        _loadingMore = false;
+        _submitting = false;
+        _loadingReplies.clear();
+        _mutatingCommentIds.clear();
+        _managementOpened = false;
+        _resolvingTarget = false;
+        _resetComposer();
+      });
+      final generation = _generation;
+      Future.microtask(() {
+        if (mounted && generation == _generation) _reload();
+      });
+    });
+    _reload();
     if (widget.autofocus && widget.initialThreadId == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _focusNode.requestFocus();
@@ -73,7 +105,7 @@ class _CommunityCommentsScreenState
 
   @override
   void dispose() {
-    _requestGeneration++;
+    _generation++;
     _controller.removeListener(_onInputChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -85,126 +117,294 @@ class _CommunityCommentsScreenState
     if (mounted) setState(() {});
   }
 
-  Future<void> _load() async {
-    final generation = ++_requestGeneration;
-    _errorText = null;
-    Post? refreshedPost;
-    Object? commentsError;
+  Future<void> _reload() async {
+    if (_reloadLocked) return;
+    final generation = ++_generation;
+    setState(() {
+      _reloadLocked = true;
+      _initialLoading = _comments.isEmpty;
+      _firstPageError = null;
+      _postUnavailable = false;
+    });
 
-    Future<void> refreshPost() async {
+    Post? post;
+    PostCommentFeed? feed;
+    Object? commentsError;
+    Future<void> loadPost() async {
       try {
-        refreshedPost = await ref
+        post = await ref
             .read(communityProvider.notifier)
             .loadPost(widget.postId);
       } catch (_) {
-        // Comments can still render from the comments API or cached post state.
+        // Metadata failure does not prevent the comments API from rendering.
       }
     }
 
-    final postFuture = refreshPost();
-
-    try {
-      final feed = await ref
-          .read(communityServiceProvider)
-          .getComments(widget.postId, limit: 20);
-      _comments = _mergeRoots(_comments, feed.items);
-      _nextCursor = feed.nextCursor;
-    } catch (error) {
-      commentsError = error;
+    Future<void> loadComments() async {
+      try {
+        feed = await ref
+            .read(communityServiceProvider)
+            .getComments(
+              widget.postId,
+              cursor: null,
+              limit: 20,
+              replyLimit: 20,
+            );
+      } catch (error) {
+        commentsError = error;
+      }
     }
 
-    await postFuture;
+    final postFuture = loadPost();
+    final commentsFuture = loadComments();
+    await Future.wait([postFuture, commentsFuture]);
+    if (!mounted || generation != _generation) return;
 
+    if (commentsError != null) {
+      if (_comments.isNotEmpty) {
+        _showError('댓글을 불러오지 못했습니다');
+      } else if (_isUnavailable(commentsError!)) {
+        _postUnavailable = true;
+      } else {
+        _firstPageError = '댓글을 불러오지 못했습니다';
+      }
+    } else if (feed != null) {
+      _comments = _mergeRoots(const [], feed!.items);
+      _nextCursor = feed!.nextCursor;
+    }
+
+    _displayedCount = _calculateCount(post);
+    _reloadLocked = false;
+    _initialLoading = false;
+    setState(() {});
+    if (!_postUnavailable && commentsError == null) {
+      await _resolveInitialTarget(generation);
+    } else {
+      _resolvingTarget = false;
+      if (_postUnavailable && widget.targetCommentId != null && mounted) {
+        _showError('삭제되었거나 볼 수 없는 게시글이에요.');
+        if (context.canPop()) {
+          context.pop(CommunityActivityResult.postUnavailable);
+        }
+      }
+    }
+  }
+
+  Future<void> _resolveInitialTarget(int generation) async {
     final targetId = widget.initialThreadId;
-    if (targetId != null && !_comments.any((item) => item.id == targetId)) {
+    if (targetId == null) return;
+    var root = _rootById(targetId);
+    if (root == null) {
       try {
         final thread = await ref
             .read(communityServiceProvider)
-            .getCommentThread(widget.postId, targetId);
-        if (!mounted || generation != _requestGeneration) return;
-        _comments = _mergeRoots([thread], _comments);
-      } on DioException catch (error) {
-        if (!mounted || generation != _requestGeneration) return;
-        final status = error.response?.statusCode;
-        _errorText = status == 400 || status == 404
-            ? '답글을 찾을 수 없습니다'
-            : '답글을 불러오지 못했습니다';
+            .getCommentThread(widget.postId, targetId, replyLimit: 20);
+        if (!mounted || generation != _generation) return;
+        if (thread.parentCommentId != null) throw const _InvalidTarget();
+        _comments = _mergeRoots(_comments, [thread]);
+        root = thread;
+      } catch (error) {
+        if (!mounted || generation != _generation) return;
+        if (widget.targetCommentId != null && _isUnavailable(error)) {
+          _missingActivityComment();
+          return;
+        }
         _replyToCommentId = null;
-      } catch (_) {
-        if (!mounted || generation != _requestGeneration) return;
-        _errorText = '답글을 불러오지 못했습니다';
-        _replyToCommentId = null;
+        _resolvingTarget = false;
+        setState(() {});
+        _showError(
+          error is _InvalidTarget || _isUnavailable(error)
+              ? '답글을 찾을 수 없습니다'
+              : '답글을 불러오지 못했습니다',
+        );
+        return;
       }
     }
-
-    if (!mounted || generation != _requestGeneration) return;
-    _resolvingTarget = false;
-
-    final cached = ref.read(communityProvider).postsById[widget.postId];
-    final baseCount =
-        refreshedPost?.commentsCount ?? cached?.commentsCount ?? 0;
-    final responseCount = _comments.fold<int>(
-      0,
-      (value, comment) => max(value, comment.commentsCount),
-    );
-    _displayedCount = max(max(baseCount, responseCount), _loadedCommentCount());
-    if (commentsError != null && _comments.isEmpty) {
-      _errorText = '댓글을 불러오지 못했습니다';
-    }
-    setState(() => _loading = false);
-    if (targetId != null && _comments.any((item) => item.id == targetId)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || generation != _requestGeneration) return;
-        final context = _threadKeys[targetId]?.currentContext;
-        if (context != null) {
-          Scrollable.ensureVisible(
-            context,
-            duration: const Duration(milliseconds: 220),
+    if (!mounted || generation != _generation) return;
+    final requestedComment = widget.targetCommentId;
+    if (requestedComment != null) {
+      try {
+        final seen = <String>{};
+        while (root!.id != requestedComment &&
+            !root.replies.any(
+              (reply) => reply.id == requestedComment && !reply.deleted,
+            ) &&
+            root.repliesNextCursor != null &&
+            seen.add(root.repliesNextCursor!)) {
+          final page = await ref
+              .read(communityServiceProvider)
+              .getReplies(
+                widget.postId,
+                root.id,
+                cursor: root.repliesNextCursor,
+              );
+          if (!mounted || generation != _generation) return;
+          root = root.copyWith(
+            replies: [...page.items, ...root.replies],
+            repliesNextCursor: page.nextCursor,
+            clearRepliesNextCursor: page.nextCursor == null,
           );
         }
-        if (widget.autofocus) {
-          _focusNode.requestFocus();
+        if ((root.id == requestedComment && root.deleted) ||
+            (root.id != requestedComment &&
+                !root.replies.any(
+                  (r) => r.id == requestedComment && !r.deleted,
+                ))) {
+          _missingActivityComment();
+          return;
         }
-      });
+        final resolved = root;
+        // Place the selected thread first so even an old target is laid out
+        // before ensureVisible runs in the lazily built comment list.
+        _comments = [resolved, ..._comments.where((r) => r.id != resolved.id)];
+      } catch (error) {
+        if (!mounted || generation != _generation) return;
+        if (_isUnavailable(error)) {
+          _missingActivityComment();
+          return;
+        }
+        _resolvingTarget = false;
+        setState(() {});
+        _showError('댓글 위치를 불러오지 못했어요. 다시 시도해 주세요.');
+        return;
+      }
+    }
+    _resolvingTarget = false;
+    if (widget.initialReplyToCommentId != null &&
+        !root.deleted &&
+        !root.blocked) {
+      _replyToCommentId = root.id;
+    }
+    _displayedCount = _calculateCount(null);
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _generation) return;
+      final targetContext =
+          _targetCommentKey.currentContext ??
+          _threadKeys[root!.id]?.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 220),
+        );
+      }
+      if (widget.initialReplyToCommentId != null &&
+          !root!.deleted &&
+          !root.blocked) {
+        _focusNode.requestFocus();
+      }
+      if (widget.manageTarget &&
+          !_managementOpened &&
+          requestedComment != null) {
+        final selected = root!.id == requestedComment
+            ? root
+            : root.replies.where((r) => r.id == requestedComment).firstOrNull;
+        if (selected != null) {
+          _managementOpened = true;
+          _showCommentMenu(
+            selected,
+            ref.read(communityProvider).postsById[widget.postId],
+            ref.read(authProvider).profile?.id,
+          );
+        }
+      }
+    });
+  }
+
+  void _missingActivityComment() {
+    _showError('댓글이 삭제되어 게시글로 이동합니다.');
+    if (context.canPop()) {
+      context.pop(CommunityActivityResult.openPost);
+    } else {
+      context.replace('/community/posts/${widget.postId}');
     }
   }
 
   Future<void> _loadMore() async {
     final cursor = _nextCursor;
     if (cursor == null || _loadingMore) return;
+    final generation = _generation;
     setState(() => _loadingMore = true);
     try {
       final feed = await ref
           .read(communityServiceProvider)
-          .getComments(widget.postId, cursor: cursor, limit: 20);
+          .getComments(
+            widget.postId,
+            cursor: cursor,
+            limit: 20,
+            replyLimit: 20,
+          );
+      if (!mounted || generation != _generation) return;
       _comments = _mergeRoots(_comments, feed.items);
       _nextCursor = feed.nextCursor;
-      _displayedCount = max(_displayedCount, _loadedCommentCount());
+      _displayedCount = _calculateCount(null);
     } catch (_) {
-      // Preserve the existing page and cursor so the user can retry.
+      if (mounted && generation == _generation) {
+        _showError('댓글을 더 불러오지 못했습니다');
+      }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && generation == _generation) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
+  Future<void> _loadEarlierReplies(PostComment root) async {
+    final cursor = root.repliesNextCursor;
+    if (cursor == null || _loadingReplies.contains(root.id)) return;
+    final generation = _generation;
+    setState(() => _loadingReplies.add(root.id));
+    try {
+      final feed = await ref
+          .read(communityServiceProvider)
+          .getReplies(widget.postId, root.id, cursor: cursor, limit: 20);
+      if (!mounted || generation != _generation) return;
+      _comments = _comments.map((item) {
+        if (item.id != root.id) return item;
+        final merged = _mergeRoot(item, item.copyWith(replies: feed.items));
+        return merged.copyWith(
+          repliesNextCursor: feed.nextCursor,
+          clearRepliesNextCursor: feed.nextCursor == null,
+        );
+      }).toList();
+      _displayedCount = _calculateCount(null);
+    } catch (_) {
+      if (mounted && generation == _generation) {
+        _showError('답글을 더 불러오지 못했습니다');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loadingReplies.remove(root.id));
+      }
     }
   }
 
   Future<void> _submit() async {
+    final generation = _generation;
     final content = _controller.text.trim();
     if (content.isEmpty || _submitting || _resolvingTarget) return;
+    final editingCommentId = _editingCommentId;
+    if (editingCommentId != null) {
+      await _submitEdit(editingCommentId, content);
+      return;
+    }
+    final replyTarget = _replyToCommentId;
+    final replyRoot = replyTarget == null ? null : _rootById(replyTarget);
+    if (replyTarget != null &&
+        (replyRoot == null || replyRoot.deleted || replyRoot.blocked)) {
+      setState(() => _replyToCommentId = null);
+      return;
+    }
     setState(() => _submitting = true);
     try {
       final comment = await ref
           .read(communityProvider.notifier)
-          .createComment(
-            widget.postId,
-            content,
-            parentCommentId: _replyToCommentId,
-          );
-      if (!mounted) return;
-      final replyTarget = _replyToCommentId;
+          .createComment(widget.postId, content, parentCommentId: replyTarget);
+      if (!mounted || generation != _generation) return;
       final exists = _containsComment(comment.id);
-      if (replyTarget == null && !exists) {
-        _comments = [comment, ..._comments];
-      } else if (replyTarget != null && !exists) {
+      if (!exists && replyTarget == null) {
+        _comments = _mergeRoots([comment], _comments);
+      } else if (!exists && replyTarget != null) {
         _comments = _comments.map((root) {
           if (root.id != replyTarget) return root;
           return _mergeRoot(
@@ -216,26 +416,440 @@ class _CommunityCommentsScreenState
           );
         }).toList();
       }
-      final inserted = exists ? 0 : 1;
-      _displayedCount = max(_displayedCount + inserted, comment.commentsCount);
+      _displayedCount = max(
+        comment.commentsCount,
+        exists ? _displayedCount : _displayedCount + 1,
+      );
       _controller.clear();
       _replyToCommentId = null;
       _focusNode.requestFocus();
       setState(() => _submitting = false);
     } catch (_) {
-      if (mounted) setState(() => _submitting = false);
+      if (!mounted || generation != _generation) return;
+      setState(() => _submitting = false);
+      _showError('댓글을 등록하지 못했습니다');
     }
   }
+
+  Future<void> _submitEdit(String commentId, String content) async {
+    final generation = _generation;
+    if (_mutatingCommentIds.contains(commentId)) return;
+    setState(() {
+      _submitting = true;
+      _mutatingCommentIds.add(commentId);
+    });
+    try {
+      final updated = await ref
+          .read(communityProvider.notifier)
+          .updateComment(widget.postId, commentId, content);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _comments = _replaceComment(_comments, updated);
+        _resetComposer();
+        _submitting = false;
+        _mutatingCommentIds.remove(commentId);
+      });
+      _focusNode.requestFocus();
+    } catch (_) {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _submitting = false;
+        _mutatingCommentIds.remove(commentId);
+      });
+      _showError('댓글을 수정하지 못했습니다');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(communityProvider);
+    final post = state.postsById[widget.postId];
+    final currentUserId = ref.watch(
+      authProvider.select((value) => value.profile?.id),
+    );
+    final showContent = !_postUnavailable;
+    final replyRoot = _replyToCommentId == null
+        ? null
+        : _rootById(_replyToCommentId!);
+
+    return Scaffold(
+      backgroundColor: AppV2Tokens.background,
+      resizeToAvoidBottomInset: false,
+      appBar: AppHeader(
+        key: const Key('community-comments-header'),
+        leadingKey: const Key('community-comments-back'),
+        title: '댓글 ($_displayedCount)',
+        centerTitle: true,
+        showBackButton: true,
+        onBack: _goBack,
+      ),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          children: [Expanded(child: _buildContent(post, currentUserId))],
+        ),
+      ),
+      bottomNavigationBar: showContent
+          ? CommunityCommentsComposer(
+              controller: _controller,
+              focusNode: _focusNode,
+              enabled: !_resolvingTarget && !_submitting,
+              canSubmit:
+                  _controller.text.trim().isNotEmpty &&
+                  !_resolvingTarget &&
+                  !_submitting,
+              submitting: _submitting,
+              replyTo: replyRoot?.deleted == true || replyRoot?.blocked == true
+                  ? null
+                  : replyRoot?.authorNickname,
+              editing: _editingCommentId != null,
+              onCancelReply: () {
+                if (!_submitting) setState(_resetComposer);
+              },
+              onSubmit: _submit,
+            )
+          : null,
+    );
+  }
+
+  Widget _buildContent(Post? post, String? currentUserId) {
+    if (_postUnavailable) {
+      return const ColoredBox(
+        color: AppV2Tokens.background,
+        child: CommunityCommentsStatus(message: '게시글을 찾을 수 없습니다'),
+      );
+    }
+    if (_initialLoading) {
+      return const ColoredBox(
+        color: AppV2Tokens.background,
+        child: CommunityCommentsStatus(message: '', loading: true),
+      );
+    }
+    if (_firstPageError != null && _comments.isEmpty) {
+      return ColoredBox(
+        color: AppV2Tokens.background,
+        child: CommunityCommentsStatus(
+          message: _firstPageError!,
+          onRetry: _reload,
+        ),
+      );
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 672),
+        child: ListView(
+          key: const Key('community-comments-list'),
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          children: [
+            const CommunityCommentsSortRow(),
+            const SizedBox(height: 12),
+            if (_comments.isEmpty)
+              const SizedBox(
+                height: 260,
+                child: CommunityCommentsStatus(
+                  message: '아직 댓글이 없어요',
+                  empty: true,
+                ),
+              )
+            else
+              for (var i = 0; i < _comments.length; i++) ...[
+                if (i > 0) const SizedBox(height: 24),
+                CommunityCommentGroup(
+                  canManage: (comment) =>
+                      post != null &&
+                      canManageCommunityComment(
+                        currentUserId: currentUserId,
+                        post: post,
+                        comment: comment,
+                      ),
+                  targetCommentId: widget.targetCommentId,
+                  targetCommentKey: _targetCommentKey,
+                  threadKey: _threadKeys.putIfAbsent(
+                    _comments[i].id,
+                    GlobalKey.new,
+                  ),
+                  root: _comments[i],
+                  onRootMore: () =>
+                      _showCommentMenu(_comments[i], post, currentUserId),
+                  onReply: () => _startReply(_comments[i]),
+                  onReplyMore: (reply) =>
+                      _showCommentMenu(reply, post, currentUserId),
+                  onLoadEarlierReplies: _comments[i].repliesNextCursor == null
+                      ? null
+                      : () => _loadEarlierReplies(_comments[i]),
+                  loadingReplies: _loadingReplies.contains(_comments[i].id),
+                ),
+              ],
+            if (_nextCursor != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 44,
+                child: TextButton(
+                  key: const Key('community-comments-load-more'),
+                  onPressed: _loadingMore ? null : _loadMore,
+                  child: _loadingMore
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('더보기'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCommentMenu(
+    PostComment comment,
+    Post? post,
+    String? currentUserId,
+  ) async {
+    if (post == null ||
+        !canManageCommunityComment(
+          currentUserId: currentUserId,
+          post: post,
+          comment: comment,
+        )) {
+      return;
+    }
+    if (_mutatingCommentIds.contains(comment.id)) return;
+    final generation = _generation;
+    final kind =
+        !comment.blocked &&
+            currentUserId != null &&
+            comment.userId == currentUserId
+        ? CommunityCommentMenuKind.commentOwner
+        : CommunityCommentMenuKind.postOwner;
+    final action = await showCommunityCommentsV2Menu(context, kind: kind);
+    if (!mounted || generation != _generation || action == null) return;
+    switch (action) {
+      case CommunityCommentMenuAction.edit:
+        _startEdit(comment);
+        break;
+      case CommunityCommentMenuAction.delete:
+        await _confirmAndDelete(comment);
+        break;
+    }
+  }
+
+  void _startReply(PostComment root) {
+    if (_submitting || root.deleted || root.blocked) return;
+    setState(() {
+      _editingCommentId = null;
+      _replyToCommentId = root.id;
+      _controller.clear();
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _startEdit(PostComment comment) {
+    if (_submitting || comment.deleted || comment.blocked) return;
+    setState(() {
+      _replyToCommentId = null;
+      _editingCommentId = comment.id;
+      _controller.text = comment.content;
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _confirmAndDelete(PostComment comment) async {
+    final generation = _generation;
+    final confirmed = await showCommunityCommentDeleteConfirmationSheet(
+      context,
+    );
+    if (!mounted || generation != _generation || confirmed != true) return;
+    await _deleteComment(comment);
+  }
+
+  Future<void> _deleteComment(PostComment comment) async {
+    final generation = _generation;
+    if (_mutatingCommentIds.contains(comment.id)) return;
+    setState(() => _mutatingCommentIds.add(comment.id));
+    try {
+      await ref
+          .read(communityProvider.notifier)
+          .deleteComment(widget.postId, comment.id);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _comments = _deleteCommentLocally(_comments, comment);
+        _comments = _withCommentCounts(_comments, max(0, _displayedCount - 1));
+        _displayedCount = max(0, _displayedCount - 1);
+        if (_replyToCommentId == comment.id ||
+            _editingCommentId == comment.id) {
+          _resetComposer();
+        }
+        _mutatingCommentIds.remove(comment.id);
+      });
+    } catch (_) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _mutatingCommentIds.remove(comment.id));
+      _showError('댓글을 삭제하지 못했습니다');
+    }
+  }
+
+  void _resetComposer() {
+    _replyToCommentId = null;
+    _editingCommentId = null;
+    _controller.clear();
+  }
+
+  PostComment? _rootById(String id) {
+    for (final root in _comments) {
+      if (root.id == id) return root;
+    }
+    return null;
+  }
+
+  int _calculateCount(Post? post) {
+    final cached = ref.read(communityProvider).postsById[widget.postId];
+    final responseCount = _comments.fold<int>(
+      0,
+      (count, root) => max(count, root.commentsCount),
+    );
+    return max(
+      max(post?.commentsCount ?? cached?.commentsCount ?? 0, responseCount),
+      _loadedCommentCount(),
+    );
+  }
+
+  int _loadedCommentCount() => _comments.fold<int>(0, (count, root) {
+    final rootCount = root.deleted ? 0 : 1;
+    final repliesCount = root.replies
+        .where((reply) => !reply.deleted)
+        .map((reply) => reply.id)
+        .toSet()
+        .length;
+    return count + rootCount + repliesCount;
+  });
 
   bool _containsComment(String id) => _comments.any(
     (root) => root.id == id || root.replies.any((reply) => reply.id == id),
   );
 
-  int _loadedCommentCount() => _comments.fold<int>(
-    0,
-    (count, root) =>
-        count + 1 + root.replies.map((reply) => reply.id).toSet().length,
-  );
+  List<PostComment> _replaceComment(
+    List<PostComment> comments,
+    PostComment updated,
+  ) {
+    return comments.map((root) {
+      if (root.id == updated.id) {
+        return _mergeCommentScalars(root, updated);
+      }
+      return root.copyWith(
+        replies: root.replies
+            .map(
+              (reply) => reply.id == updated.id
+                  ? _mergeCommentScalars(reply, updated)
+                  : reply,
+            )
+            .toList(),
+      );
+    }).toList();
+  }
+
+  PostComment _mergeCommentScalars(PostComment current, PostComment updated) {
+    return current.copyWith(
+      content: updated.content,
+      updatedAt: updated.updatedAt,
+      deleted: updated.deleted,
+      blocked: updated.blocked,
+      commentsCount: updated.commentsCount,
+    );
+  }
+
+  List<PostComment> _deleteCommentLocally(
+    List<PostComment> comments,
+    PostComment target,
+  ) {
+    final parentRootId =
+        target.parentCommentId ?? _parentRootId(comments, target);
+    if (parentRootId != null) {
+      return comments
+          .map((root) {
+            if (root.id != parentRootId) return root;
+            final replies = root.replies
+                .where((reply) => reply.id != target.id)
+                .toList();
+            final next = root.copyWith(
+              replies: replies,
+              replyCount: max(0, root.replyCount - 1),
+            );
+            if (next.deleted &&
+                replies.where((reply) => !reply.deleted).isEmpty &&
+                next.repliesNextCursor == null) {
+              return null;
+            }
+            return next;
+          })
+          .whereType<PostComment>()
+          .toList();
+    }
+
+    return comments
+        .map((root) {
+          if (root.id != target.id) return root;
+          final hasActiveLoadedReplies = root.replies.any(
+            (reply) => !reply.deleted,
+          );
+          final shouldKeepTombstone =
+              hasActiveLoadedReplies ||
+              root.replyCount > 0 ||
+              root.repliesNextCursor != null;
+          if (!shouldKeepTombstone) return null;
+          return _tombstoneRoot(root);
+        })
+        .whereType<PostComment>()
+        .toList();
+  }
+
+  String? _parentRootId(List<PostComment> comments, PostComment target) {
+    for (final root in comments) {
+      if (root.replies.any((reply) => reply.id == target.id)) return root.id;
+    }
+    return null;
+  }
+
+  PostComment _tombstoneRoot(PostComment root) {
+    return PostComment(
+      id: root.id,
+      userId: '',
+      authorNickname: '',
+      content: '',
+      createdAt: root.createdAt,
+      updatedAt: root.updatedAt,
+      deleted: true,
+      commentsCount: max(0, _displayedCount - 1),
+      parentCommentId: root.parentCommentId,
+      replyCount: root.replyCount,
+      replies: root.replies,
+      repliesNextCursor: root.repliesNextCursor,
+    );
+  }
+
+  List<PostComment> _withCommentCounts(
+    List<PostComment> comments,
+    int commentsCount,
+  ) {
+    return comments
+        .map(
+          (root) => root.copyWith(
+            commentsCount: commentsCount,
+            replies: root.replies
+                .map((reply) => reply.copyWith(commentsCount: commentsCount))
+                .toList(),
+          ),
+        )
+        .toList();
+  }
 
   List<PostComment> _mergeRoots(
     List<PostComment> current,
@@ -244,14 +858,12 @@ class _CommunityCommentsScreenState
     final byId = <String, PostComment>{
       for (final root in current) root.id: root,
     };
-    for (final root in incoming) {
+    for (final root in incoming.where((item) => item.parentCommentId == null)) {
       byId[root.id] = byId[root.id] == null
           ? root
           : _mergeRoot(byId[root.id]!, root);
     }
-    final result = byId.values.toList();
-    result.sort((a, b) => _compareIds(b.id, a.id));
-    return result;
+    return byId.values.toList()..sort((a, b) => _compareIds(b.id, a.id));
   }
 
   PostComment _mergeRoot(PostComment current, PostComment incoming) {
@@ -263,17 +875,12 @@ class _CommunityCommentsScreenState
       max(current.replyCount, incoming.replyCount),
       replies.length,
     );
-    final commentsCount = max(
-      max(current.commentsCount, incoming.commentsCount),
-      _displayedCount,
-    );
     return incoming.copyWith(
       replies: replies,
       replyCount: replyCount,
-      commentsCount: commentsCount,
-      repliesNextCursor: replyCount > replies.length && replies.isNotEmpty
-          ? replies.first.id
-          : null,
+      commentsCount: max(current.commentsCount, incoming.commentsCount),
+      repliesNextCursor:
+          incoming.repliesNextCursor ?? current.repliesNextCursor,
       clearRepliesNextCursor: replyCount <= replies.length,
     );
   }
@@ -286,158 +893,17 @@ class _CommunityCommentsScreenState
         : a.compareTo(b);
   }
 
-  Future<void> _loadEarlierReplies(PostComment root) async {
-    if (_loadingReplies.contains(root.id) || root.repliesNextCursor == null) {
-      return;
-    }
-    setState(() => _loadingReplies.add(root.id));
-    try {
-      final feed = await ref
-          .read(communityServiceProvider)
-          .getReplies(widget.postId, root.id, cursor: root.repliesNextCursor);
-      if (!mounted) return;
-      _comments = _comments.map((item) {
-        if (item.id != root.id) return item;
-        final merged = _mergeRoot(item, item.copyWith(replies: feed.items));
-        return merged.copyWith(
-          repliesNextCursor: merged.replyCount > merged.replies.length
-              ? merged.replies.first.id
-              : null,
-          clearRepliesNextCursor: merged.replyCount <= merged.replies.length,
-        );
-      }).toList();
-    } catch (_) {
-      // Preserve replies and cursor so the same button remains retryable.
-    } finally {
-      if (mounted) setState(() => _loadingReplies.remove(root.id));
-    }
-  }
+  bool _isUnavailable(Object error) =>
+      error is DioException &&
+      (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 403 ||
+          error.response?.statusCode == 404);
 
-  void _startReply(PostComment root) {
-    setState(() => _replyToCommentId = root.id);
-    _focusNode.requestFocus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final post = ref.watch(communityProvider).postsById[widget.postId];
-    final currentUserId = ref.watch(
-      authProvider.select((state) => state.profile?.id),
-    );
-    final title = '댓글 ($_displayedCount)';
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _CommentsHeader(title: title, onBack: _goBack),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildContent(post, currentUserId),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _CommentInputBar(
-        controller: _controller,
-        focusNode: _focusNode,
-        submitting: _submitting,
-        canSubmit: _controller.text.trim().isNotEmpty && !_resolvingTarget,
-        enabled: !_resolvingTarget,
-        replyTo: _replyToCommentId == null
-            ? null
-            : _comments
-                  .where((item) => item.id == _replyToCommentId)
-                  .firstOrNull
-                  ?.authorNickname,
-        onCancelReply: () => setState(() => _replyToCommentId = null),
-        onSubmit: _submit,
-      ),
-    );
-  }
-
-  Widget _buildContent(Post? post, String? currentUserId) {
-    if (_errorText != null && _comments.isEmpty) {
-      return Center(child: AppText(_errorText!, color: AppColors.muted));
-    }
-    if (_comments.isEmpty && _displayedCount == 0) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppVisual(id: AppVisualId.communityPaw, size: 42),
-            SizedBox(height: 10),
-            AppText('아직 댓글이 없어요', fontSize: 15, fontWeight: FontWeight.bold),
-          ],
-        ),
-      );
-    }
-
-    return ListView(
-      key: const Key('community-comments-list'),
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 112),
-      children: [
-        for (final comment in _comments) ...[
-          CommunityCommentTile(
-            key: _threadKeys.putIfAbsent(comment.id, GlobalKey.new),
-            comment: comment,
-            canManage:
-                post != null &&
-                canManageCommunityComment(
-                  currentUserId: currentUserId,
-                  post: post,
-                  comment: comment,
-                ),
-            onMore: () => showCommunityCommentMoreMenu(context),
-            onReply: () => _startReply(comment),
-          ),
-          if (comment.repliesNextCursor != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 36),
-              child: TextButton(
-                key: Key('community-replies-load-more-${comment.id}'),
-                onPressed: _loadingReplies.contains(comment.id)
-                    ? null
-                    : () => _loadEarlierReplies(comment),
-                child: AppText('이전 답글 더보기', fontSize: 12),
-              ),
-            ),
-          for (final reply in comment.replies)
-            CommunityCommentTile(
-              comment: reply,
-              isReply: true,
-              canManage:
-                  post != null &&
-                  canManageCommunityComment(
-                    currentUserId: currentUserId,
-                    post: post,
-                    comment: reply,
-                  ),
-              onMore: () => showCommunityCommentMoreMenu(context),
-            ),
-        ],
-        if (_nextCursor != null)
-          TextButton(
-            key: const Key('community-comments-load-more'),
-            onPressed: _loadingMore ? null : _loadMore,
-            child: _loadingMore
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const AppText(
-                    '더보기',
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-          ),
-      ],
-    );
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _goBack() {
@@ -450,142 +916,6 @@ class _CommunityCommentsScreenState
   }
 }
 
-class _CommentsHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onBack;
-
-  const _CommentsHeader({required this.title, required this.onBack});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 56,
-    child: Row(
-      children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: IconButton(
-            key: const Key('community-comments-back'),
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          ),
-        ),
-        Expanded(
-          child: AppText(
-            title,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(width: 56, height: 56),
-      ],
-    ),
-  );
-}
-
-class _CommentInputBar extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool submitting;
-  final bool canSubmit;
-  final VoidCallback onSubmit;
-  final bool enabled;
-  final String? replyTo;
-  final VoidCallback onCancelReply;
-
-  const _CommentInputBar({
-    required this.controller,
-    required this.focusNode,
-    required this.submitting,
-    required this.canSubmit,
-    required this.onSubmit,
-    required this.enabled,
-    required this.replyTo,
-    required this.onCancelReply,
-  });
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Material(
-        color: AppColors.surface,
-        elevation: 0,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Divider(height: 1, color: AppColors.border),
-            if (replyTo != null)
-              Row(
-                key: const Key('community-reply-composer-target'),
-                children: [
-                  const SizedBox(width: 16),
-                  Expanded(child: AppText('$replyTo님에게 답글', fontSize: 12)),
-                  IconButton(
-                    key: const Key('community-reply-cancel'),
-                    onPressed: onCancelReply,
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                  ),
-                ],
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    key: const Key('community-comment-image-button'),
-                    tooltip: '이미지 첨부',
-                    onPressed: () => showPreparingToast(context),
-                    icon: const Icon(
-                      Icons.image_outlined,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      key: const Key('community-comments-input'),
-                      controller: controller,
-                      focusNode: focusNode,
-                      enabled: enabled,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: '댓글을 입력하세요',
-                        filled: true,
-                        fillColor: AppColors.surfaceSoft,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    key: const Key('community-comments-submit'),
-                    onPressed: submitting || !canSubmit ? null : onSubmit,
-                    icon: submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
+class _InvalidTarget implements Exception {
+  const _InvalidTarget();
 }

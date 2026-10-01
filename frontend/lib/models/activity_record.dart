@@ -29,9 +29,6 @@ class ActivityRecord {
       detail[k] = v;
     });
 
-    // GPS fields: walk (startLng/Lat, endLng/Lat), vet (clinicLng/Lat)
-    // These are stored as POINT in DB and serialized as lng/lat fields in detail
-
     return ActivityRecord(
       id: j['id'].toString(),
       petId: j['petId'].toString(),

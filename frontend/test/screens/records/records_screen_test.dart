@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,6 @@ void main() {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
     expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
-    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     for (final label in _recordTypeLabels) {
       expect(find.text(label), findsWidgets);
     }
@@ -67,8 +67,20 @@ void main() {
       expect(find.byKey(Key('records-type-card-$typeId')), findsOneWidget);
     }
     expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
-    expect(find.byKey(const Key('records-type-card-checkup')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('record calendar fits narrow screen at double text scale', (
+    tester,
+  ) async {
+    await _pumpRecordsScreen(
+      tester,
+      physicalSize: const Size(320, 1000),
+      textScaler: TextScaler.linear(2),
+    );
+    expect(tester.takeException(), isNull);
+    final day = find.byKey(Key('records-calendar-day-$todayIso'));
+    expect(tester.getSize(day).height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('meal record type opens full screen meal record form', (
@@ -177,7 +189,10 @@ void main() {
     expect(
       find.descendant(
         of: mealRow,
-        matching: find.byIcon(Icons.chevron_right_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppIcon && widget.icon == Icons.chevron_right_rounded,
+        ),
       ),
       findsOneWidget,
     );

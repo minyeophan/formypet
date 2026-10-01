@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:frontend/models/notification.dart';
+import 'package:frontend/providers/notification_provider.dart';
+import 'package:frontend/screens/notification/notification_screen.dart';
+import 'package:frontend/services/notification_service.dart';
+
+void main() {
+  testWidgets('text-only notification row localizes raw type and shows date', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = _FakeNotificationService(
+      NotificationFeed(
+        items: [
+          NotificationItem(
+            id: 'plain',
+            type: 'COMMENT',
+            title: 'COMMENT',
+            body: '아주 긴 알림 내용을 여러 줄로 표시해도 목록 화면에서 자연스럽게 읽을 수 있어야 합니다.',
+            createdAt: DateTime(2026, 1, 2),
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 1,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationServiceProvider.overrideWithValue(service)],
+        child: const MaterialApp(home: NotificationScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('COMMENT'), findsNothing);
+    expect(find.text('새 댓글'), findsOneWidget);
+    expect(find.text('2026.01.02'), findsOneWidget);
+    expect(find.byType(Card), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('read all clears unread indicators and disables the action', (
+    tester,
+  ) async {
+    final service = _FakeNotificationService(
+      const NotificationFeed(
+        items: [
+          NotificationItem(
+            id: '1',
+            type: 'ROUTINE_REMINDER',
+            title: '루틴 알림',
+            body: '산책할 시간이에요',
+          ),
+          NotificationItem(
+            id: '2',
+            type: 'POST_LIKE',
+            postId: '9',
+            title: '좋아요 알림',
+            body: '게시글에 좋아요가 있어요',
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 2,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationServiceProvider.overrideWithValue(service)],
+        child: const MaterialApp(home: NotificationScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final readAll = find.widgetWithText(TextButton, '모두 읽음');
+    expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
+    expect(find.byType(CircleAvatar), findsNWidgets(2));
+    await tester.tap(readAll);
+    await tester.pumpAndSettle();
+
+    expect(service.markAllReadCalls, 1);
+    expect(find.byType(CircleAvatar), findsNothing);
+    expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+    expect(find.text('산책할 시간이에요'), findsOneWidget);
+    expect(find.text('게시글에 좋아요가 있어요'), findsOneWidget);
+  });
+
+  testWidgets(
+    'notification screen renders unread notification and read action',
+    (tester) async {
+      final service = _FakeNotificationService(
+        NotificationFeed(
+          items: [
+            NotificationItem(
+              id: '1',
+              type: 'ROUTINE_REMINDER',
+              title: '루틴 알림',
+              body: '산책할 시간이에요',
+            ),
+          ],
+          hasMore: false,
+          unreadCount: 1,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [notificationServiceProvider.overrideWithValue(service)],
+          child: const MaterialApp(home: NotificationScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('루틴 알림'), findsOneWidget);
+      expect(find.text('산책할 시간이에요'), findsOneWidget);
+      await tester.tap(find.text('산책할 시간이에요'));
+      await tester.pumpAndSettle();
+      expect(service.markReadCalls, ['1']);
+    },
+  );
+
+  testWidgets('post notification marks read and opens the post', (
+    tester,
+  ) async {
+    final service = _FakeNotificationService(
+      NotificationFeed(
+        items: [
+          NotificationItem(
+            id: '2',
+            type: 'POST_LIKE',
+            postId: '9',
+            title: '좋아요 알림',
+            body: '게시글에 좋아요가 있어요',
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 1,
+      ),
+    );
+    final router = GoRouter(
+      initialLocation: '/notifications',
+      routes: [
+        GoRoute(
+          path: '/notifications',
+          builder: (_, _) => const NotificationScreen(),
+        ),
+        GoRoute(
+          path: '/community/posts/:postId',
+          builder: (_, state) =>
+              Scaffold(body: Text('post:${state.pathParameters['postId']}')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationServiceProvider.overrideWithValue(service)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('게시글에 좋아요가 있어요'));
+    await tester.pumpAndSettle();
+
+    expect(service.markReadCalls, ['2']);
+    expect(find.text('post:9'), findsOneWidget);
+  });
+
+  testWidgets('notification with no target stays on the list safely', (
+    tester,
+  ) async {
+    final service = _FakeNotificationService(
+      NotificationFeed(
+        items: [
+          NotificationItem(
+            id: '3',
+            type: 'POST_LIKE',
+            title: '대상을 찾을 수 없는 알림',
+            body: '이동할 대상이 없어요',
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 0,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationServiceProvider.overrideWithValue(service)],
+        child: const MaterialApp(home: NotificationScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('이동할 대상이 없어요'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('이동할 대상이 없어요'), findsOneWidget);
+    expect(service.markReadCalls, ['3']);
+  });
+}
+
+class _FakeNotificationService extends NotificationService {
+  final NotificationFeed feed;
+  final markReadCalls = <String>[];
+  int markAllReadCalls = 0;
+
+  _FakeNotificationService(this.feed);
+
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async => feed;
+
+  @override
+  Future<void> markRead(String id) async => markReadCalls.add(id);
+
+  @override
+  Future<void> markAllRead() async {
+    markAllReadCalls++;
+  }
+}

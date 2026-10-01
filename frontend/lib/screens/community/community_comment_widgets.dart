@@ -1,14 +1,14 @@
+import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
-import '../../widgets/app_action_sheet.dart';
+
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
-import '../../widgets/preparing_toast.dart';
 
 bool canManageCommunityComment({
   required String? currentUserId,
@@ -16,33 +16,27 @@ bool canManageCommunityComment({
   required PostComment comment,
 }) {
   return currentUserId != null &&
-      (post.userId == currentUserId || comment.userId == currentUserId);
-}
-
-void showCommunityCommentMoreMenu(BuildContext context) {
-  showAppActionSheet(
-    context,
-    title: '댓글 관리',
-    actions: [
-      AppActionSheetItem(
-        label: '삭제하기',
-        destructive: true,
-        onTap: () => showPreparingToast(context),
-      ),
-    ],
-  );
+      !comment.deleted &&
+      (post.userId == currentUserId ||
+          (!comment.blocked && comment.userId == currentUserId));
 }
 
 class CommunityCommentAvatar extends StatelessWidget {
   final String? url;
   final double size;
+  final Color? fallbackColor;
 
-  const CommunityCommentAvatar({super.key, required this.url, this.size = 32});
+  const CommunityCommentAvatar({
+    super.key,
+    required this.url,
+    this.size = 32,
+    this.fallbackColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     final fallback = Material(
-      color: AppColors.surfaceSoft,
+      color: fallbackColor ?? AppColors.surfaceSoft,
       shape: const CircleBorder(),
       child: SizedBox(
         width: size,
@@ -99,47 +93,66 @@ class CommunityCommentTile extends StatelessWidget {
     ),
     child: Padding(
       padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CommunityCommentAvatar(
-                key: Key('community-comment-avatar-${comment.id}'),
-                url: comment.authorProfileImageUrl,
-                size: isReply ? 28 : 32,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: AppText(
-                  comment.authorNickname,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+      child: comment.deleted || comment.blocked
+          ? Row(
+              children: [
+                Expanded(
+                  child: AppText(
+                    comment.blocked ? '차단한 사용자의 댓글입니다' : '삭제된 댓글입니다',
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-              if (canManage)
-                AppMoreButton.plain(
-                  key: moreKey ?? Key('community-comment-more-${comment.id}'),
-                  tooltip: '댓글 관리',
-                  onPressed: onMore,
-                )
-              else
-                const SizedBox(width: 44, height: 44),
-            ],
-          ),
-          const SizedBox(height: 8),
-          AppText(comment.content, fontSize: 14),
-          if (!isReply && onReply != null) ...[
-            const SizedBox(height: 8),
-            TextButton.icon(
-              key: Key('community-comment-reply-${comment.id}'),
-              onPressed: onReply,
-              icon: const Icon(Icons.reply_rounded, size: 17),
-              label: const AppText('답글쓰기', fontSize: 12),
+                if (!comment.deleted && comment.blocked && canManage)
+                  AppMoreButton.plain(
+                    key: moreKey ?? Key('community-comment-more-${comment.id}'),
+                    tooltip: '댓글 관리',
+                    onPressed: onMore,
+                  ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CommunityCommentAvatar(
+                      key: Key('community-comment-avatar-${comment.id}'),
+                      url: comment.authorProfileImageUrl,
+                      size: isReply ? 28 : 32,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: AppText(
+                        comment.authorNickname,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (canManage)
+                      AppMoreButton.plain(
+                        key:
+                            moreKey ??
+                            Key('community-comment-more-${comment.id}'),
+                        tooltip: '댓글 관리',
+                        onPressed: onMore,
+                      )
+                    else
+                      const SizedBox(width: 44, height: 44),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                AppText(comment.content, fontSize: 14),
+                if (!isReply && onReply != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    key: Key('community-comment-reply-${comment.id}'),
+                    onPressed: onReply,
+                    icon: const AppIcon(Icons.reply_rounded, size: 17),
+                    label: const AppText('답글쓰기', fontSize: 12),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
     ),
   );
 }

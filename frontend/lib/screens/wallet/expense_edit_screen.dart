@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../widgets/draft_exit_guard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,26 +12,80 @@ import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
 import 'expense_detail_screen.dart';
 import 'expense_form.dart';
+import 'wallet_refresh_notice.dart';
 
 class ExpenseEditScreen extends ConsumerStatefulWidget {
   final String expenseId;
+  final String? petId;
 
-  const ExpenseEditScreen({super.key, required this.expenseId});
+  const ExpenseEditScreen({super.key, required this.expenseId, this.petId});
 
   @override
   ConsumerState<ExpenseEditScreen> createState() => _ExpenseEditScreenState();
 }
 
-class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
+class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen>
+    with DraftExitGuardMixin<ExpenseEditScreen> {
+  String? _baseline;
+  String? _draft;
+  @override
+  bool get hasUnsavedChanges => _baseline != null && _draft != _baseline;
+  @override
+  bool get isDraftBusy => _submitting;
   var _submitting = false;
   String? _errorText;
   Future<WalletExpense>? _expenseFuture;
+  (int, String, String)? _expenseKey;
+  int? _session;
+  String? _ownerPetId;
+  WalletExpense? _loadedExpense;
+  String? _ownerPetName;
 
   @override
   Widget build(BuildContext context) {
-    final petId = ref.watch(petProvider).activePetId;
-    if (petId == null) {
-      return const ExpenseDetailScreen(expenseId: '');
+    final pets = ref.watch(petProvider);
+    final session = ref.watch(
+      walletExpenseProvider.select((state) => state.session),
+    );
+    if (_session != session) {
+      _session = session;
+      _baseline = _draft = null;
+      _ownerPetId = widget.petId;
+      _expenseKey = null;
+      _expenseFuture = null;
+      _loadedExpense = null;
+      _ownerPetName = null;
+      _submitting = false;
+      _errorText = null;
+    }
+    _ownerPetId ??= pets.activePetId;
+    final petId = widget.petId ?? _ownerPetId;
+    final hasLoadedIdentity =
+        _loadedExpense != null &&
+        _expenseKey == (session, petId, widget.expenseId);
+    if (pets.isLoading && !hasLoadedIdentity) {
+      return ExpenseLoadScreen(loading: true, title: '지출 수정', onBack: _goBack);
+    }
+    if (petId == null ||
+        (!pets.isLoading && !pets.pets.any((pet) => pet.id == petId))) {
+      return ExpenseLoadScreen(
+        title: '지출 수정',
+        onBack: _goBack,
+        error: pets.dataErrorText,
+        onRetry: pets.dataErrorText == null
+            ? null
+            : () => ref.read(petProvider.notifier).refreshPets(),
+      );
+    }
+    final expenseKey = (session, petId, widget.expenseId);
+    if (_expenseKey != expenseKey) {
+      _expenseKey = expenseKey;
+      _baseline = _draft = null;
+      _expenseFuture = null;
+      _loadedExpense = null;
+      _ownerPetName = null;
+      _submitting = false;
+      _errorText = null;
     }
     _expenseFuture ??= ref
         .read(walletExpenseProvider.notifier)
@@ -39,36 +95,72 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
       future: _expenseFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
+          return ExpenseLoadScreen(
+            loading: true,
+            title: '지출 수정',
+            onBack: _goBack,
           );
         }
         final expense = snapshot.data;
         if (expense == null) {
-          return const ExpenseDetailScreen(expenseId: '');
+          return ExpenseLoadScreen(
+            title: '지출 수정',
+            onBack: _goBack,
+            error: snapshot.error,
+            onRetry: () => setState(() => _expenseFuture = null),
+          );
         }
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: SafeArea(
-            child: Column(
-              children: [
-                AppFormHeader(
-                  title: '\uC9C0\uCD9C \uC218\uC815',
-                  onBack: _goBack,
-                ),
-                Expanded(
-                  child: ExpenseFormBody(
-                    key: ValueKey(expense.id),
-                    mode: ExpenseFormMode.edit,
-                    initialData: ExpenseFormData.fromExpense(expense),
-                    petName: ref.watch(petProvider).activePet?.name,
-                    submitting: _submitting,
-                    errorText: _errorText,
-                    onSubmit: _save,
+        _loadedExpense = expense;
+        final initialData = ExpenseFormData.fromExpense(expense);
+        _baseline ??= _draft = jsonEncode(
+          initialData.toWalletExpenseBody(includeNulls: true),
+        );
+        _ownerPetName =
+            pets.pets
+                .where((pet) => pet.id == expense.petId)
+                .firstOrNull
+                ?.name ??
+            _ownerPetName;
+        return protectDraft(
+          onExit: _goBack,
+          child: Scaffold(
+            backgroundColor: AppColors.white,
+            resizeToAvoidBottomInset: true,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  AppFormHeader(
+                    title: '\uC9C0\uCD9C \uC218\uC815',
+                    onBack: _goBack,
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: ExpenseFormBody(
+                      key: ValueKey(expenseKey),
+                      mode: ExpenseFormMode.edit,
+                      initialData: initialData,
+                      onChanged: (data) => setState(
+                        () => _draft = jsonEncode(
+                          data.toWalletExpenseBody(includeNulls: true),
+                        ),
+                      ),
+                      petName: _ownerPetName,
+                      submitting: _submitting,
+                      errorText: _errorText,
+                      validTarget:
+                          !pets.isLoading &&
+                          expense.petId == petId &&
+                          pets.pets.any((pet) => pet.id == petId),
+                      onSubmit: (data) {
+                        if (expenseKey == _expenseKey &&
+                            session ==
+                                ref.read(walletExpenseProvider).session) {
+                          _save(expense, data);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -76,14 +168,17 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
     );
   }
 
-  Future<void> _save(ExpenseFormData data) async {
+  Future<void> _save(WalletExpense expense, ExpenseFormData data) async {
     if (_submitting) {
       return;
     }
-    final petId = ref.read(petProvider).activePetId;
-    if (petId == null) {
+    final petId = expense.petId;
+    if (ref.read(petProvider).isLoading ||
+        _session != ref.read(walletExpenseProvider).session ||
+        !ref.read(petProvider).pets.any((pet) => pet.id == petId)) {
       return;
     }
+    final session = ref.read(walletExpenseProvider).session;
 
     setState(() {
       _submitting = true;
@@ -95,13 +190,28 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
           .read(walletExpenseProvider.notifier)
           .updateExpense(
             petId,
-            widget.expenseId,
+            expense.id,
             data.toWalletExpenseBody(includeNulls: true),
           );
-      if (!mounted) return;
-      context.go('/wallet/expenses/${widget.expenseId}');
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      showWalletRefreshWarning(context, ref.read(walletExpenseProvider));
+      await allowDraftExit();
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(
+          '/wallet/expenses/${expense.id}?petId=${Uri.encodeQueryComponent(petId)}',
+        );
+      }
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || ref.read(walletExpenseProvider).session != session) {
+        return;
+      }
       setState(() {
         _submitting = false;
         _errorText =
@@ -111,12 +221,16 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
   }
 
   Future<void> _goBack() async {
+    if (!await confirmDraftExit() || !mounted) return;
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     if (context.canPop()) {
       context.pop();
       return;
     }
-    context.go('/wallet/expenses/${widget.expenseId}');
+    final petId = _expenseKey?.$2 ?? widget.petId;
+    context.go(
+      '/wallet/expenses/${widget.expenseId}${petId == null ? '' : '?petId=${Uri.encodeQueryComponent(petId)}'}',
+    );
   }
 }

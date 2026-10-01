@@ -34,6 +34,18 @@ const Map<String, String> kCommunityCategoryLabels = {
   'EVENT': '이벤트',
 };
 
+String? formatCommunityRelativeTime(String raw, {DateTime? now}) {
+  final created = DateTime.tryParse(raw.trim());
+  if (created == null) return null;
+  final difference = (now ?? DateTime.now()).difference(created.toLocal());
+  if (difference.isNegative || difference.inMinutes < 1) return '방금 전';
+  if (difference.inHours < 1) return '${difference.inMinutes}분 전';
+  if (difference.inDays < 1) return '${difference.inHours}시간 전';
+  if (difference.inDays < 7) return '${difference.inDays}일 전';
+  final local = created.toLocal();
+  return '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+}
+
 String normalizeCommunitySourceKey(String? raw) {
   final value = raw?.trim();
   if (value == null || value.isEmpty) return '';

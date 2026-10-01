@@ -56,6 +56,47 @@ void main() {
     expect(taps, 0);
     expect(find.text('더보기 메뉴'), findsNothing);
   });
+
+  testWidgets('long menu scrolls to close on a short large-text display', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 400);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showAppActionSheet(
+                context,
+                title: '더보기 메뉴',
+                actions: List.generate(
+                  8,
+                  (i) => AppActionSheetItem(label: '메뉴 항목 $i', onTap: () {}),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.byKey(const Key('app-action-sheet-close')));
+    await tester.tap(find.byKey(const Key('app-action-sheet-close')));
+    await tester.pumpAndSettle();
+    expect(find.text('더보기 메뉴'), findsNothing);
+  });
 }
 
 Future<void> _pumpSheetHost(

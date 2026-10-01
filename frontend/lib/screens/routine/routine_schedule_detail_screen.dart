@@ -1,3 +1,4 @@
+import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import 'routine_schedule_create_screen.dart';
+import 'routine_detail_screen.dart' show RoutineLookupStatusScreen;
 import 'routine_schedule_values.dart';
 
 class RoutineScheduleDetailScreen extends ConsumerWidget {
@@ -19,8 +21,15 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final schedule = _findSchedule(ref.watch(petProvider), scheduleId);
+    final state = ref.watch(petProvider);
+    final schedule = _findSchedule(state, scheduleId);
     if (schedule == null) {
+      if (state.isLoading || state.dataErrorText != null) {
+        return const RoutineLookupStatusScreen(
+          title: '일정 상세',
+          fallback: '/routine',
+        );
+      }
       return const _ScheduleNotFoundScreen();
     }
 
@@ -52,24 +61,28 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
                       label: '일시',
                       value: _dateTimeLabel(schedule),
                     ),
-                    const SizedBox(height: 10),
-                    _InfoRow(
-                      key: const Key('schedule-detail-info-row-place'),
-                      label: '장소',
-                      value: schedule.place,
-                    ),
+                    if ((schedule.place ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _InfoRow(
+                        key: const Key('schedule-detail-info-row-place'),
+                        label: '장소',
+                        value: schedule.place,
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     _InfoRow(
                       key: const Key('schedule-detail-info-row-reminder'),
                       label: '알림',
                       value: schedule.reminder,
                     ),
-                    const SizedBox(height: 10),
-                    _InfoRow(
-                      key: const Key('schedule-detail-info-row-memo'),
-                      label: '메모',
-                      value: schedule.memo,
-                    ),
+                    if ((schedule.memo ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _InfoRow(
+                        key: const Key('schedule-detail-info-row-memo'),
+                        label: '메모',
+                        value: schedule.memo,
+                      ),
+                    ],
                     const Spacer(),
                     const SizedBox(height: 24),
                     _ScheduleDetailEditButton(
@@ -87,20 +100,49 @@ class RoutineScheduleDetailScreen extends ConsumerWidget {
   }
 }
 
-class RoutineScheduleEditScreen extends ConsumerWidget {
+class RoutineScheduleEditScreen extends ConsumerStatefulWidget {
   final String scheduleId;
 
   const RoutineScheduleEditScreen({super.key, required this.scheduleId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schedule = _findSchedule(ref.watch(petProvider), scheduleId);
+  ConsumerState<RoutineScheduleEditScreen> createState() =>
+      _RoutineScheduleEditScreenState();
+}
+
+class _RoutineScheduleEditScreenState
+    extends ConsumerState<RoutineScheduleEditScreen> {
+  CareSchedule? _baseline;
+  (int, int, String?)? _owner;
+  String? _scheduleId;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(petProvider);
+    final owner = ref.read(petProvider.notifier).routineContext;
+    if (_owner != owner || _scheduleId != widget.scheduleId) {
+      _baseline = null;
+      _owner = owner;
+      _scheduleId = widget.scheduleId;
+    }
+    final found = _findSchedule(state, widget.scheduleId);
+    if (found != null) _baseline ??= found;
+    final schedule =
+        found ??
+        (state.isLoading || state.dataErrorText != null ? _baseline : null);
     if (schedule == null) {
+      if (state.isLoading || state.dataErrorText != null) {
+        return const RoutineLookupStatusScreen(
+          title: '일정 수정',
+          fallback: '/routine',
+        );
+      }
+      _baseline = null;
       return const _ScheduleNotFoundScreen();
     }
     return RoutineScheduleCreateScreen(
-      key: ValueKey(schedule.id),
-      editingSchedule: schedule,
+      key: ValueKey((owner, schedule.id)),
+      editingSchedule: _baseline ?? schedule,
     );
   }
 }
@@ -130,10 +172,7 @@ class _DetailHero extends StatelessWidget {
                 width: 52,
                 height: 52,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+
                 child: AppVisual(
                   id: scheduleVisualId(schedule.categoryId),
                   size: 28,
@@ -190,7 +229,8 @@ class _ScheduleDetailEditButton extends StatelessWidget {
     return Material(
       color: AppColors.primary,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: AppInkWell(
+        filled: true,
         key: const Key('schedule-detail-edit-button'),
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -357,10 +397,13 @@ String _dateTimeLabel(CareSchedule schedule) {
   if (end == null || end.isEmpty) {
     return start;
   }
+  if (schedule.startDate == schedule.endDate && startTime == endTime) {
+    return start;
+  }
   return '$start - $end';
 }
 
-String _dateLabel(DateTime date) => DateFormat('M월 d일').format(date);
+String _dateLabel(DateTime date) => DateFormat('yyyy년 M월 d일').format(date);
 
 void _goBack(BuildContext context, {required String fallback}) {
   if (context.canPop()) {

@@ -1,9 +1,13 @@
+import '../screens/my/notification_settings_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/pet_provider.dart';
 import '../screens/auth/auth_screen.dart';
+import '../screens/auth/policy_acceptance_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -17,27 +21,34 @@ import '../screens/wallet/expense_add_screen.dart';
 import '../screens/wallet/expense_detail_screen.dart';
 import '../screens/wallet/expense_edit_screen.dart';
 import '../screens/wallet/expense_report_screen.dart';
+import '../screens/wallet/expense_calendar_screen.dart';
 import '../screens/wallet/expense_wallet_screen.dart';
 import '../screens/routine/routine_create_screen.dart';
+import '../screens/routine/routine_detail_screen.dart';
 import '../screens/routine/routine_schedule_create_screen.dart';
 import '../screens/routine/routine_schedule_detail_screen.dart';
 import '../screens/routine/routine_screen.dart';
 import '../screens/community/community_comments_screen.dart';
+import '../screens/community/community_constants.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/community/community_detail_screen.dart';
-import '../screens/community/mock/community_mock_detail_screen.dart';
-import '../screens/community/mock/community_mock_feed_screen.dart';
+import '../screens/community/community_search_screen.dart';
 import '../screens/community/write_screen.dart';
+import '../models/post.dart';
 import '../screens/pet/pet_detail_screen.dart';
 import '../screens/pet/pet_edit_screen.dart';
 import '../screens/my/my_inquiry_screen.dart';
 import '../screens/my/my_notices_screen.dart';
 import '../screens/my/my_screen.dart';
+import '../screens/my/my_activity_screen.dart';
 import '../screens/my/my_policies_screen.dart';
 import '../screens/my/my_pets_screen.dart';
 import '../screens/my/my_profile_screen.dart';
 import '../screens/my/my_settings_screen.dart';
+import '../screens/my/account_deletion_screen.dart';
+import '../screens/my/my_blocked_users_screen.dart';
 import '../screens/my/my_support_center_screen.dart';
+import '../screens/notification/notification_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 // RouterNotifier listens to auth/pet providers and triggers router refresh.
@@ -51,25 +62,48 @@ class _RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final path = state.uri.path;
-    if (path == '/community/mock' ||
-        path.startsWith('/community/mock/posts/')) {
+    final authState = _ref.read(authProvider);
+    final petState = _ref.read(petProvider);
+    final matchedPath = state.matchedLocation;
+
+    if (matchedPath == '/my/policies' ||
+        matchedPath.startsWith('/my/policies/') ||
+        matchedPath == '/privacy' ||
+        matchedPath == '/terms' ||
+        matchedPath.startsWith('/policies/')) {
       return null;
     }
 
-    final authState = _ref.read(authProvider);
-    final petState = _ref.read(petProvider);
+    if (authState.initializationError != null) {
+      return matchedPath == '/' ? null : '/';
+    }
+
+    if (authState.isAuthenticated && authState.policyAcceptanceRequired) {
+      const allowed = {
+        '/policy-consent',
+        '/policy-history',
+        '/my/inquiry',
+        '/my/settings/delete-account',
+        '/my/settings/notifications',
+      };
+      return allowed.contains(matchedPath) ? null : '/policy-consent';
+    }
+    if (matchedPath == '/policy-consent' && authState.isAuthenticated) {
+      return '/home';
+    }
 
     if (authState.isLoading || petState.isLoading) return null;
 
     final isAuthenticated = authState.isAuthenticated;
     final hasOnboarded = petState.hasOnboarded;
-    final matchedPath = state.matchedLocation;
 
     if (!isAuthenticated) {
       return matchedPath == '/auth' ? null : '/auth';
     }
     if (!hasOnboarded) {
+      if (petState.dataErrorText != null) {
+        return matchedPath == '/home' ? null : '/home';
+      }
       return matchedPath == '/onboarding' ? null : '/onboarding';
     }
     if (matchedPath == '/auth' ||
@@ -90,8 +124,47 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
-      GoRoute(path: '/', builder: (c, s) => const SplashScreen()),
+      GoRoute(
+        path: '/',
+        builder: (c, s) => Consumer(
+          builder: (context, ref, child) {
+            final auth = ref.watch(authProvider);
+            return SplashScreen(
+              errorText: auth.initializationError,
+              onRetry: auth.isLoading
+                  ? null
+                  : () => ref.read(authProvider.notifier).retryInitialization(),
+            );
+          },
+        ),
+      ),
       GoRoute(path: '/auth', builder: (c, s) => const AuthScreen()),
+      GoRoute(
+        path: '/policy-consent',
+        builder: (c, s) => const PolicyAcceptanceScreen(),
+      ),
+      GoRoute(
+        path: '/policy-history',
+        builder: (c, s) => const PolicyHistoryScreen(),
+      ),
+      GoRoute(path: '/privacy', redirect: (c, s) => '/my/policies/privacy'),
+      GoRoute(path: '/terms', redirect: (c, s) => '/my/policies/terms'),
+      GoRoute(
+        path: '/my/policies',
+        builder: (c, s) => const MyPoliciesScreen(),
+      ),
+      GoRoute(
+        path: '/my/policies/:policyId',
+        builder: (c, s) =>
+            MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
+      ),
+      GoRoute(
+        path: '/policies/:type/:version',
+        builder: (c, s) => MyPolicyDetailScreen(
+          policyId: s.pathParameters['type']!,
+          version: s.pathParameters['version']!,
+        ),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (c, s) => const OnboardingScreen(mode: PetEntryMode.firstPet),
@@ -102,11 +175,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             const OnboardingScreen(mode: PetEntryMode.additionalPet),
       ),
       GoRoute(
-        path: '/community/mock/posts/:postId',
-        builder: (c, s) =>
-            CommunityMockDetailScreen(postId: s.pathParameters['postId']!),
-      ),
-      GoRoute(
         path: '/community/posts/:postId/comments',
         builder: (c, s) {
           final replyTo = s.uri.queryParameters['replyTo'];
@@ -115,6 +183,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             postId: s.pathParameters['postId']!,
             sourceKey: s.uri.queryParameters['from'],
             initialThreadId: thread,
+            targetCommentId: s.uri.queryParameters['targetComment'],
+            manageTarget: s.uri.queryParameters['manage'] == 'true',
             initialReplyToCommentId: replyTo,
             autofocus:
                 s.uri.queryParameters['focus'] == 'true' || replyTo != null,
@@ -128,6 +198,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           sourceKey: s.uri.queryParameters['from'],
         ),
       ),
+      GoRoute(
+        path: '/notifications',
+        builder: (c, s) => const NotificationScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
@@ -137,33 +211,48 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) => const CommunityScreen(),
           ),
           GoRoute(
-            path: '/community/mock',
-            builder: (c, s) => const CommunityMockFeedScreen(),
+            path: '/community/search',
+            builder: (c, s) => const CommunitySearchScreen(),
           ),
           GoRoute(
             path: '/community/category/:category',
+            redirect: (c, s) =>
+                isCommunitySourceKey(s.pathParameters['category'])
+                ? null
+                : '/community',
             builder: (c, s) => CommunityCategoryScreen(
-              initialCategory: s.pathParameters['category']!,
+              initialCategory: normalizeCommunitySourceKey(
+                s.pathParameters['category'],
+              ),
             ),
           ),
           GoRoute(path: '/my', builder: (c, s) => const MyScreen()),
           GoRoute(
+            path: '/my/blocked-users',
+            builder: (c, s) => const MyBlockedUsersScreen(),
+          ),
+          GoRoute(
             path: '/my/settings',
             builder: (c, s) => const MySettingsScreen(),
           ),
+          GoRoute(
+            path: '/my/settings/delete-account',
+            builder: (c, s) => const AccountDeletionScreen(),
+          ),
+          GoRoute(
+            path: '/my/settings/notifications',
+            builder: (c, s) => const NotificationSettingsScreen(),
+          ),
           GoRoute(path: '/my/pets', builder: (c, s) => const MyPetsScreen()),
+          GoRoute(
+            path: '/my/activity',
+            builder: (c, s) => MyActivityScreen(
+              initialTab: s.uri.queryParameters['tab'] ?? 'written',
+            ),
+          ),
           GoRoute(
             path: '/my/profile',
             builder: (c, s) => const MyProfileScreen(),
-          ),
-          GoRoute(
-            path: '/my/policies',
-            builder: (c, s) => const MyPoliciesScreen(),
-          ),
-          GoRoute(
-            path: '/my/policies/:policyId',
-            builder: (c, s) =>
-                MyPolicyDetailScreen(policyId: s.pathParameters['policyId']!),
           ),
           GoRoute(
             path: '/my/notices',
@@ -189,12 +278,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) =>
                 MyFaqDetailScreen(faqId: s.pathParameters['faqId']!),
           ),
-          GoRoute(
-            path: '/my/inquiry',
-            builder: (c, s) => const MyInquiryScreen(),
-          ),
         ],
       ),
+      GoRoute(path: '/my/inquiry', builder: (c, s) => const MyInquiryScreen()),
       GoRoute(
         path: '/records',
         redirect: (c, s) =>
@@ -216,8 +302,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/wallet', builder: (c, s) => const ExpenseWalletScreen()),
       GoRoute(
+        path: '/wallet/calendar',
+        builder: (c, s) => ExpenseCalendarScreen(
+          petId: s.uri.queryParameters['petId'],
+          category: s.uri.queryParameters['category'],
+          period: s.uri.queryParameters['period'],
+        ),
+      ),
+      GoRoute(
         path: '/wallet/report',
-        builder: (c, s) => const ExpenseReportScreen(),
+        builder: (c, s) => ExpenseReportScreen(
+          petId: s.uri.queryParameters['petId'],
+          category: s.uri.queryParameters['category'],
+          period: s.uri.queryParameters['period'],
+        ),
       ),
       GoRoute(
         path: '/wallet/expenses/new',
@@ -225,21 +323,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/wallet/expenses/:expenseId/edit',
-        builder: (c, s) =>
-            ExpenseEditScreen(expenseId: s.pathParameters['expenseId']!),
+        builder: (c, s) => ExpenseEditScreen(
+          expenseId: s.pathParameters['expenseId']!,
+          petId: s.uri.queryParameters['petId'],
+        ),
       ),
       GoRoute(
         path: '/wallet/expenses/:expenseId',
-        builder: (c, s) =>
-            ExpenseDetailScreen(expenseId: s.pathParameters['expenseId']!),
+        builder: (c, s) => ExpenseDetailScreen(
+          expenseId: s.pathParameters['expenseId']!,
+          petId: s.uri.queryParameters['petId'],
+        ),
       ),
       GoRoute(
         path: '/records/:typeId/new',
         redirect: (c, s) {
           final typeId = s.pathParameters['typeId']!;
-          if (typeId == 'expense') {
-            return '/wallet/expenses/new';
-          }
           if (isCategoryRecordInputSupported(typeId)) {
             return null;
           }
@@ -266,11 +365,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/routine',
         builder: (c, s) => RoutineScreen(
           initialDate: _parseRouteDateOrToday(s.uri.queryParameters['date']),
+          initialTab: s.uri.queryParameters['tab'],
         ),
       ),
       GoRoute(
         path: '/routine/new',
         builder: (c, s) => const RoutineCreateScreen(),
+      ),
+      GoRoute(
+        path: '/routine/:routineId/edit',
+        builder: (c, s) =>
+            RoutineEditScreen(routineId: s.pathParameters['routineId']!),
       ),
       GoRoute(
         path: '/routine/schedule/new',
@@ -288,7 +393,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           scheduleId: s.pathParameters['scheduleId']!,
         ),
       ),
-      GoRoute(path: '/community/write', builder: (c, s) => const WriteScreen()),
+      GoRoute(
+        path: '/community/write',
+        builder: (c, s) =>
+            WriteScreen(editingPost: s.extra is Post ? s.extra as Post : null),
+      ),
+      GoRoute(
+        path: '/routine/:routineId',
+        builder: (c, s) =>
+            RoutineDetailScreen(routineId: s.pathParameters['routineId']!),
+      ),
       GoRoute(
         path: '/pet/:id',
         builder: (c, s) => PetDetailScreen(petId: s.pathParameters['id']!),

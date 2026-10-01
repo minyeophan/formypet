@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/app_fonts.dart';
 
 class AppText extends StatelessWidget {
   final String text;
@@ -28,7 +28,8 @@ class AppText extends StatelessWidget {
       textAlign: textAlign,
       maxLines: maxLines,
       overflow: overflow,
-      style: GoogleFonts.notoSansKr(
+      style: TextStyle(
+        fontFamily: AppFonts.family,
         fontSize: fontSize,
         fontWeight: fontWeight,
         color: color,

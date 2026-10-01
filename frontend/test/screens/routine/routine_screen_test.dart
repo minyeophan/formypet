@@ -1,3 +1,4 @@
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,11 +12,21 @@ import 'package:frontend/widgets/app_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
+  testWidgets('care calendar fits 320dp at double text scale', (tester) async {
+    tester.view.physicalSize = const Size(320, 1000);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _pumpRoutineScreen(tester, _petState());
+    expect(tester.takeException(), isNull);
+  });
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('routine screen shows schedule-only calendar actions', (
+  testWidgets('routine screen shows schedule and routine calendar actions', (
     tester,
   ) async {
     await _pumpRoutineScreen(tester, _petState());
@@ -25,7 +36,7 @@ void main() {
     expect(find.byKey(const Key('routine-month-calendar')), findsOneWidget);
     expect(find.text('월간'), findsNothing);
     expect(find.text('주간'), findsNothing);
-    expect(find.byKey(const Key('routine-add-button')), findsNothing);
+    expect(find.byKey(const Key('routine-add-button')), findsOneWidget);
     expect(find.byKey(const Key('schedule-add-button')), findsOneWidget);
     expect(find.byType(AppHeader), findsOneWidget);
     expect(find.byType(AppBackButton), findsOneWidget);
@@ -57,6 +68,31 @@ void main() {
     expect(find.text('예방접종 예약'), findsNothing);
   });
 
+  testWidgets('routine tab shows saved routines', (tester) async {
+    await _pumpRoutineScreen(
+      tester,
+      _petState(
+        routines: const [
+          Routine(
+            id: 'r1',
+            petId: '1',
+            label: 'Morning walk',
+            typeId: 'medicine',
+            repeatType: 'daily',
+            times: ['08:30'],
+            days: [],
+            startDate: '2026-01-01',
+          ),
+        ],
+      ),
+    );
+    await tester.tap(find.text('루틴'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('routine-item-r1')), findsOneWidget);
+    expect(find.text('Morning walk'), findsOneWidget);
+    expect(find.text('진행 중인 루틴'), findsNothing);
+  });
+
   testWidgets('saved schedules render on selected date and calendar dot', (
     tester,
   ) async {
@@ -79,7 +115,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('schedule-detail-button-s1')),
-        matching: find.byIcon(Icons.chevron_right_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppIcon && widget.icon == Icons.chevron_right_rounded,
+        ),
       ),
       findsOneWidget,
     );

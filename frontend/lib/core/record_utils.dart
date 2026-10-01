@@ -20,14 +20,9 @@ const List<RecordType> kQuickTypes = [
   RecordType(id: 'water', label: '음수', visualId: AppVisualId.recordWater),
   RecordType(id: 'walk', label: '산책', visualId: AppVisualId.recordWalk),
   RecordType(id: 'poop', label: '배변', visualId: AppVisualId.recordPoop),
-  RecordType(id: 'play', label: '놀이', visualId: AppVisualId.recordPlay),
-  RecordType(id: 'sleep', label: '수면', visualId: AppVisualId.recordSleep),
   RecordType(id: 'medicine', label: '투약', visualId: AppVisualId.recordMedicine),
   RecordType(id: 'weight', label: '체중', visualId: AppVisualId.recordWeight),
   RecordType(id: 'vet', label: '병원', visualId: AppVisualId.recordVet),
-  RecordType(id: 'checkup', label: '검진', visualId: AppVisualId.recordCheckup),
-  RecordType(id: 'bath', label: '목욕', visualId: AppVisualId.recordBath),
-  RecordType(id: 'groom', label: '미용', visualId: AppVisualId.recordGroom),
 ];
 
 const Map<String, String> kRecordTypeFallbackLabels = {
@@ -56,12 +51,9 @@ const Set<String> kSupportedTypeIds = {
   'water',
   'walk',
   'poop',
-  'play',
-  'sleep',
   'medicine',
   'weight',
   'vet',
-  'checkup',
 };
 
 const List<String> kDefaultQuickIds = [
@@ -69,24 +61,17 @@ const List<String> kDefaultQuickIds = [
   'water',
   'walk',
   'poop',
-  'play',
-  'sleep',
 ];
 
 // Detail field keys per record type — mirrors DETAIL_KEYS_BY_TYPE in RN
 const Map<String, List<String>> kDetailKeysByType = {
   'meal': ['foodName', 'amount', 'unit', 'consumeMode'],
   'water': ['amount', 'unit'],
-  'walk': ['duration', 'distance', 'startLng', 'startLat', 'endLng', 'endLat'],
+  'walk': ['duration', 'distance'],
   'poop': ['consistency', 'color', 'hasBlood'],
-  'play': ['duration', 'activity'],
-  'sleep': ['duration'],
   'medicine': ['medicineName', 'dosage', 'unit'],
   'weight': ['value', 'unit'],
-  'vet': ['clinicName', 'diagnosis', 'vetCost', 'clinicLng', 'clinicLat'],
-  'checkup': ['items'],
-  'bath': ['shampoo'],
-  'groom': ['groomType'],
+  'vet': ['clinicName', 'diagnosis', 'vetCost'],
 };
 
 // Strip null/empty detail fields before API send

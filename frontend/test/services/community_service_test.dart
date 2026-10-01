@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/models/my_community_activity.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -51,6 +52,161 @@ void main() {
 
     expect(captured?.queryParameters['sort'], 'latest');
     expect(captured?.queryParameters['category'], 'CARE');
+  });
+
+  test(
+    'my activities sends authenticated-user filters and decodes reply metadata',
+    () async {
+      RequestOptions? captured;
+      dio.httpClientAdapter = _CannedAdapter((options) {
+        captured = options;
+        return _jsonResponse(options, 200, {
+          'data': {
+            'items': [
+              {
+                'post': {
+                  'id': 12,
+                  'userId': 9,
+                  'authorNickname': 'author',
+                  'title': 'post',
+                  'content': 'body',
+                  'category': 'FREE',
+                  'mediaUrls': [],
+                  'likesCount': 1,
+                  'commentsCount': 2,
+                  'liked': true,
+                  'createdAt': '2026-09-09T12:00:00',
+                },
+                'activityAt': '2026-09-10T12:00:00',
+                'comment': {'id': 32, 'parentId': 21, 'content': 'reply'},
+              },
+            ],
+            'nextCursor': 'next-page',
+          },
+        });
+      });
+      final page = await CommunityService().getMyActivities(
+        MyActivityType.commented,
+        cursor: 'previous-page',
+      );
+      expect(captured?.path, '/api/v1/me/community/activities');
+      expect(captured?.queryParameters, {
+        'type': 'commented',
+        'limit': 20,
+        'cursor': 'previous-page',
+      });
+      expect(page.items.single.post.id, '12');
+      expect(page.items.single.activityAt, '2026-09-10T12:00:00');
+      expect(page.items.single.commentId, '32');
+      expect(page.items.single.parentId, '21');
+      expect(page.items.single.commentContent, 'reply');
+      expect(page.nextCursor, 'next-page');
+    },
+  );
+
+  test('update and delete post use the backend contract', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      if (options.method == 'PUT') {
+        return _jsonResponse(options, 200, {
+          'data': {
+            'id': 'post-1',
+            'userId': 'user-1',
+            'authorNickname': 'Momo',
+            'title': 'updated',
+            'content': 'body',
+            'category': 'FREE',
+            'mediaUrls': [],
+            'createdAt': '2026-06-24T00:00:00',
+          },
+        });
+      }
+      return _jsonResponse(options, 204, {});
+    });
+
+    await CommunityService().updatePost(
+      'post-1',
+      title: ' updated ',
+      content: ' body ',
+      category: 'free',
+    );
+    await CommunityService().deletePost('post-1');
+
+    expect(requests.map((r) => '${r.method} ${r.path}'), [
+      'PUT /api/v1/posts/post-1',
+      'DELETE /api/v1/posts/post-1',
+    ]);
+    expect((requests.first.data as Map)['category'], 'FREE');
+    expect((requests.first.data as Map)['title'], 'updated');
+  });
+
+  test('pagination limits stay within backend range', () async {
+    final captured = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured.add(options);
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    final service = CommunityService();
+    await service.getFeed(limit: 100);
+    await service.getComments('post-1', limit: 0, replyLimit: 100);
+    await service.getCommentThread('post-1', 'comment-1', replyLimit: 100);
+    await service.getReplies('post-1', 'comment-1', limit: 100);
+
+    expect(captured[0].queryParameters['limit'], 50);
+    expect(captured[1].queryParameters['limit'], 1);
+    expect(captured[1].queryParameters['replyLimit'], 50);
+    expect(captured[2].queryParameters['replyLimit'], 50);
+    expect(captured[3].queryParameters['limit'], 50);
+  });
+
+  test('getFeed sends trimmed keyword with existing feed parameters', () async {
+    RequestOptions? captured;
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured = options;
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    await CommunityService().getFeed(
+      category: 'CARE',
+      sort: CommunityFeedSort.popular,
+      cursor: '10:post-1',
+      limit: 10,
+      keyword: '  산책  ',
+    );
+
+    expect(captured?.queryParameters, {
+      'limit': 10,
+      'sort': 'popular',
+      'category': 'CARE',
+      'cursor': '10:post-1',
+      'keyword': '산책',
+    });
+  });
+
+  test('getFeed omits null empty and blank keyword', () async {
+    final captured = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      captured.add(options);
+      return _jsonResponse(options, 200, {
+        'data': {'items': [], 'nextCursor': null},
+      });
+    });
+
+    final service = CommunityService();
+    await service.getFeed(keyword: null);
+    await service.getFeed(keyword: '');
+    await service.getFeed(keyword: '   ');
+
+    expect(captured, hasLength(3));
+    for (final request in captured) {
+      expect(request.queryParameters.containsKey('keyword'), isFalse);
+    }
   });
 
   test(
@@ -118,7 +274,11 @@ void main() {
       });
     });
 
-    await CommunityService().createPost(content: 'content', category: 'CARE');
+    await CommunityService().createPost(
+      content: 'content',
+      title: 'title',
+      category: 'CARE',
+    );
 
     expect(capturedData, isA<FormData>());
     expect((capturedData as FormData).fields.map((e) => e.key), ['payload']);
@@ -223,6 +383,69 @@ void main() {
     expect(requests[0].queryParameters['replyLimit'], 3);
     expect(requests[1].data, {'content': 'root'});
     expect(requests[2].data, {'content': 'reply', 'parentCommentId': 'root-1'});
+  });
+
+  test('comments parse deleted tombstone contract', () async {
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      return _jsonResponse(options, 200, {
+        'data': {
+          'items': [
+            {
+              'id': 9,
+              'userId': null,
+              'authorNickname': null,
+              'authorProfileImageUrl': null,
+              'content': null,
+              'createdAt': '2026-07-08T00:00:00',
+              'updatedAt': '2026-07-08T01:00:00',
+              'deleted': true,
+              'commentsCount': 1,
+            },
+          ],
+          'nextCursor': null,
+        },
+      });
+    });
+
+    final comments = await CommunityService().getComments('post-1');
+
+    expect(comments.items.single.deleted, isTrue);
+    expect(comments.items.single.userId, '');
+    expect(comments.items.single.content, '');
+    expect(comments.items.single.updatedAt, '2026-07-08T01:00:00');
+  });
+
+  test('update and delete comment use management endpoints', () async {
+    final requests = <RequestOptions>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      requests.add(options);
+      if (options.method == 'DELETE') {
+        return _jsonResponse(options, 204, {'data': null});
+      }
+      return _jsonResponse(options, 200, {
+        'data': {
+          'id': 9,
+          'userId': 1,
+          'authorNickname': 'author',
+          'content': 'updated',
+          'createdAt': '2026-07-08T00:00:00',
+          'updatedAt': '2026-07-08T01:00:00',
+          'commentsCount': 1,
+        },
+      });
+    });
+
+    final service = CommunityService();
+    final updated = await service.updateComment('post-1', '9', ' updated ');
+    await service.deleteComment('post-1', '9');
+
+    expect(updated.content, 'updated');
+    expect(updated.updatedAt, '2026-07-08T01:00:00');
+    expect(requests[0].method, 'PATCH');
+    expect(requests[0].path, '/api/v1/posts/post-1/comments/9');
+    expect(requests[0].data, {'content': 'updated'});
+    expect(requests[1].method, 'DELETE');
+    expect(requests[1].path, '/api/v1/posts/post-1/comments/9');
   });
 
   test('thread and reply pagination use dedicated endpoints', () async {
