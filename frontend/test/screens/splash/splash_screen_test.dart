@@ -34,7 +34,7 @@ void main() {
     expect(retries, 1);
   });
 
-  testWidgets('splash uses the mint brand background and centered wordmark', (
+  testWidgets('splash uses the circular mascot and wordmark below it', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
@@ -42,7 +42,29 @@ void main() {
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.backgroundColor, const Color(0xFF70D8C8));
     expect(find.text('포마펫'), findsOneWidget);
-    expect(find.bySemanticsLabel('포마펫 로고'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('포마펫')).style?.color,
+      AppColors.text,
+    );
+    final logoFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName ==
+              'assets/images/brand_logo_splash.png',
+    );
+    expect(logoFinder, findsOneWidget);
+    expect(find.bySemanticsLabel('포마펫 시작 화면 로고'), findsOneWidget);
+    final logo = tester.widget<Image>(logoFinder);
+    expect(logo.image, isA<AssetImage>());
+    expect(
+      (logo.image as AssetImage).assetName,
+      'assets/images/brand_logo_splash.png',
+    );
+    expect(
+      tester.getTopLeft(find.text('포마펫')).dy,
+      greaterThan(tester.getBottomLeft(logoFinder).dy),
+    );
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

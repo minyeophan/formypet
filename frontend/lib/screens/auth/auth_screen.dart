@@ -1,5 +1,6 @@
 import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/auth_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -311,32 +312,42 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.white,
         body: SafeArea(
           child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: (constraints.maxHeight - 48).clamp(
-                    0,
-                    double.infinity,
+            builder: (context, constraints) {
+              final policyHeight = _view == _AuthView.welcome ? 68.0 : 54.0;
+              final contentHeight = (constraints.maxHeight - policyHeight)
+                  .clamp(0.0, double.infinity);
+              return Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: contentHeight),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 30, bottom: 10),
+                          child: _view == _AuthView.recovery
+                              ? PasswordRecoveryForm(
+                                  onClose: () => _show(_AuthView.login),
+                                  onCompleted: () {
+                                    _passwordCtrl.clear();
+                                    _show(_AuthView.login);
+                                  },
+                                )
+                              : _view == _AuthView.welcome
+                              ? _welcome()
+                              : _form(),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: _view == _AuthView.recovery
-                    ? PasswordRecoveryForm(
-                        onClose: () => _show(_AuthView.login),
-                        onCompleted: () {
-                          _passwordCtrl.clear();
-                          _show(_AuthView.login);
-                        },
-                      )
-                    : _view == _AuthView.welcome
-                    ? _welcome()
-                    : _form(),
-              ),
-            ),
+                  _policyLinks(height: policyHeight),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -344,73 +355,182 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Widget _welcome() {
+    final compact = MediaQuery.sizeOf(context).height < 700;
+    final brandSize = compact ? 168.0 : 240.0;
+    final headingSize = compact ? 23.0 : 27.0;
+
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const BrandLogo(size: 210),
-        const SizedBox(height: 20),
-        const Text(
-          '포마펫',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          '반려동물과의 매일을 더 편안하게',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 40),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFEE500),
-              foregroundColor: const Color(0xFF191919),
-              minimumSize: const Size.fromHeight(52),
-            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-            onPressed: _isLoading ? null : _loginWithKakao,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Color(0xFF191919),
-                    ),
-                  )
-                : const Text('카카오로 시작하기'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.text,
-              side: const BorderSide(color: AppColors.text, width: 1.2),
-              minimumSize: const Size.fromHeight(52),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(14)),
+        Column(
+          children: [
+            SizedBox(height: compact ? 14 : 52),
+            _AuthBrandLockup(size: brandSize),
+            SizedBox(height: compact ? 12 : 28),
+            Text(
+              '우리 아이와의 매일을',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: headingSize,
+                fontWeight: FontWeight.w700,
+                height: compact ? 1.42 : 1.5,
               ),
-            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-            onPressed: _isLoading ? null : () => _show(_AuthView.login),
-            child: const Text('이메일로 로그인'),
-          ),
+            ),
+            Text(
+              '더 편안하게',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: headingSize,
+                fontWeight: FontWeight.w700,
+                height: compact ? 1.42 : 1.5,
+              ),
+            ),
+            SizedBox(height: compact ? 8 : 10),
+            Text(
+              '기록부터 일상까지, 포마펫과 함께해요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: compact ? 12 : 14,
+                height: 1.5,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: _isLoading ? null : () => _show(_AuthView.register),
-          child: const Text('회원가입', style: TextStyle(color: AppColors.text)),
+        Padding(
+          padding: EdgeInsets.only(top: compact ? 8 : 24),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFEE500),
+                    foregroundColor: AppColors.text,
+                    minimumSize: const Size.fromHeight(56),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                    ),
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+                  onPressed: _isLoading ? null : _loginWithKakao,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.text,
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/images/auth_kakao.svg',
+                              width: 20,
+                              height: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              '카카오로 시작하기',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.text,
+                    side: const BorderSide(color: Color(0xFFE1E5E2)),
+                    minimumSize: const Size.fromHeight(56),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                    ),
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+                  onPressed: _isLoading ? null : () => _show(_AuthView.login),
+                  child: const Text(
+                    '이메일로 로그인',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _show(_AuthView.register),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '처음 오셨나요?',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '회원가입',
+                        style: TextStyle(
+                          color: AppColors.actionMint,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         if (_formError != null) _errorMessage(),
-        _policyLink(),
       ],
     );
   }
 
-  Widget _policyLink() => TextButton(
+  Widget _policyLinks({required double height}) => SizedBox(
+    height: height,
+    child: Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _policyButton('이용약관'),
+          const SizedBox(width: 18),
+          _policyButton('개인정보 처리방침'),
+        ],
+      ),
+    ),
+  );
+
+  Widget _policyButton(String label) => TextButton(
     onPressed: () => context.push('/my/policies'),
-    child: const Text('이용약관 · 개인정보 처리방침'),
+    style: TextButton.styleFrom(
+      foregroundColor: AppColors.textSecondary,
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(0, 44),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      textStyle: const TextStyle(fontSize: 12, height: 1.5),
+    ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+    child: Text(label),
   );
 
   Widget _form() {
@@ -420,64 +540,88 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: IconButton(
-            key: const Key('auth-back-button'),
-            onPressed: _isLoading ? null : () => _show(_AuthView.welcome),
-            icon: const AppIcon(Icons.arrow_back),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(
+              key: const Key('auth-back-button'),
+              padding: EdgeInsets.zero,
+              onPressed: _isLoading ? null : () => _show(_AuthView.welcome),
+              icon: const AppIcon(Icons.arrow_back, size: 24),
+            ),
           ),
         ),
-        const SizedBox(height: 24),
-        const Center(child: BrandLogo(size: 80)),
-        const SizedBox(height: 16),
-        Text(
-          registering ? '회원가입' : '로그인',
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 112,
+              child: Center(child: _AuthBrandLockup(size: 84)),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              registering ? '포마펫과 함께 시작해요' : '다시 만나 반가워요',
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 25,
+                fontWeight: FontWeight.w700,
+                height: 38 / 25,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              registering ? '우리 아이와의 소중한 일상을 담아보세요.' : '이메일로 로그인하고 일상을 이어가세요.',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 20 / 13,
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
         ),
-        const SizedBox(height: 28),
         if (registering) ...[
           KeyedSubtree(
             key: _fieldKeys['nickname'],
-            child: TextField(
-              key: const Key('auth-nickname-field'),
+            child: _authField(
+              label: '닉네임',
+              hint: '사용할 닉네임을 입력해 주세요',
+              fieldKey: const Key('auth-nickname-field'),
               controller: _nicknameCtrl,
-              enabled: !_isLoading,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.nickname],
+              errorText: _fieldErrors['nickname'],
               onChanged: (_) => _clearFieldError('nickname'),
-              decoration: InputDecoration(
-                labelText: '닉네임',
-                errorText: _fieldErrors['nickname'],
-              ),
+              enabled: !_isLoading,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
         ],
         KeyedSubtree(
           key: _fieldKeys['email'],
-          child: TextField(
-            key: const Key('auth-email-field'),
+          child: _authField(
+            label: '이메일',
+            hint: '이메일 주소를 입력해 주세요',
+            fieldKey: const Key('auth-email-field'),
             controller: _emailCtrl,
             enabled: !_isLoading,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
             autocorrect: false,
-            onChanged: (_) => _clearFieldError('email'),
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: '이메일',
-              errorText: _fieldErrors['email'],
-            ),
+            errorText: _fieldErrors['email'],
+            onChanged: (_) => _clearFieldError('email'),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         KeyedSubtree(
           key: _fieldKeys['password'],
-          child: TextField(
-            key: const Key('auth-password-field'),
+          child: _authField(
+            label: '비밀번호',
+            hint: registering ? '8자 이상 입력해 주세요' : '비밀번호를 입력해 주세요',
+            fieldKey: const Key('auth-password-field'),
             controller: _passwordCtrl,
             enabled: !_isLoading,
-            autocorrect: false,
-            enableSuggestions: false,
             textInputAction: TextInputAction.done,
             autofillHints: [
               registering ? AutofillHints.newPassword : AutofillHints.password,
@@ -485,28 +629,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             onSubmitted: (_) => _submit(),
             onChanged: (_) => _clearFieldError('password'),
             obscureText: !_passwordVisible,
-            decoration: InputDecoration(
-              labelText: '비밀번호',
-              errorText: _fieldErrors['password'],
-              suffixIcon: IconButton(
-                key: const Key('auth-password-visibility'),
-                tooltip: _passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
-                onPressed: _isLoading
-                    ? null
-                    : () =>
-                          setState(() => _passwordVisible = !_passwordVisible),
-                icon: AppIcon(
-                  _passwordVisible ? Icons.visibility_off : Icons.visibility,
-                ),
+            errorText: _fieldErrors['password'],
+            suffixIcon: IconButton(
+              key: const Key('auth-password-visibility'),
+              tooltip: _passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
+              onPressed: _isLoading
+                  ? null
+                  : () => setState(() => _passwordVisible = !_passwordVisible),
+              icon: AppIcon(
+                _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                size: 24,
               ),
             ),
           ),
         ),
         const SizedBox(height: 24),
-        if (_formError != null) ...[
-          _errorMessage(),
-          const SizedBox(height: 12),
-        ],
+        if (_formError != null) ...[_errorMessage(), const SizedBox(height: 8)],
         FilledButton(
           key: const Key('auth-submit-button'),
           style: FilledButton.styleFrom(
@@ -514,6 +652,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             foregroundColor: Colors.white,
             disabledBackgroundColor: AppColors.primary,
             disabledForegroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
           ).copyWith(overlayColor: AppInteractionStyle.overlay()),
           onPressed: _isLoading ? null : _submit,
           child: _isLoading
@@ -527,27 +669,162 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 )
               : Text(registering ? '회원가입' : '로그인'),
         ),
-        _policyLink(),
         if (!registering)
-          TextButton(
-            key: const Key('auth-password-recovery'),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: TextButton(
+              key: const Key('auth-password-recovery'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ).copyWith(overlayColor: AppInteractionStyle.overlay()),
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      _passwordCtrl.clear();
+                      _show(_AuthView.recovery);
+                    },
+              child: const Text('비밀번호를 잊으셨나요?', style: TextStyle(fontSize: 13)),
+            ),
+          ),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ).copyWith(overlayColor: AppInteractionStyle.overlay()),
             onPressed: _isLoading
                 ? null
-                : () {
-                    _passwordCtrl.clear();
-                    _show(_AuthView.recovery);
-                  },
-            child: const Text('비밀번호를 잊으셨나요?'),
+                : () =>
+                      _show(registering ? _AuthView.login : _AuthView.register),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  registering ? '이미 계정이 있나요?' : '처음 오셨나요?',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  registering ? '로그인' : '회원가입',
+                  style: const TextStyle(
+                    color: AppColors.actionMint,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
-        TextButton(
-          onPressed: _isLoading
-              ? null
-              : () => _show(registering ? _AuthView.login : _AuthView.register),
-          child: Text(registering ? '로그인' : '회원가입'),
         ),
       ],
     );
   }
+
+  Widget _authField({
+    required String label,
+    required String hint,
+    required Key fieldKey,
+    required TextEditingController controller,
+    required bool enabled,
+    TextInputAction? textInputAction,
+    Iterable<String>? autofillHints,
+    bool autocorrect = true,
+    TextInputType? keyboardType,
+    String? errorText,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    bool obscureText = false,
+    Widget? suffixIcon,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.text,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          height: 20 / 13,
+        ),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        key: fieldKey,
+        controller: controller,
+        enabled: enabled,
+        autocorrect: autocorrect,
+        enableSuggestions: false,
+        textInputAction: textInputAction,
+        autofillHints: autofillHints,
+        keyboardType: keyboardType,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        obscureText: obscureText,
+        style: const TextStyle(
+          color: AppColors.text,
+          fontSize: 14,
+          height: 21 / 14,
+          letterSpacing: -0.2,
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            height: 21 / 14,
+            letterSpacing: -0.2,
+          ),
+          errorText: errorText,
+          errorStyle: const TextStyle(
+            color: AppColors.danger,
+            fontSize: 12,
+            height: 16 / 12,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          enabledBorder: _authInputBorder(),
+          border: _authInputBorder(),
+          focusedBorder: _authInputBorder(color: AppColors.actionMint),
+          errorBorder: _authInputBorder(color: AppColors.dangerBorder),
+          focusedErrorBorder: _authInputBorder(
+            color: AppColors.danger,
+            width: 1.5,
+          ),
+          suffixIcon: suffixIcon == null
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: suffixIcon,
+                ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
+        ),
+      ),
+    ],
+  );
+
+  OutlineInputBorder _authInputBorder({
+    Color color = const Color(0xFFE1E5E2),
+    double width = 1,
+  }) => OutlineInputBorder(
+    borderRadius: const BorderRadius.all(Radius.circular(14)),
+    borderSide: BorderSide(color: color, width: width),
+  );
 
   Widget _errorMessage() => Semantics(
     key: _errorKey,
@@ -559,6 +836,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         textAlign: TextAlign.center,
         style: const TextStyle(color: AppColors.danger),
       ),
+    ),
+  );
+}
+
+class _AuthBrandLockup extends StatelessWidget {
+  const _AuthBrandLockup({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: Stack(
+      children: [
+        BrandLogo(size: size),
+        Positioned(
+          left: size * .325,
+          top: size * .5833,
+          width: size * .35,
+          child: Text(
+            '포마펫',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: const Color(0xFF572617),
+              fontSize: size * .1292,
+              fontWeight: FontWeight.w700,
+              height: 1.5,
+              letterSpacing: -1 * size / 240,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
