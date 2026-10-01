@@ -173,6 +173,7 @@ void main() {
 
       expect(find.text('카카오로 시작하기'), findsOneWidget);
       expect(find.text('이메일로 로그인'), findsOneWidget);
+      expect(find.text('처음 오셨나요?'), findsOneWidget);
       expect(find.text('회원가입'), findsOneWidget);
       final emailButton = tester.widget<OutlinedButton>(
         find.ancestor(
@@ -182,25 +183,26 @@ void main() {
       );
       expect(
         emailButton.style?.side?.resolve({}),
-        const BorderSide(color: Color(0xFF151C27), width: 1.2),
+        const BorderSide(color: Color(0xFFE1E5E2)),
       );
       expect(
         tester.widget<Text>(find.text('회원가입')).style?.color,
-        const Color(0xFF151C27),
+        AppColors.actionMint,
       );
 
       await tester.tap(find.text('이메일로 로그인'));
       await tester.pumpAndSettle();
-      expect(find.text('로그인'), findsAtLeastNWidgets(2));
+      expect(find.text('로그인'), findsOneWidget);
       expect(find.byKey(const Key('auth-email-field')), findsOneWidget);
       final submit = tester.widget<FilledButton>(
         find.byKey(const Key('auth-submit-button')),
       );
       expect(submit.style?.backgroundColor?.resolve({}), AppColors.primary);
 
+      await tester.ensureVisible(find.text('회원가입'));
       await tester.tap(find.text('회원가입'));
       await tester.pumpAndSettle();
-      expect(find.text('회원가입'), findsAtLeastNWidgets(2));
+      expect(find.text('회원가입'), findsOneWidget);
       expect(find.byKey(const Key('auth-nickname-field')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('auth-back-button')));
@@ -208,6 +210,46 @@ void main() {
       expect(find.text('카카오로 시작하기'), findsOneWidget);
     },
   );
+
+  testWidgets('welcome matches the Figma welcome copy and white canvas', (
+    tester,
+  ) async {
+    await _pumpAuth(tester);
+
+    expect(find.text('우리 아이와의 매일을'), findsOneWidget);
+    expect(find.text('더 편안하게'), findsOneWidget);
+    expect(find.text('기록부터 일상까지, 포마펫과 함께해요.'), findsOneWidget);
+    expect(find.text('처음 오셨나요?'), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+      Colors.white,
+    );
+  });
+
+  testWidgets('email login matches the Figma title and helper copy', (
+    tester,
+  ) async {
+    await _pumpAuth(tester);
+    await _openLogin(tester);
+
+    expect(find.text('다시 만나 반가워요'), findsOneWidget);
+    expect(find.text('이메일로 로그인하고 일상을 이어가세요.'), findsOneWidget);
+    expect(find.text('이메일 주소를 입력해 주세요'), findsOneWidget);
+    expect(find.text('비밀번호를 입력해 주세요'), findsOneWidget);
+  });
+
+  testWidgets('registration matches the Figma title and field hints', (
+    tester,
+  ) async {
+    await _pumpAuth(tester);
+    await tester.tap(find.text('회원가입'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('포마펫과 함께 시작해요'), findsOneWidget);
+    expect(find.text('우리 아이와의 소중한 일상을 담아보세요.'), findsOneWidget);
+    expect(find.text('사용할 닉네임을 입력해 주세요'), findsOneWidget);
+    expect(find.text('8자 이상 입력해 주세요'), findsOneWidget);
+  });
 
   testWidgets('invalid email blocks login before an auth request', (
     tester,
@@ -321,9 +363,10 @@ void main() {
       find.byKey(const Key('auth-password-field')),
       'legacy',
     );
-    await tester.tap(find.text('로그인').last);
+    await tester.ensureVisible(find.byKey(const Key('auth-submit-button')));
+    await tester.tap(find.byKey(const Key('auth-submit-button')));
     await tester.pump();
-    await tester.tap(find.text('로그인').last);
+    await tester.tap(find.byKey(const Key('auth-submit-button')));
     await tester.pump();
     expect(service.loginCalls, 1);
 
@@ -346,6 +389,7 @@ void main() {
       await tester.ensureVisible(find.text('회원가입'));
       await tester.tap(find.text('회원가입'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('auth-password-field')));
       await tester.tap(find.byKey(const Key('auth-password-field')));
       await tester.pump();
 
