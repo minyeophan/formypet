@@ -13,8 +13,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       app.main();
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('이용약관 · 개인정보 처리방침'));
-      await tester.tap(find.text('이용약관 · 개인정보 처리방침'));
+      await tester.ensureVisible(find.text('이용약관'));
+      await tester.tap(find.text('이용약관'));
       await tester.pumpAndSettle();
       expect(find.text('약관 및 정책'), findsOneWidget);
       expect(tester.takeException(), isNull);

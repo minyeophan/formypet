@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_interaction_style.dart';
-import '../../widgets/brand_logo.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, this.errorText, this.onRetry});
@@ -28,12 +27,18 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const BrandLogo(size: 168),
+                Image.asset(
+                  'assets/images/brand_logo_splash.png',
+                  width: 168,
+                  height: 168,
+                  fit: BoxFit.contain,
+                  semanticLabel: '포마펫 시작 화면 로고',
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   '포마펫',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.text,
                     fontSize: 30,
                     fontWeight: FontWeight.w800,
                   ),
