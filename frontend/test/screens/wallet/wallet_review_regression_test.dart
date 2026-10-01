@@ -25,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'wallet_test_api.dart';
 
+// Keep expense fixtures in the same month as pumpReview's fixed query clock.
 const recordError = '반려동물 기록을 불러오지 못했어요. 다시 시도해 주세요.';
 
 void main() {
@@ -35,7 +36,7 @@ void main() {
     'ambiguous populated error recovers through real pet refresh and data retry without changing query',
     (tester) async {
       const ambiguousError = '반려동물 정보를 불러오지 못했어요. 다시 시도해 주세요.';
-      final api = PetRecoveryApi([expenseJson('e1', 'p1')]);
+      final api = PetRecoveryApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final pets = PetNotifier.test(petState(error: ambiguousError));
       final (container, _) = await pumpReview(tester, pets: pets);
       final query = container.read(walletQueryProvider.notifier);
@@ -78,7 +79,8 @@ void main() {
   testWidgets('failed pet-list retry keeps ambiguous cached error blocked', (
     tester,
   ) async {
-    final api = PetRecoveryApi([expenseJson('e1', 'p1')])..petListFails = true;
+    final api = PetRecoveryApi([expenseJson('e1', 'p1', date: '2026-09-08')])
+      ..petListFails = true;
     final pets = PetNotifier.test(
       petState(error: '반려동물 정보를 불러오지 못했어요. 다시 시도해 주세요.'),
     );
@@ -95,7 +97,7 @@ void main() {
     'wallet revalidates at 60 seconds on return and keeps younger cache',
     (tester) async {
       var now = DateTime(2026, 9, 8);
-      final api = WalletTestApi([expenseJson('e1', 'p1')]);
+      final api = WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final wallet = WalletExpenseNotifier(
         WalletExpenseService(),
         now: () => now,
@@ -103,7 +105,7 @@ void main() {
       final (_, router) = await pumpReview(tester, wallet: wallet);
       unawaited(router.push('/other'));
       await tester.pumpAndSettle();
-      api.rows.add(expenseJson('e2', 'p1', amount: 2000));
+      api.rows.add(expenseJson('e2', 'p1', amount: 2000, date: '2026-09-08'));
       now = now.add(const Duration(seconds: 59));
       router.pop();
       await tester.pumpAndSettle();
@@ -129,7 +131,7 @@ void main() {
     'stale concurrent ensure calls coalesce and old session completion cannot refill cache',
     () async {
       var now = DateTime(2026, 9, 8);
-      final api = WalletTestApi([expenseJson('e1', 'p1')]);
+      final api = WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final wallet = WalletExpenseNotifier(
         WalletExpenseService(),
         now: () => now,
@@ -171,7 +173,7 @@ void main() {
   testWidgets(
     'record errors do not block a known pet wallet but loading still waits',
     (tester) async {
-      final api = WalletTestApi([expenseJson('e1', 'p1')]);
+      final api = WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final pets = TestPets(petState(error: recordError, loading: true));
       final (container, _) = await pumpReview(
         tester,
@@ -196,7 +198,9 @@ void main() {
     testWidgets(
       'ambiguous pet-list failure remains blocked with empty=$empty',
       (tester) async {
-        final api = WalletTestApi([expenseJson('e1', 'p1')]);
+        final api = WalletTestApi([
+          expenseJson('e1', 'p1', date: '2026-09-08'),
+        ]);
         final (container, _) = await pumpReview(
           tester,
           pets: TestPets(
@@ -275,10 +279,10 @@ void main() {
   testWidgets(
     'successful wallet hides refresh but failure exposes one working retry',
     (tester) async {
-      final api = WalletTestApi([expenseJson('e1', 'p1')]);
+      final api = WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final (container, _) = await pumpReview(tester);
       expect(find.widgetWithText(TextButton, '새로고침'), findsNothing);
-      api.rows.add(expenseJson('e2', 'p1', amount: 2000));
+      api.rows.add(expenseJson('e2', 'p1', amount: 2000, date: '2026-09-08'));
       api.listFails = true;
       await tester.runAsync(() async {
         try {
@@ -301,7 +305,7 @@ void main() {
   testWidgets(
     'edit keeps mounted draft through pet loading and disables save until ready',
     (tester) async {
-      final api = WalletTestApi([expenseJson('e1', 'p1')]);
+      final api = WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
       final pets = TestPets(petState());
       await pumpReview(
         tester,
@@ -344,7 +348,7 @@ void main() {
   testWidgets('detail deletion returns to wallet whose back goes home', (
     tester,
   ) async {
-    WalletTestApi([expenseJson('e1', 'p1')]);
+    WalletTestApi([expenseJson('e1', 'p1', date: '2026-09-08')]);
     await pumpReview(tester, location: '/wallet/expenses/e1?petId=p1');
     await tester.tap(find.byKey(const Key('expense-delete-button')));
     await tester.pumpAndSettle();
