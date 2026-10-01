@@ -39,20 +39,20 @@
 
 ## 앱 화면
 
-예시 데이터를 사용한 앱 화면입니다. Figma 원본 디자인을 PNG로 내보냈습니다.
-
 <p>
-  <img src="docs/images/readme/home.png" alt="홈과 반려동물 프로필" width="220" height="391">
-  <img src="docs/images/readme/records.png" alt="반려기록" width="220" height="391">
-  <img src="docs/images/readme/expenses.png" alt="지출 관리" width="220" height="391">
+  <img src="docs/images/readme/home.png" alt="홈과 반려동물 프로필" width="48%">
+  <img src="docs/images/readme/records.png" alt="반려기록" width="48%">
 </p>
 
 <p>
-  <img src="docs/images/readme/calendar.png" alt="지출 캘린더" width="220" height="391">
-  <img src="docs/images/readme/community.png" alt="보호자 커뮤니티" width="220" height="391">
+  <img src="docs/images/readme/routine.png" alt="케어 루틴" width="48%">
+  <img src="docs/images/readme/expenses.png" alt="지출 관리" width="48%">
 </p>
 
-[원본 Figma 디자인](https://www.figma.com/design/MYwSnxdhmGZnLuc1pHtjZz/?node-id=1097-7)
+<p>
+  <img src="docs/images/readme/calendar.png" alt="지출 캘린더" width="48%">
+  <img src="docs/images/readme/community.png" alt="보호자 커뮤니티" width="48%">
+</p>
 
 ## CI/CD 파이프라인
 
@@ -77,7 +77,6 @@
   <img src="docs/images/stack/java.svg" alt="Java 21" width="120" height="136">
   <img src="docs/images/stack/spring.svg" alt="Spring Boot" width="120" height="136">
   <img src="docs/images/stack/mysql.svg" alt="MySQL" width="120" height="136">
-  <img src="docs/images/stack/gradle.svg" alt="Gradle" width="120" height="136">
 </p>
 
 ### Infrastructure
