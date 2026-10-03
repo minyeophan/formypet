@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.time.*;
+import com.formypet.common.time.UtcTime;
 
 @Component
 public class RecoveryRateLimiter {
@@ -21,22 +22,22 @@ public class RecoveryRateLimiter {
     }
     public void consume(String scope,String key,int maximum,int windowSeconds,int cooldownSeconds){
         boolean accepted=Boolean.TRUE.equals(transactions.execute(status->{
-            LocalDateTime now=LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC);
+            Instant now=clock.instant();
             String bucket=crypto.digest("limit",scope+"\0"+key);
             jdbc.update("INSERT IGNORE INTO password_reset_limits(bucket_key,window_start,last_request_at,request_count) VALUES(?,?,?,0)",
-                    bucket,now,now.minusSeconds(windowSeconds+1));
+                    bucket,UtcTime.toDatabase(now),UtcTime.toDatabase(now.minusSeconds(windowSeconds+1)));
             var row=jdbc.queryForMap("SELECT * FROM password_reset_limits WHERE bucket_key=? FOR UPDATE",bucket);
-            LocalDateTime start=date(row.get("window_start"));
-            LocalDateTime last=date(row.get("last_request_at"));
+            Instant start=date(row.get("window_start"));
+            Instant last=date(row.get("last_request_at"));
             int count=((Number)row.get("request_count")).intValue();
             if(!now.isBefore(start.plusSeconds(windowSeconds))){start=now;count=0;}
             if(count>=maximum||(cooldownSeconds>0&&now.isBefore(last.plusSeconds(cooldownSeconds))))return false;
             jdbc.update("UPDATE password_reset_limits SET window_start=?,last_request_at=?,request_count=? WHERE bucket_key=?",
-                    start,now,count+1,bucket);return true;
+                    UtcTime.toDatabase(start),UtcTime.toDatabase(now),count+1,bucket);return true;
         }));
         if(!accepted)throw RecoveryService.error(429,"PASSWORD_RESET_RATE_LIMITED","잠시 후 다시 시도해 주세요.");
     }
-    private static LocalDateTime date(Object value){
-        return value instanceof java.sql.Timestamp t?t.toLocalDateTime():(LocalDateTime)value;
+    private static Instant date(Object value){
+        return UtcTime.fromDatabase(value);
     }
 }

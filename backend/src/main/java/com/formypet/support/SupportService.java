@@ -15,8 +15,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,7 @@ public class SupportService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
-    public record Receipt(String id, OffsetDateTime receivedAt) {}
+    public record Receipt(String id, Instant receivedAt) {}
 
     @Transactional
     public Receipt inquiry(Long actorId, SupportController.InquiryRequest request) {
@@ -82,13 +82,13 @@ public class SupportService {
                     if (!hash.equals(rs.getString("payload_hash"))) {
                         throw error(HttpStatus.CONFLICT, "REQUEST_CONFLICT", "같은 요청 번호로 다른 내용을 접수할 수 없어요.");
                     }
-                    return new Receipt(rs.getString("id"), rs.getTimestamp("created_at").toLocalDateTime().atOffset(ZoneOffset.UTC));
+                    return new Receipt(rs.getString("id"), UtcTime.fromDatabase(rs.getObject("created_at", LocalDateTime.class)));
                 }, uid, kind, requestId).stream().findFirst().orElse(null);
     }
 
     private Receipt insert(long uid, String kind, String requestId, String hash, String category, String title,
                            String content, String reply, Long postId, String snapshot, Long authorId) {
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         GeneratedKeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             var statement = connection.prepareStatement("""
@@ -96,13 +96,13 @@ public class SupportService {
                     (requester_user_id,kind,request_id,payload_hash,category,title,content,reply_email,target_post_id,target_snapshot,created_at,target_author_id)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                     """, Statement.RETURN_GENERATED_KEYS);
-            Object[] values = {uid, kind, requestId, hash, category, title, content, reply, postId, snapshot, now, authorId};
+            Object[] values = {uid, kind, requestId, hash, category, title, content, reply, postId, snapshot, UtcTime.toDatabase(now), authorId};
             for (int i = 0; i < values.length; i++) statement.setObject(i + 1, values[i]);
             return statement;
         }, key);
         long id = key.getKey().longValue();
-        jdbc.update("INSERT INTO support_mail_outbox(ticket_id,next_attempt_at) VALUES (?,?)", id, now);
-        return new Receipt(Long.toString(id), now.atOffset(ZoneOffset.UTC));
+        jdbc.update("INSERT INTO support_mail_outbox(ticket_id,next_attempt_at) VALUES (?,?)", id, UtcTime.toDatabase(now));
+        return new Receipt(Long.toString(id), now);
     }
 
     private String hash(Object payload) {

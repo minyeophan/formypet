@@ -1,6 +1,6 @@
 package com.formypet.community.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public record PostCommentResponse(
@@ -9,8 +9,8 @@ public record PostCommentResponse(
         String authorNickname,
         String authorProfileImageUrl,
         String content,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        Instant createdAt,
+        Instant updatedAt,
         boolean deleted,
         int commentsCount,
         Long parentCommentId,
@@ -20,7 +20,7 @@ public record PostCommentResponse(
         boolean blocked
 ) {
     public PostCommentResponse(Long id, Long userId, String authorNickname, String authorProfileImageUrl,
-                               String content, LocalDateTime createdAt, LocalDateTime updatedAt,
+                               String content, Instant createdAt, Instant updatedAt,
                                boolean deleted, int commentsCount, Long parentCommentId, int replyCount,
                                List<PostCommentResponse> replies, String repliesNextCursor) {
         this(id, userId, authorNickname, authorProfileImageUrl, content, createdAt, updatedAt,

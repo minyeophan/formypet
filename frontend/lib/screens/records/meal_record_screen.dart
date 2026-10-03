@@ -366,7 +366,12 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   void _initializeFromRecord(ActivityRecord record) {
     final detail = record.detail;
     _foodType = detail['foodType']?.toString();
-    _consumedPercent = int.tryParse('${detail['consumedPercent']}');
+    final consumed = num.tryParse('${detail['consumedPercent']}');
+    _consumedPercent =
+        consumed != null &&
+            _consumeOptions.any((option) => option.value == consumed)
+        ? consumed.toInt()
+        : null;
     _feedingMethod = detail['feedingMethod']?.toString();
     _productCtrl.text = detail['product']?.toString() ?? '';
     _amountCtrl.text = detail['servedAmount'] == null

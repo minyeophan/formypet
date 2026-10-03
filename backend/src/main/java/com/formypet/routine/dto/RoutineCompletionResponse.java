@@ -1,7 +1,7 @@
 package com.formypet.routine.dto;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record RoutineCompletionResponse(
         Long id,
@@ -9,11 +9,11 @@ public record RoutineCompletionResponse(
         Long petId,
         LocalDate scheduledDate,
         String status,
-        LocalDateTime completedAt
+        Instant completedAt
 ) {
     public static RoutineCompletionResponse of(Long id, Long routineId, Long petId,
                                                LocalDate scheduledDate, String status,
-                                               LocalDateTime completedAt) {
+                                               Instant completedAt) {
         return new RoutineCompletionResponse(id, routineId, petId, scheduledDate, status, completedAt);
     }
 }

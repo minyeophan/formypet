@@ -20,7 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -136,7 +136,7 @@ public class AuthService {
     private TokenResponse issueTokens(User user, long version) {
         String accessToken  = jwtService.generateAccessToken(user.getId(), version);
         String refreshToken = UUID.randomUUID().toString();
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000);
+        Instant expiresAt = Instant.now().plusSeconds(refreshTokenExpiration / 1000);
         refreshTokenRepository.save(RefreshToken.create(user, refreshToken, expiresAt));
         return TokenResponse.of(accessToken, refreshToken);
     }

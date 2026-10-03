@@ -69,6 +69,7 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'user.timezone', providers.gradleProperty('testTimezone').getOrElse('UTC')
     jvmArgs '-XX:+EnableDynamicAgentLoading'
     maxParallelForks = 1
 
