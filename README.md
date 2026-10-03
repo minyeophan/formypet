@@ -45,12 +45,11 @@
 </p>
 
 <p>
-  <img src="docs/images/readme/routine.png" alt="케어 루틴" width="48%">
   <img src="docs/images/readme/expenses.png" alt="지출 관리" width="48%">
+  <img src="docs/images/readme/calendar.png" alt="지출 캘린더" width="48%">
 </p>
 
 <p>
-  <img src="docs/images/readme/calendar.png" alt="지출 캘린더" width="48%">
   <img src="docs/images/readme/community.png" alt="보호자 커뮤니티" width="48%">
 </p>
 
@@ -87,4 +86,11 @@
   <img src="docs/images/stack/firebase.svg" alt="Firebase FCM" width="120" height="136">
   <img src="docs/images/stack/netlify.svg" alt="Netlify" width="120" height="136">
   <img src="docs/images/stack/githubactions.svg" alt="GitHub Actions" width="120" height="136">
+</p>
+
+### Monitoring
+
+<p>
+  <img src="docs/images/stack/grafana.svg" alt="Grafana" width="120" height="136">
+  <img src="docs/images/stack/prometheus.svg" alt="Prometheus" width="120" height="136">
 </p>
