@@ -10,6 +10,9 @@ import org.springframework.context.annotation.Configuration;
 
 import jakarta.annotation.PostConstruct;
 import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -20,22 +23,28 @@ public class FirebaseConfiguration {
     @Value("${app.firebase.credentials-path:firebase-service-account.json}")
     private String credentialsPath;
 
+    @Value("${app.firebase.credentials-json:}")
+    private String credentialsJson;
+
     @PostConstruct
     void initialize() {
         if (!FirebaseApp.getApps().isEmpty()) return;
-        Path path = Path.of(credentialsPath);
-        if (!Files.isRegularFile(path)) {
-            log.warn("Firebase credentials file not found; push notifications are disabled: {}", path);
+        boolean inline = credentialsJson != null && !credentialsJson.isBlank();
+        if (!inline && !Files.isRegularFile(Path.of(credentialsPath))) {
+            log.warn("Firebase credentials not configured; push notifications are disabled");
             return;
         }
-        try (FileInputStream serviceAccount = new FileInputStream(path.toFile())) {
+        try (InputStream serviceAccount = inline
+                ? new ByteArrayInputStream(credentialsJson.getBytes(StandardCharsets.UTF_8))
+                : new FileInputStream(credentialsPath)) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .build();
             FirebaseApp.initializeApp(options);
             log.info("Firebase Admin SDK initialized");
         } catch (Exception error) {
-            log.error("Firebase Admin SDK initialization failed", error);
+            // Parser exception messages can contain credential JSON. Never attach the cause.
+            throw new IllegalStateException("Firebase credentials are invalid; check the configured secret or file");
         }
     }
 }

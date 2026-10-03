@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.lang.NonNull;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -35,7 +35,7 @@ public class OAuthAccount {
     private String providerUserId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @NonNull
     public static OAuthAccount create(User user, String provider, String providerUserId) {
@@ -43,7 +43,7 @@ public class OAuthAccount {
         account.user = user;
         account.provider = provider;
         account.providerUserId = providerUserId;
-        account.createdAt = LocalDateTime.now();
+        account.createdAt = Instant.now();
         return account;
     }
 }

@@ -16,13 +16,15 @@ def main():
 
     def query(panel_id, target=0):
         expr = panels[panel_id]["targets"][target]["expr"]
+        # Grafana generic :regex escapes slashes; PromQL rejects the resulting slash escape.
+        # Use a hosted Metrics Endpoint job name to cover the real integration format.
         for key, value in {"${service:regex}": "formypet", "${environment:regex}": "production",
-                           "${job:regex}": "formypet-production", "$__range": "5m"}.items():
+                           "${job:regex}": r"integrations\/metrics_endpoint\/123456-metrics-endpoint-formypet-production", "${job}": "integrations/metrics_endpoint/123456-metrics-endpoint-formypet-production", "$__range": "5m"}.items():
             expr = expr.replace(key, value)
         assert "$" not in expr, expr
         return expr
 
-    labels = 'service="formypet",environment="production",job="formypet-production"'
+    labels = 'service="formypet",environment="production",job="integrations/metrics_endpoint/123456-metrics-endpoint-formypet-production"'
     http_labels = labels + ',uri="/api/v1/pets",method="GET",status="200",outcome="SUCCESS",exception="none"'
     heartbeat = {"series": "process_uptime_seconds{" + labels + "}", "values": "0+60x20"}
     counter = {"series": "http_server_requests_seconds_count{" + http_labels + "}", "values": "0+60x20"}

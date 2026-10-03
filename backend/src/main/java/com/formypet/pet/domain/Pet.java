@@ -9,7 +9,7 @@ import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "pets")
@@ -80,10 +80,10 @@ public class Pet {
     private boolean deleted = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     public static Pet create(User user, String name, String species, LocalDate birthDate,
                              String accentColor, String bgLight) {
@@ -94,14 +94,14 @@ public class Pet {
         pet.birthDate   = birthDate;
         pet.accentColor = accentColor;
         pet.bgLight     = bgLight;
-        pet.createdAt   = LocalDateTime.now();
-        pet.updatedAt   = LocalDateTime.now();
+        pet.createdAt   = Instant.now();
+        pet.updatedAt   = Instant.now();
         return pet;
     }
 
     public void updateName(String name) {
         this.name      = name;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public void update(String name, String species, LocalDate birthDate,
@@ -127,12 +127,12 @@ public class Pet {
         this.primaryHospitalName        = primaryHospitalName;
         this.accentColor                = accentColor;
         this.bgLight                    = bgLight;
-        this.updatedAt                  = LocalDateTime.now();
+        this.updatedAt                  = Instant.now();
     }
 
     public void softDelete() {
         this.deleted   = true;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public boolean isOwnedBy(Long userId) {

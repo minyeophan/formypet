@@ -1,7 +1,7 @@
 package com.formypet.routine.dto;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CareScheduleResponse(
@@ -17,13 +17,13 @@ public record CareScheduleResponse(
         String place,
         String memo,
         @Schema(description = "알림 시점") String reminder,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static CareScheduleResponse of(Long id, Long petId, String categoryId, String title,
                                           LocalDate startDate, String startTime,
                                           LocalDate endDate, String endTime,
                                           boolean allDay, String place, String memo,
-                                          String reminder, LocalDateTime createdAt) {
+                                          String reminder, Instant createdAt) {
         return new CareScheduleResponse(
                 id,
                 petId,
