@@ -10,6 +10,27 @@ permissions:
   contents: read
 
 jobs:
+  monitoring:
+    name: Monitoring dashboard PromQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Download and verify Prometheus test tools
+        env:
+          PROMETHEUS_VERSION: 3.15.0
+        run: |
+          cd "$RUNNER_TEMP"
+          archive="prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          base="https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}"
+          curl --fail --location --retry 3 "$base/$archive" --output "$archive"
+          curl --fail --location --retry 3 "$base/sha256sums.txt" --output sha256sums.txt
+          grep "  ${archive}$" sha256sums.txt | sha256sum --check --strict
+          tar -xzf "$archive"
+      - name: Test dashboard queries with synthetic series
+        run: python3 ops/monitoring/test_dashboard.py "$RUNNER_TEMP/prometheus-3.15.0.linux-amd64/promtool"
+
   flutter:
     name: Flutter analyze and tests
     runs-on: ubuntu-latest
