@@ -47,6 +47,23 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String POSTS_URL = "/api/v1/posts";
 
+    @Test
+    void postCreationUsesUtcEvenWhenJvmRunsInSeoul() throws Exception {
+        String token = registerAndGetToken("utc-post@example.com", "utc-post");
+        var original = java.util.TimeZone.getDefault();
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+            var before = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1);
+            Long id = createPost(token, "UTC test", "FREE", "clock test");
+            var stored = jdbcTemplate.queryForObject("SELECT created_at FROM posts WHERE id=?",
+                    (rs, row) -> rs.getObject(1, java.time.LocalDateTime.class), id);
+            org.assertj.core.api.Assertions.assertThat(stored).isBetween(before,
+                    java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(1));
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
+
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("UPDATE users SET profile_media_id = NULL");
@@ -908,7 +925,7 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
         Long first = createPost(token, "first", "FREE", "body");
         Long second = createPost(token, "second", "FREE", "body");
         createPost(other, "private", "FREE", "body");
-        jdbcTemplate.update("UPDATE posts SET created_at = '2026-09-10 12:00:00' WHERE id IN (?, ?)", first, second);
+        jdbcTemplate.update("UPDATE posts SET created_at = '2026-09-10 12:00:00.123456' WHERE id IN (?, ?)", first, second);
         String url = "/api/v1/me/community/activities";
         mockMvc.perform(get(url).param("type", "written")).andExpect(status().isUnauthorized());
         var response = mockMvc.perform(get(url).header("Authorization", "Bearer " + token)
@@ -916,6 +933,9 @@ class CommunityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))
                 .andExpect(jsonPath("$.data.items[0].post.id").value(second)).andReturn();
         String cursor = objectMapper.readTree(response.getResponse().getContentAsString()).path("data").path("nextCursor").asText();
+        String legacyCursor = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                ("written|2026-09-10T12:00:00.123456|" + second).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        org.assertj.core.api.Assertions.assertThat(cursor).isEqualTo(legacyCursor);
         mockMvc.perform(get(url).header("Authorization", "Bearer " + token)
                         .param("type", "written").param("cursor", cursor))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.items", hasSize(1)))

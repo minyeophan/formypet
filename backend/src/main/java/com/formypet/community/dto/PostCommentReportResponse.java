@@ -1,12 +1,12 @@
 package com.formypet.community.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record PostCommentReportResponse(
         Long id,
         Long commentId,
         PostCommentReportReason reason,
         String detail,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
 }

@@ -28,6 +28,8 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.time.LocalTime;
 import java.util.*;
 
@@ -51,7 +53,7 @@ public class ActivityRecordService {
         validateRoutineBelongsToPet(pet.getId(), request.routineId());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTime.toDatabase(Instant.now());
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO activity_records (pet_id, type_id, date, time, routine_id, note, created_at, updated_at)
@@ -136,7 +138,7 @@ public class ActivityRecordService {
                 request.time() != null ? request.time() : current.get("time"),
                 request.routineId() != null ? request.routineId() : current.get("routine_id"),
                 request.note() != null ? request.note() : current.get("note"),
-                LocalDateTime.now(),
+                UtcTime.toDatabase(Instant.now()),
                 recordId,
                 pet.getId());
 

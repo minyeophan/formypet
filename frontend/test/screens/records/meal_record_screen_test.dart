@@ -506,55 +506,57 @@ void main() {
     expect(field.controller!.text, '12');
   });
 
-  testWidgets('meal edit initializes existing values and updates record', (
-    tester,
-  ) async {
-    final notifier = _MealTestPetNotifier(
-      records: const [
-        ActivityRecord(
-          id: 'meal-edit',
-          petId: 'pet-1',
-          typeId: 'meal',
-          date: '2026-05-09',
-          time: '09:10:32',
-          note: '기존 메모',
-          detail: {
-            'foodType': 'snack',
-            'product': '츄르',
-            'servedAmount': 35,
-            'consumedPercent': 75,
-            'brand': '브랜드',
-            'feedingMethod': 'served',
-          },
-        ),
-      ],
-    );
-    await _pumpMealRoute(
-      tester,
-      notifier: notifier,
-      initialLocation: '/records/meal-edit/edit',
-    );
+  testWidgets(
+    'meal edit preserves decimal JSON consumption and updates record',
+    (tester) async {
+      final notifier = _MealTestPetNotifier(
+        records: const [
+          ActivityRecord(
+            id: 'meal-edit',
+            petId: 'pet-1',
+            typeId: 'meal',
+            date: '2026-05-09',
+            time: '09:10:32',
+            note: '기존 메모',
+            detail: {
+              'foodType': 'snack',
+              'product': '츄르',
+              'servedAmount': 35,
+              'consumedPercent': 75.0,
+              'brand': '브랜드',
+              'feedingMethod': 'served',
+            },
+          ),
+        ],
+      );
+      await _pumpMealRoute(
+        tester,
+        notifier: notifier,
+        initialLocation: '/records/meal-edit/edit',
+      );
 
-    expect(find.text('급식 수정'), findsOneWidget);
-    expect(find.text('2026-05-09'), findsOneWidget);
-    expect(find.text('09:10'), findsOneWidget);
-    expect(find.byKey(const Key('meal-photo-button')), findsNothing);
-    expect(find.text('등록된 사진이 없어요'), findsOneWidget);
+      expect(find.text('급식 수정'), findsOneWidget);
+      expect(find.text('2026-05-09'), findsOneWidget);
+      expect(find.text('09:10'), findsOneWidget);
+      expect(find.byKey(const Key('meal-photo-button')), findsNothing);
+      expect(find.text('등록된 사진이 없어요'), findsOneWidget);
 
-    await _tapEditSave(tester);
+      await _tapEditSave(tester);
 
-    expect(notifier.updatedRecords.single.$1, 'meal-edit');
-    expect(notifier.updatedRecords.single.$2['date'], '2026-05-09');
-    expect(notifier.updatedRecords.single.$2['time'], '09:10');
-    expect(notifier.updatedRecords.single.$2['detail'], {
-      'foodType': 'snack',
-      'product': '츄르',
-      'servedAmount': 35,
-      'consumedPercent': 75,
-      'brand': '브랜드',
-      'feedingMethod': 'served',
-    });
-  });
+      expect(notifier.updatedRecords, hasLength(1));
+      expect(notifier.updatedRecords.single.$1, 'meal-edit');
+      expect(notifier.updatedRecords.single.$2['date'], '2026-05-09');
+      expect(notifier.updatedRecords.single.$2['time'], '09:10');
+      expect(notifier.updatedRecords.single.$2['detail'], {
+        'foodType': 'snack',
+        'product': '츄르',
+        'servedAmount': 35,
+        'consumedPercent': 75,
+        'brand': '브랜드',
+        'feedingMethod': 'served',
+      });
+    },
+  );
   testWidgets('editing meal sends empty note to clear saved memo', (
     tester,
   ) async {

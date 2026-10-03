@@ -24,7 +24,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -175,7 +176,7 @@ public class MediaService {
                 ps.setLong(8, stored.fileSize());
                 ps.setString(9, "STORED");
                 ps.setString(10, visibility);
-                ps.setObject(11, LocalDateTime.now());
+                ps.setObject(11, UtcTime.toDatabase(Instant.now()));
                 return ps;
             }, keyHolder);
         } catch (RuntimeException e) {

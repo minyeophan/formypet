@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -105,7 +105,7 @@ public class CareScheduleService {
                 normalizeNullableText(validated.request().place()),
                 normalizeNullableText(validated.request().memo()),
                 validated.reminder(),
-                LocalDateTime.now(),
+                UtcTime.toDatabase(Instant.now()),
                 scheduleId,
                 pet.id());
         return findResponse(pet.id(), scheduleId);
@@ -242,14 +242,8 @@ public class CareScheduleService {
         return time.format(TIME_FORMATTER);
     }
 
-    private static LocalDateTime normalizeDateTime(Object value) {
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
-        }
-        return LocalDateTime.parse(value.toString());
+    private static Instant normalizeDateTime(Object value) {
+        return UtcTime.fromDatabase(value);
     }
 
     private record PetRow(Long id, Long userId, boolean deleted) {

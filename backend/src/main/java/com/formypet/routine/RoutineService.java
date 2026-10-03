@@ -20,10 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -46,6 +47,7 @@ public class RoutineService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
+    private final com.formypet.config.NotificationProperties notificationProperties;
 
     @Transactional
     public RoutineResponse create(Long actorId, Long petId, RoutineCreateRequest request) {
@@ -58,7 +60,7 @@ public class RoutineService {
         validateTimes(request.times());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTime.toDatabase(Instant.now());
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO routines (pet_id, label, type_id, repeat_type, days, monthly_interval,
@@ -144,7 +146,7 @@ public class RoutineService {
                 request.notificationEnabled() != null ? request.notificationEnabled() : toBoolean(current.get("notification_enabled")),
                 request.note() != null ? request.note() : current.get("note"),
                 request.detail() != null ? toJsonObject(sanitizeDetail(request.detail())) : current.get("detail"),
-                LocalDateTime.now(),
+                UtcTime.toDatabase(Instant.now()),
                 routineId,
                 pet.getId());
 
@@ -161,13 +163,13 @@ public class RoutineService {
             throw new IllegalArgumentException("Unsupported routine completion status.");
         }
 
-        LocalDateTime completedAt = "COMPLETED".equals(status) ? LocalDateTime.now() : null;
+        LocalDateTime completedAt = "COMPLETED".equals(status) ? UtcTime.toDatabase(Instant.now()) : null;
         jdbcTemplate.update("""
                 INSERT INTO routine_completions (routine_id, pet_id, scheduled_date, status, completed_at, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE status = VALUES(status), completed_at = VALUES(completed_at), updated_at = VALUES(updated_at)
                 """,
-                routineId, pet.getId(), date, status, completedAt, LocalDateTime.now(), LocalDateTime.now());
+                routineId, pet.getId(), date, status, completedAt, UtcTime.toDatabase(Instant.now()), UtcTime.toDatabase(Instant.now()));
 
         return findCompletionResponse(routineId, date);
     }
@@ -175,7 +177,7 @@ public class RoutineService {
     @Transactional
     public TodayRoutineResponse today(Long actorId, Long petId, LocalDate date) {
         Pet pet = findOwnedPet(actorId, petId);
-        LocalDate targetDate = date != null ? date : LocalDate.now();
+        LocalDate targetDate = date != null ? date : LocalDate.now(notificationProperties.timezone());
         List<RoutineResponse> routines = list(actorId, pet.getId()).stream()
                 .filter(routine -> isScheduledOn(routine, targetDate))
                 .toList();
@@ -206,7 +208,7 @@ public class RoutineService {
         jdbcTemplate.update("""
                 INSERT IGNORE INTO routine_completions (routine_id, pet_id, scheduled_date, status, created_at, updated_at)
                 VALUES (?, ?, ?, 'PENDING', ?, ?)
-                """, routineId, petId, date, LocalDateTime.now(), LocalDateTime.now());
+                """, routineId, petId, date, UtcTime.toDatabase(Instant.now()), UtcTime.toDatabase(Instant.now()));
     }
 
     private RoutineResponse findResponse(Long petId, Long routineId) {
@@ -424,17 +426,8 @@ public class RoutineService {
         return LocalDate.parse(value.toString());
     }
 
-    private LocalDateTime normalizeDateTime(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
-        }
-        return LocalDateTime.parse(value.toString());
+    private Instant normalizeDateTime(Object value) {
+        return UtcTime.fromDatabase(value);
     }
 
     private boolean toBoolean(Object value) {

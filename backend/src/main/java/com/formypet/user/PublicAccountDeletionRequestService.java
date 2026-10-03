@@ -7,8 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -21,7 +20,7 @@ public class PublicAccountDeletionRequestService {
     private final SupportMailTransport mail;
     private final ConcurrentHashMap<String, Long> lastRequestByContact = new ConcurrentHashMap<>();
 
-    public record Receipt(String requestId, OffsetDateTime receivedAt) {}
+    public record Receipt(String requestId, Instant receivedAt) {}
 
     public Receipt submit(PublicAccountDeletionRequest request) {
         if (!settings.isEnabled()) {
@@ -48,7 +47,7 @@ public class PublicAccountDeletionRequestService {
                     "Deletion request unavailable", "요청을 접수하지 못했어요. 잠시 후 다시 시도해 주세요.",
                     "ACCOUNT_DELETION_REQUEST_UNAVAILABLE");
         }
-        return new Receipt(request.requestId(), OffsetDateTime.now(ZoneOffset.UTC));
+        return new Receipt(request.requestId(), Instant.now());
     }
 
     private String limiterKey(String email) {

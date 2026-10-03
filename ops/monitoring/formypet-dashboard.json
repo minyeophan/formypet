@@ -154,7 +154,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0))",
+          "expr": "(((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0))",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": false,
@@ -200,7 +200,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))",
+          "expr": "time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": false,
@@ -258,7 +258,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) or vector(0)) > bool 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) or vector(0)) > bool 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": false,
@@ -285,7 +285,24 @@
         "defaults": {
           "unit": "short",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5000
+              },
+              {
+                "color": "red",
+                "value": 10000
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -304,7 +321,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count({service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "count({service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": false,
@@ -348,7 +365,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -392,7 +409,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum(rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -419,7 +436,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -436,7 +455,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"4..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",status=~\"4..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -463,7 +482,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -480,7 +501,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"5..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",status=~\"5..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -507,7 +528,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -524,7 +547,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"1|1[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",le=~\"1|1[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -551,7 +574,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -568,7 +593,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"30|30[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",le=~\"30|30[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -612,7 +637,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -656,7 +681,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -702,7 +727,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum(increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(sum(increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": false,
@@ -759,7 +784,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -805,7 +830,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": false,
@@ -849,7 +874,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(histogram_quantile(0.95, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(histogram_quantile(0.95, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -893,7 +918,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(histogram_quantile(0.99, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "(histogram_quantile(0.99, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -920,7 +945,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -937,7 +964,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"4..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",status=~\"4..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -964,7 +991,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -981,7 +1010,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"5..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",status=~\"5..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -1025,7 +1054,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -1052,7 +1081,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -1069,7 +1100,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "clamp_min((sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum by (method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"1|1[.]0\"}[5m]))) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "clamp_min((sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) - sum by (method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\",le=~\"1|1[.]0\"}[5m]))) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -1113,7 +1144,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[15m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{method}} {{uri}}",
           "editorMode": "code",
           "range": true,
@@ -1170,7 +1201,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (area) (jvm_memory_used_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (area) (jvm_memory_used_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{area}}",
           "editorMode": "code",
           "range": true,
@@ -1214,7 +1245,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (area) (jvm_memory_max_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} >= 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (area) (jvm_memory_max_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} >= 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{area}}",
           "editorMode": "code",
           "range": true,
@@ -1258,7 +1289,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (action,cause) (rate(jvm_gc_pause_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (action,cause) (rate(jvm_gc_pause_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{action}} {{cause}}",
           "editorMode": "code",
           "range": true,
@@ -1302,7 +1333,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(jvm_gc_pause_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -1346,7 +1377,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_threads_live_threads{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "jvm_threads_live_threads{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -1373,7 +1404,9 @@
         "defaults": {
           "unit": "percentunit",
           "noValue": "데이터 없음",
-          "mappings": []
+          "mappings": [],
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -1390,7 +1423,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "process_cpu_usage{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "process_cpu_usage{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "__auto",
           "editorMode": "code",
           "range": true,
@@ -1447,7 +1480,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "hikaricp_connections_active{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "hikaricp_connections_active{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "active {{pool}}",
           "editorMode": "code",
           "range": true,
@@ -1455,19 +1488,19 @@
         },
         {
           "refId": "B",
-          "expr": "hikaricp_connections_idle{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "hikaricp_connections_idle{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "idle {{pool}}",
           "range": true
         },
         {
           "refId": "C",
-          "expr": "hikaricp_connections_max{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "hikaricp_connections_max{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "max {{pool}}",
           "range": true
         },
         {
           "refId": "D",
-          "expr": "hikaricp_connections_pending{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "hikaricp_connections_pending{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "pending {{pool}}",
           "range": true
         }
@@ -1509,7 +1542,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (pool) (rate(hikaricp_connections_acquire_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum by (pool) (rate(hikaricp_connections_acquire_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (pool) (rate(hikaricp_connections_acquire_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) / (sum by (pool) (rate(hikaricp_connections_acquire_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{pool}}",
           "editorMode": "code",
           "range": true,
@@ -1553,7 +1586,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (pool) (increase(hikaricp_connections_timeout_total{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "expr": "sum by (pool) (increase(hikaricp_connections_timeout_total{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=\"${job}\"}))) < bool 150) or vector(0)) == 1)",
           "legendFormat": "{{pool}}",
           "editorMode": "code",
           "range": true,

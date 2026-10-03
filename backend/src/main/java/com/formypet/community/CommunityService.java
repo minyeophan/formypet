@@ -34,8 +34,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import com.formypet.common.time.UtcTime;
 import java.util.*;
 
 @Service
@@ -106,14 +107,13 @@ public class CommunityService {
                     new com.formypet.community.dto.MyActivityResponse.Comment(commentId, parentId,
                             (String) row.get("comment_content"));
             return new com.formypet.community.dto.MyActivityResponse.Item(toPostResponse(row, user.getId()),
-                    row.get("activity_at") instanceof LocalDateTime at ? at :
-                            ((Timestamp) row.get("activity_at")).toLocalDateTime(), comment);
+                    UtcTime.fromDatabase(row.get("activity_at")), comment);
         }).toList();
         String next = null;
         if (more) {
             var last = items.getLast();
             next = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                    (type + "|" + last.activityAt() + "|" + last.post().id())
+                    (type + "|" + UtcTime.toDatabase(last.activityAt()) + "|" + last.post().id())
                             .getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
         return new com.formypet.community.dto.MyActivityResponse(items, next);
@@ -136,7 +136,7 @@ public class CommunityService {
         validateCreate(request, files);
         requireCategoryWritePermission(user, normalizeCategory(request.category()));
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTime.toDatabase(Instant.now());
 
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
@@ -380,7 +380,7 @@ public class CommunityService {
             ps.setLong(2, user.getId());
             ps.setObject(3, parentCommentId);
             ps.setString(4, content);
-            ps.setObject(5, LocalDateTime.now());
+            ps.setObject(5, UtcTime.toDatabase(Instant.now()));
             return ps;
         }, keyHolder);
         jdbcTemplate.update("UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?", postId);
@@ -404,7 +404,7 @@ public class CommunityService {
                     "Forbidden comment.", "COMMENT_FORBIDDEN");
         }
         String content = request.content().trim();
-        LocalDateTime updatedAt = LocalDateTime.now();
+        LocalDateTime updatedAt = UtcTime.toDatabase(Instant.now());
         int updated = jdbcTemplate.update("""
                 UPDATE post_comments
                 SET content = ?, updated_at = ?
@@ -431,7 +431,7 @@ public class CommunityService {
         int updated = jdbcTemplate.update("""
                 UPDATE post_comments SET deleted_at = ?
                 WHERE id = ? AND post_id = ? AND deleted_at IS NULL
-                """, LocalDateTime.now(), commentId, postId);
+                """, UtcTime.toDatabase(Instant.now()), commentId, postId);
         if (updated != 1) throw commentNotFound();
         jdbcTemplate.update("""
                 UPDATE posts SET comments_count = GREATEST(comments_count - 1, 0) WHERE id = ?
@@ -454,7 +454,7 @@ public class CommunityService {
                     "Invalid Comment Report", "Detail is required for OTHER reports.",
                     "COMMENT_REPORT_DETAIL_REQUIRED");
         }
-        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime createdAt = UtcTime.toDatabase(Instant.now());
         KeyHolder keyHolder = new GeneratedKeyHolder();
         try {
             jdbcTemplate.update(connection -> {
@@ -476,7 +476,7 @@ public class CommunityService {
                     "You have already reported this comment.", "DUPLICATE_COMMENT_REPORT");
         }
         Long reportId = Objects.requireNonNull(keyHolder.getKey()).longValue();
-        return new PostCommentReportResponse(reportId, commentId, request.reason(), detail, createdAt);
+        return new PostCommentReportResponse(reportId, commentId, request.reason(), detail, UtcTime.fromDatabase(createdAt));
     }
 
     @Transactional
@@ -496,7 +496,7 @@ public class CommunityService {
         jdbcTemplate.update("""
                 INSERT INTO post_likes (user_id, post_id, created_at)
                 VALUES (?, ?, ?)
-                """, user.getId(), postId, LocalDateTime.now());
+                """, user.getId(), postId, UtcTime.toDatabase(Instant.now()));
         jdbcTemplate.update("UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?", postId);
         Long recipient = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
         notificationService.create(recipient, user.getId(), user.getNickname(), NotificationType.POST_LIKE, postId, null);
@@ -515,14 +515,14 @@ public class CommunityService {
             jdbcTemplate.update("""
                     INSERT INTO post_poll_votes (poll_id, user_id, option_id, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?)
-                    """, pollId, user.getId(), optionId, LocalDateTime.now(), LocalDateTime.now());
+                    """, pollId, user.getId(), optionId, UtcTime.toDatabase(Instant.now()), UtcTime.toDatabase(Instant.now()));
             jdbcTemplate.update("UPDATE post_poll_options SET votes_count = votes_count + 1 WHERE id = ?", optionId);
             Long recipient = jdbcTemplate.queryForObject("SELECT user_id FROM posts WHERE id = ?", Long.class, postId);
             notificationService.create(recipient, user.getId(), user.getNickname(), NotificationType.POLL_VOTE, postId, null);
         } else if (!previousOptionId.equals(optionId)) {
             jdbcTemplate.update("""
                     UPDATE post_poll_votes SET option_id = ?, updated_at = ? WHERE poll_id = ? AND user_id = ?
-                    """, optionId, LocalDateTime.now(), pollId, user.getId());
+                    """, optionId, UtcTime.toDatabase(Instant.now()), pollId, user.getId());
             jdbcTemplate.update("UPDATE post_poll_options SET votes_count = GREATEST(votes_count - 1, 0) WHERE id = ?", previousOptionId);
             jdbcTemplate.update("UPDATE post_poll_options SET votes_count = votes_count + 1 WHERE id = ?", optionId);
         }
@@ -967,20 +967,8 @@ public class CommunityService {
                 .orElseThrow(() -> new IllegalStateException("User not found."));
     }
 
-    private LocalDateTime normalizeDateTime(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
-        }
-        if (value instanceof Date date) {
-            return date.toLocalDate().atStartOfDay();
-        }
-        return LocalDateTime.parse(value.toString());
+    private Instant normalizeDateTime(Object value) {
+        return UtcTime.fromDatabase(value);
     }
 
     private boolean toBoolean(Object value) {

@@ -41,6 +41,48 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired NotificationService notificationService;
 
+    @Test
+    void editingScheduleKeepsAlreadyDeliveredKoreanTimeRemindersOnUtcServer() throws Exception {
+        register("timezone-cleanup@example.com", "timezone-cleanup");
+        Long id = userId("timezone-cleanup@example.com");
+        var original = java.util.TimeZone.getDefault();
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+            var seoulNow = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
+            for (var scheduled : List.of(seoulNow.minusMinutes(30), seoulNow.plusMinutes(30))) {
+                jdbcTemplate.update("INSERT INTO notifications (recipient_user_id,type,title,body,source_type,source_id,scheduled_for,created_at) VALUES (?,?,?,?,?,?,?,?)",
+                        id, "CARE_SCHEDULE_REMINDER", "time-test", "body", "CARE_SCHEDULE", 999L,
+                        scheduled, LocalDateTime.now(java.time.ZoneOffset.UTC));
+            }
+            assertEquals(1, notificationService.deletePendingReminders("CARE_SCHEDULE", 999L));
+            assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notifications WHERE recipient_user_id=?", Integer.class, id));
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void reminderCreationUsesUtcWithoutShiftingTheLocalSchedule() throws Exception {
+        register("utc-reminder@example.com", "utc-reminder");
+        Long id = userId("utc-reminder@example.com");
+        var original = java.util.TimeZone.getDefault();
+        var schedule = LocalDateTime.of(2026, 10, 4, 0, 54);
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+            var before = LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1);
+            notificationService.createReminder(id, NotificationType.CARE_SCHEDULE_REMINDER,
+                    "CARE_SCHEDULE", 999L, schedule, "UTC test", "body");
+            var stored = jdbcTemplate.queryForObject("SELECT created_at FROM notifications WHERE recipient_user_id=?",
+                    (rs, row) -> rs.getObject(1, LocalDateTime.class), id);
+            org.assertj.core.api.Assertions.assertThat(stored).isBetween(before,
+                    LocalDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(1));
+            assertEquals(schedule, jdbcTemplate.queryForObject("SELECT scheduled_for FROM notifications WHERE recipient_user_id=?",
+                    (rs, row) -> rs.getObject(1, LocalDateTime.class), id));
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
+
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("DELETE FROM notifications");
@@ -224,14 +266,14 @@ class NotificationIntegrationTest extends IntegrationTestSupport {
     void deletingPendingRemindersKeepsReadAndPastReminders() throws Exception {
         register("reminder-cleanup@example.com", "cleanup");
         Long userId = userId("reminder-cleanup@example.com");
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul")).truncatedTo(ChronoUnit.MICROS);
         notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
                 "CARE_SCHEDULE", 88L, now.plusMinutes(30), "future", "future");
         notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
                 "CARE_SCHEDULE", 88L, now.minusMinutes(30), "past", "past");
         notificationService.createReminder(userId, NotificationType.CARE_SCHEDULE_REMINDER,
                 "CARE_SCHEDULE", 88L, now.plusMinutes(60), "read", "read");
-        jdbcTemplate.update("UPDATE notifications SET read_at=? WHERE title='read'", now);
+        jdbcTemplate.update("UPDATE notifications SET read_at=? WHERE title='read'", LocalDateTime.now(java.time.ZoneOffset.UTC));
 
         assertEquals(1, notificationService.deletePendingReminders("CARE_SCHEDULE", 88L));
         assertEquals(2, jdbcTemplate.queryForObject(

@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.lang.NonNull;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -26,22 +26,22 @@ public class RefreshToken {
     private String token;
 
     @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @NonNull
-    public static RefreshToken create(User user, String token, LocalDateTime expiresAt) {
+    public static RefreshToken create(User user, String token, Instant expiresAt) {
         RefreshToken rt = new RefreshToken();
         rt.user      = user;
         rt.token     = token;
         rt.expiresAt = expiresAt;
-        rt.createdAt = LocalDateTime.now();
+        rt.createdAt = Instant.now();
         return rt;
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return Instant.now().isAfter(expiresAt);
     }
 }

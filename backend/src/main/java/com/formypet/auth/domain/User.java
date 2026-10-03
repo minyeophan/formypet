@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.lang.NonNull;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @org.hibernate.annotations.DynamicUpdate
@@ -48,10 +48,10 @@ public class User {
     private Long profileMediaId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @NonNull
     public static User create(String email, String passwordHash, String nickname) {
@@ -60,8 +60,8 @@ public class User {
         user.passwordHash = passwordHash;
         user.nickname     = nickname;
         user.registrationSource = "LOCAL";
-        user.createdAt    = LocalDateTime.now();
-        user.updatedAt    = LocalDateTime.now();
+        user.createdAt    = Instant.now();
+        user.updatedAt    = Instant.now();
         return user;
     }
 
@@ -72,18 +72,18 @@ public class User {
         user.passwordHash = passwordHash;
         user.nickname = nickname;
         user.registrationSource = registrationSource;
-        user.createdAt = LocalDateTime.now();
-        user.updatedAt = LocalDateTime.now();
+        user.createdAt = Instant.now();
+        user.updatedAt = Instant.now();
         return user;
     }
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public void updateProfileMediaId(Long profileMediaId) {
         this.profileMediaId = profileMediaId;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 }
