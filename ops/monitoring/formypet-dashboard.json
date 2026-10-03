@@ -1,0 +1,1593 @@
+{
+  "uid": "formypet-backend",
+  "title": "포마펫 · 백엔드 운영",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "formypet",
+    "backend"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "label": "Prometheus 데이터 소스",
+        "query": "prometheus",
+        "refresh": 1
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": "label_values(process_uptime_seconds, service)",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "formypet",
+          "value": "formypet"
+        }
+      },
+      {
+        "name": "environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": "label_values(process_uptime_seconds{service=~\"${service:regex}\"}, environment)",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "production",
+          "value": "production"
+        }
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": "label_values(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\"}, job)",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "formypet-production",
+          "value": "formypet-production"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "배포 기록",
+        "type": "dashboard",
+        "builtIn": 1,
+        "enable": true,
+        "hide": false,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "서비스 개요",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 30,
+      "title": "최근 수집 데이터 상태",
+      "type": "stat",
+      "description": "process_uptime_seconds의 최신 표본이 150초 이내인지 확인합니다. 실패 원인은 서버·인증·수집기 중 어느 쪽일 수도 있습니다.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "수집 중단 / 미연결",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "최근 수집 정상",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0))",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "title": "마지막 수집 후 경과",
+      "type": "stat",
+      "description": "",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "최근 5분 요청 유무",
+      "type": "stat",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "수집 중단 / 미연결",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "요청 없음"
+                },
+                "1": {
+                  "text": "요청 있음"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) or vector(0)) > bool 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "현재 조회되는 시계열",
+      "type": "stat",
+      "description": "현재 조회 가능한 이 대상의 시계열 수입니다. 청구용 활성 시계열이나 전체 스택 사용량과 다릅니다. Free 한도는 Grafana Usage에서 확인하세요.",
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count({service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "초당 처리량 · 5분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "평균 응답 시간 · 5분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "4xx 오류율 · 5분",
+      "type": "timeseries",
+      "description": "처리된 HTTP 응답 기준. 요청 없음과 수집 실패는 0%로 표시하지 않습니다.",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"4..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "5xx 오류율 · 5분",
+      "type": "timeseries",
+      "description": "Railway 앞단 502/504 및 앱 네트워크 실패는 포함하지 않습니다.",
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"5..\"}[5m]))) or (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "1.0초 초과 비율 · 5분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"1|1[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "30.0초 초과 비율 · 5분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min((sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum(rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"30|30[.]0\"}[5m]))) / (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "p95 응답 시간 · 15분",
+      "type": "timeseries",
+      "description": "고정 버킷으로 보간한 추정치. 30초 이상 꼬리는 별도 초과 비율을 보세요. 적은 표본에서는 불안정합니다.",
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "p99 응답 시간 · 15분",
+      "type": "timeseries",
+      "description": "고정 버킷으로 보간한 추정치. 30초 이상 꼬리는 별도 초과 비율을 보세요. 적은 표본에서는 불안정합니다.",
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on() (sum(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "percentile 표본 · 최근 15분 요청 수",
+      "type": "stat",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) or vector(0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "API · 경로 템플릿별",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "title": "API별 RPS · 5분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "API별 요청 수 · 선택 기간",
+      "type": "stat",
+      "description": "감사용 원장이 아닌 추정치입니다. 재시작 전 미수집 요청은 복구하지 못하며 소수점이 나올 수 있습니다.",
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "API별 p95 · 15분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.95, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "API별 p99 · 15분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 51,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.99, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m]))) and on(method, uri) (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) > 0)) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "API별 4xx 오류율",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 58,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"4..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "API별 5xx 오류율",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 58,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((sum by (method, uri)(rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",status=~\"5..\"}[5m]))) or (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) * 0)) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "API별 평균 응답 시간",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "API별 1초 초과 비율",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 65,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min((sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) - sum by (method, uri) (rate(http_server_requests_seconds_bucket{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\",le=~\"1|1[.]0\"}[5m]))) / (sum by (method, uri) (rate(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0), 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "title": "API별 percentile 표본 · 15분",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, uri) (increase(http_server_requests_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[15m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{method}} {{uri}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "JVM",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 79,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 41,
+      "title": "힙·비힙 사용량",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 80,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (area) (jvm_memory_used_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{area}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "title": "힙·비힙 최대값",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 80,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (area) (jvm_memory_max_bytes{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} >= 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{area}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "title": "GC 횟수/초",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 87,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (action,cause) (rate(jvm_gc_pause_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{action}} {{cause}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "title": "GC 중단 시간/초",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 87,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "title": "플랫폼 스레드",
+      "type": "timeseries",
+      "description": "가상 스레드 전체 수가 아닙니다.",
+      "gridPos": {
+        "x": 0,
+        "y": 94,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jvm_threads_live_threads{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "title": "프로세스 CPU",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 94,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "__auto",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "DB 커넥션 풀",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 101,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 51,
+      "title": "풀 사용·유휴·최대·대기",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 102,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "active {{pool}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "hikaricp_connections_idle{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "idle {{pool}}",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "expr": "hikaricp_connections_max{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "max {{pool}}",
+          "range": true
+        },
+        {
+          "refId": "D",
+          "expr": "hikaricp_connections_pending{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"} and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "pending {{pool}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "평균 연결 획득 시간",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 109,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pool) (rate(hikaricp_connections_acquire_seconds_sum{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) / (sum by (pool) (rate(hikaricp_connections_acquire_seconds_count{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[5m])) > 0) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{pool}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "연결 획득 타임아웃 · 선택 기간",
+      "type": "timeseries",
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 109,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pool) (increase(hikaricp_connections_timeout_total{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}[$__range])) and on() ((((time() - max(timestamp(process_uptime_seconds{service=~\"${service:regex}\",environment=~\"${environment:regex}\",job=~\"${job:regex}\"}))) < bool 150) or vector(0)) == 1)",
+          "legendFormat": "{{pool}}",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "type": "row",
+      "title": "수집과 해석",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 116,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 61,
+      "type": "text",
+      "title": "읽는 방법",
+      "gridPos": {
+        "x": 0,
+        "y": 117,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "수집 간격 **1분**, RPS·오류율 **5분**, p95/p99 **15분**.\n\n요청 없음·수집 중단·오류 0%를 구분하세요. 통계는 추정치이며 재시작 전에 수집하지 못한 요청은 복원되지 않습니다. 배포 중 인스턴스 교체 구간도 주의하세요. 과거 구간은 해당 시점의 수집 상태로 표시합니다.\n\n수집 상태는 JVM 표본의 최신성 기준입니다. 정확한 개별 scrape 성공/실패는 Grafana **Metrics Endpoint Overview**에서 확인하세요. Railway 앞단 오류·앱 네트워크 실패·사용자 행동 통계는 포함하지 않습니다."
+      }
+    }
+  ]
+}
