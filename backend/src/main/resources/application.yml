@@ -37,6 +37,10 @@ spring:
     baseline-on-migrate: false
 
 app:
+  monitoring:
+    enabled: ${MONITORING_ENABLED:false}
+    username: ${MONITORING_USERNAME:}
+    password: ${MONITORING_PASSWORD:}
   password-reset:
     enabled: ${PASSWORD_RESET_ENABLED:false}
     hmac-secret: ${PASSWORD_RESET_HMAC_SECRET:}
@@ -91,6 +95,44 @@ logging:
     com.formypet: DEBUG
     org.hibernate.SQL: DEBUG
     org.flywaydb: INFO
+
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      discovery:
+        enabled: false
+      exposure:
+        include: prometheus
+    jmx:
+      exposure:
+        exclude: '*'
+  endpoint:
+    prometheus:
+      enabled: ${MONITORING_ENABLED:false}
+  prometheus:
+    metrics:
+      export:
+        enabled: ${MONITORING_ENABLED:false}
+  metrics:
+    # Explicit budget: do not export client URLs, disk paths or security internals.
+    enable:
+      all: false
+      application: true
+      http.server.requests: true
+      jvm: true
+      process: true
+      system: true
+      jdbc: true
+      hikaricp: true
+    tags:
+      service: formypet
+      environment: ${MONITORING_ENVIRONMENT:local}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: false
+      slo:
+        http.server.requests: 25ms,50ms,100ms,250ms,500ms,1s,2s,5s,10s,30s
 
 ---
 spring:

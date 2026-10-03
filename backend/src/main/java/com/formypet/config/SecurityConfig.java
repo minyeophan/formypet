@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,6 +27,14 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtFilterRegistration() {
+        var registration = new FilterRegistrationBean<>(jwtAuthFilter);
+        // This filter belongs only to the application's SecurityFilterChain.
+        registration.setEnabled(false);
+        return registration;
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
