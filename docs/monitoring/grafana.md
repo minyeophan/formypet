@@ -104,7 +104,3 @@ Grafana Cloud Free는 현재 활성 시계열 10,000개와 14일 보존을 제�
 - [Railway 요금](https://docs.railway.com/pricing)
 - [Micrometer 히스토그램](https://docs.micrometer.io/micrometer/reference/concepts/histogram-quantiles.html)
 - [Prometheus rate/increase와 histogram_quantile](https://prometheus.io/docs/prometheus/latest/querying/functions/)
-
-### Grafana Cloud 작업 라벨
-
-Metrics Endpoint의 실제 `job` 라벨은 `integrations/metrics_endpoint/<id>-metrics-endpoint-formypet-production` 형태일 수 있습니다. 대시보드 job 목록에서 실제 값을 선택합니다. job은 단일 선택이므로 PromQL에서 `job="${job}"`로 비교합니다. `${job:regex}`는 슬래시를 잘못 이스케이프해 조회 오류를 만들 수 있으므로 사용하지 않습니다.
