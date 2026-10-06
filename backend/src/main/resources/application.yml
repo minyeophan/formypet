@@ -128,8 +128,8 @@ logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   level:
-    com.formypet: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.formypet: INFO
+    org.hibernate.SQL: INFO
     org.flywaydb: INFO
 
 management:
