@@ -87,6 +87,29 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void backfillsExistingMediaUsageWhenMigratingFromV37() throws Exception {
+        flyway("37").migrate();
+        try (Connection connection = connection()) {
+            execute(connection, "INSERT INTO users(id,email,password_hash,nickname) VALUES (92001,'media-owner@example.test','hash','owner'),(92002,'media-owner-two@example.test','hash','owner-two')");
+            execute(connection, """
+                    INSERT INTO media_resources(user_id,storage_key,original_name,content_type,extension,file_size,status)
+                    VALUES (92001,'migration/one.jpg','one.jpg','image/jpeg','jpg',125,'STORED'),
+                           (92001,'migration/two.jpg','two.jpg','image/jpeg','jpg',75,'STORED'),
+                           (92002,'migration/other.jpg','other.jpg','image/jpeg','jpg',300,'STORED')
+                    """);
+        }
+
+        flyway(null).migrate();
+
+        try (Connection connection = connection()) {
+            assertEquals(125 + 75, countLong(connection, "SELECT media_bytes_used FROM users WHERE id=92001"));
+            assertEquals(2, count(connection, "SELECT media_items_used FROM users WHERE id=92001"));
+            assertEquals(300, countLong(connection, "SELECT media_bytes_used FROM users WHERE id=92002"));
+            assertEquals(1, count(connection, "SELECT media_items_used FROM users WHERE id=92002"));
+        }
+    }
+
+    @Test
     void addsSupportAndBlockingToExistingV27Database() throws Exception {
         flyway("27").migrate();
         try (Connection connection = connection(); var statement = connection.createStatement()) {
@@ -463,6 +486,14 @@ class FlywayMigrationTest {
              var result = statement.executeQuery()) {
             result.next();
             return result.getInt(1);
+        }
+    }
+
+    private long countLong(Connection connection, String sql) throws Exception {
+        try (var statement = connection.prepareStatement(sql);
+             var result = statement.executeQuery()) {
+            result.next();
+            return result.getLong(1);
         }
     }
 }
