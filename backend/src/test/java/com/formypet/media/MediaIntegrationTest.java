@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
 import com.formypet.auth.repository.UserRepository;
 import com.formypet.support.IntegrationTestSupport;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -41,6 +45,8 @@ class MediaIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired MediaCleanupRunner mediaCleanupRunner;
+    @Autowired MediaService mediaService;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
@@ -68,6 +74,23 @@ class MediaIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.contentType").value(MediaType.IMAGE_PNG_VALUE))
                 .andExpect(jsonPath("$.data.fileSize").value(13))
                 .andExpect(jsonPath("$.data.status").value("STORED"));
+    }
+
+    @Test
+    void uploadRejectsWhenUserMediaItemQuotaIsFullBeforeWritingFile() throws Exception {
+        String token = registerAndGetToken("media-quota@example.com", "mediaquota");
+        Long petId = createPet(token, "Mochi");
+        Long userId = userRepository.findByEmail("media-quota@example.com").orElseThrow().getId();
+        jdbcTemplate.update("UPDATE users SET media_items_used=1000 WHERE id=?", userId);
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/media")
+                        .file(image("quota.png"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("MEDIA_QUOTA_EXCEEDED"));
+
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM media_resources WHERE user_id=?", Integer.class, userId)).isZero();
     }
 
     @Test
@@ -130,6 +153,9 @@ class MediaIntegrationTest extends IntegrationTestSupport {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isCreated());
 
+        Long userId = userRepository.findByEmail("record-media-delete@example.com").orElseThrow().getId();
+        assertThat(jdbcTemplate.queryForObject("SELECT media_items_used FROM users WHERE id=?", Integer.class, userId)).isEqualTo(1);
+
         String storageKey = jdbcTemplate.queryForObject("""
                 SELECT storage_key
                 FROM media_resources
@@ -148,15 +174,76 @@ class MediaIntegrationTest extends IntegrationTestSupport {
                 recordId
         );
         assertThat(countBeforeCommit).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT media_items_used FROM users WHERE id=?", Integer.class, userId)).isZero();
         assertThat(Files.exists(storedFile)).isTrue();
 
         TestTransaction.flagForCommit();
         TestTransaction.end();
+        mediaCleanupRunner.cleanPending();
 
         assertThat(Files.exists(storedFile)).isFalse();
         assertThat(countFiles(MEDIA_ROOT)).isZero();
 
         TestTransaction.start();
+    }
+
+    @Test
+    void concurrentRecordMediaDeletesDecrementQuotaOnlyOnce() throws Exception {
+        String token = registerAndGetToken("record-media-concurrent-delete@example.com", "recordmediaconcurrent");
+        Long petId = createPet(token, "Coco");
+        Long recordId = createRecord(token, petId);
+
+        mockMvc.perform(multipart("/api/v1/pets/" + petId + "/records/" + recordId + "/media")
+                        .file(image("concurrent.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+
+        Long userId = userRepository.findByEmail("record-media-concurrent-delete@example.com")
+                .orElseThrow().getId();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT media_items_used FROM users WHERE id=?", Integer.class, userId)).isEqualTo(1);
+
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit((java.util.concurrent.Callable<Void>) () -> {
+                deleteRecordMediaAfterStart(ready, start, userId, recordId);
+                return null;
+            });
+            var second = executor.submit((java.util.concurrent.Callable<Void>) () -> {
+                deleteRecordMediaAfterStart(ready, start, userId, recordId);
+                return null;
+            });
+            Assertions.assertTrue(ready.await(10, TimeUnit.SECONDS), "Both delete transactions should be ready");
+            start.countDown();
+            first.get(20, TimeUnit.SECONDS);
+            second.get(20, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM media_resources WHERE user_id=? AND record_id=?", Integer.class,
+                userId, recordId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT media_items_used FROM users WHERE id=?", Integer.class, userId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT media_bytes_used FROM users WHERE id=?", Long.class, userId)).isZero();
+
+        TestTransaction.start();
+    }
+
+    private void deleteRecordMediaAfterStart(CountDownLatch ready, CountDownLatch start,
+                                            Long userId, Long recordId) throws InterruptedException {
+        ready.countDown();
+        if (!start.await(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Timed out waiting to start concurrent delete");
+        }
+        mediaService.deleteRecordMedia(userId, recordId);
     }
 
     @Test

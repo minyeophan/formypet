@@ -1,10 +1,14 @@
 package com.formypet.common;
 
+import com.formypet.auth.JwtService;
 import com.formypet.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -16,9 +20,23 @@ class OpenApiIntegrationTest extends IntegrationTestSupport {
     @Autowired
     MockMvc mockMvc;
 
+    @Autowired
+    JwtService jwt;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
     @Test
     void apiDocsRenderWithCurrentSpringVersion() throws Exception {
+        String email = "openapi-" + UUID.randomUUID() + "@example.test";
+        jdbc.update("INSERT INTO users(email, password_hash, nickname) VALUES (?, 'test-only', 'openapi-test')", email);
+        long userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+        try {
         mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/v3/api-docs")
+                        .header("Authorization", "Bearer " + jwt.generateAccessToken(userId, 0L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").isNotEmpty())
                 .andExpect(jsonPath("$.paths['/api/v1/posts/{postId}/comments/{commentId}/reports'].post").exists())
@@ -56,5 +74,8 @@ class OpenApiIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.components.schemas.UserProfileUpdateRequest.properties.nickname").exists())
                 .andExpect(jsonPath("$.components.schemas.UserProfileResponse.properties.profileImageUrl").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.security[0].bearerAuth").exists());
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id = ?", userId);
+        }
     }
 }

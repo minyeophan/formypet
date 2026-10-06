@@ -29,7 +29,8 @@ public class OAuthSignupService {
     public User signupKakaoUser(KakaoUserInfo kakaoUser) {
         String email = resolveEmail(kakaoUser);
         String nickname = resolveNickname(kakaoUser);
-        String randomSecret = UUID.randomUUID() + ":" + UUID.randomUUID();
+        // BCrypt accepts at most 72 input bytes; UUIDs are ASCII, so two fit exactly.
+        String randomSecret = UUID.randomUUID().toString() + UUID.randomUUID();
         User user = User.createOAuth(email, passwordEncoder.encode(randomSecret), nickname, KAKAO_PROVIDER);
         userRepository.save(user);
         oauthAccountRepository.save(OAuthAccount.create(user, KAKAO_PROVIDER, kakaoUser.id()));

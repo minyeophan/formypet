@@ -1,3 +1,9 @@
 app:
+  kakao:
+    app-id: 1453687
+  account-deletion:
+    kakao-admin-key: test-only-primary-admin-key
+    webhook-scheduler-enabled: true
+    webhook-interval-ms: 3600000
   jwt:
     secret: test-only-jwt-secret-for-automated-tests

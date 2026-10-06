@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/api_client.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
@@ -141,6 +142,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     if (!current()) return;
 
     var photoUploadFailed = false;
+    String? photoUploadMessage;
     if (selectedPhoto != null) {
       Uint8List bytes;
       try {
@@ -162,8 +164,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
         await ref
             .read(authProvider.notifier)
             .uploadProfileImage(bytes: bytes, filename: selectedPhoto.name);
-      } catch (_) {
+      } catch (error) {
         photoUploadFailed = true;
+        photoUploadMessage = mediaUploadErrorMessage(
+          error,
+          fallback: '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.',
+        );
         if (current()) {
           setState(() {
             _selectedPhoto = null;
@@ -177,9 +183,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     setState(() => _isSaving = false);
     _showSaveMessage(
       photoUploadFailed && shouldUpdateNickname
-          ? '닉네임은 저장했지만 사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+          ? '닉네임은 저장했지만 ${photoUploadMessage ?? '사진을 등록하지 못했어요.'}'
           : photoUploadFailed
-          ? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
+          ? photoUploadMessage ?? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
           : '프로필을 저장했어요.',
     );
     await allowDraftExit();

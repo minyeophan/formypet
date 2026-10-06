@@ -3,6 +3,7 @@ package com.formypet.pet.dto;
 import com.formypet.pet.domain.Gender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +15,7 @@ public record PetCreateRequest(
         @Size(max = 80) String breed,
         LocalDate adoptionDate,
         Gender gender,
-        BigDecimal weight,
+        @JsonDeserialize(using = StrictBigDecimalDeserializer.class) BigDecimal weight,
         @Size(max = 20) String animalRegistrationNumber,
         Boolean neutered,
         String diseases,

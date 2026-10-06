@@ -28,6 +28,7 @@ public class MediaController {
     public ApiResponse<MediaResponse> uploadPetMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                      @PathVariable Long petId,
                                                      @RequestParam("file") MultipartFile file) {
+        mediaService.admitUpload(actorId, 1);
         return ApiResponse.of(mediaService.uploadPetMedia(actorId, petId, file));
     }
 
@@ -40,6 +41,7 @@ public class MediaController {
                                                         @PathVariable Long petId,
                                                         @PathVariable Long recordId,
                                                         @RequestParam("file") MultipartFile file) {
+        mediaService.admitUpload(actorId, 1);
         return ApiResponse.of(mediaService.uploadRecordMedia(actorId, petId, recordId, file));
     }
 

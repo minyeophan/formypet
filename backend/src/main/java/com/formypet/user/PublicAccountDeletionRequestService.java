@@ -1,6 +1,8 @@
 package com.formypet.user;
 
 import com.formypet.common.exception.ApiException;
+import com.formypet.common.ratelimit.RequestRateLimiter;
+import com.formypet.common.ratelimit.RequestRateLimitProperties;
 import com.formypet.support.SupportMailProperties;
 import com.formypet.support.SupportMailTransport;
 import lombok.RequiredArgsConstructor;
@@ -8,34 +10,33 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 public class PublicAccountDeletionRequestService {
     private final SupportMailProperties settings;
     private final SupportMailTransport mail;
-    private final ConcurrentHashMap<String, Long> lastRequestByContact = new ConcurrentHashMap<>();
+    private final RequestRateLimiter requestRateLimiter;
+    private final RequestRateLimitProperties requestLimits;
 
     public record Receipt(String requestId, Instant receivedAt) {}
 
-    public Receipt submit(PublicAccountDeletionRequest request) {
+    public Receipt submit(PublicAccountDeletionRequest request, String clientAddress) {
         if (!settings.isEnabled()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "account-deletion-request",
                     "Deletion request unavailable", "현재 탈퇴 요청 접수를 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
                     "ACCOUNT_DELETION_REQUEST_UNAVAILABLE");
         }
-        long now = System.currentTimeMillis();
-        String limiterKey = limiterKey(request.contactEmail());
-        Long previous = lastRequestByContact.put(limiterKey, now);
-        if (previous != null && now - previous < 30_000) {
-            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "account-deletion-request",
-                    "Too many requests", "잠시 후 다시 요청해 주세요.", "ACCOUNT_DELETION_REQUEST_RATE_LIMITED");
-        }
-        lastRequestByContact.entrySet().removeIf(entry -> now - entry.getValue() > 3_600_000);
+        String contact = request.contactEmail().trim().toLowerCase(java.util.Locale.ROOT);
+        requestRateLimiter.consume(java.util.List.of(
+                new RequestRateLimiter.Bucket("deletion-email-cooldown", contact, 1,
+                        requestLimits.getDeletionEmailCooldownSeconds())),
+                java.util.List.of(new RequestRateLimiter.SlidingWindow("deletion-email-hour", contact,
+                                requestLimits.getDeletionEmailCapacity(), requestLimits.getDeletionEmailWindowSeconds(), 1),
+                        new RequestRateLimiter.SlidingWindow("deletion-client", clientAddress,
+                                requestLimits.getDeletionClientCapacity(), requestLimits.getDeletionClientWindowSeconds(), 1),
+                        new RequestRateLimiter.SlidingWindow("deletion-global", "all",
+                                requestLimits.getDeletionGlobalCapacity(), requestLimits.getDeletionGlobalWindowSeconds(), 1)));
         String body = "회원 탈퇴 요청\n요청 번호: " + request.requestId()
                 + "\n계정 확인 정보: " + request.accountIdentifier().trim()
                 + "\n회신 이메일: " + request.contactEmail().trim()
@@ -50,13 +51,4 @@ public class PublicAccountDeletionRequestService {
         return new Receipt(request.requestId(), Instant.now());
     }
 
-    private String limiterKey(String email) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(email.trim().toLowerCase(java.util.Locale.ROOT).getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 unavailable", impossible);
-        }
-    }
 }

@@ -52,10 +52,12 @@ class CommunityServicePhotoLimitTest {
             call.<KeyHolder>getArgument(1).getKeyList().add(Map.of("id", 42L));
             return 1;
         });
-        when(media.uploadCommunityMedia(eq(user), any(MultipartFile.class))).thenAnswer(call -> {
-            MultipartFile file = call.getArgument(1);
-            long id = Long.parseLong(file.getOriginalFilename().replace(".png", ""));
-            return MediaResponse.publicMedia(id, file.getOriginalFilename(), "image/png", 1, "READY");
+        when(media.uploadCommunityMedia(eq(user), anyList())).thenAnswer(call -> {
+            List<MultipartFile> files = call.getArgument(1);
+            return files.stream().map(file -> {
+                long id = Long.parseLong(file.getOriginalFilename().replace(".png", ""));
+                return MediaResponse.publicMedia(id, file.getOriginalFilename(), "image/png", 1, "READY");
+            }).toList();
         });
         when(jdbc.update(anyString(), eq(42L), anyLong(), anyInt())).thenAnswer(call -> {
             assertThat(call.<Integer>getArgument(3)).isEqualTo(storedMedia.size());

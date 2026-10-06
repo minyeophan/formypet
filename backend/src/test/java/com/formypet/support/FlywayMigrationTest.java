@@ -55,7 +55,7 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("37", flyway.info().current().getVersion().getVersion());
+        assertEquals("40", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
@@ -71,6 +71,7 @@ class FlywayMigrationTest {
             assertCommentManagementSchema(connection);
             assertActivityIndexes(connection);
             assertNotificationsSchema(connection);
+            assertRequestRateLimitEventSchema(connection);
             try (var statement = connection.createStatement()) {
                 statement.executeUpdate("INSERT INTO users(email, password_hash, nickname, registration_source) VALUES ('role-default@example.test', 'hash', 'reader', 'LOCAL')");
                 try (var result = statement.executeQuery("SELECT role FROM users WHERE email='role-default@example.test'")) {
@@ -81,6 +82,7 @@ class FlywayMigrationTest {
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'notification_enabled'"));
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'account_status'"));
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'account_deletion_jobs'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'kakao_unlink_webhook_events'"));
         }
     }
 
@@ -179,10 +181,11 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("37", flyway.info().current().getVersion().getVersion());
+        assertEquals("40", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);
+            assertRequestRateLimitEventSchema(connection);
         }
     }
 
@@ -319,6 +322,20 @@ class FlywayMigrationTest {
                 WHERE table_schema = DATABASE()
                   AND table_name = 'notifications'
                   AND index_name = 'idx_notifications_unread'
+                """));
+    }
+
+    private void assertRequestRateLimitEventSchema(Connection connection) throws Exception {
+        assertEquals(1, count(connection, """
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'request_rate_limit_events'
+                """));
+        assertEquals(1, count(connection, """
+                SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'request_rate_limit_events'
+                  AND index_name = 'idx_request_rate_limit_events_window'
                 """));
     }
 

@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
+    private final com.formypet.media.MediaService mediaService;
 
     @GetMapping
     @Operation(summary = "내 프로필 조회")
@@ -43,6 +44,7 @@ public class UserProfileController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UserProfileResponse> uploadProfileImage(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                                @RequestParam("file") MultipartFile file) {
+        mediaService.admitUpload(actorId, 1);
         return ApiResponse.of(userProfileService.uploadProfileImage(actorId, file));
     }
 }
