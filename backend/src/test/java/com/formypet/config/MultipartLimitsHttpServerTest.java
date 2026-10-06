@@ -30,7 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(
         classes = MultipartLimitsHttpServerTest.TestApplication.class,
@@ -90,8 +89,12 @@ class MultipartLimitsHttpServerTest {
     void actualTomcatRejectsRequestsOverTwentySixMebibytes() throws Exception {
         assertThat(post(multipart(1, 1, 0)).statusCode()).isEqualTo(HttpStatus.OK.value());
 
-        assertThatThrownBy(() -> post(multipart(6, MAX_FILE_BYTES, 0)))
-                .isInstanceOf(IOException.class);
+        try {
+            HttpResponse<String> response = post(multipart(6, MAX_FILE_BYTES, 0));
+            assertThat(response.statusCode()).isBetween(400, 499);
+        } catch (IOException connectionClosedByTomcat) {
+            // Tomcat may reset the connection while rejecting a request over the configured size limit.
+        }
     }
 
     private HttpResponse<String> post(byte[] body) throws IOException, InterruptedException {
