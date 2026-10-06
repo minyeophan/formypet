@@ -25,7 +25,10 @@ public abstract class IntegrationTestSupport {
     protected void clearRequestRateLimitsForTestIsolation() {
         TransactionTemplate cleanup = new TransactionTemplate(transactionManager);
         cleanup.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        cleanup.executeWithoutResult(status -> jdbc.update("DELETE FROM request_rate_limits"));
+        cleanup.executeWithoutResult(status -> {
+            jdbc.update("DELETE FROM request_rate_limit_events");
+            jdbc.update("DELETE FROM request_rate_limits");
+        });
     }
 
     @DynamicPropertySource

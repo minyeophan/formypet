@@ -62,13 +62,12 @@ app:
     login-global-refill-tokens: 5
     login-global-refill-period-seconds: 1
     deletion-email-capacity: 3
-    deletion-email-refill-seconds: 3600
+    deletion-email-window-seconds: 3600
     deletion-email-cooldown-seconds: 30
     deletion-client-capacity: 10
-    deletion-client-refill-seconds: 360
+    deletion-client-window-seconds: 3600
     deletion-global-capacity: 100
-    deletion-global-refill-tokens: 100
-    deletion-global-refill-period-seconds: 3600
+    deletion-global-window-seconds: 3600
     media-user-bytes: 524288000
     media-user-items: 1000
     media-upload-capacity: 20

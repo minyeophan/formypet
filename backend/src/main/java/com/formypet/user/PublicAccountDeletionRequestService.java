@@ -29,15 +29,14 @@ public class PublicAccountDeletionRequestService {
         }
         String contact = request.contactEmail().trim().toLowerCase(java.util.Locale.ROOT);
         requestRateLimiter.consume(java.util.List.of(
-                new RequestRateLimiter.Bucket("deletion-email-hour", contact,
-                        requestLimits.getDeletionEmailCapacity(), requestLimits.getDeletionEmailRefillSeconds()),
                 new RequestRateLimiter.Bucket("deletion-email-cooldown", contact, 1,
-                        requestLimits.getDeletionEmailCooldownSeconds()),
-                new RequestRateLimiter.Bucket("deletion-client", clientAddress,
-                        requestLimits.getDeletionClientCapacity(), requestLimits.getDeletionClientRefillSeconds()),
-                new RequestRateLimiter.Bucket("deletion-global", "all",
-                        requestLimits.getDeletionGlobalCapacity(), requestLimits.getDeletionGlobalRefillTokens(),
-                        requestLimits.getDeletionGlobalRefillPeriodSeconds(), 1)));
+                        requestLimits.getDeletionEmailCooldownSeconds())),
+                java.util.List.of(new RequestRateLimiter.SlidingWindow("deletion-email-hour", contact,
+                                requestLimits.getDeletionEmailCapacity(), requestLimits.getDeletionEmailWindowSeconds(), 1),
+                        new RequestRateLimiter.SlidingWindow("deletion-client", clientAddress,
+                                requestLimits.getDeletionClientCapacity(), requestLimits.getDeletionClientWindowSeconds(), 1),
+                        new RequestRateLimiter.SlidingWindow("deletion-global", "all",
+                                requestLimits.getDeletionGlobalCapacity(), requestLimits.getDeletionGlobalWindowSeconds(), 1)));
         String body = "회원 탈퇴 요청\n요청 번호: " + request.requestId()
                 + "\n계정 확인 정보: " + request.accountIdentifier().trim()
                 + "\n회신 이메일: " + request.contactEmail().trim()
