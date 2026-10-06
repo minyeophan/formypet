@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 
-/** Uses Railway's edge-provided X-Real-IP only when the service is publicly hosted there. */
 @Component
 public class ClientAddressResolver {
     private final boolean railwayPublicIngress;

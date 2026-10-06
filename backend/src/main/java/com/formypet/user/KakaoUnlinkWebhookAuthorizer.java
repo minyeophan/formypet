@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Set;
 
-/** Validates Kakao's primary-admin-key unlink callback without logging its credentials. */
 public final class KakaoUnlinkWebhookAuthorizer {
     private static final String AUTHORIZATION_PREFIX = "KakaoAK ";
     private static final Set<String> REFERRERS = Set.of(

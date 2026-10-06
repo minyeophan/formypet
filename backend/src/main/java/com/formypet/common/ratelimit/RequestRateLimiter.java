@@ -24,7 +24,6 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 
-/** Durable request admission control. Limits are checked and consumed in one ordered transaction. */
 @Component
 @RequiredArgsConstructor
 public class RequestRateLimiter {

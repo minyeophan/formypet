@@ -7,7 +7,6 @@ plugins {
 group = 'com.formypet'
 version = '0.0.1-SNAPSHOT'
 
-// Security updates within the current Boot generation; verify the resolved graph in CI.
 ext['jackson-bom.version'] = '2.18.11'
 ext['tomcat.version'] = '10.1.60'
 // Pin the resolved transitive runtime libraries to OSV-fixed versions.

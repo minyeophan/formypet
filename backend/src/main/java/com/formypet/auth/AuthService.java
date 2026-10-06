@@ -123,7 +123,6 @@ public class AuthService {
         consumePublicAuthBudget(clientAddress);
     }
 
-    /** Scopes password-attempt throttling to the normalized account across all client addresses. */
     public void admitLogin(String email, String clientAddress) {
         String accountKey = email.trim().toLowerCase(java.util.Locale.ROOT);
         requestRateLimiter.consume(java.util.List.of(
