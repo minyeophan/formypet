@@ -70,10 +70,7 @@ public class SecurityConfig {
                                 "/privacy", "/terms", "/policies/*/*",
                                 "/api/v1/public/policies", "/api/v1/public/policies/*/*",
                                 "/api/v1/public/media/**",
-                                "/api/v1/health",
-                                "/swagger-ui.html",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/api/v1/health"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
