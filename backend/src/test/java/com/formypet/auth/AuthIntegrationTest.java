@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +34,8 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     @Autowired OAuthAccountRepository oauthAccountRepository;
 
     @MockitoBean KakaoUserClient kakaoUserClient;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    com.formypet.common.ratelimit.RequestRateLimiter rateLimiter;
 
     private static final String REGISTER_URL = "/api/v1/auth/register";
     private static final String LOGIN_URL    = "/api/v1/auth/login";
@@ -57,6 +60,12 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void apiDocumentationRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void registerSuccessReturnsTokens() throws Exception {
         var body = Map.of(
                 "email",    "user@example.com",
@@ -70,6 +79,32 @@ class AuthIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publicRegistrationAndKakaoLoginConsumeSharedAdmissionBudgets() throws Exception {
+        var registration = Map.of("email", "limited-signup@example.com",
+                "password", "Password1!", "nickname", "limited");
+        mockMvc.perform(post(REGISTER_URL).with(request -> { request.setRemoteAddr("198.51.100.21"); return request; })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registration)))
+                .andExpect(status().isCreated());
+
+        when(kakaoUserClient.fetchUser("kakao-limit-token"))
+                .thenReturn(new KakaoUserInfo("limited-kakao-user", null, false, "limited"));
+        mockMvc.perform(post(KAKAO_URL).with(request -> { request.setRemoteAddr("198.51.100.22"); return request; })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "kakao-limit-token"))))
+                .andExpect(status().isOk());
+
+        var captured = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(rateLimiter, org.mockito.Mockito.times(2)).consume(captured.capture());
+        assertThat(captured.getAllValues()).allSatisfy(buckets -> {
+            assertThat(((List<com.formypet.common.ratelimit.RequestRateLimiter.Bucket>) buckets)
+                    .stream().map(com.formypet.common.ratelimit.RequestRateLimiter.Bucket::scope))
+                    .contains("auth-client", "auth-global");
+        });
     }
 
     @Test
@@ -94,6 +129,29 @@ class AuthIntegrationTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginBody)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void loginAttemptBudgetIsSharedAcrossClientsForTheSameAccount() throws Exception {
+        var loginBody = Map.of("email", "victim@example.com", "password", "WrongPassword!");
+        mockMvc.perform(post(LOGIN_URL).with(request -> { request.setRemoteAddr("198.51.100.31"); return request; })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginBody)))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post(LOGIN_URL).with(request -> { request.setRemoteAddr("198.51.100.32"); return request; })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginBody)))
+                .andExpect(status().isUnauthorized());
+
+        var captured = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(rateLimiter, org.mockito.Mockito.times(2)).consume(captured.capture());
+        var accountClientBuckets = captured.getAllValues().stream()
+                .map(buckets -> ((List<com.formypet.common.ratelimit.RequestRateLimiter.Bucket>) buckets).stream()
+                        .filter(bucket -> bucket.scope().equals("login-account"))
+                        .findFirst().orElseThrow().identifier())
+                .toList();
+        assertThat(accountClientBuckets).containsExactly("victim@example.com", "victim@example.com");
     }
 
     @Test
@@ -183,12 +241,17 @@ class AuthIntegrationTest extends IntegrationTestSupport {
         when(kakaoUserClient.fetchUser("kakao-token"))
                 .thenReturn(new KakaoUserInfo("1001", "kakao@example.com", true, "kakao-user"));
 
-        mockMvc.perform(post(KAKAO_URL)
+        var loginResult = mockMvc.perform(post(KAKAO_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("accessToken", "kakao-token"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+                .andReturn();
+        assertThat(loginResult.getResponse().getStatus())
+                .withFailMessage("Kakao login rejected with errorCode=%s",
+                        objectMapper.readTree(loginResult.getResponse().getContentAsString()).path("errorCode").asText())
+                .isEqualTo(200);
+        var tokenResponse = objectMapper.readTree(loginResult.getResponse().getContentAsString()).path("data");
+        assertThat(tokenResponse.path("accessToken").asText()).isNotBlank();
+        assertThat(tokenResponse.path("refreshToken").asText()).isNotBlank();
 
         var user = userRepository.findByEmail("kakao@example.com").orElseThrow();
         assertThat(user.getRegistrationSource()).isEqualTo("KAKAO");

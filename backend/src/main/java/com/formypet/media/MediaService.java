@@ -3,6 +3,8 @@ package com.formypet.media;
 import com.formypet.auth.domain.User;
 import com.formypet.auth.repository.UserRepository;
 import com.formypet.common.exception.ApiException;
+import com.formypet.common.ratelimit.RequestRateLimiter;
+import com.formypet.common.ratelimit.RequestRateLimitProperties;
 import com.formypet.media.dto.MediaResponse;
 import com.formypet.media.storage.LoadedMedia;
 import com.formypet.media.storage.MediaStorage;
@@ -11,6 +13,7 @@ import com.formypet.pet.domain.Pet;
 import com.formypet.pet.repository.PetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -43,12 +46,14 @@ public class MediaService {
     private final JdbcTemplate jdbcTemplate;
     private final MediaStorage mediaStorage;
     private final OrphanMediaCleanup orphanCleanup;
+    private final RequestRateLimiter requestRateLimiter;
+    private final RequestRateLimitProperties requestLimits;
 
     @Transactional
     public MediaResponse uploadPetMedia(Long actorId, Long petId, MultipartFile file) {
         User user = findUser(actorId);
         Pet pet = findOwnedPet(user, petId);
-        return storeAndInsert(user.getId(), pet.getId(), null, "PRIVATE", "pet-" + pet.getId(), file);
+        return storeAndInsert(user.getId(), pet.getId(), null, "PRIVATE", "pet-" + pet.getId(), file, false);
     }
 
     @Transactional
@@ -56,19 +61,37 @@ public class MediaService {
         User user = findUser(actorId);
         Pet pet = findOwnedPet(user, petId);
         ensureRecordBelongsToPet(pet.getId(), recordId);
-        return storeAndInsert(user.getId(), pet.getId(), recordId, "PRIVATE", "pet-" + pet.getId(), file);
+        return storeAndInsert(user.getId(), pet.getId(), recordId, "PRIVATE", "pet-" + pet.getId(), file, false);
     }
 
     @Transactional
     public MediaResponse uploadUserProfileMedia(Long actorId, MultipartFile file) {
+        return uploadUserProfileMedia(actorId, file, null);
+    }
+
+    @Transactional
+    public MediaResponse uploadUserProfileMedia(Long actorId, MultipartFile file, Long replacedMediaId) {
         User user = findUser(actorId);
-        return storeAndInsert(user.getId(), null, null, "PRIVATE", "profile", file);
+        validateFile(file);
+        long replacedBytes = profileMediaBytes(user.getId(), replacedMediaId);
+        int itemDelta = replacedBytes < 0 ? 1 : 0;
+        reserveQuota(user.getId(), file.getSize() - Math.max(replacedBytes, 0), itemDelta);
+        return storeAndInsert(user.getId(), null, null, "PRIVATE", "profile", file, true);
     }
 
     @Transactional
     public void deleteUserProfileMedia(Long userId, Long mediaId) {
+        deleteProfileMedia(userId, mediaId, true);
+    }
+
+    @Transactional
+    public void deleteReplacedUserProfileMedia(Long userId, Long mediaId) {
+        deleteProfileMedia(userId, mediaId, false);
+    }
+
+    private void deleteProfileMedia(Long userId, Long mediaId, boolean updateQuota) {
         var rows = jdbcTemplate.queryForList("""
-                SELECT storage_key
+                SELECT storage_key, file_size
                 FROM media_resources
                 WHERE id = ? AND user_id = ? AND pet_id IS NULL AND record_id IS NULL
                 """, mediaId, userId);
@@ -78,12 +101,44 @@ public class MediaService {
 
         String storageKey = (String) rows.getFirst().get("storage_key");
         jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)", storageKey);
-        jdbcTemplate.update("DELETE FROM media_resources WHERE id = ? AND user_id = ?", mediaId, userId);
+        int deleted = jdbcTemplate.update("DELETE FROM media_resources WHERE id = ? AND user_id = ?", mediaId, userId);
+        if (deleted == 1 && updateQuota) decrementQuota(userId, ((Number) rows.getFirst().get("file_size")).longValue(), 1);
     }
 
     @Transactional
-    public MediaResponse uploadCommunityMedia(User user, MultipartFile file) {
-        return storeAndInsert(user.getId(), null, null, "PUBLIC", "community", file);
+    public java.util.List<MediaResponse> uploadCommunityMedia(User user, java.util.List<MultipartFile> files) {
+        files.forEach(this::validateFile);
+        if (files.isEmpty()) return java.util.List.of();
+        long totalBytes = files.stream().mapToLong(MultipartFile::getSize).sum();
+        reserveQuota(user.getId(), totalBytes, files.size());
+        return files.stream().map(file -> storeAndInsert(user.getId(), null, null, "PUBLIC", "community",
+                file, true)).toList();
+    }
+
+    @Transactional
+    public void deleteCommunityMedia(Long userId, Long mediaId) {
+        deleteOwnedMedia(userId, mediaId);
+    }
+
+    @Transactional
+    public void deleteRecordMedia(Long userId, Long recordId) {
+        // Serialize record-media cleanup with quota reservations and other media deletes for this user.
+        var owners = jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, userId);
+        if (owners.isEmpty()) return;
+        var rows = jdbcTemplate.queryForList("""
+                SELECT storage_key, file_size FROM media_resources
+                WHERE user_id=? AND record_id=? FOR UPDATE
+                """, userId, recordId);
+        if (rows.isEmpty()) return;
+        int deleted = jdbcTemplate.update("DELETE FROM media_resources WHERE user_id=? AND record_id=?", userId, recordId);
+        if (deleted != rows.size()) {
+            throw new IllegalStateException("Record media changed during deletion.");
+        }
+        for (var row : rows) {
+            jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)", row.get("storage_key"));
+        }
+        long bytes = rows.stream().mapToLong(row -> ((Number) row.get("file_size")).longValue()).sum();
+        decrementQuota(userId, bytes, deleted);
     }
 
     @Transactional(readOnly = true)
@@ -139,8 +194,10 @@ public class MediaService {
         }
     }
 
-    private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, String visibility, String folderName, MultipartFile file) {
+    private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, String visibility,
+                                         String folderName, MultipartFile file, boolean quotaReserved) {
         validateFile(file);
+        if (!quotaReserved) reserveQuota(userId, file.getSize(), 1);
         String extension = extension(file.getOriginalFilename());
         StoredMedia stored;
         try {
@@ -191,6 +248,55 @@ public class MediaService {
             return MediaResponse.publicMedia(mediaId, file.getOriginalFilename(), contentType, stored.fileSize(), "STORED");
         }
         return MediaResponse.of(mediaId, file.getOriginalFilename(), contentType, stored.fileSize(), "STORED");
+    }
+
+    private void reserveQuota(Long userId, long bytes, int items) {
+        if (bytes == 0 && items == 0) return;
+        int updated = jdbcTemplate.update("""
+                UPDATE users SET media_bytes_used=media_bytes_used+?, media_items_used=media_items_used+?
+                WHERE id=? AND media_bytes_used+? BETWEEN 0 AND ? AND media_items_used+? BETWEEN 0 AND ?
+                """, bytes, items, userId, bytes, requestLimits.getMediaUserBytes(), items, requestLimits.getMediaUserItems());
+        if (updated != 1) {
+            throw new ApiException(HttpStatus.CONFLICT, "media-quota-exceeded", "Media quota exceeded",
+                    "사진 저장 한도를 초과했어요. 기존 사진을 정리한 뒤 다시 시도해 주세요.",
+                    "MEDIA_QUOTA_EXCEEDED");
+        }
+    }
+
+    private long profileMediaBytes(Long userId, Long mediaId) {
+        if (mediaId == null) return -1;
+        var rows = jdbcTemplate.queryForList("""
+                SELECT file_size FROM media_resources
+                WHERE id=? AND user_id=? AND pet_id IS NULL AND record_id IS NULL
+                """, mediaId, userId);
+        return rows.isEmpty() ? -1 : ((Number) rows.getFirst().get("file_size")).longValue();
+    }
+
+    /** Call at the request boundary before starting a database transaction. Failed uploads still consume budget. */
+    public void admitUpload(Long userId, int count) {
+        if (count == 0) return;
+        requestRateLimiter.consume(java.util.List.of(new RequestRateLimiter.Bucket(
+                "media-upload-user", userId.toString(), requestLimits.getMediaUploadCapacity(),
+                requestLimits.getMediaUploadRefillSeconds(), count)));
+    }
+
+    private void decrementQuota(Long userId, long bytes, int items) {
+        jdbcTemplate.update("""
+                UPDATE users SET media_bytes_used=GREATEST(media_bytes_used-?,0),
+                                 media_items_used=GREATEST(media_items_used-?,0)
+                WHERE id=?
+                """, bytes, items, userId);
+    }
+
+    private void deleteOwnedMedia(Long userId, Long mediaId) {
+        var rows = jdbcTemplate.queryForList("""
+                SELECT storage_key,file_size FROM media_resources WHERE id=? AND user_id=?
+                """, mediaId, userId);
+        if (rows.isEmpty()) return;
+        String key = (String) rows.getFirst().get("storage_key");
+        jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)", key);
+        int deleted = jdbcTemplate.update("DELETE FROM media_resources WHERE id=? AND user_id=?", mediaId, userId);
+        if (deleted == 1) decrementQuota(userId, ((Number) rows.getFirst().get("file_size")).longValue(), 1);
     }
 
     private void validateFile(MultipartFile file) {

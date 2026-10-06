@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/api_client.dart';
 import '../../core/keyboard_utils.dart';
 import '../../providers/community_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -206,12 +207,15 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
       await allowDraftExit();
       if (!current()) return;
       await _navigateBack(isCurrent: current);
-    } catch (_) {
+    } catch (error) {
       if (current()) {
         setState(
-          () => _error = widget.editingPost == null
-              ? '글을 등록하지 못했어요. 잠시 후 다시 시도해 주세요.'
-              : '글을 수정하지 못했어요. 잠시 후 다시 시도해 주세요.',
+          () => _error = mediaUploadErrorMessage(
+            error,
+            fallback: widget.editingPost == null
+                ? '글을 등록하지 못했어요. 잠시 후 다시 시도해 주세요.'
+                : '글을 수정하지 못했어요. 잠시 후 다시 시도해 주세요.',
+          ),
         );
       }
     } finally {

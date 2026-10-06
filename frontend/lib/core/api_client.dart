@@ -120,6 +120,23 @@ ApiException parseApiError(DioException e) {
   );
 }
 
+String mediaUploadErrorMessage(Object error, {required String fallback}) {
+  final apiError = error is ApiException
+      ? error
+      : error is DioException && error.error is ApiException
+      ? error.error! as ApiException
+      : error is DioException
+      ? parseApiError(error)
+      : null;
+  if (apiError?.errorCode == 'MEDIA_QUOTA_EXCEEDED') {
+    return '사진 저장 한도를 초과했어요. 기존 사진을 정리한 뒤 다시 시도해 주세요.';
+  }
+  if (apiError?.statusCode == 429) {
+    return '사진 요청이 많아요. 잠시 후 다시 시도해 주세요.';
+  }
+  return fallback;
+}
+
 class _AuthInterceptor extends Interceptor {
   final Dio _dio;
   int? _refreshRevision;

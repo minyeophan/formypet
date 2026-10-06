@@ -250,9 +250,7 @@ public class CommunityService {
             Integer references = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM post_media WHERE media_id=?", Integer.class, mediaId);
             if (references != null && references == 0) {
-                jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) SELECT storage_key FROM media_resources WHERE id=? AND user_id=?",
-                        mediaId, user.getId());
-                jdbcTemplate.update("DELETE FROM media_resources WHERE id=? AND user_id=?", mediaId, user.getId());
+                mediaService.deleteCommunityMedia(user.getId(), mediaId);
             }
         }
     }
@@ -562,8 +560,9 @@ public class CommunityService {
     }
 
     private void insertMedia(User user, Long postId, List<MultipartFile> files) {
-        for (int i = 0; i < files.size(); i++) {
-            MediaResponse media = mediaService.uploadCommunityMedia(user, files.get(i));
+        List<MediaResponse> uploaded = mediaService.uploadCommunityMedia(user, files);
+        for (int i = 0; i < uploaded.size(); i++) {
+            MediaResponse media = uploaded.get(i);
             jdbcTemplate.update("""
                     INSERT INTO post_media (post_id, media_id, sort_order)
                     VALUES (?, ?, ?)

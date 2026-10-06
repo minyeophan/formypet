@@ -1,6 +1,7 @@
 package com.formypet.user;
 
 import com.formypet.common.response.ApiResponse;
+import com.formypet.common.ratelimit.ClientAddressResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,11 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PublicAccountDeletionController {
     private final PublicAccountDeletionRequestService service;
+    private final ClientAddressResolver clientAddressResolver;
 
     @PostMapping("/api/v1/public/account-deletion-requests")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<PublicAccountDeletionRequestService.Receipt> submit(
-            @Valid @RequestBody PublicAccountDeletionRequest request) {
-        return ApiResponse.of(service.submit(request));
+            @Valid @RequestBody PublicAccountDeletionRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
+        return ApiResponse.of(service.submit(request, clientAddressResolver.resolve(servletRequest)));
     }
 }

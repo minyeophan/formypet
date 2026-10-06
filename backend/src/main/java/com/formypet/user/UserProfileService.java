@@ -37,11 +37,11 @@ public class UserProfileService {
         sessions.lockCurrent(actorId);
         User user = findUser(actorId);
         Long previousMediaId = user.getProfileMediaId();
-        MediaResponse media = mediaService.uploadUserProfileMedia(actorId, file);
+        MediaResponse media = mediaService.uploadUserProfileMedia(actorId, file, previousMediaId);
         user.updateProfileMediaId(media.id());
         userRepository.flush();
         if (previousMediaId != null && !previousMediaId.equals(media.id())) {
-            mediaService.deleteUserProfileMedia(user.getId(), previousMediaId);
+            mediaService.deleteReplacedUserProfileMedia(user.getId(), previousMediaId);
         }
         return UserProfileResponse.of(user);
     }

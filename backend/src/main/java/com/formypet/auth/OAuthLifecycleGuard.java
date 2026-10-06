@@ -20,7 +20,8 @@ public class OAuthLifecycleGuard {
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireNoCleanup(String providerId) {
-        if (!jdbc.queryForList("SELECT id FROM account_deletion_jobs WHERE provider_user_id=? FOR UPDATE", Long.class, providerId).isEmpty()) {
+        if (!jdbc.queryForList("SELECT id FROM account_deletion_jobs WHERE provider_user_id=? FOR UPDATE", Long.class, providerId).isEmpty()
+                || !jdbc.queryForList("SELECT id FROM kakao_unlink_webhook_events WHERE provider_user_id=? FOR UPDATE", Long.class, providerId).isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, "kakao-cleanup", "Kakao cleanup pending",
                     "이전 카카오 연결을 정리하고 있어요. 정리가 끝난 뒤 다시 시도해 주세요.", "KAKAO_CLEANUP_PENDING");
         }

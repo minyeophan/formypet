@@ -6,6 +6,7 @@ import com.formypet.auth.dto.RefreshRequest;
 import com.formypet.auth.dto.RegisterRequest;
 import com.formypet.auth.dto.TokenResponse;
 import com.formypet.common.response.ApiResponse;
+import com.formypet.common.ratelimit.ClientAddressResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final KakaoSignupIntents signupIntents;
+    private final ClientAddressResolver clientAddressResolver;
     public record CancelSignup(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=200) String signupToken) {}
     @PostMapping("/kakao/signup-cancellation")
     public ApiResponse<KakaoSignupIntents.Cancellation> cancelSignup(@Valid @RequestBody CancelSignup body) {
@@ -31,14 +33,20 @@ public class AuthController {
     @Operation(summary = "회원가입", description = "새 계정을 생성하고 access/refresh token을 반환합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "회원가입 성공")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<TokenResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ApiResponse<TokenResponse> register(@Valid @RequestBody RegisterRequest request,
+                                               jakarta.servlet.http.HttpServletRequest servletRequest) {
+        String clientAddress = clientAddressResolver.resolve(servletRequest);
+        authService.admitRegistration(clientAddress);
         return ApiResponse.of(authService.register(request));
     }
 
     @PostMapping("/login")
     @Operation(summary = "로그인")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공")
-    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request,
+                                            jakarta.servlet.http.HttpServletRequest servletRequest) {
+        String clientAddress = clientAddressResolver.resolve(servletRequest);
+        authService.admitLogin(request.email(), clientAddress);
         return ApiResponse.of(authService.login(request));
     }
 
@@ -46,7 +54,10 @@ public class AuthController {
     @Operation(summary = "카카오 로그인")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "카카오 로그인 성공")
     public ApiResponse<TokenResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest,
             @RequestHeader(value="X-Policy-Flow", required=false) String policyFlow) {
+        String clientAddress = clientAddressResolver.resolve(servletRequest);
+        authService.admitKakaoLogin(clientAddress);
         var response = authService.kakaoLogin(request);
         if (response.signupRequired() && !"1".equals(policyFlow)) {
             // The committed intent expires into cleanup even for an old client.

@@ -9,9 +9,20 @@ CREATE TABLE IF NOT EXISTS users (
     registration_source VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     profile_media_id BIGINT      NULL,
+    media_bytes_used BIGINT NOT NULL DEFAULT 0,
+    media_items_used INT NOT NULL DEFAULT 0,
     created_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at    DATETIME(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE request_rate_limits (
+    scope VARCHAR(40) NOT NULL,
+    bucket_key CHAR(64) NOT NULL,
+    available_tokens DECIMAL(12, 6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (scope, bucket_key),
+    KEY idx_request_rate_limits_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE password_reset_challenges (
     id CHAR(43) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
@@ -44,6 +55,18 @@ CREATE TABLE account_deletion_jobs (
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     UNIQUE KEY uq_account_deletion_provider (provider_user_id),
     INDEX idx_account_deletion_due (next_attempt_at, locked_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE kakao_unlink_webhook_events (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    provider_user_id VARCHAR(100) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME(6) NOT NULL,
+    locked_until DATETIME(6) NULL,
+    last_error VARCHAR(100) NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uq_kakao_unlink_event_provider (provider_user_id),
+    INDEX idx_kakao_unlink_event_due (next_attempt_at, locked_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE password_reset_limits (

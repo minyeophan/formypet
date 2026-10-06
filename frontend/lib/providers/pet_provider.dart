@@ -12,6 +12,7 @@ import '../services/record_service.dart';
 import '../services/routine_service.dart';
 import '../services/care_schedule_service.dart';
 import '../core/record_utils.dart';
+import '../core/api_client.dart';
 
 const _removedQuickTypeIds = {'bath', 'groom'};
 
@@ -106,9 +107,10 @@ class PetPhotoUpload {
 /// Profile fields are persisted; callers must retry this pet, not create another.
 class PetPhotoSaveException implements Exception {
   final String petId;
-  const PetPhotoSaveException(this.petId);
+  final String message;
+  const PetPhotoSaveException(this.petId, [this.message = '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.']);
   @override
-  String toString() => '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.';
+  String toString() => message;
 }
 
 class RecordPhotoUpload {
@@ -596,8 +598,12 @@ class PetNotifier extends StateNotifier<PetState> {
   Future<Pet> _uploadSavedPetPhoto(Pet pet, PetPhotoUpload photo) async {
     try {
       return await _uploadPhoto(pet, photo);
-    } catch (_) {
-      throw PetPhotoSaveException(pet.id);
+    } catch (error) {
+      throw PetPhotoSaveException(
+        pet.id,
+        mediaUploadErrorMessage(error,
+            fallback: '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.'),
+      );
     }
   }
 
