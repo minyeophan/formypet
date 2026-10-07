@@ -65,6 +65,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/webhooks/kakao/unlink",
                                 "/api/v1/public/account-deletion-requests",
                                 "/account-deletion.html",
                                 "/privacy", "/terms", "/policies/*/*",

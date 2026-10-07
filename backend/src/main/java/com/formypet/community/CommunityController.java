@@ -37,6 +37,7 @@ public class CommunityController {
 
     private final CommunityService communityService;
     private final ObjectMapper objectMapper;
+    private final com.formypet.media.MediaService mediaService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "게시글 작성")
@@ -45,7 +46,9 @@ public class CommunityController {
     public ApiResponse<PostResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                             @RequestPart("payload") String payload,
                                             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
-        return ApiResponse.of(communityService.create(actorId, parsePayload(payload), files == null ? List.of() : files));
+        List<MultipartFile> uploads = files == null ? List.of() : files;
+        mediaService.admitUpload(actorId, uploads.size());
+        return ApiResponse.of(communityService.create(actorId, parsePayload(payload), uploads));
     }
 
     @GetMapping

@@ -1,6 +1,8 @@
 package com.formypet.auth;
 
 import com.formypet.auth.client.KakaoUserClient;
+import com.formypet.common.ratelimit.RequestRateLimiter;
+import com.formypet.common.ratelimit.RequestRateLimitProperties;
 import com.formypet.auth.client.KakaoUserInfo;
 import com.formypet.auth.domain.RefreshToken;
 import com.formypet.auth.domain.User;
@@ -42,6 +44,8 @@ public class AuthService {
     private final KakaoSignupIntents signupIntents;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final org.springframework.transaction.support.TransactionTemplate transactions;
+    private final RequestRateLimiter requestRateLimiter;
+    private final RequestRateLimitProperties requestLimits;
 
     @Value("${app.jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
@@ -60,6 +64,7 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
+        String accountKey = request.email().trim().toLowerCase(java.util.Locale.ROOT);
         SessionGuard.Snapshot snapshot;
         try {
             snapshot = sessions.lock(request.email());
@@ -102,6 +107,37 @@ public class AuthService {
         } catch (DataIntegrityViolationException ex) {
             throw new OAuthLoginConflictException("OAuth login conflict");
         }
+    }
+
+    private void consumePublicAuthBudget(String clientAddress) {
+        requestRateLimiter.consume(java.util.List.of(
+                new RequestRateLimiter.Bucket("auth-client", clientAddress,
+                        requestLimits.getLoginClientCapacity(), requestLimits.getLoginClientRefillSeconds()),
+                new RequestRateLimiter.Bucket("auth-global", "all",
+                        requestLimits.getLoginGlobalCapacity(), requestLimits.getLoginGlobalRefillTokens(),
+                        requestLimits.getLoginGlobalRefillPeriodSeconds(), 1)));
+    }
+
+    /** Must be called by the HTTP boundary before entering transactional authentication work. */
+    public void admitRegistration(String clientAddress) {
+        consumePublicAuthBudget(clientAddress);
+    }
+
+    public void admitLogin(String email, String clientAddress) {
+        String accountKey = email.trim().toLowerCase(java.util.Locale.ROOT);
+        requestRateLimiter.consume(java.util.List.of(
+                new RequestRateLimiter.Bucket("login-account", accountKey,
+                        requestLimits.getLoginAccountCapacity(), requestLimits.getLoginAccountRefillSeconds()),
+                new RequestRateLimiter.Bucket("auth-client", clientAddress,
+                        requestLimits.getLoginClientCapacity(), requestLimits.getLoginClientRefillSeconds()),
+                new RequestRateLimiter.Bucket("auth-global", "all",
+                        requestLimits.getLoginGlobalCapacity(), requestLimits.getLoginGlobalRefillTokens(),
+                        requestLimits.getLoginGlobalRefillPeriodSeconds(), 1)));
+    }
+
+    /** Must be called before external Kakao verification or database transactions. */
+    public void admitKakaoLogin(String clientAddress) {
+        consumePublicAuthBudget(clientAddress);
     }
 
     @Transactional

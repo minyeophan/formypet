@@ -4,7 +4,7 @@ import com.formypet.auth.domain.User;
 import com.formypet.auth.repository.UserRepository;
 import com.formypet.common.exception.InvalidInputException;
 import com.formypet.common.exception.NotFoundException;
-import com.formypet.media.storage.MediaStorage;
+import com.formypet.media.MediaService;
 import com.formypet.pet.domain.Pet;
 import com.formypet.pet.repository.PetRepository;
 import com.formypet.record.dto.ActivityRecordCreateRequest;
@@ -17,10 +17,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.Date;
@@ -44,7 +41,7 @@ public class ActivityRecordService {
     private final JdbcTemplate jdbcTemplate;
     private final PetRepository petRepository;
     private final UserRepository userRepository;
-    private final MediaStorage mediaStorage;
+    private final MediaService mediaService;
 
     @Transactional
     public ActivityRecordResponse create(Long actorId, Long petId, ActivityRecordCreateRequest request) {
@@ -153,9 +150,8 @@ public class ActivityRecordService {
     public void delete(Long actorId, Long petId, Long recordId) {
         Pet pet = findOwnedPet(actorId, petId);
         findBaseRecord(pet.getId(), recordId);
-        List<String> storageKeys = findRecordMediaStorageKeys(recordId);
+        mediaService.deleteRecordMedia(actorId, recordId);
         jdbcTemplate.update("DELETE FROM activity_records WHERE id = ? AND pet_id = ?", recordId, pet.getId());
-        deleteStorageAfterCommit(storageKeys);
     }
 
     private ActivityRecordResponse findResponse(Long petId, Long recordId) {
@@ -200,39 +196,6 @@ public class ActivityRecordService {
                 """, Long.class, recordId).stream()
                 .map(id -> "/api/v1/media/" + id)
                 .toList();
-    }
-
-    private List<String> findRecordMediaStorageKeys(Long recordId) {
-        return jdbcTemplate.queryForList("""
-                SELECT storage_key
-                FROM media_resources
-                WHERE record_id = ?
-                ORDER BY id
-                """, String.class, recordId);
-    }
-
-    private void deleteStorageAfterCommit(List<String> storageKeys) {
-        if (storageKeys.isEmpty()) {
-            return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            storageKeys.forEach(this::deleteStorageQuietly);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                storageKeys.forEach(ActivityRecordService.this::deleteStorageQuietly);
-            }
-        });
-    }
-
-    private void deleteStorageQuietly(String storageKey) {
-        try {
-            mediaStorage.delete(storageKey);
-        } catch (IOException ignored) {
-            // Best-effort cleanup; the DB row has already been removed.
-        }
     }
 
     private Map<String, Object> findDetail(Long recordId, String typeId) {

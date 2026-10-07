@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.client.KakaoUserClient;
 import com.formypet.auth.client.KakaoUserInfo;
 import com.formypet.support.IntegrationTestSupport;
+import com.formypet.user.KakaoUnlinkWebhookWorker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,15 +32,62 @@ class AccountDeletionIntegrationTest extends IntegrationTestSupport {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
+    @Autowired KakaoUnlinkWebhookWorker kakaoUnlinkWorker;
     @MockitoBean KakaoUserClient kakao;
 
     @BeforeEach
     void clean() {
+        jdbc.update("DELETE FROM kakao_unlink_webhook_events");
         jdbc.update("DELETE FROM account_deletion_jobs");
         jdbc.update("DELETE FROM support_mail_outbox");
         jdbc.update("DELETE FROM support_tickets");
         jdbc.update("DELETE FROM refresh_tokens");
         jdbc.update("DELETE FROM users");
+    }
+
+    @Test
+    void kakaoUnlinkWebhookAuthenticatesAndQueuesDeletionWithoutCallingKakaoAgain() throws Exception {
+        String providerId = Long.toString(System.nanoTime());
+        when(kakao.fetchUser("kakao-login-token"))
+                .thenReturn(new KakaoUserInfo(providerId, null, false, "Kakao"));
+        mvc.perform(post("/api/v1/webhooks/kakao/unlink")
+                        .header("Authorization", "KakaoAK test-only-primary-admin-key")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("app_id", "1453687")
+                        .param("user_id", providerId)
+                        .param("referrer_type", "UNLINK_FROM_APPS"))
+                .andExpect(status().isOk());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM kakao_unlink_webhook_events WHERE provider_user_id=?", Integer.class, providerId)).isEqualTo(1);
+        mvc.perform(post("/api/v1/auth/kakao").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("accessToken", "kakao-login-token"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("KAKAO_CLEANUP_PENDING"));
+
+        assertThat(kakaoUnlinkWorker.processOne()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM oauth_accounts WHERE provider_user_id=?", Integer.class, providerId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM kakao_unlink_webhook_events WHERE provider_user_id=?", Integer.class, providerId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM account_deletion_jobs WHERE provider_user_id=?", Integer.class, providerId)).isZero();
+    }
+
+    @Test
+    void kakaoUnlinkWebhookRejectsWrongAdminKeyAndWrongApp() throws Exception {
+        String providerId = Long.toString(System.nanoTime());
+        mvc.perform(post("/api/v1/webhooks/kakao/unlink")
+                        .header("Authorization", "KakaoAK wrong-key")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("app_id", "1453687")
+                        .param("user_id", providerId)
+                        .param("referrer_type", "UNLINK_FROM_APPS"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/webhooks/kakao/unlink")
+                        .header("Authorization", "KakaoAK test-only-primary-admin-key")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("app_id", "wrong-app")
+                        .param("user_id", providerId)
+                        .param("referrer_type", "UNLINK_FROM_APPS"))
+                .andExpect(status().isUnauthorized());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM kakao_unlink_webhook_events WHERE provider_user_id=?", Integer.class, providerId)).isZero();
     }
 
     @Test

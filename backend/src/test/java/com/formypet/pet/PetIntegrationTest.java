@@ -93,6 +93,31 @@ class PetIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void createPetRejectsLongMalformedWeightBeforeNumberCoercion() throws Exception {
+        String token = registerAndGetToken("weight-input@example.com", "weightinput");
+        String malformed = "1".repeat(8_000) + "x";
+
+        mockMvc.perform(post(PETS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"뭉치\",\"species\":\"dog\",\"weight\":\"" + malformed + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void createPetAcceptsNumericWeight() throws Exception {
+        String token = registerAndGetToken("weight-number@example.com", "weightnumber");
+
+        mockMvc.perform(post(PETS_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"뭉치\",\"species\":\"dog\",\"weight\":12.5}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.weight").value(12.5));
+    }
+
+    @Test
     void createAndListPetIncludesExtendedProfileFieldsAndClientColors() throws Exception {
         String token = registerAndGetToken("owner-extended@example.com", "ownerExtended");
         var body = new HashMap<String, Object>(petBody("몽이"));

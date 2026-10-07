@@ -44,6 +44,9 @@ class OpenApiIntegrationTest extends IntegrationTestSupport {
         jdbc.update("INSERT INTO users(email, password_hash, nickname) VALUES (?, 'test-only', 'openapi-test')", email);
         long userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
         try {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isUnauthorized());
+
         mockMvc.perform(get("/v3/api-docs")
                         .header("Authorization", "Bearer " + jwt.generateAccessToken(userId, 0L)))
                 .andExpect(status().isOk())

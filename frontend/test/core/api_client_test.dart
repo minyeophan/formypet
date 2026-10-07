@@ -27,6 +27,25 @@ void main() {
     expect(parsed.errorCode, 'WALLET_EXPENSE_NOT_FOUND');
   });
 
+  test('media errors explain quota and request limits in Korean', () {
+    final request = RequestOptions(path: '/api/v1/media');
+    final quota = DioException(
+      requestOptions: request,
+      response: Response(
+        requestOptions: request,
+        statusCode: 409,
+        data: {'errorCode': 'MEDIA_QUOTA_EXCEEDED'},
+      ),
+    );
+    final limited = DioException(
+      requestOptions: request,
+      response: Response(requestOptions: request, statusCode: 429),
+    );
+
+    expect(mediaUploadErrorMessage(quota, fallback: 'fallback'), contains('저장 한도'));
+    expect(mediaUploadErrorMessage(limited, fallback: 'fallback'), contains('요청이 많아요'));
+  });
+
   test('GET requests retry one transient failure', () async {
     initApiClient('http://example.test', includeAuthInterceptor: false);
     var attempts = 0;

@@ -1,11 +1,21 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.1'
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.formypet'
 version = '0.0.1-SNAPSHOT'
+
+ext['jackson-bom.version'] = '2.18.11'
+ext['tomcat.version'] = '10.1.60'
+// Pin the resolved transitive runtime libraries to OSV-fixed versions.
+ext['commons-lang3.version'] = '3.18.0'
+ext['httpclient5.version'] = '5.6.4'
+ext['httpcore5.version'] = '5.4.3'
+ext['log4j2.version'] = '2.25.5'
+ext['netty.version'] = '4.1.138.Final'
+ext['opentelemetry.version'] = '1.62.0'
 
 java {
     toolchain {
@@ -22,6 +32,7 @@ repositories {
 }
 
 dependencies {
+    implementation enforcedPlatform('io.grpc:grpc-bom:1.75.0')
     implementation 'software.amazon.awssdk:s3'
     // ── Core ──────────────────────────────────────────────
     implementation 'org.springframework.boot:spring-boot-starter-web'

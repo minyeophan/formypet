@@ -5,6 +5,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 26MB
+      file-size-threshold: 0B
   config:
     import: optional:file:.env[.properties],optional:file:../.env[.properties],optional:file:.env.support[.properties]
   application:
@@ -49,6 +54,27 @@ spring:
     baseline-on-migrate: false
 
 app:
+  kakao:
+    app-id: ${KAKAO_APP_ID:}
+  request-limits:
+    login-account-capacity: 10
+    login-account-refill-seconds: 30
+    login-client-capacity: 60
+    login-client-refill-seconds: 1
+    login-global-capacity: 60
+    login-global-refill-tokens: 5
+    login-global-refill-period-seconds: 1
+    deletion-email-capacity: 3
+    deletion-email-window-seconds: 3600
+    deletion-email-cooldown-seconds: 30
+    deletion-client-capacity: 10
+    deletion-client-window-seconds: 3600
+    deletion-global-capacity: 100
+    deletion-global-window-seconds: 3600
+    media-user-bytes: 524288000
+    media-user-items: 1000
+    media-upload-capacity: 20
+    media-upload-refill-seconds: 3
   monitoring:
     enabled: ${MONITORING_ENABLED:false}
     username: ${MONITORING_USERNAME:}
@@ -88,7 +114,7 @@ app:
     timezone: Asia/Seoul
     scheduler-enabled: true
   jwt:
-    secret: "${JWT_SECRET}"
+    secret: ${JWT_SECRET}
     access-token-expiration: 1800000    # 30분 (ms)
     refresh-token-expiration: 2592000000 # 30일 (ms)
 
@@ -105,8 +131,8 @@ logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   level:
-    com.formypet: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.formypet: INFO
+    org.hibernate.SQL: INFO
     org.flywaydb: INFO
 
 management:

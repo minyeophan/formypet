@@ -37,6 +37,28 @@ public class AccountDeletionTransaction {
             throw SessionGuard.invalid();
         }
 
+        return deleteAccountData(user, kakaoUserId, true);
+    }
+
+    /** Processes a Kakao unlink already performed outside Formypet; do not call the provider unlink API again. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void deleteAfterKakaoUnlink(String providerUserId) {
+        oauthLifecycle.lock(providerUserId);
+        List<Long> users = jdbc.queryForList("""
+                SELECT user_id FROM oauth_accounts
+                WHERE provider='KAKAO' AND provider_user_id=? FOR UPDATE
+                """, Long.class, providerUserId);
+        if (users.isEmpty()) return;
+        SessionGuard.Snapshot user = sessions.lock(users.getFirst());
+        if (!"KAKAO".equals(user.source())) {
+            throw new IllegalStateException("Kakao account source does not match the unlink event");
+        }
+        deleteAccountData(user, providerUserId, false);
+    }
+
+    private AccountDeletionReceipt deleteAccountData(SessionGuard.Snapshot user, String kakaoUserId,
+                                                       boolean queueProviderUnlink) {
+
         List<Long> affectedPosts = jdbc.queryForList("""
                 SELECT p.id FROM posts p
                 WHERE p.user_id<>? AND (
@@ -59,7 +81,7 @@ public class AccountDeletionTransaction {
                 INSERT IGNORE INTO media_cleanup_queue(storage_key)
                 SELECT storage_key FROM media_resources WHERE user_id=?
                 """, user.id());
-        if (kakaoUserId != null) {
+        if (kakaoUserId != null && queueProviderUnlink) {
             jdbc.update("""
                     INSERT INTO account_deletion_jobs(provider_user_id,next_attempt_at)
                     VALUES (?,UTC_TIMESTAMP(6))

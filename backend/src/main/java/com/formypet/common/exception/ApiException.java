@@ -10,13 +10,20 @@ public class ApiException extends RuntimeException {
     private final URI type;
     private final String title;
     private final String errorCode;
+    private final Integer retryAfterSeconds;
 
     public ApiException(HttpStatus status, String typeSlug, String title, String detail, String errorCode) {
+        this(status, typeSlug, title, detail, errorCode, null);
+    }
+
+    public ApiException(HttpStatus status, String typeSlug, String title, String detail, String errorCode,
+                        Integer retryAfterSeconds) {
         super(detail);
         this.status = status;
         this.type = URI.create("https://formypet.com/errors/" + typeSlug);
         this.title = title;
         this.errorCode = errorCode;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 
     public HttpStatus status() {
@@ -37,5 +44,9 @@ public class ApiException extends RuntimeException {
 
     public String errorCode() {
         return errorCode;
+    }
+
+    public Integer retryAfterSeconds() {
+        return retryAfterSeconds;
     }
 }

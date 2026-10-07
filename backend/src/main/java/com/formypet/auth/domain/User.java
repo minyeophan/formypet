@@ -47,6 +47,12 @@ public class User {
     @Column(name = "profile_media_id")
     private Long profileMediaId;
 
+    @Column(name = "media_bytes_used", nullable = false)
+    private long mediaBytesUsed;
+
+    @Column(name = "media_items_used", nullable = false)
+    private int mediaItemsUsed;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

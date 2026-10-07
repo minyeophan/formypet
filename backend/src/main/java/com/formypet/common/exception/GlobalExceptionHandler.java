@@ -3,6 +3,7 @@ package com.formypet.common.exception;
 import com.formypet.auth.OAuthLoginConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.net.URI;
 import java.util.Map;
@@ -24,12 +27,16 @@ public class GlobalExceptionHandler {
     private static final String ERROR_BASE = "https://formypet.com/errors/";
 
     @ExceptionHandler(ApiException.class)
-    public ProblemDetail handleApiException(ApiException ex) {
+    public ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.detail());
         problem.setType(ex.type());
         problem.setTitle(ex.title());
         problem.setProperty("errorCode", ex.errorCode());
-        return problem;
+        var response = ResponseEntity.status(ex.status());
+        if (ex.retryAfterSeconds() != null) {
+            response.header("Retry-After", ex.retryAfterSeconds().toString());
+        }
+        return response.body(problem);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,6 +66,26 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidInput(Exception ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Invalid request.");
+        problem.setType(URI.create(ERROR_BASE + "invalid-input"));
+        problem.setTitle("Invalid Input");
+        problem.setProperty("errorCode", "INVALID_INPUT");
+        return problem;
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.PAYLOAD_TOO_LARGE, "Upload exceeds the configured limits.");
+        problem.setType(URI.create(ERROR_BASE + "payload-too-large"));
+        problem.setTitle("Payload Too Large");
+        problem.setProperty("errorCode", "UPLOAD_TOO_LARGE");
+        return problem;
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ProblemDetail handleInvalidMultipart(MultipartException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Invalid multipart request.");
         problem.setType(URI.create(ERROR_BASE + "invalid-input"));
         problem.setTitle("Invalid Input");
         problem.setProperty("errorCode", "INVALID_INPUT");
