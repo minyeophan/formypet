@@ -1,9 +1,11 @@
 package com.formypet.monitoring;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,6 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
         properties = {"MONITORING_ENABLED=false", "app.jwt.secret=test-only-jwt-secret-for-automated-tests"})
 class MonitoringDisabledIntegrationTest {
     @Autowired TestRestTemplate http;
+    @Autowired ApplicationContext context;
+
+    @Test
+    void doesNotCreateSpringBootGeneratedDefaultUser() {
+        assertThat(context.getBeansOfType(UserDetailsService.class)).isEmpty();
+    }
 
     @Test
     void disabledMonitoringExposesNoActuatorEvenWithBasicCredentials() {
