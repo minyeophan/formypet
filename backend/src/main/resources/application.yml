@@ -2,6 +2,9 @@ server:
   port: ${SERVER_PORT:8083}
 
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   config:
     import: optional:file:.env[.properties],optional:file:../.env[.properties],optional:file:.env.support[.properties]
   application:
