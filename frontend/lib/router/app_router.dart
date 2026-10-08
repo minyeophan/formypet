@@ -9,7 +9,6 @@ import '../providers/pet_provider.dart';
 import '../screens/auth/auth_screen.dart';
 import '../screens/auth/policy_acceptance_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
-import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
@@ -129,9 +128,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => Consumer(
           builder: (context, ref, child) {
             final auth = ref.watch(authProvider);
-            return SplashScreen(
-              errorText: auth.initializationError,
-              onRetry: auth.isLoading
+            final pet = ref.watch(petProvider);
+            return AuthScreen(
+              initializationError: auth.initializationError,
+              isInitializing: auth.isLoading || pet.isLoading,
+              onRetryInitialization: auth.isLoading
                   ? null
                   : () => ref.read(authProvider.notifier).retryInitialization(),
             );
