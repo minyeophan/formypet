@@ -1,7 +1,10 @@
 import '../../widgets/app_icon.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../services/auth_service.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +23,16 @@ import '../../widgets/brand_logo.dart';
 enum _AuthView { welcome, login, register, recovery }
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key});
+  const AuthScreen({
+    super.key,
+    this.initializationError,
+    this.isInitializing = false,
+    this.onRetryInitialization,
+  });
+
+  final String? initializationError;
+  final bool isInitializing;
+  final VoidCallback? onRetryInitialization;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -356,47 +368,61 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Widget _welcome() {
     final compact = MediaQuery.sizeOf(context).height < 700;
-    final brandSize = compact ? 168.0 : 240.0;
-    final headingSize = compact ? 23.0 : 27.0;
+    final iconSize = compact ? 88.0 : 108.0;
+    final isBusy = _isLoading || widget.isInitializing;
+    final canContinue = !isBusy && widget.initializationError == null;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Column(
           children: [
-            SizedBox(height: compact ? 14 : 52),
-            _AuthBrandLockup(size: brandSize),
-            SizedBox(height: compact ? 12 : 28),
-            Text(
-              '우리 아이와의 매일을',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: headingSize,
-                fontWeight: FontWeight.w700,
-                height: compact ? 1.42 : 1.5,
+            SizedBox(height: compact ? 18 : 140),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(compact ? 22 : 28),
+              child: Image.asset(
+                'assets/images/app_icon_p04.png',
+                width: iconSize,
+                height: iconSize,
+                fit: BoxFit.cover,
+                semanticLabel: '포마펫 앱 아이콘',
               ),
             ),
-            Text(
-              '더 편안하게',
+            SizedBox(height: compact ? 14 : 16),
+            const Text(
+              '포마펫',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.text,
-                fontSize: headingSize,
-                fontWeight: FontWeight.w700,
-                height: compact ? 1.42 : 1.5,
+                color: AppColors.actionMint,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                height: 1.5,
+                letterSpacing: -1,
               ),
             ),
-            SizedBox(height: compact ? 8 : 10),
-            Text(
-              '기록부터 일상까지, 포마펫과 함께해요.',
+            const SizedBox(height: 8),
+            const Text(
+              '반려생활의 모든 순간을 기록하다',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: compact ? 12 : 14,
+                fontSize: 14,
                 height: 1.5,
               ),
             ),
+            if (widget.initializationError != null) ...[
+              const SizedBox(height: 18),
+              Text(
+                widget.initializationError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: widget.onRetryInitialization,
+                child: const Text('다시 시도'),
+              ),
+            ],
           ],
         ),
         Padding(
@@ -414,7 +440,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       borderRadius: BorderRadius.all(Radius.circular(16)),
                     ),
                   ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                  onPressed: _isLoading ? null : _loginWithKakao,
+                  onPressed: canContinue ? _loginWithKakao : null,
                   child: _isLoading
                       ? const SizedBox(
                           width: 20,
@@ -457,7 +483,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       borderRadius: BorderRadius.all(Radius.circular(16)),
                     ),
                   ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                  onPressed: _isLoading ? null : () => _show(_AuthView.login),
+                  onPressed: canContinue ? () => _show(_AuthView.login) : null,
                   child: const Text(
                     '이메일로 로그인',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
@@ -473,9 +499,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                  onPressed: _isLoading
-                      ? null
-                      : () => _show(_AuthView.register),
+                  onPressed: canContinue
+                      ? () => _show(_AuthView.register)
+                      : null,
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
