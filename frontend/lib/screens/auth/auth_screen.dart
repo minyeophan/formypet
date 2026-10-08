@@ -402,7 +402,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              '반려생활의 모든 순간을 기록하다',
+              '우리 아이의 모든 순간을 기록하다',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
