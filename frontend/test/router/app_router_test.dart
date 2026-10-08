@@ -43,7 +43,6 @@ import 'package:frontend/screens/records/record_category_form_screen.dart';
 import 'package:frontend/screens/records/records_screen.dart';
 import 'package:frontend/screens/routine/routine_create_screen.dart';
 import 'package:frontend/screens/routine/routine_schedule_create_screen.dart';
-import 'package:frontend/screens/splash/splash_screen.dart';
 import 'package:frontend/services/community_service.dart';
 import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/services/wallet_expense_service.dart';
@@ -68,7 +67,7 @@ void main() {
         initialLocation: '/my/policies',
       );
       expect(find.text('약관 및 정책'), findsOneWidget);
-      expect(find.byType(SplashScreen), findsNothing);
+      expect(find.byType(AuthScreen), findsNothing);
     },
   );
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -76,14 +75,14 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('/ renders splash while app state is loading', (tester) async {
+  testWidgets('/ renders welcome while app state is loading', (tester) async {
     await _pumpRouter(
       tester,
       authState: const AuthState(isLoading: true, isAuthenticated: false),
       petState: _petState(isLoading: true, hasOnboarded: false),
     );
 
-    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byType(AuthScreen), findsOneWidget);
   });
 
   testWidgets('completed unauthenticated state redirects to /auth', (
@@ -99,7 +98,7 @@ void main() {
   });
 
   testWidgets(
-    'startup outage keeps retry on splash without asking for login again',
+    'startup outage keeps retry on welcome without asking for login again',
     (tester) async {
       final notifier = _StartupRetryAuthNotifier();
       await _pumpRouter(
@@ -113,8 +112,7 @@ void main() {
           activePetId: '1',
         ),
       );
-      expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.byType(AuthScreen), findsNothing);
+      expect(find.byType(AuthScreen), findsOneWidget);
       await tester.tap(find.text('다시 시도'));
       await tester.pumpAndSettle();
       expect(notifier.retries, 1);
