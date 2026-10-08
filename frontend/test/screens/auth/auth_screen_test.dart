@@ -216,9 +216,8 @@ void main() {
   ) async {
     await _pumpAuth(tester);
 
-    expect(find.text('우리 아이와의 매일을'), findsOneWidget);
-    expect(find.text('더 편안하게'), findsOneWidget);
-    expect(find.text('기록부터 일상까지, 포마펫과 함께해요.'), findsOneWidget);
+    expect(find.text('포마펫'), findsOneWidget);
+    expect(find.text('우리 아이의 모든 순간을 기록하다'), findsOneWidget);
     expect(find.text('처음 오셨나요?'), findsOneWidget);
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
