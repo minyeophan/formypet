@@ -1,8 +1,8 @@
-import '../../core/app_interaction_style.dart';
 import '../app_ink_well.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../app_confirmation_sheet.dart';
 import '../app_text.dart';
 
 class RecordEditActionBar extends StatelessWidget {
@@ -116,46 +116,12 @@ Future<bool?> showDeleteConfirmationSheet(
   required String confirmLabel,
   required Key confirmKey,
 }) {
-  return showModalBottomSheet<bool>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    constraints: const BoxConstraints(maxWidth: 600),
-    backgroundColor: AppColors.surface,
-    showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppText(
-              title,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-            ),
-            const SizedBox(height: 8),
-            AppText(message, fontSize: 13, color: AppColors.textSecondary),
-            const SizedBox(height: 18),
-            FilledButton(
-              key: confirmKey,
-              onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
-                  .copyWith(
-                    overlayColor: AppInteractionStyle.overlay(danger: true),
-                  ),
-              child: AppText(confirmLabel, color: AppColors.white),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
-              child: const AppText('취소', color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    ),
+  return showAppConfirmationSheet(
+    context,
+    title: title,
+    message: message,
+    confirmLabel: confirmLabel,
+    confirmKey: confirmKey,
+    cancelKey: const Key('app-confirmation-sheet-cancel'),
   );
 }

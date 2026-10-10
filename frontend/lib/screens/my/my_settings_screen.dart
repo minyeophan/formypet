@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_interaction_style.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import '../../widgets/app_text.dart';
 import 'my_widgets.dart';
 
@@ -143,50 +142,13 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
 }
 
 Future<bool?> showLogoutConfirmationSheet(BuildContext context) {
-  return showModalBottomSheet<bool>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    constraints: const BoxConstraints(maxWidth: 600),
-    backgroundColor: AppColors.surface,
-    showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppText(
-              '로그아웃할까요?',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-            ),
-            const SizedBox(height: 8),
-            const AppText(
-              '이 기기에서 계정 연결을 종료합니다.',
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.danger)
-                  .copyWith(
-                    overlayColor: AppInteractionStyle.overlay(danger: true),
-                  ),
-              child: const AppText('로그아웃', color: AppColors.white),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
-              child: const AppText('취소', color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    ),
+  return showAppConfirmationSheet(
+    context,
+    title: '로그아웃할까요?',
+    message: '이 기기에서 계정 연결을 종료합니다.',
+    confirmLabel: '로그아웃',
+    confirmKey: const Key('logout-confirm-button'),
+    cancelKey: const Key('logout-cancel-button'),
   );
 }
 

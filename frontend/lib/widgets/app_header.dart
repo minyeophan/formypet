@@ -196,12 +196,14 @@ class AppHeaderIconButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+  final bool showUnreadIndicator;
 
   const AppHeaderIconButton({
     super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.showUnreadIndicator = false,
   });
 
   @override
@@ -236,14 +238,36 @@ class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: AppIcon(
-                  widget.icon,
-                  size: 20,
-                  color:
-                      (_pressed || _focused) &&
-                          widget.icon == Icons.search_rounded
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    AppIcon(
+                      widget.icon,
+                      size: 20,
+                      color:
+                          (_pressed || _focused) &&
+                              widget.icon == Icons.search_rounded
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    if (widget.showUnreadIndicator)
+                      const Positioned(
+                        key: Key('home-notification-unread-dot'),
+                        right: -2,
+                        top: -2,
+                        child: SizedBox(
+                          width: 7,
+                          height: 7,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

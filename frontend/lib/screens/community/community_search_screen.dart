@@ -203,7 +203,11 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 suffixIcon: IconButton(
                   tooltip: '검색어 지우기',
                   onPressed: _clearSearch,
-                  icon: const AppIcon(Icons.close_rounded),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 48,
+                    height: 48,
+                  ),
+                  icon: const AppIcon(Icons.close_rounded, size: 16),
                 ),
                 filled: true,
                 fillColor: AppInteractionStyle.inputFill,

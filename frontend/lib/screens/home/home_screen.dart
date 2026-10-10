@@ -210,32 +210,12 @@ class _HomeHeader extends ConsumerWidget {
       title: 'ForMyPet',
       leading: const AppIcon(Icons.pets, color: AppV2Tokens.primary, size: 25),
       actions: [
-        IconButton(
+        AppHeaderIconButton(
           key: const Key('home-notification-button'),
+          icon: Icons.notifications_none_rounded,
           tooltip: '알림',
-          onPressed: () => context.push('/notifications'),
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const AppIcon(Icons.notifications_none_rounded),
-              if (hasUnread)
-                const Positioned(
-                  key: Key('home-notification-unread-dot'),
-                  right: -1,
-                  top: -1,
-                  child: SizedBox(
-                    width: 7,
-                    height: 7,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          onTap: () => context.push('/notifications'),
+          showUnreadIndicator: hasUnread,
         ),
         const SizedBox(width: 12),
       ],
@@ -429,13 +409,7 @@ class _QuickMenu extends StatelessWidget {
         Colors.orange,
         () => context.push('/records'),
       ),
-      (
-        'pet-log',
-        '반려로그',
-        AppVisualId.homePetLog,
-        Colors.orange,
-        onPreparing,
-      ),
+      ('pet-log', '반려로그', AppVisualId.homePetLog, Colors.orange, onPreparing),
       (
         'wallet',
         '지갑',

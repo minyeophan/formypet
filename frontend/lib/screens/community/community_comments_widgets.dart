@@ -1,4 +1,5 @@
 import '../../widgets/app_icon.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_v2_tokens.dart';
@@ -355,50 +356,13 @@ Future<CommunityCommentMenuAction?> showCommunityCommentsV2Menu(
 Future<bool?> showCommunityCommentDeleteConfirmationSheet(
   BuildContext context,
 ) {
-  return showModalBottomSheet<bool>(
-    context: context,
-    backgroundColor: AppV2Tokens.background,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              '댓글을 삭제할까요?',
-              style: TextStyle(
-                color: AppV2Tokens.text,
-
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '삭제한 댓글은 다시 되돌릴 수 없어요.',
-              style: TextStyle(color: AppV2Tokens.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              key: const Key('community-comment-delete-confirm'),
-              onPressed: () => Navigator.pop(sheetContext, true),
-              style: FilledButton.styleFrom(backgroundColor: AppV2Tokens.error)
-                  .copyWith(
-                    overlayColor: AppInteractionStyle.overlay(danger: true),
-                  ),
-              child: const Text('삭제'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(sheetContext, false),
-              child: const Text('취소'),
-            ),
-          ],
-        ),
-      ),
-    ),
+  return showAppConfirmationSheet(
+    context,
+    title: '댓글을 삭제할까요?',
+    message: '삭제한 댓글은 다시 되돌릴 수 없어요.',
+    confirmLabel: '삭제',
+    confirmKey: const Key('community-comment-delete-confirm'),
+    cancelKey: const Key('community-comment-delete-cancel'),
   );
 }
 

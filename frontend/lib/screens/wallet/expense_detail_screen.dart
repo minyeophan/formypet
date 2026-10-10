@@ -9,6 +9,7 @@ import '../../models/wallet_expense.dart';
 import '../../providers/pet_provider.dart';
 import '../../providers/wallet_expense_provider.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import '../../widgets/app_text.dart';
 import 'wallet_expense_utils.dart';
 import 'expense_form.dart';
@@ -112,55 +113,14 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
     final session = ref.read(walletExpenseProvider).session;
     final expenseKey = _expenseKey;
     setState(() => _confirming = true);
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AppText(
-                  '\uC9C0\uCD9C \uAE30\uB85D\uC744 \uC0AD\uC81C\uD560\uAE4C\uC694?',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                ),
-                const SizedBox(height: 8),
-                const AppText(
-                  '\uC0AD\uC81C\uD55C \uAE30\uB85D\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC5B4\uC694.',
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(height: 16),
-                _SheetButton(
-                  key: const Key('expense-delete-confirm-button'),
-                  label: '\uC0AD\uC81C',
-                  danger: true,
-                  onTap: () => context.pop(true),
-                ),
-                const SizedBox(height: 8),
-                _SheetButton(
-                  label: '\uCDE8\uC18C',
-                  danger: false,
-                  onTap: () => context.pop(false),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    final confirmed = await showAppConfirmationSheet(
+      context,
+      title: '지출 기록을 삭제할까요?',
+      message: '삭제한 기록은 되돌릴 수 없어요.',
+      confirmLabel: '삭제',
+      confirmKey: const Key('expense-delete-confirm-button'),
+      cancelKey: const Key('expense-delete-cancel-button'),
     );
-
     if (!mounted ||
         ref.read(walletExpenseProvider).session != session ||
         expenseKey != _expenseKey) {
@@ -532,48 +492,6 @@ class _DetailActionButton extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Color(0xFFB91C1C),
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetButton extends StatelessWidget {
-  final String label;
-  final bool danger;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    super.key,
-    required this.label,
-    required this.danger,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: danger ? const Color(0xFFFFF1F2) : AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(20),
-      child: AppInkWell(
-        danger: danger,
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: danger ? const Color(0xFFFECACA) : AppColors.border,
-            ),
-          ),
-          child: AppText(
-            label,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: danger ? const Color(0xFFB91C1C) : AppColors.text,
-          ),
         ),
       ),
     );
