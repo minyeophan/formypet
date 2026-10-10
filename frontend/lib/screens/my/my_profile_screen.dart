@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
+import '../../services/photo_preparation.dart';
 import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import 'dart:typed_data';
@@ -19,8 +21,9 @@ import '../../widgets/default_profile_avatar.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   final Future<XFile?> Function()? pickImage;
+  final Future<PreparedPhoto> Function(XFile)? prepareImage;
 
-  const MyProfileScreen({super.key, this.pickImage});
+  const MyProfileScreen({super.key, this.pickImage, this.prepareImage});
 
   @override
   ConsumerState<MyProfileScreen> createState() => _MyProfileScreenState();
@@ -30,6 +33,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     with DraftExitGuardMixin<MyProfileScreen> {
   String? _baseline;
   String? _hydratedActor;
+  int? _hydratedEpoch;
   bool _hydrating = false;
   int _pickerGeneration = 0;
   String get _snapshot =>
@@ -42,7 +46,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
   void initState() {
     super.initState();
     ref.listenManual(
-      authProvider.select((auth) => (auth.isAuthenticated, auth.profile?.id)),
+      authProvider.select(
+        (auth) => (auth.isAuthenticated, auth.profile?.id, auth.sessionEpoch),
+      ),
       (_, _) => _pickerGeneration++,
     );
     _nickname.addListener(() {
@@ -54,6 +60,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
   final _email = TextEditingController();
   String? _hydratedEmail;
   XFile? _selectedPhoto;
+  PreparedPhoto? _preparedPhoto;
+  String? _photoRequestKey;
+  ({PreparedPhoto photo, String key})? _pendingPhoto;
   Uint8List? _previewBytes;
   String? _error;
   bool _isSaving = false;
@@ -82,15 +91,27 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
           await (widget.pickImage ??
               () => ImagePicker().pickImage(source: ImageSource.gallery))();
       if (!current() || file == null) return;
-      final bytes = await file.readAsBytes();
-      if (!current()) return;
       setState(() {
         _selectedPhoto = file;
-        _previewBytes = bytes;
+        _preparedPhoto = null;
+        _photoRequestKey = const Uuid().v4();
+        _previewBytes = null;
         _error = null;
       });
-    } catch (_) {
-      if (current()) setState(() => _error = '사진을 불러오지 못했어요.');
+      final prepared = await (widget.prepareImage ?? preparePhoto)(file);
+      if (!current()) return;
+      setState(() {
+        _preparedPhoto = prepared;
+        _previewBytes = prepared.bytes;
+      });
+    } catch (error) {
+      if (current()) {
+        setState(
+          () => _error = error is PhotoPreparationException
+              ? error.message
+              : '사진을 불러오지 못했어요.',
+        );
+      }
     }
   }
 
@@ -98,8 +119,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     if (_isSaving) return;
     final profile = ref.read(authProvider).profile;
     if (profile == null) return;
+    final epoch = ref.read(authProvider).sessionEpoch;
     bool current() =>
-        mounted && ref.read(authProvider).profile?.id == profile.id;
+        mounted &&
+        ref.read(authProvider).isAuthenticated &&
+        ref.read(authProvider).sessionEpoch == epoch &&
+        ref.read(authProvider).profile?.id == profile.id;
     final nickname = _nickname.text.trim();
     if (nickname.isEmpty) {
       setState(() => _error = '닉네임을 입력해 주세요.');
@@ -141,53 +166,63 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
 
     if (!current()) return;
 
-    var photoUploadFailed = false;
-    String? photoUploadMessage;
     if (selectedPhoto != null) {
-      Uint8List bytes;
       try {
-        bytes = await selectedPhoto.readAsBytes();
-      } catch (_) {
+        // Resolve an earlier uncertain upload before replacing its selection.
+        final pending = _pendingPhoto;
+        if (pending != null && pending.key != _photoRequestKey) {
+          await ref
+              .read(authProvider.notifier)
+              .uploadProfileImage(
+                bytes: pending.photo.bytes,
+                filename: pending.photo.filename,
+                mimeType: pending.photo.mimeType,
+                idempotencyKey: pending.key,
+                isCurrent: current,
+              );
+          if (!current()) return;
+          _pendingPhoto = null;
+        }
+        final prepared = _preparedPhoto ??=
+            await (widget.prepareImage ?? preparePhoto)(selectedPhoto);
+        if (!current()) return;
+        _pendingPhoto ??= (
+          photo: prepared,
+          key: _photoRequestKey ??= const Uuid().v4(),
+        );
+        final attempt = _pendingPhoto!;
+        await ref
+            .read(authProvider.notifier)
+            .uploadProfileImage(
+              bytes: attempt.photo.bytes,
+              filename: attempt.photo.filename,
+              mimeType: attempt.photo.mimeType,
+              idempotencyKey: attempt.key,
+              isCurrent: current,
+            );
+        if (!current()) return;
+        _pendingPhoto = null;
+      } catch (error) {
         if (current()) {
+          if (isDefinitiveMediaRejection(error)) _pendingPhoto = null;
           setState(() {
             _isSaving = false;
-            _selectedPhoto = null;
-            _previewBytes = null;
-            _error = '사진을 불러오지 못했어요.';
+            _error = error is PhotoPreparationException
+                ? error.message
+                : mediaUploadErrorMessage(
+                    error,
+                    fallback: shouldUpdateNickname
+                        ? '닉네임은 저장했지만 사진을 등록하지 못했어요. 다시 시도해 주세요.'
+                        : '사진을 등록하지 못했어요. 다시 시도해 주세요.',
+                  );
           });
         }
         return;
       }
-
-      if (!current()) return;
-      try {
-        await ref
-            .read(authProvider.notifier)
-            .uploadProfileImage(bytes: bytes, filename: selectedPhoto.name);
-      } catch (error) {
-        photoUploadFailed = true;
-        photoUploadMessage = mediaUploadErrorMessage(
-          error,
-          fallback: '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.',
-        );
-        if (current()) {
-          setState(() {
-            _selectedPhoto = null;
-            _previewBytes = null;
-          });
-        }
-      }
     }
-
     if (!current()) return;
     setState(() => _isSaving = false);
-    _showSaveMessage(
-      photoUploadFailed && shouldUpdateNickname
-          ? '닉네임은 저장했지만 ${photoUploadMessage ?? '사진을 등록하지 못했어요.'}'
-          : photoUploadFailed
-          ? photoUploadMessage ?? '사진을 등록하지 못했어요. 나중에 다시 추가할 수 있어요.'
-          : '프로필을 저장했어요.',
-    );
+    _showSaveMessage('프로필을 저장했어요.');
     await allowDraftExit();
     if (!current()) return;
     await _goBack();
@@ -224,13 +259,19 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     final auth = ref.watch(authProvider);
     final profile = auth.profile;
     final actor = auth.isAuthenticated ? profile?.id : null;
-    if (_hydratedActor != actor || _hydratedEmail != profile?.email) {
+    if (_hydratedActor != actor ||
+        _hydratedEmail != profile?.email ||
+        _hydratedEpoch != auth.sessionEpoch) {
       _hydrating = true;
       _hydratedActor = actor;
+      _hydratedEpoch = auth.sessionEpoch;
       _hydratedEmail = profile?.email;
       _nickname.text = profile?.nickname ?? '';
       _email.text = profile?.email ?? '';
       _selectedPhoto = null;
+      _preparedPhoto = null;
+      _photoRequestKey = null;
+      _pendingPhoto = null;
       _previewBytes = null;
       _isSaving = false;
       _error = null;
@@ -281,7 +322,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
                       key: const Key('my-profile-photo-picker'),
                       onPressed: _isSaving ? null : _pickPhoto,
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
+                        foregroundColor: AppColors.primaryText,
                       ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                       child: const AppText('사진 선택'),
                     ),
@@ -312,9 +353,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
                     onPressed: _isSaving ? null : _save,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
+                      foregroundColor: AppColors.onPrimary,
                     ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                    child: const AppText('저장', color: AppColors.white),
+                    child: const AppText('저장', color: AppColors.onPrimary),
                   ),
                 ],
               ),

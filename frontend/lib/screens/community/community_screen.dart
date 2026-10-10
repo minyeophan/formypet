@@ -61,7 +61,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             splashColor: AppColors.primary.withValues(alpha: .10),
             shape: const CircleBorder(),
             backgroundColor: AppV2Tokens.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             onPressed: () => context.push('/community/write'),
             child: const AppIcon(Icons.edit),
           ),
@@ -131,7 +131,7 @@ class _CommunityCategoryScreenState
             splashColor: AppColors.primary.withValues(alpha: .10),
             shape: const CircleBorder(),
             backgroundColor: AppV2Tokens.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             onPressed: () => context.push('/community/write'),
             child: const AppIcon(Icons.edit),
           ),
@@ -176,7 +176,7 @@ class _CommunityCategoryBody extends ConsumerWidget {
           const _CommunityHeader(showBack: true),
           Expanded(
             child: RefreshIndicator(
-              color: AppV2Tokens.primary,
+              color: AppV2Tokens.primaryText,
               onRefresh: () => ref
                   .read(communityProvider.notifier)
                   .loadFeed(feedKey: routeFeedKey, refresh: true),
@@ -740,7 +740,7 @@ class _CommunityMainScroll extends ConsumerWidget {
     final state = ref.watch(communityProvider);
     final posts = state.postsForFeed(feedKey);
     return RefreshIndicator(
-      color: AppV2Tokens.primary,
+      color: AppV2Tokens.primaryText,
       onRefresh: () => ref
           .read(communityProvider.notifier)
           .loadFeed(feedKey: feedKey, refresh: true),
@@ -1050,26 +1050,5 @@ Color _communityAccentFor(String category) => switch (category) {
 void _showCommunityToast(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Center(
-          widthFactor: 1,
-          child: AppText(
-            message,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-        width: 112,
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
+    ..showSnackBar(SnackBar(content: Text(message)));
 }

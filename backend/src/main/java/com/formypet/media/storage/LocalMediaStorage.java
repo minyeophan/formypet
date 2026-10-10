@@ -8,15 +8,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 @Component
 @ConditionalOnProperty(prefix = "app.media.storage", name = "provider", havingValue = "local", matchIfMissing = true)
 public class LocalMediaStorage implements MediaStorage {
-
-    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyyMM");
 
     private final Path root;
 
@@ -25,14 +20,12 @@ public class LocalMediaStorage implements MediaStorage {
     }
 
     @Override
-    public StoredMedia store(Long userId, String folderName, String extension, MultipartFile file) throws IOException {
-        String month = YearMonth.now().format(MONTH_FORMAT);
-        String filename = UUID.randomUUID() + "." + extension;
-        Path relativePath = Path.of(userId.toString(), folderName, month, filename);
-        Path target = root.resolve(relativePath);
+    public StoredMedia storeAt(String storageKey, MultipartFile file) throws IOException {
+        Path target = root.resolve(storageKey).normalize();
+        if (!target.startsWith(root.normalize())) throw new IllegalArgumentException("Invalid media path.");
         Files.createDirectories(target.getParent());
         file.transferTo(target);
-        return new StoredMedia(relativePath.toString().replace('\\', '/'), file.getContentType(), file.getSize());
+        return new StoredMedia(storageKey, file.getContentType(), file.getSize());
     }
 
     @Override

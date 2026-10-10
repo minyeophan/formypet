@@ -26,6 +26,7 @@ public class MediaCleanupRunner implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
     private final MediaStorage mediaStorage;
+    private final MediaStorageAttempts storageAttempts;
     private final AtomicBoolean running = new AtomicBoolean();
 
     @Override
@@ -37,6 +38,11 @@ public class MediaCleanupRunner implements ApplicationRunner {
     public void cleanPending() {
         if (!running.compareAndSet(false, true)) return;
         try {
+            try {
+                storageAttempts.recover();
+            } catch (RuntimeException failure) {
+                log.error("Failed to recover media storage attempts; retry scheduled ({})", failure.getClass().getSimpleName());
+            }
             cleanClaimedSnapshot();
         } finally {
             running.set(false);
@@ -54,6 +60,9 @@ public class MediaCleanupRunner implements ApplicationRunner {
 
         for (String storageKey : storageKeys) {
             try {
+                Integer references = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM media_resources WHERE storage_key=?", Integer.class, storageKey);
+                if (references != null && references > 0) continue;
                 mediaStorage.delete(storageKey);
                 jdbcTemplate.update(DELETE_SQL, storageKey);
             } catch (Exception exception) {

@@ -1,3 +1,5 @@
+import 'package:frontend/services/photo_preparation.dart';
+import 'package:frontend/services/photo_save_draft.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -696,6 +698,25 @@ class _UpdatePetNotifier extends _MutablePetNotifier {
 
   String? updatedPetId;
   Map<String, dynamic>? updatedBody;
+
+  @override
+  Future<void> savePetPhotoDraft(
+    PetPhotoDraft draft,
+    Map<String, dynamic> body, {
+    String? petId,
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) async {
+    if (!current()) return;
+    await updatePet(
+      petId!,
+      body,
+      photo: photo == null
+          ? null
+          : PetPhotoUpload(bytes: photo.bytes, filename: photo.filename),
+    );
+    draft.savedId = petId;
+  }
 
   @override
   Future<void> updatePet(

@@ -586,7 +586,7 @@ class _PetChip extends StatelessWidget {
         label,
         fontSize: 12,
         fontWeight: FontWeight.w500,
-        color: AppColors.white,
+        color: AppColors.onPrimary,
       ),
     );
   }
@@ -751,14 +751,14 @@ class _SaveButtonState extends State<_SaveButton> {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.primary,
+                    color: AppColors.primaryText,
                   ),
                 )
               : AppText(
                   widget.label,
                   fontSize: 17,
                   fontWeight: FontWeight.w500,
-                  color: widget.canSave ? AppColors.white : AppColors.muted,
+                  color: widget.canSave ? AppColors.onPrimary : AppColors.muted,
                 ),
         ),
       ),

@@ -64,7 +64,7 @@ class RecordEditActionBar extends StatelessWidget {
                 isSaving ? savingLabel : saveLabel,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: saveActive ? AppColors.white : AppColors.muted,
+                color: saveActive ? AppColors.onPrimary : AppColors.muted,
               ),
             ),
           ),

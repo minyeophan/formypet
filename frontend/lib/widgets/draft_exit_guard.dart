@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app_confirm_dialog.dart';
+import 'app_confirmation_sheet.dart';
 
 /// Connects active forms to shell navigation, which does not pop their routes.
 class DraftExitController {
@@ -132,24 +132,7 @@ mixin DraftExitGuardMixin<T extends StatefulWidget> on State<T> {
       FocusScope.of(context).unfocus();
       bool? discard;
       try {
-        discard = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AppConfirmDialog(
-            title: '입력을 그만할까요?',
-            body: '저장하지 않은 변경사항은 사라져요.',
-            actions: [
-              AppConfirmDialogAction(
-                label: '계속 입력',
-                onPressed: () => Navigator.pop(dialogContext, false),
-              ),
-              AppConfirmDialogAction(
-                label: '나가기',
-                isDanger: true,
-                onPressed: () => Navigator.pop(dialogContext, true),
-              ),
-            ],
-          ),
-        );
+        discard = await showAppDraftExitSheet(context);
       } finally {
         _draftConfirming = false;
       }

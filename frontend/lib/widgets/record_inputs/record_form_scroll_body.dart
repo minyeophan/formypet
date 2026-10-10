@@ -89,7 +89,7 @@ class RecordFormSubmitButton extends StatelessWidget {
             isSaving ? '저장 중' : '등록',
             fontSize: 15,
             fontWeight: FontWeight.bold,
-            color: canTap ? AppColors.white : AppColors.muted,
+            color: canTap ? AppColors.onPrimary : AppColors.muted,
           ),
         ),
       ),

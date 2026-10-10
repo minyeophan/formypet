@@ -9,6 +9,8 @@ import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/services/photo_save_draft.dart';
+import 'package:frontend/services/photo_preparation.dart';
 import 'package:frontend/router/app_router.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:frontend/widgets/app_navigation.dart';
@@ -686,6 +688,16 @@ class _CategoryTestPetNotifier extends PetNotifier {
   Future<void> addRecord(
     Map<String, dynamic> body, {
     RecordPhotoUpload? photo,
+  }) async {
+    throw StateError('Creation must use the retryable draft contract');
+  }
+
+  @override
+  Future<void> saveRecordPhotoDraft(
+    RecordPhotoDraft draft,
+    Map<String, dynamic> body, {
+    PreparedPhoto? photo,
+    required bool Function() current,
   }) async {
     savedBodies.add(body);
   }

@@ -11,6 +11,21 @@ class RecordMediaUpload {
   const RecordMediaUpload({required this.bytes, required this.filename});
 }
 
+enum RecordSaveStage { mediaPending, savedNeedsRefresh }
+
+/// A committed record must never be recreated or deleted to recover a read.
+class RecordSaveException implements Exception {
+  final ActivityRecord record;
+  final RecordSaveStage stage;
+  final Object cause;
+  const RecordSaveException(this.record, this.stage, this.cause);
+
+  @override
+  String toString() => stage == RecordSaveStage.savedNeedsRefresh
+      ? '기록과 사진은 저장됐어요. 다시 저장하지 말고 목록을 다시 불러와 주세요.'
+      : '기록은 저장됐지만 사진 업로드를 완료하지 못했어요. 사진 업로드를 다시 시도해 주세요.';
+}
+
 class RecordService {
   Future<List<ActivityRecord>> getRecords(
     String petId, {
@@ -62,7 +77,7 @@ class RecordService {
     await dio.delete('/api/v1/pets/$petId/records/$recordId');
   }
 
-  // Upload media to record — rolls back record on failure
+  // Creation, attachment and read-back have separate recovery semantics.
   Future<ActivityRecord> createRecordWithMedia({
     required String petId,
     required Map<String, dynamic> body,
@@ -73,12 +88,10 @@ class RecordService {
 
     try {
       await _uploadMedia(petId, record.id, files);
-      return await getRecord(petId, record.id);
     } catch (e) {
-      // Rollback: delete the record if media upload fails
-      await deleteRecord(petId, record.id);
-      rethrow;
+      throw RecordSaveException(record, RecordSaveStage.mediaPending, e);
     }
+    return _readSavedRecord(petId, record);
   }
 
   Future<ActivityRecord> createRecordWithMediaBytes({
@@ -91,10 +104,17 @@ class RecordService {
 
     try {
       await _uploadMediaBytes(petId, record.id, files);
+    } catch (e) {
+      throw RecordSaveException(record, RecordSaveStage.mediaPending, e);
+    }
+    return _readSavedRecord(petId, record);
+  }
+
+  Future<ActivityRecord> _readSavedRecord(String petId, ActivityRecord record) async {
+    try {
       return await getRecord(petId, record.id);
     } catch (e) {
-      await deleteRecord(petId, record.id);
-      rethrow;
+      throw RecordSaveException(record, RecordSaveStage.savedNeedsRefresh, e);
     }
   }
 

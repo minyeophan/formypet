@@ -52,6 +52,11 @@ public class PetService {
     }
 
     @Transactional(readOnly = true)
+    public PetResponse get(Long actorId, Long petId) {
+        return PetResponse.of(findOwnedPet(actorId, petId), latestPetMediaUrl(petId));
+    }
+
+    @Transactional(readOnly = true)
     public List<PetResponse> list(Long actorId) {
         User user = findUserById(actorId);
         return petRepository.findByUserId(user.getId()).stream()

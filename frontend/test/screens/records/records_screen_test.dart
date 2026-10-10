@@ -1,4 +1,5 @@
 import 'package:frontend/widgets/app_icon.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +29,13 @@ void main() {
     expect(find.byKey(const Key('records-selected-date')), findsOneWidget);
     expect(find.byKey(const Key('records-type-card-expense')), findsNothing);
     expect(find.byKey(Key('records-date-dot-$todayIso')), findsOneWidget);
+    final selectedDay = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(Key('records-calendar-day-$todayIso')),
+        matching: find.text('${todayDate.day}'),
+      ),
+    );
+    expect(selectedDay.style?.color, AppColors.onPrimary);
     expect(find.byType(AppBackButton), findsOneWidget);
     expect(find.byType(AppInlineHeader), findsOneWidget);
 

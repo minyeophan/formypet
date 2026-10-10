@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
+import '../../services/photo_preparation.dart';
 import '../../widgets/draft_exit_guard.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
@@ -22,8 +25,9 @@ import '../../widgets/authenticated_network_image.dart';
 import 'community_constants.dart';
 
 class WriteScreen extends ConsumerStatefulWidget {
-  const WriteScreen({super.key, this.editingPost});
+  const WriteScreen({super.key, this.editingPost, this.prepareImage});
   final Post? editingPost;
+  final Future<PreparedPhoto> Function(XFile)? prepareImage;
 
   @override
   ConsumerState<WriteScreen> createState() => _WriteScreenState();
@@ -36,6 +40,19 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
   final _pollOptionCtrls = [TextEditingController(), TextEditingController()];
   final _imagePicker = ImagePicker();
   final _files = <XFile>[];
+  final _prepared = <XFile, PreparedPhoto>{};
+  ({
+    String key,
+    String title,
+    String content,
+    String category,
+    List<XFile> files,
+    PollDraft? poll,
+  })?
+  _pendingCreate;
+  String? _createdPostId;
+  bool get _attachmentsLocked =>
+      _pendingCreate != null || _createdPostId != null;
   String _category = 'FREE';
   bool _showPoll = false;
   bool _isLoading = false;
@@ -44,9 +61,9 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
   int _pickerGeneration = 0;
   bool _sessionChanged = false;
 
-  (bool, String?) get _identity {
+  (bool, String?, int) get _identity {
     final auth = ref.read(authProvider);
-    return (auth.isAuthenticated, auth.profile?.id);
+    return (auth.isAuthenticated, auth.profile?.id, auth.sessionEpoch);
   }
 
   String get _draft => jsonEncode({
@@ -80,7 +97,9 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
       controller.addListener(_draftChanged);
     }
     ref.listenManual(
-      authProvider.select((s) => (s.isAuthenticated, s.profile?.id)),
+      authProvider.select(
+        (s) => (s.isAuthenticated, s.profile?.id, s.sessionEpoch),
+      ),
       (_, _) {
         setState(() {
           _sessionChanged = true;
@@ -102,15 +121,51 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
   }
 
   Future<void> _pickImages() async {
-    if (_isLoading || _sessionChanged) return;
+    if (_isLoading || _sessionChanged || _attachmentsLocked) return;
     final identity = _identity;
     final generation = _pickerGeneration;
     if (_files.length >= 5) {
       _showImageLimit();
       return;
     }
+    ImageSource? source;
+    await showAppActionSheet(
+      context,
+      title: '사진 추가',
+      closeLabel: '취소',
+      actions: [
+        AppActionSheetItem(
+          key: const Key('photo-source-gallery'),
+          label: '사진 보관함',
+          description: '저장된 사진에서 선택',
+          icon: Icons.image_outlined,
+          showChevron: true,
+          onTap: () => source = ImageSource.gallery,
+        ),
+        AppActionSheetItem(
+          key: const Key('photo-source-camera'),
+          label: '카메라',
+          description: '지금 촬영해서 추가',
+          icon: Icons.photo_camera_outlined,
+          showChevron: true,
+          onTap: () => source = ImageSource.camera,
+        ),
+      ],
+    );
+    if (!mounted ||
+        source == null ||
+        _sessionChanged ||
+        _identity != identity ||
+        _isLoading ||
+        generation != _pickerGeneration) {
+      return;
+    }
     try {
-      final picked = await _imagePicker.pickMultiImage();
+      final picked = source == ImageSource.camera
+          ? await _imagePicker
+                .pickImage(source: ImageSource.camera)
+                .then((image) => image == null ? <XFile>[] : [image])
+          : await _imagePicker.pickMultiImage();
       if (!mounted ||
           _sessionChanged ||
           _identity != identity ||
@@ -187,17 +242,48 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
     try {
       await dismissKeyboardBeforeTransition(context);
       if (!current()) return;
-      if (widget.editingPost == null) {
-        await notifier.createPost(
-          content: content,
-          title: title,
-          category: category,
-          files: files,
-          poll: poll,
+      if (widget.editingPost == null && _createdPostId == null) {
+        if (_pendingCreate == null) {
+          final preparedFiles = <XFile>[];
+          for (final file in files) {
+            final photo = _prepared[file] ??=
+                await (widget.prepareImage ?? preparePhoto)(file);
+            if (!current()) return;
+            preparedFiles.add(photo.asFile());
+          }
+          _pendingCreate = (
+            key: const Uuid().v4(),
+            title: title,
+            content: content,
+            category: category,
+            files: List.unmodifiable(preparedFiles),
+            poll: poll,
+          );
+        }
+        final attempt = _pendingCreate!;
+        // Resolve an uncertain create using its original immutable payload before
+        // applying text edits. Never create a second post after a lost response.
+        final post = await notifier.createPost(
+          content: attempt.content,
+          title: attempt.title,
+          category: attempt.category,
+          files: attempt.files,
+          poll: attempt.poll,
+          idempotencyKey: attempt.key,
+          isCurrent: current,
         );
-      } else {
+        if (!current()) return;
+        _createdPostId = post.id;
+      }
+      final attempt = _pendingCreate;
+      if (widget.editingPost != null ||
+          (attempt != null &&
+              (attempt.title != title ||
+                  attempt.content != content ||
+                  attempt.category != category))) {
         await notifier.updatePost(
-          widget.editingPost!.id,
+          widget.editingPost?.id ?? _createdPostId!,
+          isCurrent: current,
           title: title,
           content: content,
           category: category,
@@ -209,10 +295,15 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
       await _navigateBack(isCurrent: current);
     } catch (error) {
       if (current()) {
+        if (_createdPostId == null && isDefinitiveMediaRejection(error)) {
+          _pendingCreate = null;
+        }
         setState(
           () => _error = mediaUploadErrorMessage(
             error,
-            fallback: widget.editingPost == null
+            fallback: error is PhotoPreparationException
+                ? error.message
+                : widget.editingPost == null
                 ? '글을 등록하지 못했어요. 잠시 후 다시 시도해 주세요.'
                 : '글을 수정하지 못했어요. 잠시 후 다시 시도해 주세요.',
           ),
@@ -267,14 +358,16 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
   }
 
   void _addPollOption() {
-    if (_isLoading || _pollOptionCtrls.length >= 5) return;
+    if (_isLoading || _attachmentsLocked || _pollOptionCtrls.length >= 5) {
+      return;
+    }
     setState(() {
       _pollOptionCtrls.add(TextEditingController()..addListener(_draftChanged));
     });
   }
 
   void _closePoll() {
-    if (_isLoading) return;
+    if (_isLoading || _attachmentsLocked) return;
     setState(() => _showPoll = false);
   }
 
@@ -387,7 +480,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                               : AppText(
                                   widget.editingPost == null ? '등록' : '저장',
                                   fontSize: 14,
-                                  color: AppColors.primary,
+                                  color: AppColors.primaryText,
                                   fontWeight: FontWeight.bold,
                                 ),
                         ),
@@ -500,7 +593,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _PollPanel(
-                        enabled: !_isLoading,
+                        enabled: !_isLoading && !_attachmentsLocked,
                         optionCtrls: _pollOptionCtrls,
                         onAddOption: _addPollOption,
                         onClose: _closePoll,
@@ -545,9 +638,10 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                           Expanded(
                             child: _AttachmentRail(
                               files: _files,
+                              prepared: _prepared,
                               imageUrls:
                                   widget.editingPost?.imageUrls ?? const [],
-                              onRemove: _isLoading
+                              onRemove: _isLoading || _attachmentsLocked
                                   ? null
                                   : (file) {
                                       if (_isLoading) return;
@@ -560,14 +654,16 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                               key: const Key('community-add-image-button'),
                               label: '사진 추가',
                               icon: Icons.image_outlined,
-                              onTap: _isLoading ? null : _pickImages,
+                              onTap: _isLoading || _attachmentsLocked
+                                  ? null
+                                  : _pickImages,
                             ),
                             const SizedBox(width: 8),
                             _ToolButton(
                               key: const Key('community-add-poll-button'),
                               label: _showPoll ? '투표 닫기' : '투표 추가',
                               icon: Icons.poll_outlined,
-                              onTap: _isLoading
+                              onTap: _isLoading || _attachmentsLocked
                                   ? null
                                   : () =>
                                         setState(() => _showPoll = !_showPoll),
@@ -668,7 +764,7 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
                     child: const AppText(
                       '완료',
                       fontSize: 14,
-                      color: AppColors.primary,
+                      color: AppColors.primaryText,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -720,11 +816,13 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
 
 class _AttachmentRail extends StatelessWidget {
   final List<XFile> files;
+  final Map<XFile, PreparedPhoto> prepared;
   final List<String> imageUrls;
   final ValueChanged<XFile>? onRemove;
 
   const _AttachmentRail({
     required this.files,
+    required this.prepared,
     required this.imageUrls,
     required this.onRemove,
   });
@@ -742,6 +840,7 @@ class _AttachmentRail extends StatelessWidget {
             return _SelectedAttachment(
               key: ObjectKey(file),
               file: file,
+              prepared: prepared[file],
               index: index,
               onRemove: onRemove == null ? null : () => onRemove!(file),
             );
@@ -772,12 +871,14 @@ class _AttachmentRail extends StatelessWidget {
 
 class _SelectedAttachment extends StatefulWidget {
   final XFile file;
+  final PreparedPhoto? prepared;
   final int index;
   final VoidCallback? onRemove;
 
   const _SelectedAttachment({
     super.key,
     required this.file,
+    this.prepared,
     required this.index,
     required this.onRemove,
   });
@@ -787,7 +888,13 @@ class _SelectedAttachment extends StatefulWidget {
 }
 
 class _SelectedAttachmentState extends State<_SelectedAttachment> {
-  late final Future<Uint8List> _bytes = widget.file.readAsBytes();
+  late final Future<Uint8List> _bytes = _readPreview();
+  Future<Uint8List> _readPreview() async {
+    if (await widget.file.length() > 40 * 1024 * 1024) {
+      throw const PhotoPreparationException('사진이 너무 커서 미리 볼 수 없어요.');
+    }
+    return widget.file.readAsBytes();
+  }
 
   Future<void> _preview(Uint8List bytes) async {
     await dismissKeyboardBeforeTransition(context);
@@ -825,7 +932,9 @@ class _SelectedAttachmentState extends State<_SelectedAttachment> {
           Align(
             alignment: Alignment.bottomLeft,
             child: FutureBuilder<Uint8List>(
-              future: _bytes,
+              future: widget.prepared == null
+                  ? _bytes
+                  : Future.value(widget.prepared!.bytes),
               builder: (context, snapshot) => Semantics(
                 label: '사진 ${widget.index + 1} 미리보기',
                 button: snapshot.hasData,

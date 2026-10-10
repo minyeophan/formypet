@@ -13,6 +13,7 @@ import '../../core/app_colors.dart';
 import '../../core/keyboard_utils.dart';
 import '../../models/activity_record.dart';
 import '../../providers/pet_provider.dart';
+import '../../services/photo_save_draft.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
@@ -58,6 +59,7 @@ class _RecordCategoryFormScreenState
   bool _isDeleting = false;
   bool _confirmingDelete = false;
   String? _error;
+  final _saveDraft = RecordPhotoDraft();
   late String _baseline;
   late final PetNotifier _draftOwner;
   late final (int, int, String?) _draftOwnerContext;
@@ -663,7 +665,11 @@ class _RecordCategoryFormScreenState
       final body = _buildPayload();
       final editingRecord = widget.editingRecord;
       if (editingRecord == null) {
-        await _draftOwner.addRecord(body);
+        await _draftOwner.saveRecordPhotoDraft(
+          _saveDraft,
+          body,
+          current: () => _ownsDraft,
+        );
       } else {
         await _draftOwner.updateRecord(editingRecord.id, body);
       }
@@ -673,7 +679,11 @@ class _RecordCategoryFormScreenState
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (_) {
       if (_ownsDraft) {
-        setState(() => _error = '저장에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
+        setState(
+          () => _error = widget.editingRecord == null
+              ? _saveDraft.message
+              : '저장에 실패했어요. 잠시 뒤 다시 시도해 주세요.',
+        );
       }
     } finally {
       if (mounted) {
@@ -1144,7 +1154,7 @@ class _SegmentButton extends StatelessWidget {
               label,
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: selected ? AppColors.primaryPressed : AppColors.text,
+              color: selected ? AppColors.primaryText : AppColors.text,
             ),
           ),
         ),
@@ -1216,12 +1226,7 @@ class _Option {
   final String? iconAsset;
   final double iconSize;
 
-  const _Option(
-    this.value,
-    this.label, {
-    this.iconAsset,
-    this.iconSize = 28,
-  });
+  const _Option(this.value, this.label, {this.iconAsset, this.iconSize = 28});
 }
 
 const _poopShapeOptions = [

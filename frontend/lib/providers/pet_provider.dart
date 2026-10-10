@@ -1,3 +1,5 @@
+import '../services/photo_save_draft.dart';
+import '../services/photo_preparation.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,7 +110,10 @@ class PetPhotoUpload {
 class PetPhotoSaveException implements Exception {
   final String petId;
   final String message;
-  const PetPhotoSaveException(this.petId, [this.message = '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.']);
+  const PetPhotoSaveException(
+    this.petId, [
+    this.message = '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.',
+  ]);
   @override
   String toString() => message;
 }
@@ -536,6 +541,59 @@ class PetNotifier extends StateNotifier<PetState> {
     return false;
   }
 
+  Future<void> savePetPhotoDraft(
+    PetPhotoDraft draft,
+    Map<String, dynamic> body, {
+    String? petId,
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) async {
+    final session = _session;
+    bool owns() => _isCurrent(session) && current();
+    final pet = await draft.savePet(
+      petId: petId,
+      body: body,
+      photos: photo == null ? [] : [photo],
+      current: owns,
+    );
+    if (!owns()) return;
+    final found = state.pets.any((p) => p.id == pet.id);
+    state = state.copyWith(
+      pets: found
+          ? state.pets.map((p) => p.id == pet.id ? pet : p).toList()
+          : [...state.pets, pet],
+      hasOnboarded: true,
+    );
+    if (!found) {
+      try {
+        await setActivePet(pet.id);
+      } catch (error) {
+        debugPrint('Failed to refresh saved pet: $error');
+      }
+    }
+  }
+
+  Future<void> saveRecordPhotoDraft(
+    RecordPhotoDraft draft,
+    Map<String, dynamic> body, {
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) async {
+    final token = routineContext;
+    final petId = token.$3!;
+    bool owns() => isRoutineContextCurrent(token) && current();
+    final record = await draft.saveRecord(
+      petId: petId,
+      body: body,
+      photos: photo == null ? [] : [photo],
+      current: owns,
+    );
+    if (!owns()) return;
+    state = state.copyWith(
+      records: [...state.records.where((r) => r.id != record.id), record],
+    );
+  }
+
   // Pet CRUD
   Future<void> addPet(
     Map<String, dynamic> body, {
@@ -601,8 +659,10 @@ class PetNotifier extends StateNotifier<PetState> {
     } catch (error) {
       throw PetPhotoSaveException(
         pet.id,
-        mediaUploadErrorMessage(error,
-            fallback: '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.'),
+        mediaUploadErrorMessage(
+          error,
+          fallback: '반려동물 정보는 저장됐지만 사진 업로드에 실패했어요. 다시 시도하거나 사진 없이 완료해 주세요.',
+        ),
       );
     }
   }

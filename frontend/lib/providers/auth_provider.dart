@@ -341,11 +341,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> uploadProfileImage({
     required Uint8List bytes,
     required String filename,
+    String? mimeType,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     final operation = _operation;
     final profile = await _svc.uploadProfileImage(
       bytes: bytes,
       filename: filename,
+      mimeType: mimeType,
+      idempotencyKey: idempotencyKey,
+      isCurrent: () =>
+          _isCurrent(operation) &&
+          state.isAuthenticated &&
+          (isCurrent?.call() ?? true),
     );
     if (!_isCurrent(operation) || !state.isAuthenticated) return;
     state = state.copyWith(profile: profile);

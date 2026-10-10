@@ -134,7 +134,47 @@ String mediaUploadErrorMessage(Object error, {required String fallback}) {
   if (apiError?.statusCode == 429) {
     return '사진 요청이 많아요. 잠시 후 다시 시도해 주세요.';
   }
+  if (apiError?.errorCode == 'UPLOAD_TOO_LARGE') {
+    return '사진과 글의 전체 용량이 26MB 제한을 넘었어요. 사진이나 글 내용을 줄여 주세요.';
+  }
+  if (apiError?.errorCode == 'MEDIA_TOO_LARGE' || apiError?.statusCode == 413) {
+    return '사진이 너무 커요. 5MB 이하 사진으로 다시 시도해 주세요.';
+  }
+  if (apiError?.errorCode == 'MEDIA_UNSUPPORTED_FORMAT') {
+    return 'JPG, PNG, WebP 사진만 지원해요. 다른 사진을 선택해 주세요.';
+  }
+  if (apiError?.errorCode == 'MEDIA_INVALID_FILE') {
+    return '사진 파일을 읽을 수 없어요. 다른 사진을 선택해 주세요.';
+  }
+  if (error is DioException &&
+      {
+        DioExceptionType.connectionError,
+        DioExceptionType.connectionTimeout,
+        DioExceptionType.sendTimeout,
+        DioExceptionType.receiveTimeout,
+      }.contains(error.type)) {
+    return '연결이 끊겨 저장 결과를 확인하지 못했어요. 다시 시도해 주세요.';
+  }
   return fallback;
+}
+
+// Validation and media rejection responses explicitly reject the write;
+// changing the draft is safe, including a new idempotency key for creation.
+// Timeouts and generic server failures remain unresolved and must be replayed.
+bool isDefinitiveMediaRejection(Object error) {
+  final api = error is ApiException
+      ? error
+      : error is DioException
+      ? parseApiError(error)
+      : null;
+  return {400, 413, 422, 429}.contains(api?.statusCode) ||
+      {
+        'MEDIA_TOO_LARGE',
+        'UPLOAD_TOO_LARGE',
+        'MEDIA_UNSUPPORTED_FORMAT',
+        'MEDIA_INVALID_FILE',
+        'MEDIA_QUOTA_EXCEEDED',
+      }.contains(api?.errorCode);
 }
 
 class _AuthInterceptor extends Interceptor {
@@ -154,6 +194,17 @@ class _AuthInterceptor extends Interceptor {
       return;
     }
     final credentials = await readCredentials();
+    final isCurrent = options.extra['_isRequestCurrent'] as bool Function()?;
+    if (isCurrent != null && !isCurrent()) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: 'Authentication session changed',
+        ),
+      );
+      return;
+    }
     final token = credentials.access;
     if (options.extra.containsKey('_requestAccess') &&
         (options.extra['_requestAccess'] != token ||
@@ -221,6 +272,11 @@ class _AuthInterceptor extends Interceptor {
         request.extra['_requestAccess'] = renewed.access;
         request.extra['_requestCredentialRevision'] = renewed.revision;
         request.headers['Authorization'] = 'Bearer ${renewed.access}';
+        // Dio finalizes multipart streams on the first send. clone() rebuilds
+        // each part from its byte/file factory before issuing the same request.
+        if (request.data case final FormData form) {
+          request.data = form.clone();
+        }
         final retried = await _dio.fetch(request);
         handler.resolve(retried);
       } catch (_) {

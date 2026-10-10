@@ -37,7 +37,7 @@ class MyCommentActivityRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.5,
-                        color: AppV2Tokens.primaryPressed,
+                        color: AppV2Tokens.primaryText,
                       ),
                     ),
                   ),

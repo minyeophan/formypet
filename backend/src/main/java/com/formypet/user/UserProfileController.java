@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
     private final com.formypet.media.MediaService mediaService;
 
     @GetMapping
@@ -43,8 +44,13 @@ public class UserProfileController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "이미지 업로드 성공")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UserProfileResponse> uploadProfileImage(@AuthenticationPrincipal(expression = "id") Long actorId,
+                                                               @RequestHeader(value = "Idempotency-Key", required = false) String key,
                                                                @RequestParam("file") MultipartFile file) {
-        mediaService.admitUpload(actorId, 1);
-        return ApiResponse.of(userProfileService.uploadProfileImage(actorId, file));
+        return ApiResponse.of(idempotency.execute(actorId, "profile-media", "account", key, null,
+                java.util.List.of(file), () -> {
+                    if (key != null) mediaService.validateKeyedUpload(file);
+                    mediaService.admitUpload(actorId, 1);
+                    return userProfileService.uploadProfileImage(actorId, file);
+                }, UserProfileResponse::id, id -> userProfileService.getProfile(actorId)));
     }
 }

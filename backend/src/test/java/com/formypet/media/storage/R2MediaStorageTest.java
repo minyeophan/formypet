@@ -29,6 +29,19 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class R2MediaStorageTest {
 
+    @Test
+    void callerKnowsTheKeyEvenWhenPutResponseIsLost() throws Exception {
+        String key = "42/profile/202610/known-attempt.png";
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(S3Exception.builder().statusCode(503).build());
+        assertThatThrownBy(() -> new R2MediaStorage(s3Client, BUCKET).storeAt(key,
+                new MockMultipartFile("file", "photo.png", "image/png", new byte[]{1})))
+                .isInstanceOf(IOException.class);
+        var request = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(request.capture(), any(RequestBody.class));
+        assertThat(request.getValue().key()).isEqualTo(key);
+    }
+
     private static final String BUCKET = "formypet-media-dev";
 
     @Mock

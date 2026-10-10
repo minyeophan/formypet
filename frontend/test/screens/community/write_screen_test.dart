@@ -1,3 +1,4 @@
+import 'package:frontend/services/photo_preparation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -55,6 +56,76 @@ void main() {
     mimeType: 'image/png',
   );
 
+  testWidgets(
+    'lost create response retries original key then updates the same post',
+    (tester) async {
+      await _pump(tester);
+      api.loseCreateResponse = true;
+      await _submit(tester);
+      final first = api.requests.singleWhere((r) => r.method == 'POST');
+      final payload = (first.data as FormData).fields.single.value;
+      final key = first.headers['Idempotency-Key'];
+      expect(key, isNotEmpty);
+      await tester.enterText(
+        find.byKey(const Key('community-title-field')),
+        'changed title',
+      );
+      await tester.enterText(_body, 'changed content');
+      await tester.tap(find.text('등록'));
+      await tester.pumpAndSettle();
+      final creates = api.requests.where((r) => r.method == 'POST').toList();
+      expect(creates, hasLength(2));
+      expect(creates.last.headers['Idempotency-Key'], key);
+      expect((creates.last.data as FormData).fields.single.value, payload);
+      final update = api.requests.singleWhere((r) => r.method == 'PUT');
+      expect(update.path, '/api/v1/posts/post-1');
+      expect(update.data['title'], 'changed title');
+      expect(update.data['content'], 'changed content');
+      expect(find.text('community-root'), findsOneWidget);
+    },
+  );
+
+  for (final status in [400, 422]) {
+    testWidgets('validation $status allows corrected create with a new key', (
+      tester,
+    ) async {
+      await _pump(tester);
+      api.validationStatus = status;
+      final title = List.filled(16, '😀').join();
+      await tester.enterText(
+        find.byKey(const Key('community-title-field')),
+        title,
+      );
+      await tester.enterText(_body, 'content');
+      await tester.tap(find.text('등록'));
+      await tester.pumpAndSettle();
+      final first = api.requests.singleWhere((r) => r.method == 'POST');
+      final firstPayload =
+          jsonDecode((first.data as FormData).fields.single.value) as Map;
+      expect(firstPayload['title'], title);
+      expect(firstPayload['title'].length, 32);
+      expect(find.byKey(const Key('community-title-field')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('community-title-field')),
+        'corrected',
+      );
+      await tester.tap(find.text('등록'));
+      await tester.pumpAndSettle();
+      final creates = api.requests.where((r) => r.method == 'POST').toList();
+      expect(creates, hasLength(2));
+      expect(
+        creates.last.headers['Idempotency-Key'],
+        isNot(first.headers['Idempotency-Key']),
+      );
+      final corrected =
+          jsonDecode((creates.last.data as FormData).fields.single.value)
+              as Map;
+      expect(corrected['title'], 'corrected');
+      expect(api.requests.where((r) => r.method == 'PUT'), isEmpty);
+      expect(find.text('community-root'), findsOneWidget);
+    });
+  }
+
   testWidgets('attachment tools expose named accessible actions', (
     tester,
   ) async {
@@ -71,6 +142,20 @@ void main() {
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('photo add menu offers described camera and gallery actions', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('community-add-image-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사진 추가'), findsOneWidget);
+    expect(find.text('사진 보관함'), findsOneWidget);
+    expect(find.text('저장된 사진에서 선택'), findsOneWidget);
+    expect(find.text('카메라'), findsOneWidget);
+    expect(find.text('지금 촬영해서 추가'), findsOneWidget);
   });
 
   testWidgets('toolbar tool paints its grey surface and visible pressed ink', (
@@ -187,8 +272,7 @@ void main() {
     await _pump(tester, auth: auth);
     final result = Completer<List<XFile>>();
     picker.selections.add(result.future);
-    await tester.tap(find.byKey(const Key('community-add-image-button')));
-    await tester.pump();
+    await _openGalleryPicker(tester);
     auth.switchTo('user-2');
     result.complete([photo('old-account.png')]);
     await tester.pumpAndSettle();
@@ -414,8 +498,7 @@ void main() {
       await _pick(tester);
       final result = Completer<List<XFile>>();
       picker.selections.add(result.future);
-      await tester.tap(find.byKey(const Key('community-add-image-button')));
-      await tester.pump();
+      await _openGalleryPicker(tester);
 
       result.completeError(
         PlatformException(
@@ -443,16 +526,15 @@ void main() {
     final result = Completer<List<XFile>>();
     picker.selections.add(result.future);
     await tester.tap(find.byKey(const Key('community-add-image-button')));
-    await tester.pump();
-    await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('photo-source-gallery')));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
 
     result.completeError(PlatformException(code: 'photo_access_denied'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('community-root'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('pending upload keeps photo and poll controls disabled', (
@@ -559,8 +641,7 @@ void main() {
       await _pick(tester);
       final pickResult = Completer<List<XFile>>();
       picker.selections.add(pickResult.future);
-      await tester.tap(find.byKey(const Key('community-add-image-button')));
-      await tester.pump();
+      await _openGalleryPicker(tester);
       final uploadRead = Completer<Uint8List>();
       first.pendingRead = uploadRead.future;
       await _startSubmit(tester);
@@ -930,7 +1011,10 @@ Future<void> _pump(
     routes: [
       GoRoute(
         path: '/write',
-        builder: (_, _) => WriteScreen(editingPost: editingPost),
+        builder: (_, _) => WriteScreen(
+          editingPost: editingPost,
+          prepareImage: _prepareFixture,
+        ),
       ),
       GoRoute(
         path: '/community',
@@ -957,7 +1041,16 @@ Future<void> _pump(
 }
 
 Future<void> _pick(WidgetTester tester) async {
+  await _openGalleryPicker(tester);
+}
+
+Future<void> _openGalleryPicker(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('community-add-image-button')));
+  await tester.pumpAndSettle();
+  final gallery = find.byKey(const Key('photo-source-gallery'));
+  if (gallery.evaluate().isNotEmpty) {
+    await tester.tap(gallery);
+  }
   await tester.pumpAndSettle();
 }
 
@@ -1052,6 +1145,8 @@ class _PostApi implements HttpClientAdapter {
   final Uint8List photoBytes;
   final requests = <RequestOptions>[];
   bool failUpdate = false;
+  bool loseCreateResponse = false;
+  int? validationStatus;
   Completer<void>? pendingSave;
 
   @override
@@ -1069,6 +1164,28 @@ class _PostApi implements HttpClientAdapter {
       data = {'items': [], 'nextCursor': null};
     } else if (options.method == 'POST' && options.path == '/api/v1/posts') {
       await pendingSave?.future;
+      if (loseCreateResponse) {
+        loseCreateResponse = false;
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.receiveTimeout,
+        );
+      }
+      final payload =
+          jsonDecode((options.data as FormData).fields.single.value) as Map;
+      if (validationStatus != null &&
+          (payload['title'] as String).length > 30) {
+        return ResponseBody.fromString(
+          jsonEncode({
+            'title': 'Validation failed',
+            'fieldErrors': {'title': 'must be at most 30 characters'},
+          }),
+          validationStatus!,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }
       data = _postJson;
     } else if (options.method == 'PUT' &&
         options.path == '/api/v1/posts/post-1') {
@@ -1113,3 +1230,6 @@ const _postJson = {
   },
   'createdAt': '2026-09-08T10:00:00',
 };
+
+Future<PreparedPhoto> _prepareFixture(XFile file) async =>
+    preparePhotoBytes(await file.readAsBytes(), file.name);

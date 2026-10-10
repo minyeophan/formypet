@@ -8,6 +8,7 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_inquiry_screen.dart';
 import 'package:frontend/services/inquiry_service.dart';
+import 'package:frontend/services/photo_preparation.dart';
 import 'package:frontend/widgets/app_header.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
@@ -29,7 +30,17 @@ void main() {
               ProviderScope(
                 overrides: [authProvider.overrideWith((_) => auth)],
                 child: MaterialApp(
-                  home: MyProfileScreen(pickImage: () => picker.future),
+                  home: MyProfileScreen(
+                    pickImage: () => picker.future,
+                    // Model the pending preparation boundary directly. The
+                    // fake path is not a filesystem-backed photo whose length
+                    // can be read by the production preflight.
+                    prepareImage: (file) async => PreparedPhoto(
+                      await file.readAsBytes(),
+                      file.name,
+                      'image/png',
+                    ),
+                  ),
                 ),
               ),
             );
@@ -38,6 +49,7 @@ void main() {
             if (readingBytes) {
               picker.complete(file);
               await tester.pump();
+              expect(file.reads, 1);
             }
             if (accountChange) {
               auth.switchTo('next');
@@ -164,7 +176,7 @@ void main() {
         );
         tester.widget<AppHeader>(find.byType(AppHeader)).onBack!();
         await tester.pumpAndSettle();
-        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.byType(BottomSheet), findsOneWidget);
         await tester.tap(find.text('계속 입력'));
         await tester.pumpAndSettle();
         expect(find.text('draft'), findsOneWidget);

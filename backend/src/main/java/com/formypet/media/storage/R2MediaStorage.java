@@ -10,13 +10,8 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 public class R2MediaStorage implements MediaStorage {
-
-    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyyMM");
 
     private final S3Client s3Client;
     private final String bucket;
@@ -27,9 +22,7 @@ public class R2MediaStorage implements MediaStorage {
     }
 
     @Override
-    public StoredMedia store(Long userId, String folderName, String extension, MultipartFile file) throws IOException {
-        String key = userId + "/" + folderName + "/" + YearMonth.now().format(MONTH_FORMAT)
-                + "/" + UUID.randomUUID() + "." + extension;
+    public StoredMedia storeAt(String key, MultipartFile file) throws IOException {
         String contentType = file.getContentType();
         byte[] bytes = file.getBytes();
         try {

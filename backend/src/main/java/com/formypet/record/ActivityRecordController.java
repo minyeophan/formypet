@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class ActivityRecordController {
 
     private final ActivityRecordService activityRecordService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
 
     @PostMapping
     @Operation(summary = "활동 기록 생성")
@@ -34,8 +35,10 @@ public class ActivityRecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ActivityRecordResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                       @PathVariable Long petId,
+                                                      @RequestHeader(value = "Idempotency-Key", required = false) String key,
                                                       @Valid @RequestBody ActivityRecordCreateRequest request) {
-        return ApiResponse.of(activityRecordService.create(actorId, petId, request));
+        return ApiResponse.of(idempotency.execute(actorId, "record-create", petId.toString(), key, request, List.of(),
+                () -> activityRecordService.create(actorId, petId, request), ActivityRecordResponse::id, id -> { idempotency.requireRecord(actorId, petId, id); return activityRecordService.get(actorId, petId, id); }));
     }
 
     @GetMapping

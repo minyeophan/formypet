@@ -1198,6 +1198,8 @@ class _FakeCommunityService extends CommunityService {
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     createPostCallCount++;
     lastCreatedCategory = category;

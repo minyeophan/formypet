@@ -171,7 +171,7 @@ void main() {
         matching: find.byType(CircularProgressIndicator),
       ),
     );
-    expect(progress.color, AppColors.primary);
+    expect(progress.color, AppColors.primaryText);
   });
 }
 

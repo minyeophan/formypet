@@ -36,6 +36,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class MediaService {
 
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
@@ -46,6 +47,7 @@ public class MediaService {
     private final JdbcTemplate jdbcTemplate;
     private final MediaStorage mediaStorage;
     private final OrphanMediaCleanup orphanCleanup;
+    private final MediaStorageAttempts storageAttempts;
     private final RequestRateLimiter requestRateLimiter;
     private final RequestRateLimitProperties requestLimits;
 
@@ -199,10 +201,15 @@ public class MediaService {
         validateFile(file);
         if (!quotaReserved) reserveQuota(userId, file.getSize(), 1);
         String extension = extension(file.getOriginalFilename());
+        String storageKey = MediaStorage.allocateKey(userId, folderName, extension);
+        storageAttempts.begin(storageKey);
+        jdbcTemplate.queryForObject("SELECT storage_key FROM media_storage_attempts WHERE storage_key=? FOR UPDATE",
+                String.class, storageKey);
         StoredMedia stored;
         try {
-            stored = mediaStorage.store(userId, folderName, extension, file);
+            stored = mediaStorage.storeAt(storageKey, file);
         } catch (IOException e) {
+            deleteQuietly(storageKey);
             throw new IllegalStateException("Failed to store media file.", e);
         }
         String contentType = contentType(extension, stored.contentType());
@@ -242,6 +249,7 @@ public class MediaService {
         }
 
         registerRollbackCleanup(stored.storageKey());
+        jdbcTemplate.update("DELETE FROM media_storage_attempts WHERE storage_key=?", storageKey);
 
         Long mediaId = Objects.requireNonNull(keyHolder.getKey()).longValue();
         if ("PUBLIC".equals(visibility)) {
@@ -312,6 +320,10 @@ public class MediaService {
         }
     }
 
+    public void validateKeyedUpload(MultipartFile file) {
+        MediaFileValidation.validate(file);
+    }
+
     private String extension(String originalName) {
         if (originalName == null || !originalName.contains(".")) {
             throw new IllegalArgumentException("Media file extension is required.");
@@ -346,7 +358,13 @@ public class MediaService {
         try {
             mediaStorage.delete(storageKey);
         } catch (IOException failure) {
-            orphanCleanup.enqueue(storageKey);
+            try {
+                orphanCleanup.enqueue(storageKey);
+            } catch (RuntimeException queueFailure) {
+                // A separately committed storage attempt remains recoverable even if enqueue commit fails.
+                log.error("Media cleanup enqueue failed; durable attempt will be recovered ({})",
+                        queueFailure.getClass().getSimpleName());
+            }
         }
     }
 

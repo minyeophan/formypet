@@ -23,14 +23,17 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class PetController {
 
     private final PetService petService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
 
     @PostMapping
     @Operation(summary = "반려동물 등록")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "등록 성공")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PetResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
-                                           @Valid @RequestBody PetCreateRequest request) {
-        return ApiResponse.of(petService.create(actorId, request));
+                                           @RequestHeader(value = "Idempotency-Key", required = false) String key,
+                                                      @Valid @RequestBody PetCreateRequest request) {
+        return ApiResponse.of(idempotency.execute(actorId, "pet-create", "account", key, request, List.of(),
+                () -> petService.create(actorId, request), PetResponse::id, id -> { idempotency.requirePet(actorId, id); return petService.get(actorId, id); }));
     }
 
     @GetMapping

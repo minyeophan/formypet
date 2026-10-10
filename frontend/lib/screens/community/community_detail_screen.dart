@@ -17,6 +17,7 @@ import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_navigation.dart';
+import '../../widgets/app_success_toast.dart';
 import '../../widgets/record_inputs/record_edit_action_bar.dart';
 import '../../widgets/user_block_sheet.dart';
 import '../../services/community_safety_service.dart';
@@ -454,9 +455,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
                   ref.read(authProvider).profile?.id != auth.profile!.id) {
                 return;
               }
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('작성자를 차단했어요.')));
+              showAppSuccessToast(context, '작성자를 차단했어요.');
             },
           ),
       ],

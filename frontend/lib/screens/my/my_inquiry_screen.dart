@@ -371,7 +371,7 @@ class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen>
 
   ButtonStyle _buttonStyle() => FilledButton.styleFrom(
     backgroundColor: AppV2Tokens.primary,
-    foregroundColor: Colors.white,
+    foregroundColor: AppV2Tokens.onPrimary,
     minimumSize: const Size.fromHeight(52),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
   );
@@ -419,7 +419,7 @@ class _MyInquiryScreenState extends ConsumerState<MyInquiryScreen>
                       '✓',
                       style: TextStyle(
                         fontSize: 38,
-                        color: AppV2Tokens.primaryPressed,
+                        color: AppV2Tokens.primaryText,
                       ),
                     ),
                   ),

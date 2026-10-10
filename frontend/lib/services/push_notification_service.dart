@@ -63,7 +63,7 @@ class PushNotificationService with WidgetsBindingObserver {
 
   Future<void> endSession({required bool disableRemote}) async {
     final generation = ++_generation;
-    final credentials = disableRemote ? _credentials() : null;
+    final canUseFirebase = _available;
     _sessionKey = null;
     _registration = null;
     final subscription = _tokenSubscription;
@@ -75,13 +75,13 @@ class PushNotificationService with WidgetsBindingObserver {
     final registered = _registeredToken;
     _registeredToken = null;
     await subscription?.cancel();
-    if (_available) {
+    if (canUseFirebase) {
       await _serial(() async {
         if (_sessionKey == null) await _messaging.setAutoInitEnabled(false);
       });
     }
-    if (!disableRemote || !_available) return;
-    final options = await credentials!;
+    if (!disableRemote || !canUseFirebase) return;
+    final options = await _credentials();
     final token = registered ?? await readRegisteredPushToken();
     if (token != null && token.isNotEmpty) {
       await _serial(() async {
