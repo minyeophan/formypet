@@ -24,7 +24,7 @@ class MyBlockedUsersScreen extends ConsumerWidget {
         ref.read(authProvider).profile?.id != actor) {
       return;
     }
-    showAppSuccessToast(context, '차단을 해제했어요.');
+    showAppSuccessToast(context, '차단 해제 완료');
   }
 
   @override

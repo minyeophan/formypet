@@ -86,10 +86,48 @@ void main() {
       expect(find.text('open'), findsOneWidget);
     },
   );
+
+  testWidgets('custom partial-save copy is shown and exit callback runs once', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const _Draft(customExit: true),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final state = tester.state<_DraftState>(find.byType(_Draft));
+    state.text = 'partially saved';
+    await tester.tap(find.text('back'));
+    await tester.pumpAndSettle();
+    expect(find.text('기록은 저장됐어요. 사진은 아직 올리지 못했어요.'), findsOneWidget);
+    await tester.tap(find.text('계속 입력'));
+    await tester.pumpAndSettle();
+    expect(state.exitCallbackCount, 0);
+    await tester.tap(find.text('back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('나가기'));
+    await tester.pumpAndSettle();
+    expect(state.exitCallbackCount, 1);
+  });
 }
 
 class _Draft extends StatefulWidget {
-  const _Draft();
+  const _Draft({this.customExit = false});
+  final bool customExit;
   @override
   State<_Draft> createState() => _DraftState();
 }
@@ -97,13 +135,20 @@ class _Draft extends StatefulWidget {
 class _DraftState extends State<_Draft> with DraftExitGuardMixin<_Draft> {
   String text = '';
   bool busy = false;
+  int exitCallbackCount = 0;
   @override
   bool get hasUnsavedChanges => text.isNotEmpty;
   @override
   bool get isDraftBusy => busy;
+  @override
+  String get draftExitMessage =>
+      widget.customExit ? '기록은 저장됐어요. 사진은 아직 올리지 못했어요.' : '저장하지 않은 변경사항은 사라져요.';
+  @override
+  bool get hasPendingDraftWork => widget.customExit;
   void setBusy(bool value) => setState(() => busy = value);
   Future<void> back() async {
     if (!await confirmDraftExit() || !mounted) return;
+    exitCallbackCount++;
     Navigator.pop(context);
   }
 

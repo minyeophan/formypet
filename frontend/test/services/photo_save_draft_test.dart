@@ -66,6 +66,9 @@ void main() {
       }
 
       await expectLater(save(body), throwsA(isA<DioException>()));
+      expect(draft.hasUnconfirmedWork, isTrue);
+      expect(draft.exitNeedsReconcile, isTrue);
+      expect(draft.exitMessage, contains('저장되어 있을 수 있어요'));
       await save({'name': 'edited'});
       expect(requests.map((r) => r.method), ['POST', 'POST', 'PUT', 'GET']);
       expect(requests[0].data, requests[1].data);
@@ -110,14 +113,40 @@ void main() {
 
       await expectLater(save(), throwsA(isA<DioException>()));
       expect(draft.retryTarget, PhotoRetryTarget.upload);
+      expect(draft.hasConfirmedRecord, isTrue);
+      expect(draft.hasConfirmedPhotos, isFalse);
+      expect(draft.exitMessage, contains('아직 업로드하지 못한 사진'));
       await expectLater(save(), throwsA(isA<DioException>()));
       expect(draft.retryTarget, PhotoRetryTarget.refresh);
+      expect(draft.hasConfirmedPhotos, isTrue);
+      expect(draft.exitMessage, contains('목록에서 다시 확인할 수 있어요'));
       failGet = false;
       await save();
       expect(creates, 1);
       expect(keys.length, 3);
       expect(keys[1], keys[2]);
       expect(keys[0], isNot(keys[1]));
+    },
+  );
+
+  test(
+    'refresh failure with no photo says only the record was saved',
+    () async {
+      final draft = RecordPhotoDraft();
+      dio.httpClientAdapter = Adapter((o) {
+        if (o.method == 'GET') return ResponseBody.fromString('{}', 503);
+        return ok({'id': 1});
+      });
+      await expectLater(
+        draft.saveRecord(
+          petId: 'pet',
+          body: body,
+          photos: const [],
+          current: () => true,
+        ),
+        throwsA(isA<DioException>()),
+      );
+      expect(draft.exitMessage, '기록은 저장됐어요. 목록에서 다시 확인할 수 있어요.');
     },
   );
   test(
