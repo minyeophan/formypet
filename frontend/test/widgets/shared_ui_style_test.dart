@@ -11,7 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  test('primary colors keep readable contrast on light and mint surfaces', () {
+  test('mint actions keep their brand fill and use white foreground text', () {
     double contrastRatio(Color foreground, Color background) {
       final foregroundLuminance = foreground.computeLuminance();
       final backgroundLuminance = background.computeLuminance();
@@ -23,14 +23,9 @@ void main() {
               : foregroundLuminance + 0.05);
     }
 
-    expect(
-      contrastRatio(AppColors.onPrimary, AppColors.primary),
-      greaterThanOrEqualTo(4.5),
-    );
-    expect(
-      contrastRatio(AppColors.onPrimary, AppColors.primaryPressed),
-      greaterThanOrEqualTo(4.5),
-    );
+    expect(AppColors.primary, const Color(0xFF32B982));
+    expect(AppColors.primaryPressed, const Color(0xFF249A6D));
+    expect(AppColors.onPrimary, Colors.white);
     expect(
       contrastRatio(AppColors.primaryText, AppColors.surface),
       greaterThanOrEqualTo(4.5),

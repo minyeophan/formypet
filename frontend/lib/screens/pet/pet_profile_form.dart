@@ -18,13 +18,14 @@ import '../../core/pet_taxonomy.dart';
 import '../../models/pet.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import '../../widgets/app_picker_sheet.dart';
+import '../../widgets/app_success_toast.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
 import '../../widgets/pet_form_fields.dart';
 import '../../widgets/record_inputs/record_inputs.dart';
-import 'pet_confirm_dialog.dart';
 
 part 'pet_profile_form_sections.dart';
 
@@ -232,7 +233,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
       _createdPetId = _saveDraft.savedId;
       _initialSnapshot = _snapshot;
       setState(() => _isLoading = false);
-      if (_editing) await _showSavedDialog();
+      if (_editing) _showSavedToast();
       if (!mounted) return;
       GoRouter.maybeOf(context)?.go(
         widget.firstPet ? '/home' : '/pet/${widget.petId ?? _createdPetId}',
@@ -260,22 +261,9 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
     }
   }
 
-  Future<void> _showSavedDialog() {
+  void _showSavedToast() {
     final petName = _nameCtrl.text.trim();
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => PetConfirmDialog(
-        title: '수정 완료',
-        body: '$petName의 정보가 수정되었습니다.',
-        actions: [
-          PetConfirmDialogAction(
-            label: '확인',
-            onPressed: () => Navigator.of(dialogContext).pop(),
-          ),
-        ],
-      ),
-    );
+    showAppSuccessToast(context, '$petName의 정보가 수정되었습니다.');
   }
 
   Future<void> _pickPhoto() async {
@@ -328,24 +316,13 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
     if (!mounted) return;
     if (_snapshot != _initialSnapshot) {
       _confirmingExit = true;
-      final leave = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => PetConfirmDialog(
-          title: '입력을 그만둘까요?',
-          body: _photoSaveFailed
-              ? '반려동물 정보는 이미 저장됐어요. 아직 올리지 못한 사진과 이후 변경 사항은 반영되지 않아요.'
-              : '저장하지 않은 변경 사항은 사라져요.',
-          actions: [
-            PetConfirmDialogAction(
-              label: '계속 입력',
-              onPressed: () => Navigator.pop(dialogContext, false),
-            ),
-            PetConfirmDialogAction(
-              label: '나가기',
-              onPressed: () => Navigator.pop(dialogContext, true),
-            ),
-          ],
-        ),
+      final leave = await showAppDraftExitSheet(
+        context,
+        message: _photoSaveFailed
+            ? '반려동물 정보는 이미 저장됐어요. 아직 올리지 못한 사진과 이후 변경 사항은 반영되지 않아요.'
+            : '저장하지 않은 변경 사항은 사라져요.',
+        exitLabel: '나가기',
+        continueLabel: '계속 입력',
       );
       _confirmingExit = false;
       if (!mounted || leave != true) return;

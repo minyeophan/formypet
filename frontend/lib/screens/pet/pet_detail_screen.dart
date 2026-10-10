@@ -11,10 +11,10 @@ import '../../models/activity_record.dart';
 import '../../models/pet.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
-import 'pet_confirm_dialog.dart';
 
 class PetDetailScreen extends ConsumerStatefulWidget {
   final String petId;
@@ -148,27 +148,14 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                   ? null
                   : () async {
                       setState(() => _confirmingDelete = true);
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (dialogContext) => PetConfirmDialog(
-                          title: '반려동물 삭제',
-                          body:
-                              '${pet.name}의 프로필을 삭제해요. 삭제 후에는 이 반려동물의 기록과 일정을 앱에서 확인할 수 없어요.',
-                          actions: [
-                            PetConfirmDialogAction(
-                              label: '취소',
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(false),
-                            ),
-                            PetConfirmDialogAction(
-                              label: '삭제',
-                              isDanger: true,
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(true),
-                            ),
-                          ],
-                        ),
+                      final confirmed = await showAppConfirmationSheet(
+                        context,
+                        title: '반려동물 삭제',
+                        message:
+                            '${pet.name}의 프로필을 삭제해요. 삭제 후에는 이 반려동물의 기록과 일정을 앱에서 확인할 수 없어요.',
+                        confirmLabel: '삭제',
+                        confirmKey: const Key('pet-delete-confirm-button'),
+                        cancelKey: const Key('pet-delete-cancel-button'),
                       );
                       if (!mounted) return;
                       setState(() => _confirmingDelete = false);

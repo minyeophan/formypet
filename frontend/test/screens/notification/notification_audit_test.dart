@@ -222,7 +222,8 @@ void main() {
       await tester.ensureVisible(find.text('삭제'));
       await tester.tap(find.text('삭제'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, '삭제'));
+      expect(find.byType(BottomSheet), findsOneWidget);
+      await tester.tap(find.byKey(const Key('pet-delete-confirm-button')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       final showedPending = find.text('삭제 중...').evaluate().isNotEmpty;
