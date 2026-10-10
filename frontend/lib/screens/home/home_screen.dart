@@ -18,7 +18,6 @@ import '../../widgets/app_visual.dart';
 import '../../widgets/app_category_badge.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/authenticated_network_image.dart';
-import '../../widgets/preparing_toast.dart';
 import 'home_v2_tokens.dart';
 import '../../core/app_v2_tokens.dart';
 
@@ -124,8 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
                                 _QuickMenu(
-                                  onPreparing: () =>
-                                      showPreparingToast(context),
+                                  onPreparing: () => context.push('/pet-log'),
                                 ),
                                 const SizedBox(height: HomeV2Tokens.sectionGap),
                                 const _NewsSection(),

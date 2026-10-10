@@ -11,6 +11,7 @@ class AuthenticatedNetworkImage extends StatefulWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Widget Function(BuildContext context, VoidCallback retry)? errorBuilder;
 
   const AuthenticatedNetworkImage({
     super.key,
@@ -19,6 +20,7 @@ class AuthenticatedNetworkImage extends StatefulWidget {
     this.width,
     this.height,
     this.fit = BoxFit.contain,
+    this.errorBuilder,
   });
 
   @override
@@ -51,6 +53,10 @@ class _AuthenticatedNetworkImageState extends State<AuthenticatedNetworkImage> {
       child: FutureBuilder<Uint8List>(
         future: _bytes,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return widget.errorBuilder?.call(context, _retry) ??
+                widget.fallback;
+          }
           if (!snapshot.hasData) {
             return widget.fallback;
           }
@@ -59,11 +65,20 @@ class _AuthenticatedNetworkImageState extends State<AuthenticatedNetworkImage> {
             width: widget.width,
             height: widget.height,
             fit: widget.fit,
-            errorBuilder: (context, error, stackTrace) => widget.fallback,
+            errorBuilder: (context, error, stackTrace) =>
+                widget.errorBuilder?.call(context, _retry) ?? widget.fallback,
           );
         },
       ),
     );
+  }
+
+  void _retry() {
+    if (mounted) {
+      setState(() {
+        _bytes = _load();
+      });
+    }
   }
 
   Future<Uint8List>? _load() {

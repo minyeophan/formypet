@@ -30,6 +30,7 @@ import java.sql.Statement;
 import java.time.Instant;
 import com.formypet.common.time.UtcTime;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -64,6 +65,15 @@ public class MediaService {
         Pet pet = findOwnedPet(user, petId);
         ensureRecordBelongsToPet(pet.getId(), recordId);
         return storeAndInsert(user.getId(), pet.getId(), recordId, "PRIVATE", "pet-" + pet.getId(), file, false);
+    }
+
+    @Transactional
+    public MediaResponse uploadPetLogDraftMedia(Long actorId, Long petId, MultipartFile file) {
+        User user = findUser(actorId);
+        findOwnedPet(user, petId);
+        validateFile(file);
+        reserveQuota(user.getId(), file.getSize(), 1);
+        return storeAndInsert(user.getId(), petId, null, "PRIVATE", "pet-log-" + petId, file, true, "PET_LOG_DRAFT");
     }
 
     @Transactional
@@ -143,6 +153,125 @@ public class MediaService {
         decrementQuota(userId, bytes, deleted);
     }
 
+    @Transactional
+    public void deletePetLogMedia(Long userId, Long petLogId) {
+        var owners = jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, userId);
+        if (owners.isEmpty()) return;
+        var rows = jdbcTemplate.queryForList("""
+                SELECT m.id,m.storage_key,m.file_size FROM media_resources m
+                JOIN pet_log_media pm ON pm.media_id=m.id
+                JOIN pet_logs pl ON pl.id=pm.pet_log_id
+                WHERE pl.id=? AND pl.user_id=? AND m.user_id=? AND m.media_kind='PET_LOG' FOR UPDATE
+                """, petLogId,userId,userId);
+        if (rows.isEmpty()) return;
+        deletePetLogMediaRows(userId, rows);
+    }
+
+    /** Serialize pet log media mutations with uploads and draft cleanup using the same owner-first lock order. */
+    @Transactional
+    public void lockPetLogMediaOwner(Long userId) {
+        var owners = jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, userId);
+        if (owners.isEmpty()) throw new IllegalStateException("Media owner no longer exists.");
+    }
+
+    @Transactional
+    public void deletePetLogMediaIds(Long userId, java.util.List<Long> mediaIds) {
+        if (mediaIds.isEmpty()) return;
+        var owners = jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, userId);
+        if (owners.isEmpty()) return;
+        String placeholders = String.join(",", java.util.Collections.nCopies(mediaIds.size(), "?"));
+        var rows = jdbcTemplate.queryForList("SELECT id,storage_key,file_size FROM media_resources WHERE user_id=? AND media_kind='PET_LOG' AND id IN ("+placeholders+") FOR UPDATE", prepend(userId, mediaIds));
+        if (!rows.isEmpty()) deletePetLogMediaRows(userId, rows);
+    }
+
+    @Transactional
+    public void deletePetLogDataForPet(Long userId, Long petId) {
+        var owners=jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE",Long.class,userId);
+        if(owners.isEmpty()) return;
+        var rows=jdbcTemplate.queryForList("SELECT id,storage_key,file_size FROM media_resources WHERE user_id=? AND pet_id=? AND media_kind IN ('PET_LOG_DRAFT','PET_LOG') FOR UPDATE",userId,petId);
+        jdbcTemplate.update("DELETE FROM pet_logs WHERE user_id=? AND pet_id=?",userId,petId);
+        jdbcTemplate.update("DELETE FROM pet_log_preferences WHERE user_id=? AND pet_id=?",userId,petId);
+        if(rows.isEmpty()) return;
+        for(var row:rows) jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)",row.get("storage_key"));
+        int deleted=jdbcTemplate.update("DELETE FROM media_resources WHERE user_id=? AND pet_id=? AND media_kind IN ('PET_LOG_DRAFT','PET_LOG')",userId,petId);
+        if(deleted!=rows.size()) throw new IllegalStateException("Pet log media changed during pet deletion.");
+        long bytes=rows.stream().mapToLong(row->((Number)row.get("file_size")).longValue()).sum();
+        decrementQuota(userId,bytes,deleted);
+    }
+
+    @Transactional
+    public int cleanupExpiredPetLogDrafts() {
+        List<Long> userIds=jdbcTemplate.queryForList("SELECT DISTINCT user_id FROM media_resources WHERE media_kind='PET_LOG_DRAFT' AND created_at < UTC_TIMESTAMP(6)-INTERVAL 24 HOUR ORDER BY user_id",Long.class);
+        int total=0;
+        for(Long userId:userIds) {
+            var owners=jdbcTemplate.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE",Long.class,userId);
+            if(owners.isEmpty()) continue;
+            var rows=jdbcTemplate.queryForList("SELECT id,storage_key,file_size FROM media_resources WHERE user_id=? AND media_kind='PET_LOG_DRAFT' AND created_at < UTC_TIMESTAMP(6)-INTERVAL 24 HOUR FOR UPDATE",userId);
+            if(rows.isEmpty()) continue;
+            for(var row:rows) jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)",row.get("storage_key"));
+            int deleted=jdbcTemplate.update("DELETE FROM media_resources WHERE user_id=? AND media_kind='PET_LOG_DRAFT' AND created_at < UTC_TIMESTAMP(6)-INTERVAL 24 HOUR",userId);
+            if(deleted!=rows.size()) throw new IllegalStateException("Expired pet log drafts changed during cleanup.");
+            long bytes=rows.stream().mapToLong(row->((Number)row.get("file_size")).longValue()).sum();
+            decrementQuota(userId,bytes,deleted);
+            total+=deleted;
+        }
+        return total;
+    }
+
+    @Transactional(readOnly = true)
+    public int[] imageDimensions(Long userId, Long mediaId) {
+        var rows=jdbcTemplate.queryForList("SELECT storage_key,content_type FROM media_resources WHERE id=? AND user_id=? AND media_kind IN ('PET_LOG_DRAFT','PET_LOG') AND status='STORED'",mediaId,userId);
+        if(rows.isEmpty()) throw new AccessDeniedException("Cannot use this photo.");
+        try {
+            var loaded=mediaStorage.load((String)rows.getFirst().get("storage_key"),(String)rows.getFirst().get("content_type"));
+            try(var input=javax.imageio.ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(loaded.bytes()))) {
+                var readers=javax.imageio.ImageIO.getImageReaders(input);
+                if(readers.hasNext()) {
+                    var reader=readers.next();
+                    try {
+                        reader.setInput(input,true,true);
+                        return checkedDimensions(reader.getWidth(0),reader.getHeight(0));
+                    } finally { reader.dispose(); }
+                }
+            }
+            int[] webp=webpDimensions(loaded.bytes());
+            if(webp!=null) return checkedDimensions(webp[0],webp[1]);
+            throw new IllegalArgumentException("사진 파일을 읽을 수 없습니다.");
+        } catch(IOException e) { throw new IllegalStateException("Failed to read photo dimensions.",e); }
+    }
+
+    private int[] checkedDimensions(int width,int height) {
+        if(width<=0||height<=0||(long)width*height>50_000_000L) throw new IllegalArgumentException("사진은 5천만 화소 이하로 선택해 주세요.");
+        return new int[]{width,height};
+    }
+
+    private int[] webpDimensions(byte[] b) {
+        if(b.length<30||b[0]!='R'||b[1]!='I'||b[2]!='F'||b[3]!='F'||b[8]!='W'||b[9]!='E'||b[10]!='B'||b[11]!='P') return null;
+        for(int i=12;i+8<b.length;){String chunk=new String(b,i,4,java.nio.charset.StandardCharsets.US_ASCII);int size=(b[i+4]&255)|((b[i+5]&255)<<8)|((b[i+6]&255)<<16)|((b[i+7]&255)<<24);int p=i+8;if(size<0||p+size>b.length)return null;
+            if("VP8X".equals(chunk)&&size>=10)return new int[]{1+(b[p+4]&255)+((b[p+5]&255)<<8)+((b[p+6]&255)<<16),1+(b[p+7]&255)+((b[p+8]&255)<<8)+((b[p+9]&255)<<16)};
+            if("VP8L".equals(chunk)&&size>=5&&(b[p]&255)==0x2f){int bits=(b[p+1]&255)|((b[p+2]&255)<<8)|((b[p+3]&255)<<16)|((b[p+4]&255)<<24);return new int[]{(bits&0x3fff)+1,((bits>>14)&0x3fff)+1};}
+            if("VP8 ".equals(chunk)&&size>=10){for(int j=p;j+6<p+size;j++)if((b[j]&255)==0x9d&&(b[j+1]&255)==0x01&&(b[j+2]&255)==0x2a)return new int[]{((b[j+4]&255)<<8|(b[j+3]&255))&0x3fff,((b[j+6]&255)<<8|(b[j+5]&255))&0x3fff};}
+            i=p+size+(size&1);
+        }return null;
+    }
+
+    private void deletePetLogMediaRows(Long userId, java.util.List<java.util.Map<String,Object>> rows) {
+        for (var row: rows) jdbcTemplate.update("INSERT IGNORE INTO media_cleanup_queue(storage_key) VALUES (?)",row.get("storage_key"));
+        String placeholders = String.join(",", java.util.Collections.nCopies(rows.size(), "?"));
+        Object[] ids = new Object[rows.size()+1]; ids[0]=userId;
+        for(int i=0;i<rows.size();i++) ids[i+1]=rows.get(i).get("id");
+        int deleted=jdbcTemplate.update("DELETE FROM media_resources WHERE user_id=? AND media_kind='PET_LOG' AND id IN ("+placeholders+")",ids);
+        if (deleted != rows.size()) throw new IllegalStateException("Pet log media changed during deletion.");
+        long bytes=rows.stream().mapToLong(row->((Number)row.get("file_size")).longValue()).sum();
+        decrementQuota(userId,bytes,deleted);
+    }
+
+    private Object[] prepend(Object first, java.util.List<Long> values) {
+        Object[] result=new Object[values.size()+1]; result[0]=first;
+        for(int i=0;i<values.size();i++) result[i+1]=values.get(i);
+        return result;
+    }
+
     @Transactional(readOnly = true)
     public LoadedMedia load(Long actorId, Long mediaId) {
         User user = findUser(actorId);
@@ -198,6 +327,12 @@ public class MediaService {
 
     private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, String visibility,
                                          String folderName, MultipartFile file, boolean quotaReserved) {
+        return storeAndInsert(userId, petId, recordId, visibility, folderName, file, quotaReserved,
+                recordId != null ? "ACTIVITY_RECORD" : petId != null ? "PET_PROFILE" : "GENERAL");
+    }
+
+    private MediaResponse storeAndInsert(Long userId, Long petId, Long recordId, String visibility,
+                                           String folderName, MultipartFile file, boolean quotaReserved, String mediaKind) {
         validateFile(file);
         if (!quotaReserved) reserveQuota(userId, file.getSize(), 1);
         String extension = extension(file.getOriginalFilename());
@@ -219,8 +354,8 @@ public class MediaService {
             jdbcTemplate.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement("""
                         INSERT INTO media_resources
-                            (user_id, pet_id, record_id, storage_key, original_name, content_type, extension, file_size, status, visibility, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            (user_id, pet_id, record_id, storage_key, original_name, content_type, extension, file_size, status, visibility, created_at, media_kind)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, Statement.RETURN_GENERATED_KEYS);
                 ps.setLong(1, userId);
                 if (petId == null) {
@@ -241,6 +376,7 @@ public class MediaService {
                 ps.setString(9, "STORED");
                 ps.setString(10, visibility);
                 ps.setObject(11, UtcTime.toDatabase(Instant.now()));
+                ps.setString(12, mediaKind);
                 return ps;
             }, keyHolder);
         } catch (RuntimeException e) {

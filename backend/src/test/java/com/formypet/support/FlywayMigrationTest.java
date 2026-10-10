@@ -55,8 +55,13 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("42", flyway.info().current().getVersion().getVersion());
+        assertEquals("43", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests' AND column_name='result_version'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='pet_logs'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='pet_log_media'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='pet_log_preferences'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='media_resources' AND column_name='media_kind'"));
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='idempotency_requests'"));
             assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests' AND column_name='result_id'"));
             assertEquals(0, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests' AND column_name='response_json'"));
@@ -208,7 +213,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("42", flyway.info().current().getVersion().getVersion());
+        assertEquals("43", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

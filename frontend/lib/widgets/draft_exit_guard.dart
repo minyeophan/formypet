@@ -113,7 +113,9 @@ mixin DraftExitGuardMixin<T extends StatefulWidget> on State<T> {
       confirmExit: confirmDraftExit,
       cancelExit: _cancelDraftExit,
       child: PopScope<Object?>(
-        canPop: _draftExitAllowed || (!isDraftBusy && !hasUnsavedChanges),
+        canPop:
+            _draftExitAllowed ||
+            (!isDraftBusy && !hasUnsavedChanges && !hasPendingDraftWork),
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop && !isDraftBusy && !_draftConfirming) onExit();
         },

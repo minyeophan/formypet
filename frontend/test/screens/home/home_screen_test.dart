@@ -64,9 +64,20 @@ void main() {
     expect(find.text('오늘 하루도 포마이펫과 함께!'), findsOneWidget);
   });
 
-  testWidgets('pet log menu shows preparing message when tapped', (tester) async {
+  testWidgets('pet log menu opens the pet log timeline', (tester) async {
     final popular = await _popularNotifier(const []);
-    await tester.pumpWidget(_app(popular: popular));
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+        GoRoute(
+          path: '/pet-log',
+          builder: (_, _) => const Scaffold(body: Text('pet-log-timeline')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_app(popular: popular, router: router));
     await tester.pumpAndSettle();
 
     final petLog = find.byKey(const Key('home-menu-pet-log'));
@@ -74,8 +85,8 @@ void main() {
     expect(find.text('반려로그'), findsOneWidget);
 
     await tester.tap(petLog);
-    await tester.pump();
-    expect(find.text('준비중'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('pet-log-timeline'), findsOneWidget);
   });
   testWidgets('news empty state replaces preparing content', (tester) async {
     final popular = await _popularNotifier(const []);

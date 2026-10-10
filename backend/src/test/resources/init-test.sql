@@ -375,6 +375,7 @@ CREATE TABLE IF NOT EXISTS media_resources (
     file_size     BIGINT       NOT NULL,
     status        ENUM('STORED') NOT NULL,
     visibility    VARCHAR(20)  NOT NULL DEFAULT 'PRIVATE',
+    media_kind    VARCHAR(30)  NOT NULL DEFAULT 'GENERAL',
     created_at    DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT fk_media_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_media_pet FOREIGN KEY (pet_id) REFERENCES pets (id) ON DELETE CASCADE,
@@ -558,9 +559,43 @@ CREATE TABLE idempotency_requests (
     request_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     result_id BIGINT NOT NULL,
+    result_version BIGINT NULL,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (user_id, operation, target, request_key),
     CONSTRAINT fk_idempotency_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE pet_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    pet_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    entry_at DATETIME(6) NOT NULL,
+    note VARCHAR(2000),
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_pet_log_pet FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_pet_log_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_pet_log_timeline (pet_id, entry_at, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE pet_log_media (
+    media_id BIGINT PRIMARY KEY,
+    pet_log_id BIGINT NOT NULL,
+    position INT NOT NULL,
+    width INT NOT NULL,
+    height INT NOT NULL,
+    CONSTRAINT fk_pet_log_media_file FOREIGN KEY (media_id) REFERENCES media_resources(id) ON DELETE CASCADE,
+    CONSTRAINT fk_pet_log_media_log FOREIGN KEY (pet_log_id) REFERENCES pet_logs(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_pet_log_media_position (pet_log_id, position),
+    INDEX idx_pet_log_media_log (pet_log_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE pet_log_preferences (
+    pet_id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    example_dismissed BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_pet_log_pref_pet FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_pet_log_pref_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Independent from user/media FKs: recovery must survive rollback and account deletion.

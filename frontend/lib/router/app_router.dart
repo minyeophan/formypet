@@ -10,6 +10,9 @@ import '../screens/auth/auth_screen.dart';
 import '../screens/auth/policy_acceptance_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/pet_log/pet_log_screen.dart';
+import '../screens/pet_log/pet_log_create_screen.dart';
+import '../models/pet_log.dart';
 import '../screens/records/meal_record_screen.dart';
 import '../screens/records/record_category_form_screen.dart';
 import '../screens/records/record_detail_screen.dart';
@@ -207,6 +210,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
           GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
+          GoRoute(path: '/pet-log', builder: (c, s) => const PetLogScreen()),
+          GoRoute(
+            path: '/pet-log/book',
+            builder: (c, s) => const PetLogBookScreen(),
+          ),
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
@@ -282,6 +290,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: '/my/inquiry', builder: (c, s) => const MyInquiryScreen()),
+      GoRoute(
+        path: '/pet-log/new',
+        builder: (c, s) => PetLogCreateScreen(
+          editing: s.extra is PetLog ? s.extra as PetLog : null,
+        ),
+      ),
+      GoRoute(
+        path: '/pet-log/example/:petId',
+        builder: (c, s) =>
+            PetLogExampleDetailScreen(petId: s.pathParameters['petId']!),
+      ),
+      GoRoute(
+        path: '/pet-log/:id',
+        builder: (c, s) => s.extra is PetLog
+            ? PetLogDetailScreen(log: s.extra as PetLog)
+            : PetLogDetailLoader(id: s.pathParameters['id']!),
+      ),
       GoRoute(
         path: '/records',
         redirect: (c, s) =>
