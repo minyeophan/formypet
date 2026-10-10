@@ -329,7 +329,8 @@ void main() {
     await enter(tester, '이름', '보리');
     await tester.tap(find.byTooltip('뒤로가기'));
     await tester.pumpAndSettle();
-    expect(find.text('입력을 그만둘까요?'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text('입력을 그만할까요?'), findsOneWidget);
     await tapText(tester, '계속 입력');
     expect(tester.widget<TextField>(field('이름')).controller!.text, '보리');
     await tester.tap(find.byTooltip('뒤로가기'));

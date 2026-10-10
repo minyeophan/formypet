@@ -7,7 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
-import '../../widgets/app_confirm_dialog.dart';
+import '../../widgets/app_confirmation_sheet.dart';
 import '../../widgets/app_text.dart';
 
 class AccountDeletionScreen extends ConsumerStatefulWidget {
@@ -34,24 +34,14 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
 
   Future<void> _delete() async {
     if (_submitting || (!_isKakao && _password.text.isEmpty)) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AppConfirmDialog(
-        title: '계정을 탈퇴할까요?',
-        body:
-            '탈퇴하면 계정과 연결된 기록, 게시글, 댓글, 투표, 사진이 삭제됩니다. 이 작업은 되돌릴 수 없습니다. 진행 중 연결이 끊겨도 이 기기에 저장된 예산과 캐시는 삭제될 수 있습니다. 계정 삭제 결과를 확인하지 못한 경우 다시 로그인하거나 문의해 주세요.',
-        actions: [
-          AppConfirmDialogAction(
-            label: '취소',
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          AppConfirmDialogAction(
-            label: '탈퇴하기',
-            isDanger: true,
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmationSheet(
+      context,
+      title: '계정을 탈퇴할까요?',
+      message:
+          '탈퇴하면 계정과 연결된 기록, 게시글, 댓글, 투표, 사진이 삭제됩니다. 이 작업은 되돌릴 수 없습니다. 진행 중 연결이 끊겨도 이 기기에 저장된 예산과 캐시는 삭제될 수 있습니다. 계정 삭제 결과를 확인하지 못한 경우 다시 로그인하거나 문의해 주세요.',
+      confirmLabel: '탈퇴하기',
+      confirmKey: const Key('account-delete-confirm-button'),
+      cancelKey: const Key('account-delete-cancel-button'),
     );
     if (confirmed != true || !mounted) return;
     setState(() {

@@ -22,6 +22,7 @@ import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
 import 'package:frontend/screens/my/my_support_widgets.dart';
 import 'package:frontend/screens/my/my_widgets.dart';
+import 'package:frontend/screens/my/account_deletion_screen.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/policy_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -471,6 +472,44 @@ void main() {
     expect(find.text('문의 내용을 입력해 주세요.'), findsOneWidget);
     expect(find.text('문의가 접수됐어요'), findsNothing);
   });
+
+  testWidgets(
+    'account deletion confirmation uses shared sheet and cancel is inert',
+    (tester) async {
+      final service = _FakeAuthService();
+      await _pump(
+        tester,
+        const AccountDeletionScreen(),
+        authService: service,
+        authState: const AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          profile: UserProfile(
+            id: 'user-1',
+            email: 'user@example.com',
+            nickname: '보호자',
+            registrationSource: 'EMAIL',
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'password');
+      await tester.pump();
+      final deleteButton = find.widgetWithText(FilledButton, '계정 탈퇴');
+      expect(tester.widget<FilledButton>(deleteButton).onPressed, isNotNull);
+      await tester.ensureVisible(deleteButton);
+      await tester.tap(deleteButton);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('계정을 탈퇴할까요?'), findsOneWidget);
+      await tester.tap(find.text('취소').last);
+      await tester.pumpAndSettle();
+
+      expect(service.deleteAccountCalls, 0);
+      expect(find.byType(AccountDeletionScreen), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _pump(
@@ -625,6 +664,7 @@ class _FakeAuthService extends AuthService {
   final uploadKeys = <String?>[];
   Completer<void>? logoutCompleter;
   int logoutCalls = 0;
+  int deleteAccountCalls = 0;
   final UserProfile? updateProfileResult;
   final UserProfile? uploadProfileImageResult;
   final Object? updateProfileError;
@@ -644,6 +684,12 @@ class _FakeAuthService extends AuthService {
   Future<void> logout() async {
     logoutCalls++;
     await logoutCompleter?.future;
+  }
+
+  @override
+  Future<bool> deleteAccount({String? password}) async {
+    deleteAccountCalls++;
+    return false;
   }
 
   @override

@@ -8,7 +8,6 @@ import 'package:frontend/core/pet_taxonomy.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/models/pet.dart';
 import 'package:frontend/providers/pet_provider.dart';
-import 'package:frontend/screens/pet/pet_confirm_dialog.dart';
 import 'package:frontend/screens/pet/pet_detail_screen.dart';
 import 'package:frontend/screens/pet/pet_edit_screen.dart';
 import 'package:frontend/services/record_service.dart';
@@ -454,7 +453,7 @@ void main() {
     expect(notifier.updatedBody?['diseases'], '복부, 피부');
   });
 
-  testWidgets('pet edit success dialog blocks outside tap and back', (
+  testWidgets('pet edit success uses shared toast and returns to detail', (
     tester,
   ) async {
     final notifier = _UpdatePetNotifier(_state());
@@ -462,20 +461,8 @@ void main() {
 
     await _tapSave(tester);
 
-    expect(find.byType(PetConfirmDialog), findsOneWidget);
-    expect(find.text('수정 완료'), findsWidgets);
     expect(find.text('Pet 1의 정보가 수정되었습니다.'), findsOneWidget);
-
-    await tester.tapAt(const Offset(4, 4));
-    await tester.pumpAndSettle();
-    expect(find.byType(PetConfirmDialog), findsOneWidget);
-
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byType(PetConfirmDialog), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(TextButton, '확인'));
-    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byType(PetDetailScreen), findsOneWidget);
   });
 
@@ -507,7 +494,7 @@ void main() {
     expect(find.text('my-root'), findsOneWidget);
   });
 
-  testWidgets('last pet deletion uses PetConfirmDialog and stays put', (
+  testWidgets('last pet deletion uses shared confirmation sheet', (
     tester,
   ) async {
     final notifier = _DeletePetNotifier(_state());
@@ -521,10 +508,19 @@ void main() {
     await tester.tap(find.text('삭제').first);
     await tester.pumpAndSettle();
 
-    expect(find.byType(PetConfirmDialog), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.text('반려동물 삭제'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, '삭제'));
+    await tester.tap(find.text('취소').last);
+    await tester.pumpAndSettle();
+    expect(notifier.deletedIds, isEmpty);
+    expect(find.byType(PetDetailScreen), findsOneWidget);
+
+    await tester.tap(find.text('삭제').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+
+    await tester.tap(find.text('삭제').last);
     await tester.pumpAndSettle();
 
     expect(notifier.deletedIds, ['1']);
