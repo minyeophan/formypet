@@ -262,8 +262,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   }
 
   void _showSavedToast() {
-    final petName = _nameCtrl.text.trim();
-    showAppSuccessToast(context, '$petName의 정보가 수정되었습니다.');
+    showAppSuccessToast(context, '수정 완료');
   }
 
   Future<void> _pickPhoto() async {

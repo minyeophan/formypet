@@ -455,7 +455,7 @@ class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
                   ref.read(authProvider).profile?.id != auth.profile!.id) {
                 return;
               }
-              showAppSuccessToast(context, '작성자를 차단했어요.');
+              showAppSuccessToast(context, '차단 완료');
             },
           ),
       ],

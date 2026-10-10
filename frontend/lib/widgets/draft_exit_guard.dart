@@ -88,6 +88,12 @@ class _DraftExitRegistrationState extends State<_DraftExitRegistration> {
 mixin DraftExitGuardMixin<T extends StatefulWidget> on State<T> {
   bool get hasUnsavedChanges;
   bool get isDraftBusy;
+  String get draftExitTitle => '입력을 그만할까요?';
+  String get draftExitMessage => '저장하지 않은 변경사항은 사라져요.';
+  String get draftExitContinueLabel => '계속 입력';
+  String get draftExitLabel => '나가기';
+  bool get hasPendingDraftWork => false;
+  void onDraftExitConfirmed() {}
 
   bool _draftExitAllowed = false;
   bool _draftConfirming = false;
@@ -127,12 +133,19 @@ mixin DraftExitGuardMixin<T extends StatefulWidget> on State<T> {
       return false;
     }
     setState(() => _draftExitRequested = true);
-    if (hasUnsavedChanges && !_draftExitAllowed) {
+    if ((hasUnsavedChanges || hasPendingDraftWork) && !_draftExitAllowed) {
       _draftConfirming = true;
       FocusScope.of(context).unfocus();
       bool? discard;
       try {
-        discard = await showAppDraftExitSheet(context);
+        discard = await showAppDraftExitSheet(
+          context,
+          title: draftExitTitle,
+          message: draftExitMessage,
+          continueLabel: draftExitContinueLabel,
+          exitLabel: draftExitLabel,
+          onExitConfirmed: onDraftExitConfirmed,
+        );
       } finally {
         _draftConfirming = false;
       }

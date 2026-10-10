@@ -461,7 +461,7 @@ void main() {
 
     await _tapSave(tester);
 
-    expect(find.text('Pet 1의 정보가 수정되었습니다.'), findsOneWidget);
+    expect(find.text('수정 완료'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byType(PetDetailScreen), findsOneWidget);
   });
