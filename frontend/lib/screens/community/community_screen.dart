@@ -1050,26 +1050,5 @@ Color _communityAccentFor(String category) => switch (category) {
 void _showCommunityToast(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Center(
-          widthFactor: 1,
-          child: AppText(
-            message,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text,
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-        width: 112,
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
+    ..showSnackBar(SnackBar(content: Text(message)));
 }

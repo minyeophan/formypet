@@ -30,6 +30,12 @@ void main() {
     expect(find.text('올해'), findsNothing);
     await tester.tap(find.byTooltip('기간 설정'));
     await tester.pumpAndSettle();
+    final allPeriod = find.ancestor(
+      of: find.text('전체 기간'),
+      matching: find.byType(TextButton),
+    );
+    expect(tester.getSize(allPeriod.first).height, greaterThanOrEqualTo(44));
+    expect(find.text('기간 설정'), findsOneWidget);
     await tester.tap(find.text('전체 기간'));
     await tester.pumpAndSettle();
     expect(container.read(walletQueryProvider).period, WalletPeriod.month);

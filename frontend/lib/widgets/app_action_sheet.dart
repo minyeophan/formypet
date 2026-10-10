@@ -2,17 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import 'app_ink_well.dart';
+import 'app_icon.dart';
 import 'app_text.dart';
 
 class AppActionSheetItem {
   final Key? key;
   final String label;
+  final String? description;
+  final IconData? icon;
+  final bool showChevron;
   final VoidCallback? onTap;
   final bool destructive;
 
   const AppActionSheetItem({
     this.key,
     required this.label,
+    this.description,
+    this.icon,
+    this.showChevron = false,
     this.onTap,
     this.destructive = false,
   });
@@ -49,6 +56,9 @@ Future<void> showAppActionSheet(
                 child: _ActionButton(
                   key: action.key,
                   label: action.label,
+                  description: action.description,
+                  icon: action.icon,
+                  showChevron: action.showChevron,
                   destructive: action.destructive,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
@@ -70,12 +80,18 @@ Future<void> showAppActionSheet(
 
 class _ActionButton extends StatelessWidget {
   final String label;
+  final String? description;
+  final IconData? icon;
+  final bool showChevron;
   final bool destructive;
   final VoidCallback onTap;
 
   const _ActionButton({
     super.key,
     required this.label,
+    this.description,
+    this.icon,
+    this.showChevron = false,
     required this.onTap,
     this.destructive = false,
   });
@@ -104,18 +120,57 @@ class _ActionButton extends StatelessWidget {
             hoverColor: Colors.transparent,
             onTap: onTap,
             child: Container(
-              constraints: const BoxConstraints(minHeight: 48),
+              constraints: BoxConstraints(
+                minHeight: description == null ? 48 : 64,
+              ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: border),
               ),
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: AppText(
-                label,
-                color: foreground,
-                textAlign: TextAlign.center,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: icon == null && description == null && !showChevron
+                  ? AppText(
+                      label,
+                      color: foreground,
+                      textAlign: TextAlign.center,
+                    )
+                  : Row(
+                      children: [
+                        if (icon != null) ...[
+                          AppIcon(icon, size: 24, color: foreground),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                label,
+                                color: foreground,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              if (description != null) ...[
+                                const SizedBox(height: 2),
+                                AppText(
+                                  description!,
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (showChevron) ...[
+                          const SizedBox(width: 8),
+                          const AppIcon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ],
+                    ),
             ),
           ),
         ),

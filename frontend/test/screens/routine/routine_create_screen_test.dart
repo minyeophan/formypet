@@ -149,6 +149,29 @@ void main() {
     expect(find.text('다른 화면'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('system back cannot dismiss a routine while saving', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final notifier = _FakePetNotifier(_petState(), saveGate: gate);
+    await _pumpScreen(tester, notifier, editingRoutine: _editFixture());
+    await tester.enterText(find.byKey(const Key('routine-name-field')), '저장 중');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    final save = tester
+        .widget<FilledButton>(find.byType(FilledButton))
+        .onPressed!;
+    save();
+    await tester.pump();
+    expect(notifier.updateCalls, 1);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.byKey(const Key('routine-name-field')), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('routine detail'), findsOneWidget);
+  });
   testWidgets('direct edit loads once and refresh cannot overwrite draft', (
     tester,
   ) async {
@@ -304,8 +327,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.text('변경 내용을 버릴까요?'), findsOneWidget);
-    await tester.tap(find.text('계속 편집'));
+    expect(find.text('입력을 그만할까요?'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tap(find.text('계속 입력'));
     await tester.pumpAndSettle();
     expect(
       tester

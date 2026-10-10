@@ -58,6 +58,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('계속 입력'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
     await tester.tap(find.text('계속 입력'));
     await tester.pumpAndSettle();
     expect(find.text('draft'), findsOneWidget);

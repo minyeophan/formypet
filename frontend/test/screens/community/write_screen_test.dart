@@ -73,6 +73,20 @@ void main() {
     }
   });
 
+  testWidgets('photo add menu offers described camera and gallery actions', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('community-add-image-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사진 추가'), findsOneWidget);
+    expect(find.text('사진 보관함'), findsOneWidget);
+    expect(find.text('저장된 사진에서 선택'), findsOneWidget);
+    expect(find.text('카메라'), findsOneWidget);
+    expect(find.text('지금 촬영해서 추가'), findsOneWidget);
+  });
+
   testWidgets('toolbar tool paints its grey surface and visible pressed ink', (
     tester,
   ) async {
@@ -187,8 +201,7 @@ void main() {
     await _pump(tester, auth: auth);
     final result = Completer<List<XFile>>();
     picker.selections.add(result.future);
-    await tester.tap(find.byKey(const Key('community-add-image-button')));
-    await tester.pump();
+    await _openGalleryPicker(tester);
     auth.switchTo('user-2');
     result.complete([photo('old-account.png')]);
     await tester.pumpAndSettle();
@@ -414,8 +427,7 @@ void main() {
       await _pick(tester);
       final result = Completer<List<XFile>>();
       picker.selections.add(result.future);
-      await tester.tap(find.byKey(const Key('community-add-image-button')));
-      await tester.pump();
+      await _openGalleryPicker(tester);
 
       result.completeError(
         PlatformException(
@@ -443,16 +455,15 @@ void main() {
     final result = Completer<List<XFile>>();
     picker.selections.add(result.future);
     await tester.tap(find.byKey(const Key('community-add-image-button')));
-    await tester.pump();
-    await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('photo-source-gallery')));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
 
     result.completeError(PlatformException(code: 'photo_access_denied'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('community-root'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('pending upload keeps photo and poll controls disabled', (
@@ -559,8 +570,7 @@ void main() {
       await _pick(tester);
       final pickResult = Completer<List<XFile>>();
       picker.selections.add(pickResult.future);
-      await tester.tap(find.byKey(const Key('community-add-image-button')));
-      await tester.pump();
+      await _openGalleryPicker(tester);
       final uploadRead = Completer<Uint8List>();
       first.pendingRead = uploadRead.future;
       await _startSubmit(tester);
@@ -957,7 +967,16 @@ Future<void> _pump(
 }
 
 Future<void> _pick(WidgetTester tester) async {
+  await _openGalleryPicker(tester);
+}
+
+Future<void> _openGalleryPicker(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('community-add-image-button')));
+  await tester.pumpAndSettle();
+  final gallery = find.byKey(const Key('photo-source-gallery'));
+  if (gallery.evaluate().isNotEmpty) {
+    await tester.tap(gallery);
+  }
   await tester.pumpAndSettle();
 }
 

@@ -14,6 +14,7 @@ import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/app_visual.dart';
+import '../../widgets/draft_exit_guard.dart';
 import '../../widgets/record_inputs/record_date_time_pickers.dart';
 import '../../widgets/record_inputs/record_edit_action_bar.dart';
 
@@ -138,7 +139,8 @@ class _RoutineEditScreenState extends ConsumerState<RoutineEditScreen> {
   }
 }
 
-class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
+class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen>
+    with DraftExitGuardMixin<RoutineCreateScreen> {
   final _nameController = TextEditingController();
   final _noteController = TextEditingController();
   _RoutineTypeOption? _selectedType;
@@ -171,6 +173,12 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
   String? _initialNote;
   bool? _initialNotificationEnabled;
   int _initialMonthlyInterval = 1;
+
+  @override
+  bool get hasUnsavedChanges => _hasChanges;
+
+  @override
+  bool get isDraftBusy => _saving || _confirming || _pickingTime;
 
   @override
   void initState() {
@@ -263,11 +271,8 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
                 borderRadius: BorderRadius.all(Radius.circular(8)),
               )
             : const StadiumBorder());
-    return PopScope(
-      canPop: _leaving || (!_saving && !_hasChanges),
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _goBack();
-      },
+    return protectDraft(
+      onExit: _goBack,
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppHeader(
@@ -966,6 +971,10 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
           : await notifier.updateRoutine(routineId, payload);
       if (!applied) return;
       if (mounted && !_leaving && notifier.isRoutineContextCurrent(token)) {
+        await allowDraftExit();
+        if (!mounted || _leaving || !notifier.isRoutineContextCurrent(token)) {
+          return;
+        }
         _leaving = true;
         if (widget.editingRoutine == null) {
           context.go('/routine?tab=routines');
@@ -1006,6 +1015,10 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
       final applied = await notifier.deleteRoutine(routine.id);
       if (!applied) return;
       if (mounted && !_leaving && notifier.isRoutineContextCurrent(token)) {
+        await allowDraftExit();
+        if (!mounted || _leaving || !notifier.isRoutineContextCurrent(token)) {
+          return;
+        }
         _leaving = true;
         context.go('/routine?tab=routines');
       }
@@ -1070,75 +1083,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen> {
   }
 
   Future<void> _goBack() async {
-    if (_confirming || _leaving) return;
-    if (_saving || _hasChanges) {
-      setState(() => _confirming = true);
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: AppColors.white,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          titleTextStyle: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
-            height: 1.4,
-          ),
-          contentTextStyle: const TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
-          title: Text(_saving ? '저장 중 화면을 나갈까요?' : '변경 내용을 버릴까요?'),
-          content: Text(
-            _saving ? '이미 보낸 저장 요청은 계속 처리될 수 있어요.' : '저장하지 않은 변경 내용이 사라져요.',
-          ),
-          actions: [
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                minimumSize: const Size(112, 48),
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('계속 편집'),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                minimumSize: const Size(88, 48),
-                textStyle: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('나가기'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      setState(() => _confirming = false);
-      if (discard != true) return;
-    }
+    if (_leaving || !await confirmDraftExit() || !mounted) return;
     setState(() => _leaving = true);
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;

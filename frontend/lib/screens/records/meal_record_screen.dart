@@ -3,6 +3,7 @@ import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
+import '../../widgets/app_action_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +23,7 @@ import '../../widgets/record_inputs/record_inputs.dart';
 import 'record_support.dart';
 import 'record_draft_number_input.dart';
 
-typedef MealImagePicker = Future<XFile?> Function();
+typedef MealImagePicker = Future<XFile?> Function(ImageSource source);
 
 class MealRecordScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
@@ -343,11 +344,36 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   Future<void> _pickPhoto() async {
     if (_isSaving || _isDeleting || _isPickingPhoto || !_ownsDraft) return;
     setState(() => _isPickingPhoto = true);
-    final pickImage =
-        widget.pickImageForTest ??
-        () => ImagePicker().pickImage(source: ImageSource.gallery);
     try {
-      final photo = await pickImage();
+      ImageSource? source;
+      await showAppActionSheet(
+        context,
+        title: '사진 추가',
+        closeLabel: '취소',
+        actions: [
+          AppActionSheetItem(
+            key: const Key('photo-source-gallery'),
+            label: '사진 보관함',
+            description: '저장된 사진에서 선택',
+            icon: Icons.image_outlined,
+            showChevron: true,
+            onTap: () => source = ImageSource.gallery,
+          ),
+          AppActionSheetItem(
+            key: const Key('photo-source-camera'),
+            label: '카메라',
+            description: '지금 촬영해서 추가',
+            icon: Icons.photo_camera_outlined,
+            showChevron: true,
+            onTap: () => source = ImageSource.camera,
+          ),
+        ],
+      );
+      if (!_ownsDraft || source == null) return;
+      final pickImage =
+          widget.pickImageForTest ??
+          (imageSource) => ImagePicker().pickImage(source: imageSource);
+      final photo = await pickImage(source!);
       if (!_ownsDraft || photo == null) return;
       setState(() {
         _photo = photo;

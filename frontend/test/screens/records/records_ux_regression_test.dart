@@ -70,7 +70,7 @@ void main() {
     final photo = PendingPhoto();
     await pump(
       tester,
-      MealRecordScreen(pickImageForTest: () async => photo),
+      MealRecordScreen(pickImageForTest: (_) async => photo),
       notifier: notifier,
     );
     await tester.tap(find.byKey(const Key('meal-food-type-dry')));
@@ -295,7 +295,7 @@ void main() {
     final photo = Completer<XFile?>();
     await pump(
       tester,
-      MealRecordScreen(pickImageForTest: () => photo.future),
+      MealRecordScreen(pickImageForTest: (_) => photo.future),
       notifier: notifier,
     );
     await tester.tap(find.byKey(const Key('meal-photo-button')));

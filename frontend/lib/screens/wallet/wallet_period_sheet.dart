@@ -23,7 +23,7 @@ Future<WalletPeriodSelection?> showWalletPeriodSheet(
   backgroundColor: AppColors.surface,
   barrierColor: AppColors.text.withValues(alpha: .32),
   shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
   ),
   builder: (_) => _PeriodSheet(period: period, month: month),
 );
@@ -79,7 +79,7 @@ class _PeriodSheetState extends State<_PeriodSheet> {
                     children: [
                       const AppText(
                         '기간 설정',
-                        fontSize: 22,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                       const SizedBox(height: 16),
@@ -235,7 +235,7 @@ class _PeriodSheetState extends State<_PeriodSheet> {
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 onPressed: () =>
@@ -265,9 +265,9 @@ class _SheetChoice extends StatelessWidget {
     child: TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 36),
+        minimumSize: const Size(0, 44),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        tapTargetSize: MaterialTapTargetSize.padded,
         backgroundColor: selected ? AppColors.primary : AppColors.surfaceSoft,
         foregroundColor: selected ? AppColors.white : AppColors.text,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
