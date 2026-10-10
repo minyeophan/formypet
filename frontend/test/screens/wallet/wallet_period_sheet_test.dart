@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/providers/wallet_query_provider.dart';
 import 'package:frontend/providers/wallet_expense_provider.dart';
 import 'package:frontend/screens/wallet/wallet_expense_utils.dart';
@@ -30,6 +31,8 @@ void main() {
     expect(find.text('올해'), findsNothing);
     await tester.tap(find.byTooltip('기간 설정'));
     await tester.pumpAndSettle();
+    final selectedMonth = tester.widget<Text>(find.text('2월'));
+    expect(selectedMonth.style?.color, AppColors.onPrimary);
     final allPeriod = find.ancestor(
       of: find.text('전체 기간'),
       matching: find.byType(TextButton),

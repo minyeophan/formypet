@@ -125,7 +125,7 @@ class _RecordDetailEditButton extends StatelessWidget {
             '수정',
             fontSize: 15,
             fontWeight: FontWeight.bold,
-            color: AppColors.white,
+            color: AppColors.onPrimary,
           ),
         ),
       ),

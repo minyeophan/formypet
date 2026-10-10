@@ -129,7 +129,7 @@ Future<bool?> showAppDraftExitSheet(
                 onPressed: () => Navigator.of(sheetContext).pop(false),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
+                  foregroundColor: AppColors.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -138,7 +138,7 @@ Future<bool?> showAppDraftExitSheet(
                   continueLabel,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.white,
+                  color: AppColors.onPrimary,
                 ),
               ),
             ),

@@ -464,6 +464,8 @@ void main() {
       find.widgetWithText(ChoiceChip, '매주'),
     );
     expect(dailyChip.showCheckmark, isFalse);
+    final dailyLabel = tester.widget<Text>(find.text('매일'));
+    expect(dailyLabel.style?.color, AppColors.onPrimary);
     expect(dailyChip.selectedColor, AppColors.primary);
     expect(weeklyChip.backgroundColor, AppColors.white);
     expect(

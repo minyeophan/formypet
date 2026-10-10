@@ -90,7 +90,7 @@ class _PostCardState extends State<PostCard> {
                                 const Text(
                                   '투표',
                                   style: TextStyle(
-                                    color: AppV2Tokens.primary,
+                                    color: AppV2Tokens.primaryText,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 15,
                                   ),

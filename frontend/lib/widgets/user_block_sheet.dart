@@ -151,6 +151,7 @@ class _UserBlockSheetState extends ConsumerState<_UserBlockSheet> {
                 key: const Key('user-block-confirm'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppV2Tokens.primary,
+                  foregroundColor: AppV2Tokens.onPrimary,
                   minimumSize: const Size.fromHeight(52),
                 ),
                 onPressed: _busy || !allowed ? null : _submit,

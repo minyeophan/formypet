@@ -61,7 +61,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             splashColor: AppColors.primary.withValues(alpha: .10),
             shape: const CircleBorder(),
             backgroundColor: AppV2Tokens.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             onPressed: () => context.push('/community/write'),
             child: const AppIcon(Icons.edit),
           ),
@@ -131,7 +131,7 @@ class _CommunityCategoryScreenState
             splashColor: AppColors.primary.withValues(alpha: .10),
             shape: const CircleBorder(),
             backgroundColor: AppV2Tokens.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             onPressed: () => context.push('/community/write'),
             child: const AppIcon(Icons.edit),
           ),
@@ -176,7 +176,7 @@ class _CommunityCategoryBody extends ConsumerWidget {
           const _CommunityHeader(showBack: true),
           Expanded(
             child: RefreshIndicator(
-              color: AppV2Tokens.primary,
+              color: AppV2Tokens.primaryText,
               onRefresh: () => ref
                   .read(communityProvider.notifier)
                   .loadFeed(feedKey: routeFeedKey, refresh: true),
@@ -740,7 +740,7 @@ class _CommunityMainScroll extends ConsumerWidget {
     final state = ref.watch(communityProvider);
     final posts = state.postsForFeed(feedKey);
     return RefreshIndicator(
-      color: AppV2Tokens.primary,
+      color: AppV2Tokens.primaryText,
       onRefresh: () => ref
           .read(communityProvider.notifier)
           .loadFeed(feedKey: feedKey, refresh: true),

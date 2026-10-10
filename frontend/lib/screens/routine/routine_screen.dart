@@ -403,7 +403,7 @@ class _RoutineCalendarDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSelected
-        ? AppColors.white
+        ? AppColors.onPrimary
         : inMonth
         ? AppColors.text
         : AppColors.muted;
@@ -451,7 +451,9 @@ class _RoutineCalendarDayCell extends StatelessWidget {
                           width: 5,
                           height: 5,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.white : accentColor,
+                            color: isSelected
+                                ? AppColors.onPrimary
+                                : accentColor,
                             shape: BoxShape.circle,
                           ),
                         )
@@ -508,7 +510,7 @@ class _AddButton extends StatelessWidget {
       onPressed: onTap,
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
-        foregroundColor: AppColors.white,
+        foregroundColor: AppColors.onPrimary,
         backgroundColor: AppColors.primary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ).copyWith(overlayColor: AppInteractionStyle.overlay()),
@@ -516,7 +518,7 @@ class _AddButton extends StatelessWidget {
         label,
         fontSize: 13,
         fontWeight: FontWeight.bold,
-        color: AppColors.white,
+        color: AppColors.onPrimary,
       ),
     );
   }
@@ -650,7 +652,7 @@ class _RoutineTile extends StatelessWidget {
                   child: AppVisual(
                     id: recordTypeVisualId(routine.typeId),
                     size: 24,
-                    color: ended ? AppColors.muted : AppColors.primary,
+                    color: ended ? AppColors.muted : AppColors.primaryText,
                   ),
                 ),
                 const SizedBox(width: 12),

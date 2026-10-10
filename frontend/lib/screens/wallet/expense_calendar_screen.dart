@@ -58,7 +58,7 @@ class ExpenseCalendarScreen extends ConsumerWidget {
             key: const Key('wallet-calendar-add-button'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -228,7 +228,7 @@ class ExpenseCalendarScreen extends ConsumerWidget {
                             : '—',
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                        color: AppColors.primaryText,
                       ),
                     ),
                     if (data.available) ...[
@@ -236,7 +236,7 @@ class ExpenseCalendarScreen extends ConsumerWidget {
                       AppText(
                         '${selected.length}건의 지출',
                         fontSize: 12,
-                        color: AppColors.primary,
+                        color: AppColors.primaryText,
                       ),
                     ],
                   ],

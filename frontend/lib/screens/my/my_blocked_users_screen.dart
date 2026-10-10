@@ -80,7 +80,7 @@ class MyBlockedUsersScreen extends ConsumerWidget {
                             backgroundColor: AppV2Tokens.mintSurface,
                             child: Icon(
                               Icons.person_outline,
-                              color: AppV2Tokens.primary,
+                              color: AppV2Tokens.primaryText,
                             ),
                           ),
                           title: Text(user.nickname),

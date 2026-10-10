@@ -225,14 +225,14 @@ class _PeriodSheetState extends State<_PeriodSheet> {
               AppText(
                 _summary,
                 textAlign: TextAlign.center,
-                color: AppColors.primary,
+                color: AppColors.primaryText,
                 fontSize: 14,
               ),
               const SizedBox(height: 16),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.onPrimary,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -269,7 +269,7 @@ class _SheetChoice extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         tapTargetSize: MaterialTapTargetSize.padded,
         backgroundColor: selected ? AppColors.primary : AppColors.surfaceSoft,
-        foregroundColor: selected ? AppColors.white : AppColors.text,
+        foregroundColor: selected ? AppColors.onPrimary : AppColors.text,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ).copyWith(overlayColor: AppInteractionStyle.overlay()),
@@ -277,7 +277,7 @@ class _SheetChoice extends StatelessWidget {
         label,
         fontSize: 12,
         fontWeight: FontWeight.w500,
-        color: selected ? AppColors.white : AppColors.text,
+        color: selected ? AppColors.onPrimary : AppColors.text,
         textAlign: TextAlign.center,
       ),
     ),

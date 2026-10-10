@@ -14,6 +14,7 @@ ThemeData _buildAppTheme() => ThemeData(
   colorScheme: ColorScheme.fromSeed(
     seedColor: AppColors.actionMint,
     primary: AppColors.primary,
+    onPrimary: AppColors.onPrimary,
     brightness: Brightness.light,
     surface: Colors.white,
   ),
@@ -31,7 +32,7 @@ ThemeData _buildAppTheme() => ThemeData(
     style:
         FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.onPrimary,
           minimumSize: const Size.fromHeight(52),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(14)),
@@ -52,7 +53,7 @@ ThemeData _buildAppTheme() => ThemeData(
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled)
                 ? AppColors.muted
-                : Colors.white,
+                : AppColors.onPrimary,
           ),
         ),
   ),

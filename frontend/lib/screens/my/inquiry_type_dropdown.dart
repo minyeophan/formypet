@@ -81,7 +81,7 @@ class _InquiryTypeDropdownState extends State<InquiryTypeDropdown> {
                   ),
                   foregroundColor: WidgetStatePropertyAll(
                     widget.value == entry.key
-                        ? AppV2Tokens.primaryPressed
+                        ? AppV2Tokens.primaryText
                         : AppV2Tokens.text,
                   ),
                   shape: WidgetStatePropertyAll(
@@ -103,7 +103,7 @@ class _InquiryTypeDropdownState extends State<InquiryTypeDropdown> {
                         '✓',
                         style: TextStyle(
                           fontSize: 18,
-                          color: AppV2Tokens.primaryPressed,
+                          color: AppV2Tokens.primaryText,
                         ),
                       )
                     : null,

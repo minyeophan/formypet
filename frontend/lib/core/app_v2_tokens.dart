@@ -10,6 +10,8 @@ abstract final class AppV2Tokens {
   static const mintBorder = Color(0xFFE1E5E2);
   static const primary = Color(0xFF32B982);
   static const primaryPressed = Color(0xFF249A6D);
+  static const primaryText = actionMint;
+  static const onPrimary = text;
   // Backward-compatible name used by existing selected-state and splash styles.
   static const primarySoft = mintSurface;
   static const text = Color(0xFF151C27);

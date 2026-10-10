@@ -306,7 +306,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen>
                         dimension: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.white,
+                          color: AppColors.onPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -315,7 +315,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen>
                       child: AppText(
                         _saving && !_deleting ? '저장 중…' : '저장',
                         color: _canSave || _saving
-                            ? AppColors.white
+                            ? AppColors.onPrimary
                             : AppColors.muted,
                         fontWeight: FontWeight.bold,
                       ),
@@ -467,7 +467,7 @@ class _RoutineCreateScreenState extends ConsumerState<RoutineCreateScreen>
                                     label: AppText(
                                       entry.value,
                                       color: _repeatType == entry.key
-                                          ? AppColors.white
+                                          ? AppColors.onPrimary
                                           : AppColors.text,
                                     ),
                                     selected: _repeatType == entry.key,

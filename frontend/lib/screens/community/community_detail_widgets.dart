@@ -90,7 +90,7 @@ class CommunityDetailArticle extends StatelessWidget {
         const Text(
           '투표',
           style: TextStyle(
-            color: AppV2Tokens.primary,
+            color: AppV2Tokens.primaryText,
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
@@ -313,7 +313,7 @@ class _CommunityPollCardState extends State<CommunityPollCard> {
                         const AppIcon(
                           Icons.check_rounded,
                           size: 18,
-                          color: AppV2Tokens.primary,
+                          color: AppV2Tokens.primaryText,
                         ),
                         const SizedBox(width: 6),
                       ],
@@ -359,14 +359,14 @@ class _CommunityPollCardState extends State<CommunityPollCard> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(44),
                 backgroundColor: AppV2Tokens.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppV2Tokens.onPrimary,
               ).copyWith(overlayColor: AppInteractionStyle.overlay()),
               child: Text(
                 voted && pending != server ? '투표 변경' : '투표하기',
                 style: communityV2Style(
                   size: 14,
                   weight: FontWeight.w700,
-                  color: Colors.white,
+                  color: AppV2Tokens.onPrimary,
                 ),
               ),
             ),

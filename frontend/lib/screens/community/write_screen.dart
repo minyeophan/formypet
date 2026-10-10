@@ -424,7 +424,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                               : AppText(
                                   widget.editingPost == null ? '등록' : '저장',
                                   fontSize: 14,
-                                  color: AppColors.primary,
+                                  color: AppColors.primaryText,
                                   fontWeight: FontWeight.bold,
                                 ),
                         ),
@@ -705,7 +705,7 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
                     child: const AppText(
                       '완료',
                       fontSize: 14,
-                      color: AppColors.primary,
+                      color: AppColors.primaryText,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

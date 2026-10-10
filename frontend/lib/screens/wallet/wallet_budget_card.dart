@@ -60,7 +60,7 @@ class WalletBudgetCard extends ConsumerWidget {
                 child: const AppText(
                   '예산 설정',
                   fontSize: 12,
-                  color: AppColors.primaryPressed,
+                  color: AppColors.primaryText,
                 ),
               ),
             ],
@@ -137,7 +137,7 @@ class WalletBudgetCard extends ConsumerWidget {
                                     : '잔액 ${formatWon(value - total)}',
                                 textAlign: TextAlign.right,
                                 fontSize: 12,
-                                color: AppColors.primaryPressed,
+                                color: AppColors.primaryText,
                               ),
                             ),
                           ],

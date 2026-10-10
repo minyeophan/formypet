@@ -136,7 +136,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                               _saving ? '저장 중…' : '예산 저장',
                               fontSize: 17,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.white,
+                              color: AppColors.onPrimary,
                             ),
                           ),
                         ),
@@ -266,7 +266,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                                           style:
                                               OutlinedButton.styleFrom(
                                                 foregroundColor:
-                                                    AppColors.primaryPressed,
+                                                    AppColors.primaryText,
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                       horizontal: 12,
@@ -308,7 +308,7 @@ class _WalletBudgetScreenState extends ConsumerState<WalletBudgetScreen>
                                           child: AppText(
                                             entry.$2,
                                             fontSize: 14,
-                                            color: AppColors.primaryPressed,
+                                            color: AppColors.primaryText,
                                           ),
                                         ),
                                       ),
@@ -503,7 +503,7 @@ class WalletBudgetProgress extends StatelessWidget {
             budget! > walletMaxAmount
         ? 0
         : (total! / budget!).clamp(0.0, 1.0),
-    color: AppColors.primary,
+    color: AppColors.primaryText,
     backgroundColor: AppColors.border,
     minHeight: 8,
     borderRadius: BorderRadius.circular(8),
@@ -530,7 +530,7 @@ class _BudgetValue extends StatelessWidget {
         value,
         fontSize: primary ? 20 : 16,
         fontWeight: FontWeight.bold,
-        color: primary ? AppColors.primaryPressed : AppColors.text,
+        color: primary ? AppColors.primaryText : AppColors.text,
       );
       if (constraints.maxWidth < 280 ||
           MediaQuery.textScalerOf(context).scale(16) > 24) {

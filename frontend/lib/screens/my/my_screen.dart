@@ -18,7 +18,11 @@ class MyScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppHeader(
         title: '마이페이지',
-        leading: const AppIcon(Icons.pets, color: AppColors.primary, size: 25),
+        leading: const AppIcon(
+          Icons.pets,
+          color: AppColors.primaryText,
+          size: 25,
+        ),
         actions: [
           AppHeaderIconButton(
             key: const Key('my-settings-button'),
