@@ -244,7 +244,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(contentVisibilityRevisionProvider), revision + 1);
     expect(find.text('차단한 사용자가 없어요.'), findsOneWidget);
-    expect(find.text('차단을 해제했어요.'), findsOneWidget);
+    expect(find.text('차단 해제 완료'), findsOneWidget);
   });
 
   testWidgets('cancel makes no request', (tester) async {

@@ -13,27 +13,45 @@ class PetDataStatus extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(petProvider);
     if (state.isLoading) return const LinearProgressIndicator();
-    final error = state.dataErrorText;
-    if (error == null) return const SizedBox.shrink();
+    final dataError = state.dataErrorText;
+    final recordsError = state.recordRefreshError;
+    if (dataError == null && recordsError == null) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          AppText(
-            error,
-            color: AppColors.textSecondary,
-            textAlign: TextAlign.center,
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await ref.read(petProvider.notifier).retryDataLoad();
-              } catch (_) {
-                // The provider retains a retryable error on another failure.
-              }
-            },
-            child: const AppText('다시 시도', color: AppColors.primary),
-          ),
+          if (dataError != null) ...[
+            AppText(
+              dataError,
+              color: AppColors.textSecondary,
+              textAlign: TextAlign.center,
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  await ref.read(petProvider.notifier).retryDataLoad();
+                } catch (_) {
+                  // The provider retains a retryable error on another failure.
+                }
+              },
+              child: const AppText('다시 시도', color: AppColors.primary),
+            ),
+          ],
+          if (recordsError != null) ...[
+            AppText(
+              recordsError,
+              color: AppColors.textSecondary,
+              textAlign: TextAlign.center,
+            ),
+            TextButton(
+              onPressed: () async {
+                await ref.read(petProvider.notifier).retryRecordRefresh();
+              },
+              child: const AppText('기록 다시 불러오기', color: AppColors.primary),
+            ),
+          ],
         ],
       ),
     );

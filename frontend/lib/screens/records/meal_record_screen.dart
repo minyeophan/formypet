@@ -63,6 +63,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   bool _confirmingDelete = false;
   bool _isPickingPhoto = false;
   String? _error;
+  String? _saveAttemptDraft;
   XFile? _photo;
   PreparedPhoto? _preparedPhoto;
   final _saveDraft = RecordPhotoDraft();
@@ -84,6 +85,18 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   bool get hasUnsavedChanges => _draft != _baseline;
   @override
   bool get isDraftBusy => _isSaving || _isDeleting || _isPickingPhoto;
+  @override
+  bool get hasPendingDraftWork => _saveDraft.hasUnconfirmedWork;
+  @override
+  String get draftExitMessage => _saveDraft.exitNeedsReconcile
+      ? '${_saveDraft.exitMessage}${_saveAttemptDraft != null && _draft != _saveAttemptDraft ? ' 이후 수정한 내용은 저장되지 않아요.' : ''}'
+      : '저장하지 않은 변경사항은 사라져요.';
+  @override
+  void onDraftExitConfirmed() {
+    if (_saveDraft.exitNeedsReconcile) {
+      _draftOwner.refreshRecordsAfterUncertainSave(_draftOwnerContext);
+    }
+  }
 
   void _draftChanged() {
     if (mounted) setState(() {});
@@ -444,6 +457,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
 
     try {
       final body = _buildPayload();
+      _saveAttemptDraft = _draft;
       final editingRecord = widget.editingRecord;
       if (editingRecord == null) {
         if (_photo != null) {

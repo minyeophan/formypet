@@ -35,6 +35,86 @@ void main() {
     notifier.dispose();
   });
   test(
+    'record refresh reads only the active pet and deduplicates requests',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final records = _FakeRecordService(records: [_record('old', '1')]);
+      final notifier = PetNotifier(
+        _FakePetService(pets: [_pet('1')]),
+        records,
+        _FakeRoutineService(),
+      );
+      await notifier.loadForAuthenticatedUser();
+      records.loadedPetIds.clear();
+      final gate = Completer<List<ActivityRecord>>();
+      records.readGate = gate;
+      final first = notifier.refreshRecordsAfterUncertainSave(
+        notifier.routineContext,
+      );
+      final second = notifier.refreshRecordsAfterUncertainSave(
+        notifier.routineContext,
+      );
+      expect(identical(first, second), isTrue);
+      expect(records.loadedPetIds, ['1']);
+      gate.complete([_record('fresh', '1')]);
+      await first;
+      expect(notifier.state.records.single.id, 'fresh');
+      notifier.dispose();
+    },
+  );
+
+  test('record refresh failure keeps rows and exposes manual retry', () async {
+    SharedPreferences.setMockInitialValues({});
+    final records = _FakeRecordService(records: [_record('kept', '1')]);
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1')]),
+      records,
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+    records.failPetIds.add('1');
+    await notifier.refreshRecordsAfterUncertainSave(notifier.routineContext);
+    expect(notifier.state.records.single.id, 'kept');
+    expect(notifier.state.recordRefreshError, isNotNull);
+    records.failPetIds.clear();
+    records.records
+      ..clear()
+      ..add(_record('retried', '1'));
+    await notifier.retryRecordRefresh();
+    expect(notifier.state.records.single.id, 'retried');
+    expect(notifier.state.recordRefreshError, isNull);
+    notifier.dispose();
+  });
+
+  test('record refresh rereads after an overlapping create', () async {
+    SharedPreferences.setMockInitialValues({});
+    final records = _FakeRecordService(records: [_record('old', '1')]);
+    final notifier = PetNotifier(
+      _FakePetService(pets: [_pet('1')]),
+      records,
+      _FakeRoutineService(),
+    );
+    await notifier.loadForAuthenticatedUser();
+    final staleResult = Completer<List<ActivityRecord>>();
+    records.readGate = staleResult;
+    final refresh = notifier.refreshRecordsAfterUncertainSave(
+      notifier.routineContext,
+    );
+    await Future<void>.delayed(Duration.zero);
+    await notifier.addRecord({'type_id': 'meal'});
+    records.records
+      ..clear()
+      ..addAll([_record('old', '1'), _record('created', '1')]);
+    staleResult.complete([_record('old', '1')]);
+    await refresh;
+    expect(notifier.state.records.map((record) => record.id), [
+      'old',
+      'created',
+    ]);
+    expect(records.loadedPetIds.length, 3);
+    notifier.dispose();
+  });
+  test(
     'update success does not wait for today refresh and logout discards late refresh',
     () async {
       SharedPreferences.setMockInitialValues({});
@@ -1170,6 +1250,7 @@ class _FakeRecordService extends RecordService {
   final createdBodies = <Map<String, dynamic>>[];
   final createdMediaBodies = <Map<String, dynamic>>[];
   final uploadedFilenames = <String>[];
+  Completer<List<ActivityRecord>>? readGate;
 
   @override
   Future<List<ActivityRecord>> getRecords(
@@ -1179,6 +1260,11 @@ class _FakeRecordService extends RecordService {
     int? limit,
   }) async {
     loadedPetIds.add(petId);
+    final gate = readGate;
+    if (gate != null) {
+      readGate = null;
+      return gate.future;
+    }
     if (failPetIds.contains(petId)) {
       throw Exception('record load failed');
     }
@@ -1193,6 +1279,16 @@ class _FakeRecordService extends RecordService {
     createdBodies.add(body);
     return createdRecord ?? _record('created', petId);
   }
+
+  @override
+  Future<ActivityRecord> updateRecord(
+    String petId,
+    String recordId,
+    Map<String, dynamic> body,
+  ) async => _record(recordId, petId);
+
+  @override
+  Future<void> deleteRecord(String petId, String recordId) async {}
 
   @override
   Future<ActivityRecord> createRecordWithMediaBytes({

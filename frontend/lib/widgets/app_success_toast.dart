@@ -8,14 +8,19 @@ import '../core/app_fonts.dart';
 void showAppSuccessToast(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
+  final media = MediaQuery.maybeOf(context);
+  final scale = media?.textScaler.scale(12) ?? 12;
+  final available = (media?.size.width ?? 600) - 32;
+  final toastWidth = (message.runes.length * scale + 32)
+      .clamp(112, available.clamp(112, 568))
+      .toDouble();
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
         content: Text(
           message,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          maxLines: null,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.text,
@@ -25,7 +30,7 @@ void showAppSuccessToast(BuildContext context, String message) {
           ),
         ),
         behavior: SnackBarBehavior.floating,
-        width: (message.runes.length * 12 + 32).clamp(112, 220).toDouble(),
+        width: toastWidth,
         duration: const Duration(milliseconds: 1600),
         elevation: 2,
         backgroundColor: AppColors.surface,

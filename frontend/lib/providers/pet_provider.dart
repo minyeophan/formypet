@@ -25,6 +25,7 @@ class PetState {
   final bool isLoading;
   final String? dataErrorText;
   final String? routineRefreshError;
+  final String? recordRefreshError;
   final bool hasOnboarded;
   final List<Pet> pets;
   final String? activePetId;
@@ -43,6 +44,7 @@ class PetState {
     required this.isLoading,
     this.dataErrorText,
     this.routineRefreshError,
+    this.recordRefreshError,
     required this.hasOnboarded,
     required this.pets,
     this.activePetId,
@@ -64,6 +66,8 @@ class PetState {
     bool clearDataError = false,
     String? routineRefreshError,
     bool clearRoutineRefreshError = false,
+    String? recordRefreshError,
+    bool clearRecordRefreshError = false,
     bool? hasOnboarded,
     List<Pet>? pets,
     String? activePetId,
@@ -81,6 +85,9 @@ class PetState {
     routineRefreshError: clearRoutineRefreshError
         ? null
         : routineRefreshError ?? this.routineRefreshError,
+    recordRefreshError: clearRecordRefreshError
+        ? null
+        : recordRefreshError ?? this.recordRefreshError,
     dataErrorText: clearDataError
         ? null
         : (dataErrorText ?? this.dataErrorText),
@@ -138,6 +145,12 @@ class PetNotifier extends StateNotifier<PetState> {
   int _routineMutationVersion = 0;
   int _routineReadVersion = 0;
   int _selectionVersion = 0;
+  int _recordMutationVersion = 0;
+  int _recordReadVersion = 0;
+  Future<void>? _recordRead;
+  (int, int, String?)? _recordReadContext;
+  final _recordWrites = <(int, int, String?), int>{};
+  final _recordWriteDrains = <(int, int, String?), Completer<void>>{};
   final _routineWrites = <(int, int, String?), int>{};
   final _routineWriteDrains = <(int, int, String?), Completer<void>>{};
   int get _pendingRoutineWrites => _routineWrites[routineContext] ?? 0;
@@ -165,6 +178,85 @@ class PetNotifier extends StateNotifier<PetState> {
       (_session, _selectionVersion, state.activePetId);
   bool isRoutineContextCurrent((int, int, String?) token) =>
       mounted && token == routineContext;
+
+  void _beginRecordWrite((int, int, String?) token) {
+    _recordWriteDrains.putIfAbsent(token, Completer<void>.new);
+    _recordWrites[token] = (_recordWrites[token] ?? 0) + 1;
+    _recordMutationVersion++;
+  }
+
+  void _endRecordWrite((int, int, String?) token) {
+    final remaining = (_recordWrites[token] ?? 1) - 1;
+    if (remaining == 0) {
+      _recordWrites.remove(token);
+      _recordWriteDrains.remove(token)?.complete();
+    } else {
+      _recordWrites[token] = remaining;
+    }
+    if (isRoutineContextCurrent(token)) _recordMutationVersion++;
+  }
+
+  Future<void> refreshRecordsAfterUncertainSave((int, int, String?) token) {
+    if (!isRoutineContextCurrent(token) || token.$3 == null) {
+      return Future<void>.value();
+    }
+    if (_recordRead != null && _recordReadContext == token) return _recordRead!;
+    _recordReadContext = token;
+    late final Future<void> request;
+    request = _refreshRecords(token).whenComplete(() {
+      if (identical(_recordRead, request)) _recordRead = null;
+    });
+    return _recordRead = request;
+  }
+
+  Future<void> retryRecordRefresh() =>
+      refreshRecordsAfterUncertainSave(routineContext);
+
+  Future<void> _refreshRecords((int, int, String?) token) async {
+    final petId = token.$3!;
+    // One reread is allowed when a record write overlaps this refresh. A
+    // second collision is surfaced for a manual retry instead of looping.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!isRoutineContextCurrent(token)) return;
+      if ((_recordWrites[token] ?? 0) > 0) {
+        await _recordWriteDrains[token]!.future;
+        continue;
+      }
+      final mutationVersion = _recordMutationVersion;
+      final requestVersion = ++_recordReadVersion;
+      try {
+        final records = await _recSvc.getRecords(petId);
+        if (!isRoutineContextCurrent(token) ||
+            requestVersion != _recordReadVersion) {
+          return;
+        }
+        if (mutationVersion != _recordMutationVersion ||
+            (_recordWrites[token] ?? 0) > 0) {
+          if (attempt == 0) {
+            if ((_recordWrites[token] ?? 0) > 0) {
+              await _recordWriteDrains[token]!.future;
+            }
+            continue;
+          }
+          state = state.copyWith(
+            recordRefreshError: '기록이 변경됐어요. 목록을 다시 확인해 주세요.',
+          );
+          return;
+        }
+        state = state.copyWith(records: records, clearRecordRefreshError: true);
+        return;
+      } catch (_) {
+        if (!isRoutineContextCurrent(token) ||
+            requestVersion != _recordReadVersion) {
+          return;
+        }
+        state = state.copyWith(
+          recordRefreshError: '기록을 새로 불러오지 못했어요. 다시 시도해 주세요.',
+        );
+        return;
+      }
+    }
+  }
 
   Future<void> reloadRoutines() {
     final token = routineContext;
@@ -399,6 +491,7 @@ class PetNotifier extends StateNotifier<PetState> {
     final session = _session;
     final version = ++_dataVersion;
     final routineVersion = _routineMutationVersion;
+    final recordVersion = _recordMutationVersion;
     final routineWritePending = _pendingRoutineWrites > 0;
     final routineRequest = ++_routineReadVersion;
     final todayRequest = ++_todayRequest;
@@ -412,7 +505,9 @@ class PetNotifier extends StateNotifier<PetState> {
           routineVersion != _routineMutationVersion ||
           _pendingRoutineWrites > 0) {
         state = state.copyWith(
-          records: data.records,
+          records: recordVersion == _recordMutationVersion
+              ? data.records
+              : state.records,
           schedules: data.schedules,
           isLoading: false,
           clearDataError: true,
@@ -428,6 +523,11 @@ class PetNotifier extends StateNotifier<PetState> {
       }
       state = data
           .applyTo(state)
+          .copyWith(
+            records: recordVersion == _recordMutationVersion
+                ? data.records
+                : state.records,
+          )
           .copyWith(isLoading: false, clearDataError: true);
     } catch (_) {
       if (!_isCurrentPet(session, version, petId)) return;
@@ -484,6 +584,7 @@ class PetNotifier extends StateNotifier<PetState> {
     _selectionVersion++;
     state = state.copyWith(
       clearRoutineRefreshError: true,
+      clearRecordRefreshError: true,
       activePetId: petId,
       records: const [],
       routines: const [],
@@ -715,44 +816,56 @@ class PetNotifier extends StateNotifier<PetState> {
     Map<String, dynamic> body, {
     RecordPhotoUpload? photo,
   }) async {
-    final session = _session;
-    final version = _dataVersion;
+    final token = routineContext;
     final petId = state.activePetId!;
-    final record = photo == null
-        ? await _recSvc.createRecord(petId, body)
-        : await _recSvc.createRecordWithMediaBytes(
-            petId: petId,
-            body: body,
-            files: [
-              RecordMediaUpload(bytes: photo.bytes, filename: photo.filename),
-            ],
-          );
-    if (!_isCurrentPet(session, version, petId)) return;
-    state = state.copyWith(records: [...state.records, record]);
+    _beginRecordWrite(token);
+    try {
+      final record = photo == null
+          ? await _recSvc.createRecord(petId, body)
+          : await _recSvc.createRecordWithMediaBytes(
+              petId: petId,
+              body: body,
+              files: [
+                RecordMediaUpload(bytes: photo.bytes, filename: photo.filename),
+              ],
+            );
+      if (!isRoutineContextCurrent(token)) return;
+      state = state.copyWith(records: [...state.records, record]);
+    } finally {
+      _endRecordWrite(token);
+    }
   }
 
   Future<void> updateRecord(String recordId, Map<String, dynamic> body) async {
-    final session = _session;
-    final version = _dataVersion;
+    final token = routineContext;
     final petId = state.activePetId!;
-    final updated = await _recSvc.updateRecord(petId, recordId, body);
-    if (!_isCurrentPet(session, version, petId)) return;
-    state = state.copyWith(
-      records: state.records
-          .map((r) => r.id == recordId ? updated : r)
-          .toList(),
-    );
+    _beginRecordWrite(token);
+    try {
+      final updated = await _recSvc.updateRecord(petId, recordId, body);
+      if (!isRoutineContextCurrent(token)) return;
+      state = state.copyWith(
+        records: state.records
+            .map((r) => r.id == recordId ? updated : r)
+            .toList(),
+      );
+    } finally {
+      _endRecordWrite(token);
+    }
   }
 
   Future<void> deleteRecord(String recordId) async {
-    final session = _session;
-    final version = _dataVersion;
+    final token = routineContext;
     final petId = state.activePetId!;
-    await _recSvc.deleteRecord(petId, recordId);
-    if (!_isCurrentPet(session, version, petId)) return;
-    state = state.copyWith(
-      records: state.records.where((r) => r.id != recordId).toList(),
-    );
+    _beginRecordWrite(token);
+    try {
+      await _recSvc.deleteRecord(petId, recordId);
+      if (!isRoutineContextCurrent(token)) return;
+      state = state.copyWith(
+        records: state.records.where((r) => r.id != recordId).toList(),
+      );
+    } finally {
+      _endRecordWrite(token);
+    }
   }
 
   // Routine CRUD

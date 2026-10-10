@@ -95,6 +95,7 @@ Future<bool?> showAppDraftExitSheet(
   String message = '저장하지 않은 변경사항은 사라져요.',
   String continueLabel = '계속 입력',
   String exitLabel = '나가기',
+  VoidCallback? onExitConfirmed,
 }) {
   FocusScope.of(context).unfocus();
   return showModalBottomSheet<bool>(
@@ -146,7 +147,10 @@ Future<bool?> showAppDraftExitSheet(
             SizedBox(
               height: 48,
               child: OutlinedButton(
-                onPressed: () => Navigator.of(sheetContext).pop(true),
+                onPressed: () {
+                  Navigator.of(sheetContext).pop(true);
+                  onExitConfirmed?.call();
+                },
                 style: OutlinedButton.styleFrom(
                   backgroundColor: AppColors.surfaceSoft,
                   foregroundColor: AppColors.textSecondary,
