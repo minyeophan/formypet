@@ -808,18 +808,13 @@ class PetLogExampleDetailScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Container(
-          height: 250,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceSoft,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.all(32),
+        AspectRatio(
+          aspectRatio: 1,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Image.asset(
               'assets/images/pet_log_example.png',
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
           ),
         ),
