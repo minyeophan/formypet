@@ -55,6 +55,19 @@ class PhotoSaveDraft {
   }
 
   bool get hasAttempted => _frozen != null;
+  bool get hasPendingSave =>
+      status != PhotoSaveStatus.ready && status != PhotoSaveStatus.complete;
+  bool get hasConfirmedRecord => savedId != null;
+  bool get hasConfirmedPhotos =>
+      hasConfirmedRecord &&
+      (_photos?.isNotEmpty ?? false) &&
+      _uploaded == (_photos?.length ?? 0);
+  bool get hasUncertainRequest => status == PhotoSaveStatus.requestUncertain;
+  bool get hasUnconfirmedWork => hasPendingSave;
+  bool get exitNeedsReconcile =>
+      status == PhotoSaveStatus.requestUncertain ||
+      status == PhotoSaveStatus.mediaPending ||
+      status == PhotoSaveStatus.savedNeedsRefresh;
   int _uploaded = 0;
   Object? lastError;
   PhotoSaveStatus status = PhotoSaveStatus.ready;
@@ -74,6 +87,21 @@ class PhotoSaveDraft {
     PhotoSaveStatus.requestUncertain => '저장 결과를 확인하지 못했어요. 다시 누르면 중복 없이 확인해요.',
     _ => '저장하지 못했어요. 다시 시도해 주세요.',
   };
+  String get exitMessage {
+    final base = switch (status) {
+      PhotoSaveStatus.requestUncertain =>
+        '저장 여부를 확인하지 못했어요. 나가더라도 기록이 저장되어 있을 수 있어요.',
+      PhotoSaveStatus.mediaPending when hasConfirmedRecord =>
+        '기록은 저장됐어요. 아직 업로드하지 못한 사진은 추가되지 않아요.',
+      PhotoSaveStatus.savedNeedsRefresh when hasConfirmedPhotos =>
+        '기록과 사진은 저장됐어요. 목록에서 다시 확인할 수 있어요.',
+      PhotoSaveStatus.savedNeedsRefresh when hasConfirmedRecord =>
+        '기록은 저장됐어요. 목록에서 다시 확인할 수 있어요.',
+      _ => '저장하지 않은 변경사항은 사라져요.',
+    };
+    return base;
+  }
+
   void _check(bool Function() current) {
     if (!current()) throw StateError('작성 중인 계정이나 반려동물이 변경됐어요.');
   }
