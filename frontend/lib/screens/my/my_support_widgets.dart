@@ -32,30 +32,11 @@ class MySupportSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(
-            color: const Color(0xFF41B883),
-            borderRadius: BorderRadius.circular(99),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF41B883).withValues(alpha: 0.14),
-                spreadRadius: 4,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 7),
-        AppText(
-          title,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: AppColors.text,
-        ),
-      ],
+    return AppText(
+      title,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      color: AppColors.text,
     );
   }
 }

@@ -19,6 +19,8 @@ import 'package:frontend/screens/my/my_pets_screen.dart';
 import 'package:frontend/screens/my/my_profile_screen.dart';
 import 'package:frontend/screens/my/my_settings_screen.dart';
 import 'package:frontend/screens/my/my_support_center_screen.dart';
+import 'package:frontend/screens/my/my_support_widgets.dart';
+import 'package:frontend/screens/my/my_widgets.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/policy_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -72,15 +74,29 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('settings keeps notifications without a theme menu', (
-    tester,
-  ) async {
-    await _pump(tester, const MySettingsScreen());
-    expect(find.text('테마 설정'), findsNothing);
-    expect(find.text('차단 목록'), findsOneWidget);
-    expect(find.text('알림 내역'), findsOneWidget);
-    expect(find.text('알림 설정'), findsOneWidget);
-  });
+  testWidgets(
+    'settings removes duplicate account row and app setting dividers',
+    (tester) async {
+      await _pump(tester, const MySettingsScreen());
+      expect(find.text('테마 설정'), findsNothing);
+      expect(find.text('내 프로필 편집'), findsOneWidget);
+      expect(find.text('계정 정보'), findsNothing);
+      expect(find.text('차단 목록'), findsOneWidget);
+      expect(find.text('알림 내역'), findsOneWidget);
+      expect(find.text('알림 설정'), findsOneWidget);
+
+      for (final label in ['알림 내역', '차단 목록']) {
+        final row = tester.widget<MyMenuRow>(
+          find.ancestor(of: find.text(label), matching: find.byType(MyMenuRow)),
+        );
+        expect(
+          row.showTopBorder,
+          isFalse,
+          reason: '$label should not have divider',
+        );
+      }
+    },
+  );
 
   testWidgets('cancelling logout keeps the account connected', (tester) async {
     final service = _FakeAuthService();
@@ -319,22 +335,26 @@ void main() {
     expect(find.text('약관을 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('notices list shows empty state without sample announcements', (
+  testWidgets('notices list shows three samples without lead or green dot', (
     tester,
   ) async {
     await _pumpSupportRouter(tester, '/my/notices');
 
     expect(find.text('최근 공지'), findsOneWidget);
-    expect(find.text('등록된 공지사항이 없어요.'), findsOneWidget);
-    expect(find.text('루틴 알림 안정화 안내'), findsNothing);
-    expect(find.text('정기 점검 예정 안내'), findsNothing);
+    expect(find.text('서비스 변경, 점검, 새 기능 소식을 시간순으로 확인합니다.'), findsNothing);
+    expect(find.text('포마펫 시작 안내'), findsOneWidget);
+    expect(find.text('반려동물 기록 안내'), findsOneWidget);
+    expect(find.text('커뮤니티 이용 안내'), findsOneWidget);
+    expect(find.text('등록된 공지사항이 없어요.'), findsNothing);
+    expect(_findGreenSupportIndicator(), findsNothing);
   });
 
-  testWidgets('removed sample notice URL shows not found', (tester) async {
+  testWidgets('sample notice opens its matching detail', (tester) async {
     await _pumpSupportRouter(tester, '/my/notices/routine');
 
     expect(find.text('공지사항'), findsWidgets);
-    expect(find.text('공지사항을 찾을 수 없어요'), findsOneWidget);
+    expect(find.text('포마펫 시작 안내'), findsOneWidget);
+    expect(find.text('공지사항을 찾을 수 없어요'), findsNothing);
   });
 
   testWidgets('unknown notice detail shows not found message', (tester) async {
@@ -357,13 +377,38 @@ void main() {
     },
   );
 
-  testWidgets('faq category route shows its three questions', (tester) async {
-    await _pumpSupportRouter(tester, '/my/support/records');
+  testWidgets('faq categories hide lead text and green section indicator', (
+    tester,
+  ) async {
+    const leads = [
+      '계정, 로그인, 공동집사, 약관 확인과 관련된 질문을 모았습니다.',
+      '반려동물 기록 작성, 날짜, 사진 첨부와 관련된 질문을 모았습니다.',
+      '루틴 반복, 완료 체크, 일정 저장과 관련된 질문을 모았습니다.',
+      '게시글, 이미지, 투표, 나의 활동과 관련된 질문을 모았습니다.',
+    ];
+    const categoryIds = ['account', 'records', 'routine', 'community'];
 
+    for (final categoryId in categoryIds) {
+      await _pumpSupportRouter(tester, '/my/support/$categoryId');
+      for (final lead in leads) {
+        expect(find.text(lead), findsNothing);
+      }
+      expect(_findGreenSupportIndicator(), findsNothing);
+    }
+
+    await _pumpSupportRouter(tester, '/my/support/records');
     expect(find.text('기록 관련'), findsWidgets);
     expect(find.text('Q. 반려동물 기록은 어디에서 수정하나요?'), findsOneWidget);
     expect(find.text('Q. 오늘이 아닌 날짜로 기록할 수 있나요?'), findsOneWidget);
     expect(find.text('Q. 사진은 모든 기록에 첨부할 수 있나요?'), findsOneWidget);
+  });
+
+  testWidgets('support center hides intro text above FAQ categories', (
+    tester,
+  ) async {
+    await _pumpSupportRouter(tester, '/my/support');
+
+    expect(find.text('궁금한 점을 빠르게 찾을 수 있도록 주제별 도움말을 제공합니다.'), findsNothing);
   });
 
   testWidgets('faq detail shows answer by route id', (tester) async {
@@ -491,6 +536,16 @@ Future<void> _pumpPoliciesRouter(WidgetTester tester, String initialLocation) {
     ),
   );
 }
+
+Finder _findGreenSupportIndicator() => find.descendant(
+  of: find.byType(MySupportSectionTitle),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is Container &&
+        widget.decoration is BoxDecoration &&
+        (widget.decoration as BoxDecoration).color == const Color(0xFF41B883),
+  ),
+);
 
 Future<void> _pumpSupportRouter(WidgetTester tester, String initialLocation) {
   final router = GoRouter(

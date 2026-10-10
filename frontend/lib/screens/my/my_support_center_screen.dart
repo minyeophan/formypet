@@ -24,8 +24,6 @@ class MySupportCenterScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
-          const MySupportLead('궁금한 점을 빠르게 찾을 수 있도록 주제별 도움말을 제공합니다.'),
-          const SizedBox(height: 14),
           MySupportCard(
             children: [
               for (var index = 0; index < myFaqCategories.length; index++)
@@ -110,8 +108,6 @@ class MyFaqCategoryScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
-                MySupportLead(category.lead),
-                const SizedBox(height: 14),
                 MySupportSectionTitle(category.title),
                 const SizedBox(height: 10),
                 MySupportCard(

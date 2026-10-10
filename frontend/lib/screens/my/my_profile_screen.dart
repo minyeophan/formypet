@@ -1,7 +1,6 @@
 import 'dart:convert';
 import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
-import '../../widgets/app_icon.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -16,6 +15,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
 import '../../widgets/authenticated_network_image.dart';
+import '../../widgets/default_profile_avatar.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   final Future<XFile?> Function()? pickImage;
@@ -322,15 +322,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
     );
   }
 
-  Widget _fallback() => Container(
-    width: 96,
-    height: 96,
-    color: AppColors.surfaceSoft,
-    alignment: Alignment.center,
-    child: const AppIcon(
-      Icons.person_outline_rounded,
-      size: 42,
-      color: AppColors.textSecondary,
-    ),
+  Widget _fallback() => const DefaultProfileAvatar(
+    size: 96,
+    backgroundColor: AppColors.surfaceSoft,
+    iconColor: AppColors.textSecondary,
   );
 }

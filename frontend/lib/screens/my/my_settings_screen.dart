@@ -61,12 +61,6 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 icon: Icons.person_outline_rounded,
                 onTap: () => context.push('/my/profile'),
               ),
-              MyMenuRow(
-                label: '계정 정보',
-                icon: Icons.badge_outlined,
-                showTopBorder: true,
-                onTap: () => context.push('/my/profile'),
-              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -89,7 +83,6 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
                 onTap: () => context.push('/my/settings/notifications'),
               ),
               MyMenuRow(
-                showTopBorder: true,
                 label: '알림 내역',
                 icon: Icons.notifications_none_rounded,
                 onTap: () => context.push('/notifications'),
@@ -97,7 +90,6 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
               MyMenuRow(
                 label: '차단 목록',
                 icon: Icons.block_rounded,
-                showTopBorder: true,
                 onTap: () => context.push('/my/blocked-users'),
               ),
             ],
