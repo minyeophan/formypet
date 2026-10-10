@@ -62,6 +62,25 @@ public class MediaController {
                 }));
     }
 
+    @PostMapping("/api/v1/pets/{petId}/pet-logs/media")
+    @Operation(summary = "반려로그 임시 사진 업로드")
+    @SecurityRequirement(name = "bearerAuth")
+    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public ApiResponse<MediaResponse> uploadPetLogDraftMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
+                                                               @PathVariable Long petId,
+                                                               @RequestHeader(value = "Idempotency-Key", required = false) String key,
+                                                               @RequestParam("file") MultipartFile file) {
+        return ApiResponse.of(idempotency.execute(actorId, "pet-log-media", petId.toString(), key, null,
+                java.util.List.of(file), () -> {
+                    if (key != null) mediaService.validateKeyedUpload(file);
+                    mediaService.admitUpload(actorId, 1);
+                    return mediaService.uploadPetLogDraftMedia(actorId, petId, file);
+                }, MediaResponse::id, id -> {
+                    idempotency.requirePet(actorId, petId);
+                    return idempotency.media(actorId, id);
+                }));
+    }
+
     @GetMapping("/api/v1/media/{mediaId}")
     @Operation(summary = "비공개 미디어 조회")
     @SecurityRequirement(name = "bearerAuth")

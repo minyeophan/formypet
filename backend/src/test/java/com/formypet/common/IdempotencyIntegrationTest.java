@@ -81,7 +81,7 @@ class IdempotencyIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn()).path("id").asLong();
         // No response, note, post body, or file name survives resource deletion in this ledger.
         assertThat(jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests'", String.class))
-                .containsExactlyInAnyOrder("user_id", "operation", "target", "request_key", "request_hash", "result_id", "created_at");
+                .containsExactlyInAnyOrder("user_id", "operation", "target", "request_key", "request_hash", "result_id", "result_version", "created_at");
         mvc.perform(put(url + "/" + record).header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"current edited note\"}"))
                 .andExpect(status().isOk());
