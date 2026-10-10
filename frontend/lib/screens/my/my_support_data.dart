@@ -38,8 +38,26 @@ class MyFaq {
   });
 }
 
-// Add only confirmed announcements; sample schedules must not appear in the app.
-const myNotices = <MyNotice>[];
+const myNotices = <MyNotice>[
+  MyNotice(
+    id: 'routine',
+    title: '포마펫 시작 안내',
+    date: '2026.10.10',
+    body: '반려동물 정보를 등록하고 기록을 남기면 홈에서 오늘의 상태와 최근 소식을 한눈에 확인할 수 있어요.',
+  ),
+  MyNotice(
+    id: 'record-guide',
+    title: '반려동물 기록 안내',
+    date: '2026.10.03',
+    body: '급식, 배변, 산책 등 반려동물의 하루를 기록하고 날짜별 기록 화면에서 다시 확인해 보세요.',
+  ),
+  MyNotice(
+    id: 'community-guide',
+    title: '커뮤니티 이용 안내',
+    date: '2026.09.26',
+    body: '커뮤니티에서 반려동물 이야기를 나눠 보세요. 게시글과 댓글은 각 화면의 메뉴에서 관리할 수 있어요.',
+  ),
+];
 
 const myFaqCategories = [
   MyFaqCategory(

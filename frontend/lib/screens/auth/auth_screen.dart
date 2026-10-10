@@ -18,7 +18,6 @@ import '../../core/password_policy.dart';
 import 'password_recovery_form.dart';
 import 'policy_consent_dialog.dart';
 import '../../services/policy_service.dart';
-import '../../widgets/brand_logo.dart';
 
 enum _AuthView { welcome, login, register, recovery }
 
@@ -580,11 +579,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              height: 112,
-              child: Center(child: _AuthBrandLockup(size: 84)),
-            ),
-            const SizedBox(height: 22),
+            if (registering) ...[
+              SizedBox(height: 112, child: Center(child: _AuthBrandLockup())),
+              const SizedBox(height: 22),
+            ] else
+              const SizedBox(height: 22),
             Text(
               registering ? '포마펫과 함께 시작해요' : '다시 만나 반가워요',
               style: const TextStyle(
@@ -867,34 +866,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _AuthBrandLockup extends StatelessWidget {
-  const _AuthBrandLockup({required this.size});
-
-  final double size;
+  const _AuthBrandLockup();
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: Stack(
-      children: [
-        BrandLogo(size: size),
-        Positioned(
-          left: size * .325,
-          top: size * .5833,
-          width: size * .35,
-          child: Text(
-            '포마펫',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: const Color(0xFF572617),
-              fontSize: size * .1292,
-              fontWeight: FontWeight.w700,
-              height: 1.5,
-              letterSpacing: -1 * size / 240,
-            ),
-          ),
+  Widget build(BuildContext context) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Image.asset(
+        'assets/images/app_icon_p04.png',
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        semanticLabel: '포마펫 앱 아이콘',
+      ),
+      const SizedBox(height: 4),
+      const Text(
+        '포마펫',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: AppColors.actionMint,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+          letterSpacing: -.4,
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }

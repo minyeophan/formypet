@@ -52,6 +52,7 @@ class AppIcon extends StatelessWidget {
     Icons.save: 'assets/icons/common_save.svg',
     Icons.save_outlined: 'assets/icons/common_save.svg',
     Icons.check_rounded: 'assets/icons/common_check.svg',
+    Icons.checklist_rounded: 'assets/icons/home_routine.svg',
     Icons.calendar_today_rounded: 'assets/icons/common_calendar.svg',
     Icons.event_note_rounded: 'assets/icons/common_calendar.svg',
     Icons.close: 'assets/icons/ui_close.svg',

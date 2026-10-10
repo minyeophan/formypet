@@ -78,12 +78,18 @@ void main() {
 
     final readAll = find.widgetWithText(TextButton, '모두 읽음');
     expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
-    expect(find.byType(CircleAvatar), findsNWidgets(2));
+    expect(
+      tester.widget<Text>(find.text('루틴 알림')).style?.fontWeight,
+      FontWeight.w700,
+    );
     await tester.tap(readAll);
     await tester.pumpAndSettle();
 
     expect(service.markAllReadCalls, 1);
-    expect(find.byType(CircleAvatar), findsNothing);
+    expect(
+      tester.widget<Text>(find.text('루틴 알림')).style?.fontWeight,
+      FontWeight.w500,
+    );
     expect(tester.widget<TextButton>(readAll).onPressed, isNull);
     expect(find.text('산책할 시간이에요'), findsOneWidget);
     expect(find.text('게시글에 좋아요가 있어요'), findsOneWidget);

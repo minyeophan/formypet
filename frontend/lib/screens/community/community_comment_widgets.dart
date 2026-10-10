@@ -2,13 +2,12 @@ import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/visuals/app_visual_id.dart';
 import '../../models/post.dart';
 
 import '../../widgets/app_more_button.dart';
 import '../../widgets/app_text.dart';
-import '../../widgets/app_visual.dart';
 import '../../widgets/authenticated_network_image.dart';
+import '../../widgets/default_profile_avatar.dart';
 
 bool canManageCommunityComment({
   required String? currentUserId,
@@ -35,16 +34,10 @@ class CommunityCommentAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Material(
-      color: fallbackColor ?? AppColors.surfaceSoft,
-      shape: const CircleBorder(),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: const Center(
-          child: AppVisual(id: AppVisualId.communityPaw, size: 16),
-        ),
-      ),
+    final fallback = DefaultProfileAvatar(
+      size: size,
+      backgroundColor: fallbackColor ?? AppColors.surfaceSoft,
+      iconColor: AppColors.textSecondary,
     );
     if (url == null || url!.isEmpty) return fallback;
     return ClipOval(

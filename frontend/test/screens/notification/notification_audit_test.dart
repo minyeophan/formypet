@@ -93,11 +93,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.textContaining('모두 읽음 처리하지 못했어요'), findsOneWidget);
-    expect(find.byType(CircleAvatar), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('알림 1')).style?.fontWeight,
+      FontWeight.w700,
+    );
     fail = false;
     await tester.tap(find.text('모두 읽음'));
     await tester.pumpAndSettle();
-    expect(find.byType(CircleAvatar), findsNothing);
+    expect(
+      tester.widget<Text>(find.text('알림 1')).style?.fontWeight,
+      FontWeight.w500,
+    );
   });
 
   for (final schedule in [false, true]) {

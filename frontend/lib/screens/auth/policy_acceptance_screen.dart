@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../../core/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/policy_service.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/app_text.dart';
 import 'policy_consent_dialog.dart';
 
 class PolicyAcceptanceScreen extends ConsumerStatefulWidget {
@@ -91,23 +95,28 @@ class _PolicyAcceptanceState extends ConsumerState<PolicyAcceptanceScreen> {
   );
 }
 
-class PolicyHistoryScreen extends StatefulWidget {
+class PolicyHistoryScreen extends ConsumerStatefulWidget {
   const PolicyHistoryScreen({super.key});
   @override
-  State<PolicyHistoryScreen> createState() => _PolicyHistoryState();
+  ConsumerState<PolicyHistoryScreen> createState() => _PolicyHistoryState();
 }
 
-class _PolicyHistoryState extends State<PolicyHistoryScreen> {
+class _PolicyHistoryState extends ConsumerState<PolicyHistoryScreen> {
   late Future<List<dynamic>> _history;
   @override
   void initState() {
     super.initState();
-    _history = PolicyService().history();
+    _history = ref.read(policyServiceProvider).history();
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('나의 동의 이력')),
+    backgroundColor: AppColors.background,
+    appBar: AppHeader(
+      title: '나의 동의 이력',
+      showBackButton: true,
+      onBack: () => context.pop(),
+    ),
     body: FutureBuilder<List<dynamic>>(
       future: _history,
       builder: (context, snapshot) {
@@ -116,16 +125,28 @@ class _PolicyHistoryState extends State<PolicyHistoryScreen> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: TextButton(
-              onPressed: () =>
-                  setState(() => _history = PolicyService().history()),
-              child: const Text('다시 시도'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppText(
+                  '동의 이력을 불러오지 못했어요',
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => setState(
+                    () => _history = ref.read(policyServiceProvider).history(),
+                  ),
+                  child: const Text('다시 시도'),
+                ),
+              ],
             ),
           );
         }
-        if (snapshot.data!.isEmpty) {
+        final history = snapshot.data ?? const <dynamic>[];
+        if (history.isEmpty) {
           return const Center(
-            child: Text('저장된 동의 이력이 없습니다. 과거 동의를 추정하지 않습니다.'),
+            child: AppText('아직 동의 이력이 없어요', color: AppColors.textSecondary),
           );
         }
         const labels = {
@@ -134,17 +155,54 @@ class _PolicyHistoryState extends State<PolicyHistoryScreen> {
           'NOTICE_ACKNOWLEDGED': '처리방침 안내 확인',
         };
         return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            for (final item in snapshot.data!)
-              ListTile(
-                title: Text(
-                  labels[item['action']] ?? item['action'].toString(),
+            for (final item in history)
+              Card(
+                color: AppColors.surface,
+                elevation: 0,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.border),
                 ),
-                subtitle: Text(
-                  '${item['document_version']} · ${item['recorded_at']}',
-                ),
-                onTap: () => context.push(
-                  '/policies/${Uri.encodeComponent(item['document_type'] as String)}/${Uri.encodeComponent(item['document_version'] as String)}',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => context.push(
+                    '/policies/${Uri.encodeComponent(item['document_type'] as String)}/${Uri.encodeComponent(item['document_version'] as String)}',
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(
+                          labels[item['action']] ?? item['action'].toString(),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                        const SizedBox(height: 8),
+                        AppText(
+                          '${_policyTypeLabel(item['document_type'])} · ${item['document_version']}',
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: AppText(
+                            _formatRecordedAt(item['recorded_at']),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -152,4 +210,18 @@ class _PolicyHistoryState extends State<PolicyHistoryScreen> {
       },
     ),
   );
+}
+
+String _policyTypeLabel(dynamic type) => switch (type) {
+  'terms' => '약관',
+  'privacy' => '개인정보 처리방침',
+  'account-deletion.html' => '회원 탈퇴 안내',
+  _ => type?.toString() ?? '정책',
+};
+
+String _formatRecordedAt(dynamic value) {
+  if (value is! String) return value?.toString() ?? '';
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return value;
+  return DateFormat('yyyy.MM.dd · HH:mm').format(parsed.toLocal());
 }

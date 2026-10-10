@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/widgets/app_ink_well.dart';
 import 'package:frontend/models/activity_record.dart';
@@ -54,6 +55,33 @@ void main() {
     expect(find.text('변 상태'), findsNothing);
     for (final label in ['투명', '연노랑', '노랑', '진노랑', '붉은색', '갈색']) {
       expect(find.text(label), findsWidgets);
+    }
+  });
+
+  testWidgets('urine color icons render larger than the flat puddle artwork', (
+    tester,
+  ) async {
+    await _pumpCategoryRoute(tester, '/records/poop/new');
+
+    await tester.tap(find.byKey(const Key('category-poop-kind-urine')));
+    await tester.pump();
+
+    for (final color in [
+      'clear',
+      'lightYellow',
+      'yellow',
+      'darkYellow',
+      'red',
+      'brown',
+    ]) {
+      final icon = tester.widget<SvgPicture>(
+        find.descendant(
+          of: find.byKey(ValueKey('category-poop-color-$color')),
+          matching: find.byType(SvgPicture),
+        ),
+      );
+      expect(icon.width, 40);
+      expect(icon.height, 40);
     }
   });
 

@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/api_client.dart';
 import 'package:frontend/core/app_v2_tokens.dart';
-import 'package:frontend/core/visuals/app_visual_id.dart';
 import 'package:frontend/models/post.dart';
 import 'package:frontend/models/user_profile.dart';
 import 'package:frontend/providers/auth_provider.dart';
@@ -18,7 +17,7 @@ import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/screens/community/community_detail_screen.dart';
 import 'package:frontend/services/community_service.dart';
 
-import '../../support/app_visual_finder.dart';
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:frontend/widgets/authenticated_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -539,7 +538,7 @@ void main() {
     expect(image.url, '/api/v1/users/1/profile-image');
   });
 
-  testWidgets('uses paw fallback when comment avatar url is missing', (
+  testWidgets('uses person fallback when comment avatar url is missing', (
     tester,
   ) async {
     await _pumpDetail(
@@ -550,7 +549,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('community-comment-avatar-one')),
-        matching: findAppVisual(AppVisualId.communityPaw),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is AppIcon && widget.icon == Icons.person_outline_rounded,
+        ),
       ),
       findsOneWidget,
     );

@@ -681,7 +681,7 @@ class _SelectedDateRecordRow extends StatelessWidget {
               const AppIcon(
                 Icons.chevron_right_rounded,
                 color: AppColors.muted,
-                size: 22,
+                size: 16,
               ),
             ],
           ),
