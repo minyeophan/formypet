@@ -370,7 +370,7 @@ class _CalendarDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSelected
-        ? AppColors.white
+        ? AppColors.onPrimary
         : inMonth
         ? AppColors.text
         : AppColors.muted;
@@ -419,7 +419,9 @@ class _CalendarDayCell extends StatelessWidget {
                           width: 5,
                           height: 5,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.white : accentColor,
+                            color: isSelected
+                                ? AppColors.onPrimary
+                                : accentColor,
                             shape: BoxShape.circle,
                           ),
                         )
@@ -800,7 +802,7 @@ class _GrowthChartCard extends StatelessWidget {
             LineChartBarData(
               spots: spots,
               isCurved: true,
-              color: AppColors.primary,
+              color: AppColors.primaryText,
               barWidth: 3,
               dotData: const FlDotData(show: true),
               belowBarData: BarAreaData(

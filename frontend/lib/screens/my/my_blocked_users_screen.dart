@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/blocked_users_provider.dart';
 import '../../services/community_safety_service.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_success_toast.dart';
 import '../../widgets/user_block_sheet.dart';
 
 class MyBlockedUsersScreen extends ConsumerWidget {
@@ -23,9 +24,7 @@ class MyBlockedUsersScreen extends ConsumerWidget {
         ref.read(authProvider).profile?.id != actor) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('차단을 해제했어요.')));
+    showAppSuccessToast(context, '차단을 해제했어요.');
   }
 
   @override
@@ -81,7 +80,7 @@ class MyBlockedUsersScreen extends ConsumerWidget {
                             backgroundColor: AppV2Tokens.mintSurface,
                             child: Icon(
                               Icons.person_outline,
-                              color: AppV2Tokens.primary,
+                              color: AppV2Tokens.primaryText,
                             ),
                           ),
                           title: Text(user.nickname),

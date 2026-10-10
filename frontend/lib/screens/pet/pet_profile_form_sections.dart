@@ -336,7 +336,7 @@ class _BottomSubmitButton extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
+                  foregroundColor: AppColors.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -347,13 +347,13 @@ class _BottomSubmitButton extends StatelessWidget {
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.white,
+                          color: AppColors.onPrimary,
                         ),
                       )
                     : AppText(
                         label,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.white,
+                        color: AppColors.onPrimary,
                       ),
               ),
             ),

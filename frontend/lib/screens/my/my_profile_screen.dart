@@ -322,7 +322,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
                       key: const Key('my-profile-photo-picker'),
                       onPressed: _isSaving ? null : _pickPhoto,
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
+                        foregroundColor: AppColors.primaryText,
                       ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                       child: const AppText('사진 선택'),
                     ),
@@ -353,9 +353,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
                     onPressed: _isSaving ? null : _save,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
+                      foregroundColor: AppColors.onPrimary,
                     ).copyWith(overlayColor: AppInteractionStyle.overlay()),
-                    child: const AppText('저장', color: AppColors.white),
+                    child: const AppText('저장', color: AppColors.onPrimary),
                   ),
                 ],
               ),

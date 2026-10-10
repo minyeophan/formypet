@@ -73,7 +73,7 @@ void main() {
     await pump(
       tester,
       MealRecordScreen(
-        pickImageForTest: () async => photo,
+        pickImageForTest: (_) async => photo,
         prepareImage: (file) async => PreparedPhoto(
           await file.readAsBytes(),
           'local-test.jpg',
@@ -304,7 +304,7 @@ void main() {
     final photo = Completer<XFile?>();
     await pump(
       tester,
-      MealRecordScreen(pickImageForTest: () => photo.future),
+      MealRecordScreen(pickImageForTest: (_) => photo.future),
       notifier: notifier,
     );
     await tester.tap(find.byKey(const Key('meal-photo-button')));

@@ -548,7 +548,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: const BorderSide(
-                            color: AppV2Tokens.primary,
+                            color: AppV2Tokens.primaryText,
                             width: 2,
                           ),
                         ),
@@ -587,7 +587,7 @@ class CommunityCommentsComposer extends StatelessWidget {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: AppV2Tokens.primary,
+                                  color: AppV2Tokens.primaryText,
                                 ),
                               )
                             : const AppIcon(Icons.send_rounded),

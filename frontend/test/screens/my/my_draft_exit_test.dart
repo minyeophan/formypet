@@ -176,7 +176,7 @@ void main() {
         );
         tester.widget<AppHeader>(find.byType(AppHeader)).onBack!();
         await tester.pumpAndSettle();
-        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.byType(BottomSheet), findsOneWidget);
         await tester.tap(find.text('계속 입력'));
         await tester.pumpAndSettle();
         expect(find.text('draft'), findsOneWidget);

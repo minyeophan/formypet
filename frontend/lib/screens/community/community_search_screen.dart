@@ -198,7 +198,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 hintText: '게시글을 검색해 보세요',
                 prefixIcon: const AppIcon(
                   Icons.search_rounded,
-                  color: AppV2Tokens.primary,
+                  color: AppV2Tokens.primaryText,
                 ),
                 suffixIcon: IconButton(
                   tooltip: '검색어 지우기',
@@ -237,6 +237,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> {
                 key: const Key('community-search-submit-button'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppV2Tokens.primary,
+                  foregroundColor: AppV2Tokens.onPrimary,
                 ).copyWith(overlayColor: AppInteractionStyle.overlay()),
                 onPressed: _search,
                 child: const Text('검색'),

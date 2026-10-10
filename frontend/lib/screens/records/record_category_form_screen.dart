@@ -1154,7 +1154,7 @@ class _SegmentButton extends StatelessWidget {
               label,
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: selected ? AppColors.primaryPressed : AppColors.text,
+              color: selected ? AppColors.primaryText : AppColors.text,
             ),
           ),
         ),

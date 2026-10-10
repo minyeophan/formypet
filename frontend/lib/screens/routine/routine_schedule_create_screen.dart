@@ -290,12 +290,12 @@ class _RoutineScheduleCreateScreenState
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),
                         backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
+                        foregroundColor: AppColors.onPrimary,
                         disabledBackgroundColor: _saving
                             ? AppColors.primary
                             : AppColors.surfaceSoft,
                         disabledForegroundColor: _saving
-                            ? AppColors.white
+                            ? AppColors.onPrimary
                             : AppColors.muted,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -307,7 +307,7 @@ class _RoutineScheduleCreateScreenState
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.white,
+                                color: AppColors.onPrimary,
                               ),
                             )
                           : AppText(
@@ -315,7 +315,7 @@ class _RoutineScheduleCreateScreenState
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: _canSave
-                                  ? AppColors.white
+                                  ? AppColors.onPrimary
                                   : AppColors.muted,
                             ),
                     ),

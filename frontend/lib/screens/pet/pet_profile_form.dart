@@ -610,7 +610,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
                             const Expanded(
                               child: AppText(
                                 '추가 정보 (선택)',
-                                color: AppColors.primary,
+                                color: AppColors.primaryText,
                               ),
                             ),
                             AppIcon(

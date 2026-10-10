@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import '../../services/photo_preparation.dart';
 import '../../widgets/draft_exit_guard.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter/cupertino.dart';
@@ -127,8 +128,44 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
       _showImageLimit();
       return;
     }
+    ImageSource? source;
+    await showAppActionSheet(
+      context,
+      title: '사진 추가',
+      closeLabel: '취소',
+      actions: [
+        AppActionSheetItem(
+          key: const Key('photo-source-gallery'),
+          label: '사진 보관함',
+          description: '저장된 사진에서 선택',
+          icon: Icons.image_outlined,
+          showChevron: true,
+          onTap: () => source = ImageSource.gallery,
+        ),
+        AppActionSheetItem(
+          key: const Key('photo-source-camera'),
+          label: '카메라',
+          description: '지금 촬영해서 추가',
+          icon: Icons.photo_camera_outlined,
+          showChevron: true,
+          onTap: () => source = ImageSource.camera,
+        ),
+      ],
+    );
+    if (!mounted ||
+        source == null ||
+        _sessionChanged ||
+        _identity != identity ||
+        _isLoading ||
+        generation != _pickerGeneration) {
+      return;
+    }
     try {
-      final picked = await _imagePicker.pickMultiImage();
+      final picked = source == ImageSource.camera
+          ? await _imagePicker
+                .pickImage(source: ImageSource.camera)
+                .then((image) => image == null ? <XFile>[] : [image])
+          : await _imagePicker.pickMultiImage();
       if (!mounted ||
           _sessionChanged ||
           _identity != identity ||
@@ -443,7 +480,7 @@ class _WriteScreenState extends ConsumerState<WriteScreen>
                               : AppText(
                                   widget.editingPost == null ? '등록' : '저장',
                                   fontSize: 14,
-                                  color: AppColors.primary,
+                                  color: AppColors.primaryText,
                                   fontWeight: FontWeight.bold,
                                 ),
                         ),
@@ -727,7 +764,7 @@ class _CategoryWheelSheetState extends State<_CategoryWheelSheet> {
                     child: const AppText(
                       '완료',
                       fontSize: 14,
-                      color: AppColors.primary,
+                      color: AppColors.primaryText,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

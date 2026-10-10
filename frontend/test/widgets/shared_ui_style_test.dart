@@ -11,6 +11,39 @@ import 'package:google_fonts/google_fonts.dart';
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
+  test('primary colors keep readable contrast on light and mint surfaces', () {
+    double contrastRatio(Color foreground, Color background) {
+      final foregroundLuminance = foreground.computeLuminance();
+      final backgroundLuminance = background.computeLuminance();
+      return (foregroundLuminance > backgroundLuminance
+              ? foregroundLuminance + 0.05
+              : backgroundLuminance + 0.05) /
+          (foregroundLuminance > backgroundLuminance
+              ? backgroundLuminance + 0.05
+              : foregroundLuminance + 0.05);
+    }
+
+    expect(
+      contrastRatio(AppColors.onPrimary, AppColors.primary),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrastRatio(AppColors.onPrimary, AppColors.primaryPressed),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrastRatio(AppColors.primaryText, AppColors.surface),
+      greaterThanOrEqualTo(4.5),
+    );
+
+    final theme = buildAppTheme();
+    expect(theme.colorScheme.onPrimary, AppColors.onPrimary);
+    expect(
+      theme.filledButtonTheme.style!.foregroundColor!.resolve({}),
+      AppColors.onPrimary,
+    );
+  });
+
   testWidgets('shared header action is tappable at the edge of a 44px target', (
     tester,
   ) async {

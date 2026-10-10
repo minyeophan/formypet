@@ -32,7 +32,7 @@ class ExpenseWalletScreen extends ConsumerWidget {
             key: const Key('wallet-add-button'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),

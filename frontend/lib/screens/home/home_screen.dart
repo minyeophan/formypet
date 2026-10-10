@@ -208,7 +208,11 @@ class _HomeHeader extends ConsumerWidget {
     return AppHeader(
       key: const Key('home-v2-header'),
       title: 'ForMyPet',
-      leading: const AppIcon(Icons.pets, color: AppV2Tokens.primary, size: 25),
+      leading: const AppIcon(
+        Icons.pets,
+        color: AppV2Tokens.primaryText,
+        size: 25,
+      ),
       actions: [
         AppHeaderIconButton(
           key: const Key('home-notification-button'),
@@ -338,7 +342,7 @@ class _PetProfileCard extends StatelessWidget {
                       id: AppVisualId.recordWeight,
                       size: 24,
                     ),
-                    color: AppV2Tokens.primary,
+                    color: AppV2Tokens.primaryText,
                   ),
                 ],
               ),
@@ -536,7 +540,7 @@ class _NewsCard extends StatelessWidget {
                   child: const AppIcon(
                     Icons.image_outlined,
                     size: 28,
-                    color: AppV2Tokens.primary,
+                    color: AppV2Tokens.primaryText,
                   ),
                 ),
               ),
