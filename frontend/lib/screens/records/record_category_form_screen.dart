@@ -4,6 +4,7 @@ import '../../widgets/pet_data_status.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -1023,6 +1024,8 @@ class _OptionGrid extends StatelessWidget {
         return _OptionCard(
           key: Key('$keyPrefix-${option.value}'),
           label: option.label,
+          iconAsset: option.iconAsset,
+          iconSize: option.iconSize,
           selected: selectedValue == option.value,
           onTap: () => onSelected(option.value),
         );
@@ -1035,12 +1038,16 @@ class _OptionCard extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final String? iconAsset;
+  final double iconSize;
 
   const _OptionCard({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.iconAsset,
+    this.iconSize = 28,
   });
 
   @override
@@ -1063,13 +1070,35 @@ class _OptionCard extends StatelessWidget {
                 width: 1.5,
               ),
             ),
-            child: AppText(
-              label,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text,
-              textAlign: TextAlign.center,
-            ),
+            child: iconAsset == null
+                ? AppText(
+                    label,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                    textAlign: TextAlign.center,
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SvgPicture.asset(
+                        iconAsset!,
+                        width: iconSize,
+                        height: iconSize,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: AppText(
+                          label,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -1184,8 +1213,15 @@ class _CategoryConfig {
 class _Option {
   final String value;
   final String label;
+  final String? iconAsset;
+  final double iconSize;
 
-  const _Option(this.value, this.label);
+  const _Option(
+    this.value,
+    this.label, {
+    this.iconAsset,
+    this.iconSize = 28,
+  });
 }
 
 const _poopShapeOptions = [
@@ -1195,21 +1231,55 @@ const _poopShapeOptions = [
 ];
 
 const _stoolColorOptions = [
-  _Option('brown', '갈색'),
-  _Option('lightBrown', '연갈색'),
-  _Option('red', '붉은색'),
-  _Option('black', '검은색'),
-  _Option('green', '녹색'),
-  _Option('other', '기타'),
+  _Option('brown', '갈색', iconAsset: 'assets/icons/record_poop_brown.svg'),
+  _Option(
+    'lightBrown',
+    '연갈색',
+    iconAsset: 'assets/icons/record_poop_lightBrown.svg',
+  ),
+  _Option('red', '붉은색', iconAsset: 'assets/icons/record_poop_red.svg'),
+  _Option('black', '검은색', iconAsset: 'assets/icons/record_poop_black.svg'),
+  _Option('green', '녹색', iconAsset: 'assets/icons/record_poop_green.svg'),
+  _Option('other', '기타', iconAsset: 'assets/icons/record_poop_other.svg'),
 ];
 
 const _urineColorOptions = [
-  _Option('clear', '투명'),
-  _Option('lightYellow', '연노랑'),
-  _Option('yellow', '노랑'),
-  _Option('darkYellow', '진노랑'),
-  _Option('red', '붉은색'),
-  _Option('brown', '갈색'),
+  _Option(
+    'clear',
+    '투명',
+    iconAsset: 'assets/icons/record_urine_clear.svg',
+    iconSize: 40,
+  ),
+  _Option(
+    'lightYellow',
+    '연노랑',
+    iconAsset: 'assets/icons/record_urine_lightYellow.svg',
+    iconSize: 40,
+  ),
+  _Option(
+    'yellow',
+    '노랑',
+    iconAsset: 'assets/icons/record_urine_yellow.svg',
+    iconSize: 40,
+  ),
+  _Option(
+    'darkYellow',
+    '진노랑',
+    iconAsset: 'assets/icons/record_urine_darkYellow.svg',
+    iconSize: 40,
+  ),
+  _Option(
+    'red',
+    '붉은색',
+    iconAsset: 'assets/icons/record_urine_red.svg',
+    iconSize: 40,
+  ),
+  _Option(
+    'brown',
+    '갈색',
+    iconAsset: 'assets/icons/record_urine_brown.svg',
+    iconSize: 40,
+  ),
 ];
 
 _CategoryConfig _categoryConfig(String typeId) {

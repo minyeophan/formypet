@@ -42,6 +42,15 @@ void main() {
 
     final text = tester.widget<AppText>(find.widgetWithText(AppText, '신고하기'));
     expect(text.color, AppColors.danger);
+    final button = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byKey(const Key('report-action')),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect(button.constraints?.minHeight, 48);
   });
 
   testWidgets('close tap only dismisses the sheet', (tester) async {

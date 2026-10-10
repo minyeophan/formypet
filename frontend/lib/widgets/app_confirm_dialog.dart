@@ -50,47 +50,80 @@ class AppConfirmDialog extends StatelessWidget {
               const SizedBox(height: 10),
               AppText(body, fontSize: 14, color: AppColors.textSecondary),
               const SizedBox(height: 22),
-              OverflowBar(
-                alignment: MainAxisAlignment.end,
-                spacing: 8,
-                overflowSpacing: 8,
-                overflowAlignment: OverflowBarAlignment.end,
-                children: [
-                  for (final action in actions)
-                    TextButton(
-                      onPressed: action.onPressed,
-                      style:
-                          TextButton.styleFrom(
-                            backgroundColor: AppColors.surfaceSoft,
-                            foregroundColor: action.isDanger
-                                ? AppColors.danger
-                                : AppColors.text,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                            minimumSize: const Size(64, 48),
-                            shape: const StadiumBorder(),
-                          ).copyWith(
-                            overlayColor: AppInteractionStyle.overlay(
-                              danger: action.isDanger,
-                            ),
-                          ),
-                      child: AppText(
-                        action.label,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        textAlign: TextAlign.center,
-                        color: action.isDanger
-                            ? AppColors.danger
-                            : AppColors.text,
-                      ),
-                    ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stack =
+                      constraints.maxWidth < 280 ||
+                      MediaQuery.textScalerOf(context).scale(14) > 19;
+                  final buttons = [
+                    for (final action in actions)
+                      Expanded(child: _ConfirmActionButton(action: action)),
+                  ];
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < actions.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 8),
+                          _ConfirmActionButton(action: actions[i]),
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      for (var i = 0; i < buttons.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        buttons[i],
+                      ],
+                    ],
+                  );
+                },
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ConfirmActionButton extends StatelessWidget {
+  final AppConfirmDialogAction action;
+
+  const _ConfirmActionButton({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: action.onPressed,
+      style:
+          TextButton.styleFrom(
+            backgroundColor: action.isDanger
+                ? AppColors.dangerSoft
+                : AppColors.surfaceSoft,
+            foregroundColor: action.isDanger
+                ? AppColors.danger
+                : AppColors.text,
+            side: BorderSide(
+              color: action.isDanger
+                  ? AppColors.dangerBorder
+                  : AppColors.border,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            minimumSize: const Size(64, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ).copyWith(
+            overlayColor: AppInteractionStyle.overlay(danger: action.isDanger),
+          ),
+      child: AppText(
+        action.label,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        textAlign: TextAlign.center,
+        color: action.isDanger ? AppColors.danger : AppColors.text,
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../../models/notification.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/pet_provider.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/app_icon.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -260,6 +261,15 @@ class _NotificationTile extends StatelessWidget {
     };
   }
 
+  IconData get _icon => switch (item.type) {
+    'COMMENT' || 'REPLY' => Icons.chat_bubble_outline_rounded,
+    'POST_LIKE' => Icons.favorite_border_rounded,
+    'POLL_VOTE' => Icons.poll_outlined,
+    'ROUTINE_REMINDER' => Icons.checklist_rounded,
+    'CARE_SCHEDULE_REMINDER' => Icons.event_note_rounded,
+    _ => Icons.notifications_none_rounded,
+  };
+
   @override
   Widget build(BuildContext context) {
     final time = item.createdAt == null
@@ -271,43 +281,63 @@ class _NotificationTile extends StatelessWidget {
       child: AppInkWell(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: AppV2Tokens.border)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      _title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        fontWeight: item.isRead
-                            ? FontWeight.w500
-                            : FontWeight.w700,
-                        color: AppV2Tokens.text,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: AppIcon(
+                      _icon,
+                      size: 28,
+                      color: item.type == 'POST_LIKE'
+                          ? AppV2Tokens.error
+                          : AppV2Tokens.textSecondary,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (!item.isRead) ...[
-                    Semantics(
-                      label: '읽지 않음',
-                      child: const CircleAvatar(
-                        radius: 3,
-                        backgroundColor: AppV2Tokens.primary,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          label: item.isRead ? null : '읽지 않음',
+                          child: Text(
+                            _title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              fontWeight: item.isRead
+                                  ? FontWeight.w500
+                                  : FontWeight.w700,
+                              color: AppV2Tokens.text,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.body,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: AppV2Tokens.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (time != null) ...[
                     const SizedBox(width: 8),
-                  ],
-                  if (time != null)
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 72),
                       child: Text(
                         time,
                         textAlign: TextAlign.right,
@@ -318,16 +348,8 @@ class _NotificationTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
                 ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.body,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: AppV2Tokens.textSecondary,
-                ),
               ),
             ],
           ),

@@ -29,10 +29,11 @@ Future<void> showAppActionSheet(
     context: context,
     useRootNavigator: true,
     isScrollControlled: true,
+    showDragHandle: true,
     constraints: const BoxConstraints(maxWidth: 600),
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (sheetContext) => SafeArea(
       child: SingleChildScrollView(
@@ -43,55 +44,82 @@ Future<void> showAppActionSheet(
             AppText(title, fontWeight: FontWeight.w700),
             const SizedBox(height: 18),
             for (final action in actions)
-              Theme(
-                data: Theme.of(sheetContext).copyWith(
-                  hoverColor: Colors.transparent,
-                  focusColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  splashColor:
-                      (action.destructive
-                              ? AppColors.danger
-                              : AppColors.primary)
-                          .withValues(alpha: .10),
-                ),
-                child: AppFocusIndicator(
-                  child: ListTile(
-                    key: action.key,
-                    hoverColor: Colors.transparent,
-                    focusColor: Colors.transparent,
-                    title: Center(
-                      child: AppText(
-                        action.label,
-                        color: action.destructive ? AppColors.danger : null,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      action.onTap?.call();
-                    },
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _ActionButton(
+                  key: action.key,
+                  label: action.label,
+                  destructive: action.destructive,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    action.onTap?.call();
+                  },
                 ),
               ),
-            Theme(
-              data: Theme.of(sheetContext).copyWith(
-                hoverColor: Colors.transparent,
-                focusColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                splashColor: AppColors.primary.withValues(alpha: .10),
-              ),
-              child: AppFocusIndicator(
-                child: ListTile(
-                  key: const Key('app-action-sheet-close'),
-                  hoverColor: Colors.transparent,
-                  focusColor: Colors.transparent,
-                  title: Center(child: AppText(closeLabel)),
-                  onTap: () => Navigator.of(sheetContext).pop(),
-                ),
-              ),
+            _ActionButton(
+              key: const Key('app-action-sheet-close'),
+              label: closeLabel,
+              onTap: () => Navigator.of(sheetContext).pop(),
             ),
           ],
         ),
       ),
     ),
   );
+}
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final bool destructive;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final background = destructive
+        ? AppColors.dangerSoft
+        : AppColors.surfaceSoft;
+    final border = destructive ? AppColors.dangerBorder : AppColors.border;
+    final foreground = destructive ? AppColors.danger : AppColors.textSecondary;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: (destructive ? AppColors.danger : AppColors.primary)
+            .withValues(alpha: .10),
+      ),
+      child: AppFocusIndicator(
+        child: Material(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            hoverColor: Colors.transparent,
+            onTap: onTap,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: border),
+              ),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: AppText(
+                label,
+                color: foreground,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

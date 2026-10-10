@@ -61,7 +61,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.runAsync(() => GoogleFonts.pendingFonts());
     await tester.pumpAndSettle();
-    final tile = find.widgetWithText(ListTile, 'Delete');
+    final tile = find.text('Delete');
     final before = await _pixels(tester);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
@@ -114,11 +114,12 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    final size = tester.getSize(find.widgetWithText(ListTile, 'Delete'));
+    final buttonLabel = find.text('Delete');
+    final size = tester.getSize(buttonLabel);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
     expect(_focusedRings, findsOneWidget);
-    expect(tester.getSize(find.widgetWithText(ListTile, 'Delete')), size);
+    expect(tester.getSize(buttonLabel), size);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(calls, 1);

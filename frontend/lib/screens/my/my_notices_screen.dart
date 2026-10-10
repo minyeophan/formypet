@@ -22,8 +22,6 @@ class MyNoticesScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
-          const MySupportLead('서비스 변경, 점검, 새 기능 소식을 시간순으로 확인합니다.'),
-          const SizedBox(height: 14),
           const MySupportSectionTitle('최근 공지'),
           const SizedBox(height: 10),
           if (myNotices.isEmpty)
