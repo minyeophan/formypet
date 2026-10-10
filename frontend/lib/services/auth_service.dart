@@ -176,7 +176,8 @@ class AuthService {
           return null;
         }
       } catch (e) {
-        final accountNotConnected = e is PlatformException &&
+        final accountNotConnected =
+            e is PlatformException &&
             e.code == 'NotSupportError' &&
             (e.message?.toLowerCase().contains(
                   'not connected to kakao account',
@@ -221,8 +222,10 @@ class AuthService {
   }
 
   Future<UserProfile> updateProfile({required String nickname}) async {
+    final session = _session;
     final res = await dio.patch(
       '/api/v1/users/me',
+      options: Options(extra: {'_isRequestCurrent': () => session == _session}),
       data: {'nickname': nickname},
     );
     return UserProfile.fromJson(unwrap(res) as Map<String, dynamic>);
@@ -231,12 +234,25 @@ class AuthService {
   Future<UserProfile> uploadProfileImage({
     required Uint8List bytes,
     required String filename,
+    String? mimeType,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     final res = await dio.post(
       '/api/v1/users/me/profile-image',
       data: FormData.fromMap({
-        'file': MultipartFile.fromBytes(bytes, filename: filename),
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: filename,
+          contentType: mimeType == null ? null : DioMediaType.parse(mimeType),
+        ),
       }),
+      options: Options(
+        extra: {'_isRequestCurrent': isCurrent},
+        headers: idempotencyKey == null
+            ? null
+            : {'Idempotency-Key': idempotencyKey},
+      ),
     );
     return UserProfile.fromJson(unwrap(res) as Map<String, dynamic>);
   }

@@ -1,4 +1,5 @@
-import 'package:frontend/widgets/app_icon.dart';
+import 'package:image/image.dart' as img;
+import 'package:frontend/services/photo_preparation.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -124,8 +125,12 @@ void main() {
     await _pump(
       tester,
       MyProfileScreen(
-        pickImage: () async =>
-            XFile.fromData(Uint8List.fromList(_png), name: 'profile.png'),
+        prepareImage: _prepareFixture,
+        pickImage: () async => XFile.fromData(
+          Uint8List.fromList(_png),
+          name: 'profile.png',
+          path: 'profile.png',
+        ),
       ),
     );
 
@@ -171,8 +176,12 @@ void main() {
       await _pump(
         tester,
         MyProfileScreen(
-          pickImage: () async =>
-              XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+          prepareImage: _prepareFixture,
+          pickImage: () async => XFile.fromData(
+            Uint8List.fromList(_png),
+            name: 'portrait.png',
+            path: 'portrait.png',
+          ),
         ),
         authService: service,
       );
@@ -188,7 +197,7 @@ void main() {
   );
 
   testWidgets(
-    'profile photo upload failure keeps the newly saved nickname and clears local preview',
+    'profile photo upload failure keeps the newly saved nickname and local preview for retry',
     (tester) async {
       final service = _FakeAuthService(
         updateProfileResult: _renamedProfile,
@@ -197,8 +206,12 @@ void main() {
       await _pump(
         tester,
         MyProfileScreen(
-          pickImage: () async =>
-              XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+          prepareImage: _prepareFixture,
+          pickImage: () async => XFile.fromData(
+            Uint8List.fromList(_png),
+            name: 'portrait.png',
+            path: 'portrait.png',
+          ),
         ),
         authService: service,
       );
@@ -210,14 +223,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(service.operations, ['nickname', 'photo']);
-      expect(find.byKey(const Key('my-profile-local-preview')), findsNothing);
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is AppIcon && widget.icon == Icons.person_outline_rounded,
-        ),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('my-profile-local-preview')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('my-profile-save')));
+      await tester.pumpAndSettle();
+      expect(service.operations, ['nickname', 'photo', 'photo']);
+      expect(service.uploadKeys.first, isNotEmpty);
+      expect(service.uploadKeys, [
+        service.uploadKeys.first,
+        service.uploadKeys.first,
+      ]);
     },
   );
 
@@ -230,8 +244,12 @@ void main() {
     await _pump(
       tester,
       MyProfileScreen(
-        pickImage: () async =>
-            XFile.fromData(Uint8List.fromList(_png), name: 'portrait.webp'),
+        prepareImage: _prepareFixture,
+        pickImage: () async => XFile.fromData(
+          Uint8List.fromList(_png),
+          name: 'portrait.png',
+          path: 'portrait.png',
+        ),
       ),
       authService: service,
     );
@@ -604,6 +622,7 @@ Pet _pet(String id) => Pet(
 );
 
 class _FakeAuthService extends AuthService {
+  final uploadKeys = <String?>[];
   Completer<void>? logoutCompleter;
   int logoutCalls = 0;
   final UserProfile? updateProfileResult;
@@ -640,8 +659,12 @@ class _FakeAuthService extends AuthService {
   Future<UserProfile> uploadProfileImage({
     required Uint8List bytes,
     required String filename,
+    String? mimeType,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     operations.add('photo');
+    uploadKeys.add(idempotencyKey);
     uploadedFilename = filename;
     if (uploadProfileImageError != null) throw uploadProfileImageError!;
     return uploadProfileImageResult ?? _profileWithPhoto;
@@ -661,73 +684,7 @@ const _profileWithPhoto = UserProfile(
   profileImageUrl: '/api/v1/media/12',
 );
 
-const _png = <int>[
-  137,
-  80,
-  78,
-  71,
-  13,
-  10,
-  26,
-  10,
-  0,
-  0,
-  0,
-  13,
-  73,
-  72,
-  68,
-  82,
-  0,
-  0,
-  0,
-  1,
-  0,
-  0,
-  0,
-  1,
-  8,
-  4,
-  0,
-  0,
-  0,
-  181,
-  28,
-  12,
-  2,
-  0,
-  0,
-  0,
-  11,
-  73,
-  68,
-  65,
-  84,
-  120,
-  218,
-  99,
-  100,
-  248,
-  15,
-  0,
-  1,
-  5,
-  1,
-  1,
-  39,
-  24,
-  227,
-  102,
-  0,
-  0,
-  0,
-  0,
-  73,
-  69,
-  78,
-  68,
-  174,
-  66,
-  96,
-  130,
-];
+final _png = img.encodePng(img.Image(width: 2, height: 2));
+
+Future<PreparedPhoto> _prepareFixture(XFile file) async =>
+    preparePhotoBytes(await file.readAsBytes(), file.name);

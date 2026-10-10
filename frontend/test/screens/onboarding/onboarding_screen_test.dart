@@ -1,3 +1,5 @@
+import 'package:frontend/services/photo_preparation.dart';
+import 'package:frontend/services/photo_save_draft.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -161,6 +163,24 @@ class _AddPetNotifier extends PetNotifier {
   _AddPetNotifier(super.initialState) : super.test();
 
   Map<String, dynamic>? createdBody;
+
+  @override
+  Future<void> savePetPhotoDraft(
+    PetPhotoDraft draft,
+    Map<String, dynamic> body, {
+    String? petId,
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) async {
+    if (!current()) return;
+    await addPet(
+      body,
+      photo: photo == null
+          ? null
+          : PetPhotoUpload(bytes: photo.bytes, filename: photo.filename),
+    );
+    draft.savedId = 'saved';
+  }
 
   @override
   Future<void> addPet(

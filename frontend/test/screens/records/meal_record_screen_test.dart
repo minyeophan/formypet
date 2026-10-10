@@ -1,3 +1,6 @@
+import 'package:frontend/services/photo_preparation.dart';
+import 'package:frontend/services/photo_save_draft.dart';
+import 'package:image/image.dart' as img;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -209,7 +212,11 @@ void main() {
         if (attempts++ == 0) {
           throw PlatformException(code: 'photo_access_denied');
         }
-        return XFile('retry.jpg');
+        return XFile.fromData(
+          Uint8List.fromList([1, 2, 3]),
+          name: 'retry.jpg',
+          path: 'retry.jpg',
+        );
       },
     );
     await tester.tap(find.byKey(const Key('meal-photo-button')));
@@ -264,7 +271,13 @@ void main() {
       tester,
       pickImage: () async {
         attempts++;
-        return attempts == 1 ? XFile('kept.jpg') : null;
+        return attempts == 1
+            ? XFile.fromData(
+                Uint8List.fromList([1, 2, 3]),
+                name: 'kept.jpg',
+                path: 'kept.jpg',
+              )
+            : null;
       },
     );
 
@@ -285,8 +298,9 @@ void main() {
         tester,
         notifier: notifier,
         pickImage: () async => XFile.fromData(
-          Uint8List.fromList([7, 8, 9]),
-          name: 'meal-upload.jpg',
+          Uint8List.fromList(img.encodeJpg(img.Image(width: 2, height: 2))),
+          name: 'meal-photo.jpg',
+          path: 'meal-photo.jpg',
         ),
       );
       await tester.tap(find.byKey(const Key('meal-food-type-wet')));
@@ -308,7 +322,10 @@ void main() {
 
       expect(notifier.savedPhotos, hasLength(1));
       expect(notifier.savedPhotos.single!.filename, 'meal-photo.jpg');
-      expect(notifier.savedPhotos.single!.bytes, [7, 8, 9]);
+      expect(
+        notifier.savedPhotos.single!.bytes,
+        img.encodeJpg(img.Image(width: 2, height: 2)),
+      );
     },
   );
 
@@ -325,8 +342,11 @@ void main() {
         return attempts == 1
             ? _FailingXFile()
             : XFile.fromData(
-                Uint8List.fromList([4, 5, 6]),
-                name: 'retry-upload.jpg',
+                Uint8List.fromList(
+                  img.encodeJpg(img.Image(width: 2, height: 2)),
+                ),
+                name: 'meal-photo.jpg',
+                path: 'meal-photo.jpg',
               );
       },
     );
@@ -345,11 +365,11 @@ void main() {
           .enabled,
       isTrue,
     );
-    await _tapSave(tester);
-    await tester.pumpAndSettle();
-
     expect(notifier.saveAttempts, 0);
-    expect(find.text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+    expect(
+      find.text('사진을 불러오지 못했어요. 사진 접근 권한을 확인한 뒤 다시 시도해 주세요.'),
+      findsOneWidget,
+    );
     expect(find.text('습식'), findsOneWidget);
     expect(find.text('75%'), findsOneWidget);
 
@@ -368,8 +388,11 @@ void main() {
     await _pumpMealScreen(
       tester,
       notifier: notifier,
-      pickImage: () async =>
-          XFile.fromData(Uint8List.fromList([1]), name: 'retry.jpg'),
+      pickImage: () async => XFile.fromData(
+        Uint8List.fromList(img.encodeJpg(img.Image(width: 2, height: 2))),
+        name: 'meal-photo.jpg',
+        path: 'meal-photo.jpg',
+      ),
     );
     await tester.tap(find.byKey(const Key('meal-food-type-wet')));
     await _enterRecordNumber(tester, const Key('meal-served-amount-field'), [
@@ -383,7 +406,7 @@ void main() {
 
     expect(notifier.saveAttempts, 1);
     expect(find.text('사진 추가 (1/1) · meal-photo.jpg'), findsOneWidget);
-    expect(find.text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+    expect(find.text('저장하지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
 
     await _tapSave(tester);
     await tester.pumpAndSettle();
@@ -681,7 +704,13 @@ Future<void> _pumpMealScreen(
         ),
         petProvider.overrideWith((ref) => notifier ?? _MealTestPetNotifier()),
       ],
-      child: MaterialApp(home: MealRecordScreen(pickImageForTest: pickImage)),
+      child: MaterialApp(
+        home: MealRecordScreen(
+          pickImageForTest: pickImage,
+          prepareImage: (file) async =>
+              PreparedPhoto(await file.readAsBytes(), file.name, 'image/jpeg'),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -721,6 +750,19 @@ class _MealTestPetNotifier extends PetNotifier {
   int failuresRemaining;
   int saveAttempts = 0;
   final updatedRecords = <(String, Map<String, dynamic>)>[];
+
+  @override
+  Future<void> saveRecordPhotoDraft(
+    RecordPhotoDraft draft,
+    Map<String, dynamic> body, {
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) => addRecord(
+    body,
+    photo: photo == null
+        ? null
+        : RecordPhotoUpload(bytes: photo.bytes, filename: photo.filename),
+  );
 
   @override
   Future<void> addRecord(

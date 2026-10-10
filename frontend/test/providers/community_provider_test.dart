@@ -276,6 +276,7 @@ class _ControlledService extends CommunityService {
     required String content,
     required String category,
     String? petSpecies,
+    bool Function()? isCurrent,
   }) => postUpdateResponse.future;
 
   @override

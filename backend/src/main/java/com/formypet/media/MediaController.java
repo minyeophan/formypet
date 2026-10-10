@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class MediaController {
 
     private final MediaService mediaService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
 
     @PostMapping("/api/v1/pets/{petId}/media")
     @Operation(summary = "반려동물 미디어 업로드")
@@ -27,9 +28,17 @@ public class MediaController {
     @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
     public ApiResponse<MediaResponse> uploadPetMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                      @PathVariable Long petId,
+                                                     @RequestHeader(value = "Idempotency-Key", required = false) String key,
                                                      @RequestParam("file") MultipartFile file) {
-        mediaService.admitUpload(actorId, 1);
-        return ApiResponse.of(mediaService.uploadPetMedia(actorId, petId, file));
+        return ApiResponse.of(idempotency.execute(actorId, "pet-media", petId.toString(), key, null,
+                java.util.List.of(file), () -> {
+                    if (key != null) mediaService.validateKeyedUpload(file);
+                    mediaService.admitUpload(actorId, 1);
+                    return mediaService.uploadPetMedia(actorId, petId, file);
+                }, MediaResponse::id, id -> {
+                    idempotency.requirePet(actorId, petId);
+                    return idempotency.media(actorId, id);
+                }));
     }
 
     @PostMapping("/api/v1/pets/{petId}/records/{recordId}/media")
@@ -40,9 +49,17 @@ public class MediaController {
     public ApiResponse<MediaResponse> uploadRecordMedia(@AuthenticationPrincipal(expression = "id") Long actorId,
                                                         @PathVariable Long petId,
                                                         @PathVariable Long recordId,
-                                                        @RequestParam("file") MultipartFile file) {
-        mediaService.admitUpload(actorId, 1);
-        return ApiResponse.of(mediaService.uploadRecordMedia(actorId, petId, recordId, file));
+                                                        @RequestHeader(value = "Idempotency-Key", required = false) String key,
+                                                     @RequestParam("file") MultipartFile file) {
+        return ApiResponse.of(idempotency.execute(actorId, "record-media", petId + ":" + recordId, key, null,
+                java.util.List.of(file), () -> {
+                    if (key != null) mediaService.validateKeyedUpload(file);
+                    mediaService.admitUpload(actorId, 1);
+                    return mediaService.uploadRecordMedia(actorId, petId, recordId, file);
+                }, MediaResponse::id, id -> {
+                    idempotency.requireRecord(actorId, petId, recordId);
+                    return idempotency.media(actorId, id);
+                }));
     }
 
     @GetMapping("/api/v1/media/{mediaId}")

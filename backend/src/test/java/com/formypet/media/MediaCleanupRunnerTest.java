@@ -21,12 +21,13 @@ class MediaCleanupRunnerTest {
 
     @Mock JdbcTemplate jdbcTemplate;
     @Mock MediaStorage mediaStorage;
+    @Mock MediaStorageAttempts storageAttempts;
 
     private MediaCleanupRunner runner;
 
     @BeforeEach
     void setUp() {
-        runner = new MediaCleanupRunner(jdbcTemplate, mediaStorage);
+        runner = new MediaCleanupRunner(jdbcTemplate, mediaStorage, storageAttempts);
     }
 
     @Test
@@ -37,6 +38,15 @@ class MediaCleanupRunnerTest {
 
         verifyNoInteractions(mediaStorage);
         verify(jdbcTemplate, never()).update(anyString(), anyString());
+    }
+
+    @Test
+    void referencedFileIsNeverDeletedEvenIfItWasQueued() throws Exception {
+        when(jdbcTemplate.queryForList(anyString(), eq(String.class))).thenReturn(List.of("live/photo.png"));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("live/photo.png"))).thenReturn(1);
+        runner.run(null);
+        verifyNoInteractions(mediaStorage);
+        verify(jdbcTemplate, never()).update(DELETE_SQL, "live/photo.png");
     }
 
     @Test

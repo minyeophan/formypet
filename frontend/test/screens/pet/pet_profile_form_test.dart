@@ -1,3 +1,5 @@
+import 'package:frontend/services/photo_preparation.dart';
+import 'package:frontend/services/photo_save_draft.dart';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -277,6 +279,24 @@ void main() {
     },
   );
 
+  testWidgets('refresh retry without a birthdate keeps the submitted payload', (
+    tester,
+  ) async {
+    final notifier = _Notifier()..failRefresh = true;
+    await _pumpForm(tester, notifier);
+    await enter(tester, '이름', '보리');
+    await submit(tester);
+    expect(notifier.submittedBodies, hasLength(1));
+    expect(
+      notifier.submittedBodies.single.containsKey('birthDateUnknown'),
+      isFalse,
+    );
+    await submit(tester);
+    expect(notifier.submittedBodies, hasLength(2));
+    expect(notifier.submittedBodies[1], notifier.submittedBodies[0]);
+    expect(notifier.creates, 1);
+  });
+
   testWidgets('save failure preserves form for retry', (tester) async {
     final notifier = _Notifier()..failSave = true;
     await _pumpForm(tester, notifier);
@@ -434,7 +454,39 @@ class _Notifier extends PetNotifier {
   Map<String, dynamic>? body;
   bool failPhoto = false;
   bool failSave = false;
+  bool failRefresh = false;
+  final submittedBodies = <Map<String, dynamic>>[];
   Future<void>? pending;
+  @override
+  Future<void> savePetPhotoDraft(
+    PetPhotoDraft draft,
+    Map<String, dynamic> body, {
+    String? petId,
+    PreparedPhoto? photo,
+    required bool Function() current,
+  }) async {
+    submittedBodies.add(Map<String, dynamic>.from(body));
+    if (failRefresh) {
+      failRefresh = false;
+      creates++;
+      draft.savedId = 'saved';
+      draft.status = PhotoSaveStatus.savedNeedsRefresh;
+      throw Exception('saved pet refresh failed');
+    }
+    final id = petId ?? draft.savedId;
+    if (id != null) {
+      await updatePet(id, body);
+      return;
+    }
+    try {
+      await addPet(body);
+      draft.savedId = 'saved';
+    } on PetPhotoSaveException {
+      draft.savedId = 'saved';
+      rethrow;
+    }
+  }
+
   @override
   Future<void> addPet(
     Map<String, dynamic> body, {

@@ -1,3 +1,5 @@
+import '../../services/photo_preparation.dart';
+import '../../services/photo_save_draft.dart';
 import '../../core/app_interaction_style.dart';
 import '../../widgets/app_ink_well.dart';
 import '../../widgets/app_icon.dart';
@@ -49,9 +51,20 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   String? _gender;
   bool? _neutered;
   bool _birthDateUnknown = false;
+  bool _submittedKnownBirthDate = false;
   String? _specialStatus;
   final Set<String> _selectedDiseases = {};
   XFile? _photo;
+  PreparedPhoto? _preparedPhoto;
+  var _saveDraft = PetPhotoDraft();
+  int _draftGeneration = 0;
+  bool _isPickingPhoto = false;
+  late final PetNotifier _draftOwner;
+  late (int, int, String?) _ownerContext;
+  bool get _ownsDraft =>
+      mounted &&
+      identical(ref.read(petProvider.notifier), _draftOwner) &&
+      _draftOwner.isRoutineContextCurrent(_ownerContext);
   Uint8List? _photoBytes;
   bool _isLoading = false;
   String? _error;
@@ -86,6 +99,8 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   @override
   void initState() {
     super.initState();
+    _draftOwner = ref.read(petProvider.notifier);
+    _ownerContext = _draftOwner.routineContext;
     _initialSnapshot = _snapshot;
     for (final c in _controllers) {
       c.addListener(_onInput);
@@ -118,7 +133,9 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   }
 
   Future<void> _save(Pet? pet, {bool skipPhoto = false}) async {
-    if (_isLoading) return;
+    if (_isLoading || _isPickingPhoto || !_ownsDraft) return;
+    final generation = _draftGeneration;
+    bool current() => _ownsDraft && generation == _draftGeneration;
     setState(() => _isLoading = true);
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
@@ -158,16 +175,15 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
     });
 
     try {
-      final photo = _photo == null || skipPhoto
-          ? null
-          : PetPhotoUpload(
-              bytes: await _photo!.readAsBytes(),
-              filename: _photo!.name,
-            );
+      // Clearing a date already submitted needs an explicit update flag. An
+      // originally absent date must keep the same payload on refresh retries.
+      if (!_birthDateUnknown && _compactText(_birthCtrl.text) != null) {
+        _submittedKnownBirthDate = true;
+      }
       final body = <String, dynamic>{
         'name': name,
         'species': _species,
-        if ((_editing || _createdPetId != null) &&
+        if ((_editing || _submittedKnownBirthDate) &&
             (_birthDateUnknown || _birthCtrl.text.isEmpty))
           'birthDateUnknown': true
         else if (_compactText(_birthCtrl.text) != null)
@@ -196,16 +212,24 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
           'primaryHospitalName': _compactText(_hospitalCtrl.text),
       };
 
-      final notifier = ref.read(petProvider.notifier);
-      final id = widget.petId ?? _createdPetId;
-      if (id != null) {
-        await notifier.updatePet(id, body, photo: photo);
-      } else {
-        await notifier.addPet(body, photo: photo);
-        if (!mounted) return;
-        _createdPetId = ref.read(petProvider).activePetId;
+      if (!current()) return;
+      if (skipPhoto) _saveDraft.skipRemainingPhotos();
+      await _draftOwner.savePetPhotoDraft(
+        _saveDraft,
+        body,
+        petId: widget.petId,
+        photo: skipPhoto ? null : _preparedPhoto,
+        current: current,
+      );
+      if (!mounted ||
+          generation != _draftGeneration ||
+          !identical(ref.read(petProvider.notifier), _draftOwner) ||
+          _draftOwner.routineContext.$1 != _ownerContext.$1 ||
+          (!_ownsDraft &&
+              ref.read(petProvider).activePetId != _saveDraft.savedId)) {
+        return;
       }
-      if (!mounted) return;
+      _createdPetId = _saveDraft.savedId;
       _initialSnapshot = _snapshot;
       setState(() => _isLoading = false);
       if (_editing) await _showSavedDialog();
@@ -214,7 +238,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
         widget.firstPet ? '/home' : '/pet/${widget.petId ?? _createdPetId}',
       );
     } on PetPhotoSaveException catch (e) {
-      if (mounted) {
+      if (mounted && generation == _draftGeneration) {
         setState(() {
           _createdPetId = e.petId;
           _photoSaveFailed = true;
@@ -222,11 +246,15 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString());
+      if (mounted && generation == _draftGeneration) {
+        setState(() {
+          _createdPetId = _saveDraft.savedId;
+          _photoSaveFailed = _saveDraft.status == PhotoSaveStatus.mediaPending;
+          _error = _saveDraft.message;
+        });
       }
     } finally {
-      if (mounted && _isLoading) {
+      if (mounted && generation == _draftGeneration && _isLoading) {
         setState(() => _isLoading = false);
       }
     }
@@ -251,27 +279,51 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   }
 
   Future<void> _pickPhoto() async {
+    if (!_ownsDraft ||
+        _isLoading ||
+        _isPickingPhoto ||
+        (_saveDraft.hasAttempted && !_saveDraft.canReplacePendingPhotos)) {
+      return;
+    }
+    final generation = _draftGeneration;
+    bool current() => _ownsDraft && generation == _draftGeneration;
+    setState(() => _isPickingPhoto = true);
     try {
-      final photo = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 85,
-      );
-      if (photo == null) return;
-      final bytes = await photo.readAsBytes();
-      if (mounted) {
+      final photo = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (photo == null || !current()) return;
+      final prepared = await preparePhoto(photo);
+      final bytes = prepared.bytes;
+      if (current()) {
+        if (_saveDraft.canReplacePendingPhotos) {
+          _saveDraft.replacePendingPhotos([prepared]);
+        }
         setState(() {
+          _preparedPhoto = prepared;
           _photo = photo;
           _photoBytes = bytes;
+          _error = null;
+          _photoSaveFailed = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _error = '사진을 불러오지 못했어요. 사진 접근 권한을 확인해 주세요.');
+    } catch (error) {
+      if (current()) {
+        setState(
+          () => _error = error is PhotoPreparationException
+              ? error.message
+              : '사진을 불러오지 못했어요. 사진 접근 권한을 확인해 주세요.',
+        );
+      }
+    } finally {
+      if (mounted && generation == _draftGeneration) {
+        setState(() => _isPickingPhoto = false);
+      }
     }
   }
 
   Future<void> _goBack() async {
-    if (_isLoading || _confirmingExit || widget.firstPet) return;
+    if (_isLoading || _isPickingPhoto || _confirmingExit || widget.firstPet) {
+      return;
+    }
     await dismissKeyboardBeforeTransition(context);
     if (!mounted) return;
     if (_snapshot != _initialSnapshot) {
@@ -313,6 +365,12 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
   }
 
   void _resetHydration() {
+    _draftGeneration++;
+    _saveDraft = PetPhotoDraft();
+    _preparedPhoto = null;
+    _isPickingPhoto = false;
+    _isLoading = false;
+    _ownerContext = _draftOwner.routineContext;
     _nameCtrl.clear();
     _breedCtrl.clear();
     _birthCtrl.clear();
@@ -325,6 +383,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
     _gender = null;
     _neutered = null;
     _birthDateUnknown = false;
+    _submittedKnownBirthDate = false;
     _specialStatus = null;
     _selectedDiseases.clear();
     _photo = null;
@@ -485,7 +544,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
           children: [
             Expanded(
               child: AbsorbPointer(
-                absorbing: _isLoading,
+                absorbing: _isLoading || _isPickingPhoto,
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
@@ -588,7 +647,7 @@ class _PetProfileFormState extends ConsumerState<PetProfileForm> {
                   : null,
               label: _editing ? '저장' : '등록',
               error: _error,
-              isLoading: _isLoading,
+              isLoading: _isLoading || _isPickingPhoto,
               onTap: () => _save(pet),
             ),
           ],

@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/activity_record.dart';
 import 'package:frontend/providers/pet_provider.dart';
+import 'package:frontend/services/photo_save_draft.dart';
+import 'package:frontend/services/photo_preparation.dart';
 import 'package:frontend/screens/records/meal_record_screen.dart';
 import 'package:frontend/screens/records/record_category_form_screen.dart';
 import 'package:frontend/screens/records/record_detail_screen.dart';
@@ -70,7 +72,14 @@ void main() {
     final photo = PendingPhoto();
     await pump(
       tester,
-      MealRecordScreen(pickImageForTest: () async => photo),
+      MealRecordScreen(
+        pickImageForTest: () async => photo,
+        prepareImage: (file) async => PreparedPhoto(
+          await file.readAsBytes(),
+          'local-test.jpg',
+          'image/jpeg',
+        ),
+      ),
       notifier: notifier,
     );
     await tester.tap(find.byKey(const Key('meal-food-type-dry')));
@@ -612,7 +621,7 @@ void main() {
             .enabled,
         isTrue,
       );
-      expect(find.textContaining('저장에 실패'), findsOneWidget);
+      expect(find.textContaining('저장 결과를 확인하지 못했어요'), findsOneWidget);
     },
   );
   testWidgets('plain category choices keep compact accessible tap targets', (
@@ -718,11 +727,14 @@ class FakeRecords extends PetNotifier {
   }
 
   @override
-  Future<void> addRecord(
+  Future<void> saveRecordPhotoDraft(
+    RecordPhotoDraft draft,
     Map<String, dynamic> body, {
-    RecordPhotoUpload? photo,
+    PreparedPhoto? photo,
+    required bool Function() current,
   }) async {
     saves++;
+    draft.status = PhotoSaveStatus.requestUncertain;
     await pending.future;
   }
 

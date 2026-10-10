@@ -410,6 +410,9 @@ class _FakeAuthService extends AuthService {
   Future<UserProfile> uploadProfileImage({
     required Uint8List bytes,
     required String filename,
+    String? mimeType,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     if (uploadProfileImageError != null) throw uploadProfileImageError!;
     return uploadProfileImageResult ?? _profile;
