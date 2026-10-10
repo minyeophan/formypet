@@ -12,6 +12,8 @@ class AppColors {
   static const surfaceSoft = AppV2Tokens.surfaceSoft;
   static const primary = AppV2Tokens.primary;
   static const primaryPressed = AppV2Tokens.primaryPressed;
+  static const primaryText = AppV2Tokens.primaryText;
+  static const onPrimary = AppV2Tokens.onPrimary;
   static const text = AppV2Tokens.text;
   static const textSecondary = AppV2Tokens.textSecondary;
   static const muted = Color(0xFF89968F);

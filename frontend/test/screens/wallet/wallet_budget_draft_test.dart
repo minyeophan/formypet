@@ -62,7 +62,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsOneWidget);
       await tester.tap(find.text('계속 입력'));
       await tester.pumpAndSettle();
       auth.signIn('bob');
@@ -82,7 +82,7 @@ void main() {
     );
     tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
     await tester.pumpAndSettle();
-    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
     await tester.tap(find.text('계속 입력'));
     await tester.pumpAndSettle();
     expect(

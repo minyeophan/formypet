@@ -1,4 +1,5 @@
 import 'package:frontend/widgets/app_icon.dart';
+import 'package:frontend/core/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -102,6 +103,10 @@ void main() {
       initialDate: DateTime(2026, 6, 17),
     );
 
+    expect(
+      tester.widget<Text>(find.text('17')).style?.color,
+      AppColors.onPrimary,
+    );
     expect(find.text('목욕 예약'), findsOneWidget);
     expect(find.text('10:30~11:00  동네 미용실'), findsOneWidget);
     expect(find.byKey(const Key('schedule-detail-button-s1')), findsOneWidget);

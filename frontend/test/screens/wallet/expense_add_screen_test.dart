@@ -65,7 +65,7 @@ void main() {
         expect(find.text('draft'), findsOneWidget);
         tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
         await tester.pumpAndSettle();
-        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.byType(BottomSheet), findsOneWidget);
       },
     );
     testWidgets('reverted expense draft exits without prompt edit=$edit', (
@@ -105,7 +105,7 @@ void main() {
       );
       tester.widget<AppFormHeader>(find.byType(AppFormHeader)).onBack();
       await tester.pumpAndSettle();
-      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsOneWidget);
       await tester.tap(find.text('계속 입력'));
       await tester.pumpAndSettle();
       expect(find.text('draft'), findsOneWidget);

@@ -1144,7 +1144,7 @@ class _SegmentButton extends StatelessWidget {
               label,
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: selected ? AppColors.primaryPressed : AppColors.text,
+              color: selected ? AppColors.primaryText : AppColors.text,
             ),
           ),
         ),
@@ -1216,12 +1216,7 @@ class _Option {
   final String? iconAsset;
   final double iconSize;
 
-  const _Option(
-    this.value,
-    this.label, {
-    this.iconAsset,
-    this.iconSize = 28,
-  });
+  const _Option(this.value, this.label, {this.iconAsset, this.iconSize = 28});
 }
 
 const _poopShapeOptions = [

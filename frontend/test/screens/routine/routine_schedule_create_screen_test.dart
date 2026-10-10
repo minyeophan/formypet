@@ -237,7 +237,7 @@ void main() {
         matching: find.byType(CircularProgressIndicator),
       ),
     );
-    expect(spinner.color ?? spinner.valueColor?.value, AppColors.white);
+    expect(spinner.color ?? spinner.valueColor?.value, AppColors.onPrimary);
     await tester.pumpWidget(const SizedBox());
     service.pending.complete(_schedule());
     await tester.pump();

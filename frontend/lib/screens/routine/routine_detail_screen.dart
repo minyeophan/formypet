@@ -101,7 +101,7 @@ class RoutineDetailScreen extends ConsumerWidget {
                         '수정',
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.white,
+                        color: AppColors.onPrimary,
                       ),
                     ),
                   ),
@@ -218,7 +218,7 @@ class _RoutineHero extends StatelessWidget {
             child: AppVisual(
               id: recordTypeVisualId(routine.typeId),
               size: 28,
-              color: AppColors.primary,
+              color: AppColors.primaryText,
             ),
           ),
           const SizedBox(width: 12),
@@ -230,7 +230,7 @@ class _RoutineHero extends StatelessWidget {
                   _categoryLabel(routine.typeId),
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryPressed,
+                  color: AppColors.primaryText,
                 ),
                 const SizedBox(height: 6),
                 AppText(

@@ -83,7 +83,7 @@ class RecordPickerSheet<T> extends StatelessWidget {
                             '완료',
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.primaryPressed,
+                            color: AppColors.primaryText,
                           ),
                         ),
                       ),

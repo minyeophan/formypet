@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/app_colors.dart';
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:frontend/widgets/app_action_sheet.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -51,6 +52,55 @@ void main() {
           .first,
     );
     expect(button.constraints?.minHeight, 48);
+  });
+
+  testWidgets('action supports an icon, description, and trailing chevron', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppActionSheet(
+                context,
+                title: '사진 추가',
+                actions: [
+                  AppActionSheetItem(
+                    key: const Key('gallery-action'),
+                    label: '사진 보관함',
+                    description: '저장된 사진에서 선택',
+                    icon: Icons.image_outlined,
+                    showChevron: true,
+                    onTap: () {},
+                  ),
+                ],
+                closeLabel: '취소',
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('사진 보관함'), findsOneWidget);
+    expect(find.text('저장된 사진에서 선택'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is AppIcon && widget.icon == Icons.image_outlined,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppIcon && widget.icon == Icons.chevron_right_rounded,
+      ),
+      findsOneWidget,
+    );
+    expect(tester.getSize(find.byKey(const Key('gallery-action'))).height, 64);
   });
 
   testWidgets('close tap only dismisses the sheet', (tester) async {

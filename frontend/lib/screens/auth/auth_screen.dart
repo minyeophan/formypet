@@ -674,9 +674,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           key: const Key('auth-submit-button'),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             disabledBackgroundColor: AppColors.primary,
-            disabledForegroundColor: Colors.white,
+            disabledForegroundColor: AppColors.onPrimary,
             minimumSize: const Size.fromHeight(56),
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -689,7 +689,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: AppColors.onPrimary,
                   ),
                 )
               : Text(registering ? '회원가입' : '로그인'),

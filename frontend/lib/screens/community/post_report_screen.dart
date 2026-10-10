@@ -266,6 +266,7 @@ class _PostReportScreenState extends ConsumerState<PostReportScreen> {
                       key: const Key('report-submit'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppV2Tokens.primary,
+                        foregroundColor: AppV2Tokens.onPrimary,
                         minimumSize: const Size.fromHeight(52),
                       ),
                       onPressed: _busy || !permitted || _reason == null
@@ -295,7 +296,7 @@ class _PostReportScreenState extends ConsumerState<PostReportScreen> {
         const Icon(
           Icons.check_circle_outline,
           size: 72,
-          color: AppV2Tokens.primary,
+          color: AppV2Tokens.primaryText,
         ),
         const SizedBox(height: 24),
         const Text(
