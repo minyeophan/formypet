@@ -22,6 +22,59 @@ void main() {
   tearDown(() => setAuthExpiredHandler(null));
 
   test(
+    'multipart 401 reissues identical fields and bytes with the same key',
+    () async {
+      final received = <String>[];
+      final keys = <Object?>[];
+      dio.httpClientAdapter = _MultipartAdapter((options, bytes) {
+        if (options.path.contains('/auth/refresh')) return _tokens('renewed-a');
+        received.add(utf8.decode(bytes));
+        keys.add(options.headers['Idempotency-Key']);
+        return _body(received.length == 1 ? 401 : 200);
+      });
+      final response = await dio.post(
+        '/api/v1/posts',
+        data: FormData.fromMap({
+          'payload': '{"title":"stable"}',
+          'files': MultipartFile.fromBytes([1, 2, 3], filename: 'photo.png'),
+        }),
+        options: Options(headers: {'Idempotency-Key': 'draft-key'}),
+      );
+      expect(response.statusCode, 200);
+      expect(received, hasLength(2));
+      for (final body in received) {
+        expect(body, contains('stable'));
+        expect(body, contains('photo.png'));
+        expect(body, contains(String.fromCharCodes([1, 2, 3])));
+      }
+      expect(keys, ['draft-key', 'draft-key']);
+    },
+  );
+
+  test('expired draft ownership cancels before dispatch', () async {
+    var sent = 0;
+    dio.httpClientAdapter = _Adapter((request) {
+      sent++;
+      return _body(200);
+    });
+    await expectLater(
+      dio.post(
+        '/api/v1/posts',
+        data: FormData.fromMap({'payload': '{}'}),
+        options: Options(extra: {'_isRequestCurrent': () => false}),
+      ),
+      throwsA(
+        isA<DioException>().having(
+          (e) => e.type,
+          'type',
+          DioExceptionType.cancel,
+        ),
+      ),
+    );
+    expect(sent, 0);
+  });
+
+  test(
     'late 401 cannot refresh or clear the next account credentials',
     () async {
       final response = Completer<ResponseBody>();
@@ -296,6 +349,28 @@ class _Adapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async => respond(options);
+  @override
+  void close({bool force = false}) {}
+}
+
+class _MultipartAdapter implements HttpClientAdapter {
+  final ResponseBody Function(RequestOptions, List<int>) handler;
+  _MultipartAdapter(this.handler);
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final bytes = <int>[];
+    if (requestStream != null) {
+      await for (final chunk in requestStream) {
+        bytes.addAll(chunk);
+      }
+    }
+    return handler(options, bytes);
+  }
+
   @override
   void close({bool force = false}) {}
 }

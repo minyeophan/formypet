@@ -27,6 +27,37 @@ void main() {
     expect(parsed.errorCode, 'WALLET_EXPENSE_NOT_FOUND');
   });
 
+  test(
+    'explicit validation rejection permits correction but uncertainty does not',
+    () {
+      for (final status in [400, 422]) {
+        expect(
+          isDefinitiveMediaRejection(
+            ApiException(statusCode: status, title: 'Validation failed'),
+          ),
+          isTrue,
+        );
+      }
+      for (final status in [408, 409, 500, 503]) {
+        expect(
+          isDefinitiveMediaRejection(
+            ApiException(statusCode: status, title: 'Unresolved'),
+          ),
+          isFalse,
+        );
+      }
+      expect(
+        isDefinitiveMediaRejection(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/v1/posts'),
+            type: DioExceptionType.receiveTimeout,
+          ),
+        ),
+        isFalse,
+      );
+    },
+  );
+
   test('media errors explain quota and request limits in Korean', () {
     final request = RequestOptions(path: '/api/v1/media');
     final quota = DioException(
@@ -42,8 +73,42 @@ void main() {
       response: Response(requestOptions: request, statusCode: 429),
     );
 
-    expect(mediaUploadErrorMessage(quota, fallback: 'fallback'), contains('저장 한도'));
-    expect(mediaUploadErrorMessage(limited, fallback: 'fallback'), contains('요청이 많아요'));
+    expect(
+      mediaUploadErrorMessage(quota, fallback: 'fallback'),
+      contains('저장 한도'),
+    );
+    expect(
+      mediaUploadErrorMessage(limited, fallback: 'fallback'),
+      contains('요청이 많아요'),
+    );
+
+    final requestTooLarge = DioException(
+      requestOptions: request,
+      response: Response(
+        requestOptions: request,
+        statusCode: 413,
+        data: {'errorCode': 'UPLOAD_TOO_LARGE'},
+      ),
+    );
+    expect(
+      mediaUploadErrorMessage(requestTooLarge, fallback: 'fallback'),
+      contains('26MB 제한'),
+    );
+    expect(isDefinitiveMediaRejection(requestTooLarge), isTrue);
+
+    final fileTooLarge = DioException(
+      requestOptions: request,
+      response: Response(
+        requestOptions: request,
+        statusCode: 413,
+        data: {'errorCode': 'MEDIA_TOO_LARGE'},
+      ),
+    );
+    expect(
+      mediaUploadErrorMessage(fileTooLarge, fallback: 'fallback'),
+      contains('5MB 이하'),
+    );
+    expect(isDefinitiveMediaRejection(fileTooLarge), isTrue);
   });
 
   test('GET requests retry one transient failure', () async {
@@ -60,7 +125,9 @@ void main() {
       return ResponseBody.fromString(
         '{}',
         200,
-        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
       );
     });
 

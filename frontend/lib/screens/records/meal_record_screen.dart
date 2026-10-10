@@ -1,3 +1,5 @@
+import '../../services/photo_preparation.dart';
+import '../../services/photo_save_draft.dart';
 import 'dart:convert';
 import '../../widgets/draft_exit_guard.dart';
 import '../../core/app_interaction_style.dart';
@@ -28,12 +30,14 @@ typedef MealImagePicker = Future<XFile?> Function(ImageSource source);
 class MealRecordScreen extends ConsumerStatefulWidget {
   final DateTime? initialDate;
   final MealImagePicker? pickImageForTest;
+  final Future<PreparedPhoto> Function(XFile)? prepareImage;
   final ActivityRecord? editingRecord;
 
   const MealRecordScreen({
     super.key,
     this.initialDate,
     this.pickImageForTest,
+    this.prepareImage,
     this.editingRecord,
   });
 
@@ -60,6 +64,8 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   bool _isPickingPhoto = false;
   String? _error;
   XFile? _photo;
+  PreparedPhoto? _preparedPhoto;
+  final _saveDraft = RecordPhotoDraft();
   late String _baseline;
   late final PetNotifier _draftOwner;
   late final (int, int, String?) _draftOwnerContext;
@@ -216,6 +222,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
                       child: _FoodTypeGrid(
                         selectedValue: _foodType,
                         onSelected: (value) => setState(() {
+                          if (isDraftBusy || !_ownsDraft) return;
                           _foodType = value;
                           _error = null;
                         }),
@@ -258,6 +265,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
                             child: _ConsumeGrid(
                               selectedValue: _consumedPercent,
                               onSelected: (value) => setState(() {
+                                if (isDraftBusy || !_ownsDraft) return;
                                 _consumedPercent = value;
                                 _error = null;
                               }),
@@ -287,6 +295,7 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
                       feedingMethod: _feedingMethod,
                       onBrandChanged: (_) => setState(() => _error = null),
                       onFeedingMethodChanged: (value) => setState(() {
+                        if (isDraftBusy || !_ownsDraft) return;
                         _feedingMethod = value;
                         _error = null;
                       }),
@@ -298,7 +307,12 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
                             ? '사진 추가 (0/1)'
                             : '사진 추가 (1/1) · ${_filenameFor(_photo!)}',
                         hasPhoto: _photo != null,
-                        onTap: _isSaving || _isDeleting || _isPickingPhoto
+                        onTap:
+                            _isSaving ||
+                                _isDeleting ||
+                                _isPickingPhoto ||
+                                (_saveDraft.hasAttempted &&
+                                    !_saveDraft.canReplacePendingPhotos)
                             ? null
                             : _pickPhoto,
                       )
@@ -342,7 +356,13 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
   }
 
   Future<void> _pickPhoto() async {
-    if (_isSaving || _isDeleting || _isPickingPhoto || !_ownsDraft) return;
+    if (_isSaving ||
+        _isDeleting ||
+        _isPickingPhoto ||
+        !_ownsDraft ||
+        (_saveDraft.hasAttempted && !_saveDraft.canReplacePendingPhotos)) {
+      return;
+    }
     setState(() => _isPickingPhoto = true);
     try {
       ImageSource? source;
@@ -375,7 +395,13 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
           (imageSource) => ImagePicker().pickImage(source: imageSource);
       final photo = await pickImage(source!);
       if (!_ownsDraft || photo == null) return;
+      final prepared = await (widget.prepareImage ?? preparePhoto)(photo);
+      if (!_ownsDraft) return;
+      if (_saveDraft.canReplacePendingPhotos) {
+        _saveDraft.replacePendingPhotos([prepared]);
+      }
       setState(() {
+        _preparedPhoto = prepared;
         _photo = photo;
         _error = null;
       });
@@ -420,15 +446,18 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
       final body = _buildPayload();
       final editingRecord = widget.editingRecord;
       if (editingRecord == null) {
-        final photo = _photo;
-        final upload = photo == null
-            ? null
-            : RecordPhotoUpload(
-                bytes: await photo.readAsBytes(),
-                filename: _filenameFor(photo),
-              );
+        if (_photo != null) {
+          _preparedPhoto ??= await (widget.prepareImage ?? preparePhoto)(
+            _photo!,
+          );
+        }
         if (!_ownsDraft) return;
-        await _draftOwner.addRecord(body, photo: upload);
+        await _draftOwner.saveRecordPhotoDraft(
+          _saveDraft,
+          body,
+          photo: _preparedPhoto,
+          current: () => _ownsDraft,
+        );
       } else {
         await _draftOwner.updateRecord(editingRecord.id, body);
       }
@@ -438,7 +467,11 @@ class _MealRecordScreenState extends ConsumerState<MealRecordScreen>
       context.go('/records?date=${DateFormat('yyyy-MM-dd').format(_date)}');
     } catch (e) {
       if (_ownsDraft) {
-        setState(() => _error = '저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+        setState(
+          () => _error = e is PhotoPreparationException
+              ? e.message
+              : _saveDraft.message,
+        );
       }
     } finally {
       if (mounted) {

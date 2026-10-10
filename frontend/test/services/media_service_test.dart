@@ -10,6 +10,28 @@ import 'package:frontend/services/media_service.dart';
 import 'package:frontend/services/record_service.dart';
 
 void main() {
+  test('a failed read after upload never deletes the committed record', () async {
+    final methods = <String>[];
+    dio.httpClientAdapter = _CannedAdapter((options) {
+      methods.add(options.method);
+      if (options.method == 'GET') {
+        return _jsonResponse(options, 503, {'message': 'offline'});
+      }
+      if (options.path.endsWith('/media')) {
+        return _jsonResponse(options, 201, {'data': {'id': 20, 'url': '/api/v1/media/20'}});
+      }
+      return _jsonResponse(options, 201, {'data': {
+        'id': 10, 'petId': 1, 'typeId': 'meal', 'date': '2026-05-21', 'detail': {},
+      }});
+    });
+    try {
+      await RecordService().createRecordWithMediaBytes(
+        petId: '1', body: {'typeId': 'meal'},
+        files: [RecordMediaUpload(bytes: Uint8List.fromList([1]), filename: 'a.png')],
+      );
+    } catch (_) {}
+    expect(methods, isNot(contains('DELETE')));
+  });
   setUpAll(() {
     initApiClient('http://example.test', includeAuthInterceptor: false);
   });

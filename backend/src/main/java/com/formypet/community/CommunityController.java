@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 public class CommunityController {
 
     private final CommunityService communityService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
     private final ObjectMapper objectMapper;
     private final com.formypet.media.MediaService mediaService;
 
@@ -44,11 +45,21 @@ public class CommunityController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "게시글 작성 성공")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PostResponse> create(@AuthenticationPrincipal(expression = "id") Long actorId,
+                                            @RequestHeader(value = "Idempotency-Key", required = false) String key,
                                             @RequestPart("payload") String payload,
                                             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         List<MultipartFile> uploads = files == null ? List.of() : files;
-        mediaService.admitUpload(actorId, uploads.size());
-        return ApiResponse.of(communityService.create(actorId, parsePayload(payload), uploads));
+        if (key == null) {
+            mediaService.admitUpload(actorId, uploads.size());
+            return ApiResponse.of(communityService.create(actorId, parsePayload(payload), uploads));
+        }
+        PostCreateRequest request = parsePayload(payload);
+        return ApiResponse.of(idempotency.execute(actorId, "post-create", "account", key, request,
+                uploads, () -> {
+                    if (key != null) uploads.forEach(mediaService::validateKeyedUpload);
+                    mediaService.admitUpload(actorId, uploads.size());
+                    return communityService.create(actorId, request, uploads);
+                }, PostResponse::id, id -> { idempotency.requirePost(actorId, id); return communityService.detail(actorId, id); }));
     }
 
     @GetMapping

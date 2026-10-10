@@ -49,7 +49,7 @@ class MediaStorageFailureIntegrationTest extends IntegrationTestSupport {
     void storageFailureDoesNotInsertMediaRow() throws Exception {
         String token = registerAndGetToken("storage-fail@example.com", "storagefail");
         Long petId = createPet(token, "Mochi");
-        doThrow(new IOException("disk full")).when(mediaStorage).store(any(), any(), any(), any());
+        doThrow(new IOException("disk full")).when(mediaStorage).storeAt(any(), any());
 
         mockMvc.perform(multipart("/api/v1/pets/" + petId + "/media")
                         .file(new MockMultipartFile("file", "profile.png", MediaType.IMAGE_PNG_VALUE,

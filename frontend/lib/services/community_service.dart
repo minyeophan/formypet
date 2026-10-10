@@ -69,6 +69,8 @@ class CommunityService {
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     final payload = {
       'content': content,
@@ -84,6 +86,9 @@ class CommunityService {
         MultipartFile.fromBytes(
           await file.readAsBytes(),
           filename: _filenameFor(file, i),
+          contentType: file.mimeType == null
+              ? null
+              : DioMediaType.parse(file.mimeType!),
         ),
       );
     }
@@ -91,11 +96,40 @@ class CommunityService {
     final formData = FormData()
       ..fields.add(MapEntry('payload', jsonEncode(payload)))
       ..files.addAll(multipartFiles.map((file) => MapEntry('files', file)));
-    final res = await dio.post(
-      '/api/v1/posts',
-      data: formData,
-      options: Options(contentType: 'multipart/form-data'),
-    );
+    if (formData.length > 26 * 1024 * 1024) {
+      throw ApiException(
+        statusCode: 413,
+        title: 'Payload Too Large',
+        detail: '사진과 게시글의 전체 크기가 26MB 제한을 넘었습니다.',
+        errorCode: 'UPLOAD_TOO_LARGE',
+      );
+    }
+    late final Response<dynamic> res;
+    try {
+      res = await dio.post(
+        '/api/v1/posts',
+        data: formData,
+        options: Options(
+          extra: {'_isRequestCurrent': isCurrent},
+          contentType: 'multipart/form-data',
+          headers: idempotencyKey == null
+              ? null
+              : {'Idempotency-Key': idempotencyKey},
+        ),
+      );
+    } on DioException catch (error) {
+      // Attachments already satisfy the per-file limit, so a server 413 is
+      // the aggregate multipart envelope in this flow.
+      if (error.response?.statusCode == 413) {
+        throw ApiException(
+          statusCode: 413,
+          title: 'Payload Too Large',
+          detail: '사진과 게시글의 전체 크기가 26MB 제한을 넘었습니다.',
+          errorCode: 'UPLOAD_TOO_LARGE',
+        );
+      }
+      rethrow;
+    }
     return Post.fromJson(unwrap(res) as Map<String, dynamic>);
   }
 
@@ -192,9 +226,11 @@ class CommunityService {
     required String content,
     required String category,
     String? petSpecies,
+    bool Function()? isCurrent,
   }) async {
     final res = await dio.put(
       '/api/v1/posts/$postId',
+      options: Options(extra: {'_isRequestCurrent': isCurrent}),
       data: {
         'title': title.trim(),
         'content': content.trim(),

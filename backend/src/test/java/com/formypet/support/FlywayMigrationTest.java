@@ -55,8 +55,12 @@ class FlywayMigrationTest {
 
         flyway.migrate();
 
-        assertEquals("40", flyway.info().current().getVersion().getVersion());
+        assertEquals("42", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='idempotency_requests'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests' AND column_name='result_id'"));
+            assertEquals(0, count(connection, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='idempotency_requests' AND column_name='response_json'"));
+            assertEquals(1, count(connection, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='media_storage_attempts'"));
             assertEquals(1, count(connection, """
                     SELECT COUNT(*) FROM information_schema.columns
                     WHERE table_schema = DATABASE()
@@ -204,7 +208,7 @@ class FlywayMigrationTest {
         flyway = flyway(null);
         flyway.migrate();
 
-        assertEquals("40", flyway.info().current().getVersion().getVersion());
+        assertEquals("42", flyway.info().current().getVersion().getVersion());
         try (Connection connection = connection()) {
             assertCommentManagementSchema(connection);
             assertNotificationsSchema(connection);

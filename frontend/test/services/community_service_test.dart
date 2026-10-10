@@ -285,6 +285,36 @@ void main() {
   });
 
   test(
+    'createPost maps server 413 to the total multipart size error',
+    () async {
+      dio.httpClientAdapter = _CannedAdapter(
+        (options) => ResponseBody.fromString(
+          jsonEncode({'errorCode': 'PAYLOAD_TOO_LARGE'}),
+          413,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        ),
+      );
+
+      await expectLater(
+        CommunityService().createPost(
+          content: 'content',
+          title: 'title',
+          category: 'CARE',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.errorCode,
+            'errorCode',
+            'UPLOAD_TOO_LARGE',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
     'post detail, vote, and comments use the community API contract',
     () async {
       final paths = <String>[];

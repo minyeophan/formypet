@@ -315,6 +315,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     required String content,
     required String category,
     String? petSpecies,
+    bool Function()? isCurrent,
   }) async {
     final post = await _svc.updatePost(
       postId,
@@ -322,6 +323,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       content: content,
       category: category,
       petSpecies: petSpecies,
+      isCurrent: () => mounted && (isCurrent?.call() ?? true),
     );
     if (!mounted) return post;
     _postEditRevisions[post.id] = ++_mutationRevision;
@@ -393,6 +395,8 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     required String category,
     List<XFile> files = const [],
     PollDraft? poll,
+    String? idempotencyKey,
+    bool Function()? isCurrent,
   }) async {
     final post = await _svc.createPost(
       content: content,
@@ -400,6 +404,8 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
       category: category,
       files: files,
       poll: poll,
+      idempotencyKey: idempotencyKey,
+      isCurrent: () => mounted && (isCurrent?.call() ?? true),
     );
     if (!mounted) return post;
     final posts = Map<String, List<Post>>.from(state.postsByFeedKey);
@@ -468,7 +474,9 @@ final communityProvider =
     StateNotifierProvider<CommunityNotifier, CommunityState>((ref) {
       ref.watch(contentVisibilityProvider);
       ref.watch(
-        authProvider.select((s) => s.isAuthenticated ? s.profile?.id : null),
+        authProvider.select(
+          (s) => (s.isAuthenticated ? s.profile?.id : null, s.sessionEpoch),
+        ),
       );
       return CommunityNotifier(ref.read(communityServiceProvider));
     });

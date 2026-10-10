@@ -24,6 +24,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class ActivityRecordIntegrationTest extends IntegrationTestSupport {
 
+    @Test
+    void lostCreateResponseCanBeReplayedWithoutAnotherRecord() throws Exception {
+        String token = registerAndGetToken("replay@example.com", "replay");
+        Long petId = createPet(token, "Mochi");
+        String body = objectMapper.writeValueAsString(Map.of("typeId", "diary", "date", "2026-05-09", "note", "hello"));
+        Long first = readId(mockMvc.perform(post(recordsUrl(petId))
+                .header("Authorization", "Bearer " + token).header("Idempotency-Key", "record-attempt-1")
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated()).andReturn());
+        Long replay = readId(mockMvc.perform(post(recordsUrl(petId))
+                .header("Authorization", "Bearer " + token).header("Idempotency-Key", "record-attempt-1")
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated()).andReturn());
+        org.assertj.core.api.Assertions.assertThat(replay).isEqualTo(first);
+        mockMvc.perform(post(recordsUrl(petId)).header("Authorization", "Bearer " + token)
+                .header("Idempotency-Key", "record-attempt-1").contentType(MediaType.APPLICATION_JSON)
+                .content(body.replace("hello", "changed"))).andExpect(status().isConflict());
+        mockMvc.perform(delete(recordsUrl(petId) + "/" + first).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post(recordsUrl(petId)).header("Authorization", "Bearer " + token)
+                .header("Idempotency-Key", "record-attempt-1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isGone());
+    }
+
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
