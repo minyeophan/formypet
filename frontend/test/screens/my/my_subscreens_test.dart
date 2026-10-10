@@ -45,6 +45,28 @@ void main() {
     expect(find.text('현재 선택'), findsOneWidget);
   });
 
+  testWidgets('pets list labels the add action as pet registration', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const MyPetsScreen(),
+      pets: [_pet('1')],
+      activePetId: '1',
+    );
+
+    final addPetButton = find.widgetWithText(OutlinedButton, '펫 등록하기');
+    expect(addPetButton, findsOneWidget);
+    expect(
+      find.descendant(
+        of: addPetButton,
+        matching: find.byIcon(Icons.add_rounded),
+      ),
+      findsNothing,
+    );
+    expect(find.text('펫 추가하기'), findsNothing);
+  });
+
   testWidgets('pets list distinguishes loading and empty state', (
     tester,
   ) async {

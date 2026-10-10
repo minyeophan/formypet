@@ -1,4 +1,3 @@
-import '../../widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,10 +34,9 @@ class MyPetsScreen extends ConsumerWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 if (index == state.pets.length) {
-                  return OutlinedButton.icon(
+                  return OutlinedButton(
                     onPressed: () => context.push('/pets/new'),
-                    icon: const AppIcon(Icons.add_rounded),
-                    label: const AppText('펫 추가하기'),
+                    child: const AppText('펫 등록하기'),
                   );
                 }
                 final pet = state.pets[index];
