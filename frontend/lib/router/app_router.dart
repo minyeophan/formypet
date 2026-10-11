@@ -206,15 +206,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         builder: (c, s) => const NotificationScreen(),
       ),
+      GoRoute(
+        path: '/pet-log/book',
+        builder: (c, s) => const PetLogBookScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
           GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
           GoRoute(path: '/pet-log', builder: (c, s) => const PetLogScreen()),
-          GoRoute(
-            path: '/pet-log/book',
-            builder: (c, s) => const PetLogBookScreen(),
-          ),
           GoRoute(
             path: '/community',
             builder: (c, s) => const CommunityScreen(),
