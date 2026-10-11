@@ -20,6 +20,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
+import java.util.TimeZone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -36,8 +37,15 @@ class PetLogIntegrationTest extends IntegrationTestSupport {
     @Autowired RefreshTokenRepository refreshTokens;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired MediaService mediaService;
+    private TimeZone previousTimeZone;
 
-    @BeforeEach void reset(){refreshTokens.deleteAll();users.deleteAll();}
+    @BeforeEach void reset(){
+        previousTimeZone=TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
+        refreshTokens.deleteAll();users.deleteAll();
+    }
+
+    @org.junit.jupiter.api.AfterEach void restoreTimeZone(){TimeZone.setDefault(previousTimeZone);}
 
     @Test
     void draftPhotosCreateSeparateLogsAndTimelineUsesStableCursorWithoutChangingProfilePhoto() throws Exception {
@@ -46,6 +54,9 @@ class PetLogIntegrationTest extends IntegrationTestSupport {
         String profile="/api/v1/media/"+upload(token,pet,"profile.png","profile-key");
         long firstPhoto=upload(token,pet,"first.png","first-upload-key");
         long first=createLog(token,pet,"2026-01-01","09:00","first",firstPhoto,1);
+        mvc.perform(get(PETS+"/"+pet+"/pet-logs/"+first).header("Authorization","Bearer "+token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.date").value("2026-01-01"))
+                .andExpect(jsonPath("$.data.time").value("09:00:00"));
         long secondPhoto=upload(token,pet,"second.png","second-upload-key");
         long second=createLog(token,pet,"2026-03-01","10:30","second",secondPhoto,2);
 

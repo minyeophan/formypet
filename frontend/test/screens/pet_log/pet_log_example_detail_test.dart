@@ -19,9 +19,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('예시 화면입니다'), findsOneWidget);
+    expect(find.text('예시 화면입니다.'), findsOneWidget);
     expect(find.text('내 기록 남기기'), findsOneWidget);
-    expect(find.text('예시 기록 삭제'), findsOneWidget);
+    expect(find.text('삭제'), findsOneWidget);
     final photoRect = tester.getRect(find.byType(Image).first);
     expect(photoRect.width / photoRect.height, closeTo(1, 0.02));
     expect(tester.takeException(), isNull);

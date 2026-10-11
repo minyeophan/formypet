@@ -4,7 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/app_colors.dart';
@@ -105,6 +107,7 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
   }
 
   Future<void> _recoverLostPickerData() async {
+    if (kIsWeb) return;
     try {
       final lost = await _picker.retrieveLostData();
       if (lost.isEmpty || !mounted) return;
@@ -317,6 +320,87 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
     }
   }
 
+  String get _dateTimeLabel {
+    const weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+    final time =
+        '${_entryAt.hour.toString().padLeft(2, '0')}:${_entryAt.minute.toString().padLeft(2, '0')}';
+    return '${_entryAt.year}년 ${_entryAt.month}월 ${_entryAt.day}일 ${weekdays[_entryAt.weekday - 1]} $time';
+  }
+
+  Future<void> _showPhotoSources() => showModalBottomSheet<void>(
+    context: context,
+    builder: (c) => SafeArea(
+      child: Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('앨범에서 선택'),
+            onTap: () {
+              Navigator.pop(c);
+              _pick(ImageSource.gallery);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('카메라로 촬영'),
+            onTap: () {
+              Navigator.pop(c);
+              _pick(ImageSource.camera);
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _emptyPhotoPrompt() => Container(
+    key: const Key('pet-log-empty-photo-prompt'),
+    height: 276,
+    decoration: BoxDecoration(
+      color: const Color(0xFFF3FBF7),
+      border: Border.all(color: const Color(0xFFE1F0E8)),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 116,
+          height: 92,
+          child: SvgPicture.asset('assets/illustrations/pet_log_empty.svg'),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          '오늘의 사진을 골라볼까요?',
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          '함께한 순간을 그대로 담아주세요.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: _busy || _requestOutcomeUnknown || _order.length >= 10
+              ? null
+              : _showPhotoSources,
+          icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+          label: const Text('사진 선택'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(132, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Future<void> _goBack() async {
     if (!await confirmDraftExit() || !mounted) return;
     final latest = _conflictDetected ? _conflictingLatest : null;
@@ -358,56 +442,64 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
         children: [
-          TextButton.icon(
-            onPressed: _busy || _requestOutcomeUnknown ? null : _chooseDateTime,
-            icon: const Icon(Icons.schedule),
-            label: Text(
-              '${_entryAt.year}년 ${_entryAt.month}월 ${_entryAt.day}일 ${_entryAt.hour.toString().padLeft(2, '0')}:${_entryAt.minute.toString().padLeft(2, '0')}',
+          Center(
+            child: TextButton.icon(
+              onPressed: _busy || _requestOutcomeUnknown
+                  ? null
+                  : _chooseDateTime,
+              icon: const Icon(Icons.schedule_outlined, size: 16),
+              label: Text(_dateTimeLabel),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                textStyle: const TextStyle(fontSize: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 34),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text('${_order.length}/10장'),
-              const Spacer(),
-              TextButton(
-                onPressed: _busy || _order.length >= 10
+          const SizedBox(height: 14),
+          if (_order.isEmpty)
+            _emptyPhotoPrompt()
+          else ...[
+            Row(
+              children: [
+                Text(
+                  '사진 ${_order.length}장',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _busy || _order.length >= 10
+                      ? null
+                      : _showPhotoSources,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('사진 추가'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (var i = 0; i < _order.length; i++) _photoItem(_order[i], i),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _busy || _order.isEmpty || _requestOutcomeUnknown
                     ? null
-                    : () => showModalBottomSheet(
-                        context: context,
-                        builder: (c) => SafeArea(
-                          child: Wrap(
-                            children: [
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.photo_library_outlined,
-                                ),
-                                title: const Text('앨범에서 선택'),
-                                onTap: () {
-                                  Navigator.pop(c);
-                                  _pick(ImageSource.gallery);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.photo_camera_outlined,
-                                ),
-                                title: const Text('카메라로 촬영'),
-                                onTap: () {
-                                  Navigator.pop(c);
-                                  _pick(ImageSource.camera);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                child: const Text('사진 추가'),
+                    : _editPhotos,
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('사진 순서·삭제 편집'),
               ),
-            ],
-          ),
+            ),
+          ],
           if (_pickerRecoveryMessage != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -457,17 +549,22 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
                 ],
               ),
             ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _busy || _order.isEmpty || _requestOutcomeUnknown
-                  ? null
-                  : _editPhotos,
-              icon: const Icon(Icons.tune),
-              label: const Text('사진 순서·삭제 편집'),
-            ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              const Icon(Icons.edit_outlined, size: 17, color: AppColors.text),
+              const SizedBox(width: 7),
+              Text(
+                widget.editing == null ? '오늘의 이야기' : '이날의 이야기',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
           ),
-          for (var i = 0; i < _order.length; i++) _photoItem(_order[i], i),
+          const SizedBox(height: 10),
           TextField(
             controller: _text,
             onChanged: (_) => setState(() {}),
@@ -475,17 +572,34 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
             maxLength: 2000,
             maxLines: 5,
             decoration: const InputDecoration(
-              hintText: '그날의 이야기를 남겨보세요',
-              border: OutlineInputBorder(),
+              hintText: '오늘 어떤 순간이 기억에 남았나요?\n아이와 함께한 이야기를 적어주세요.',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFE8EFEB)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFE8EFEB)),
+              ),
+              contentPadding: EdgeInsets.all(14),
             ),
           ),
-          const SizedBox(height: 10),
-          FilledButton(
-            onPressed: _busy || _order.isEmpty || _conflictDetected
-                ? null
-                : _save,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            child: Text(_busy ? '저장 중' : '기록 저장'),
+          const SizedBox(height: 8),
+          const Text(
+            '짧은 한마디도 소중한 기록이 돼요.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 34),
+          Center(
+            child: Text(
+              _order.isEmpty
+                  ? '사진을 담고, 오늘의 기록을 저장해요'
+                  : '사진 ${_order.length}장과 오늘의 기록을 저장해요',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
         ],
       ),
@@ -494,7 +608,12 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
 
   Future<void> _editPhotos() async {
     final result = await Navigator.of(context).push<List<Object>>(
-      MaterialPageRoute(builder: (_) => PetLogPhotoEditScreen(photos: _order)),
+      MaterialPageRoute(
+        builder: (_) => PetLogPhotoEditScreen(
+          photos: _order,
+          onAddPhotos: _pickForPhotoEditor,
+        ),
+      ),
     );
     if (!mounted || result == null) return;
     setState(() {
@@ -512,6 +631,73 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
       }
       _saveKey = null;
     });
+  }
+
+  Future<List<Object>> _pickForPhotoEditor(int availableSlots) async {
+    if (_busy || _requestOutcomeUnknown || availableSlots <= 0) return const [];
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('앨범에서 선택'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('카메라로 촬영'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return const [];
+    try {
+      final files = source == ImageSource.gallery
+          ? await _picker.pickMultiImage(limit: availableSlots)
+          : await _picker
+                .pickImage(source: source)
+                .then((file) => file == null ? <XFile>[] : <XFile>[file]);
+      if (!mounted) return const [];
+      if (files.length > availableSlots) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사진은 최대 10장까지예요. $availableSlots장만 더 선택할 수 있어요.'),
+          ),
+        );
+        return const [];
+      }
+      final prepared = <Object>[];
+      for (final file in files) {
+        prepared.add(await preparePhoto(file));
+      }
+      return prepared;
+    } on PlatformException catch (e) {
+      final message = switch (e.code) {
+        'camera_access_denied' => '카메라 권한이 없어 촬영할 수 없어요. 설정에서 카메라 접근을 허용해 주세요.',
+        'photo_access_denied' =>
+          '사진 보관함 권한이 없어 사진을 선택할 수 없어요. 설정에서 접근을 허용해 주세요.',
+        'camera_unavailable' ||
+        'no_available_camera' => '이 기기에서 카메라를 사용할 수 없어요.',
+        _ => '사진 선택을 완료하지 못했어요. 다시 시도해 주세요.',
+      };
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+      return const [];
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('사진을 준비하지 못했어요: $e')));
+      }
+      return const [];
+    }
   }
 
   Future<void> _chooseDateTime() async {
@@ -573,8 +759,13 @@ class _PetLogCreateScreenState extends ConsumerState<PetLogCreateScreen>
 }
 
 class PetLogPhotoEditScreen extends StatefulWidget {
-  const PetLogPhotoEditScreen({super.key, required this.photos});
+  const PetLogPhotoEditScreen({
+    super.key,
+    required this.photos,
+    this.onAddPhotos,
+  });
   final List<Object> photos;
+  final Future<List<Object>> Function(int availableSlots)? onAddPhotos;
   @override
   State<PetLogPhotoEditScreen> createState() => _PetLogPhotoEditScreenState();
 }
@@ -596,13 +787,15 @@ class _PetLogPhotoEditScreenState extends State<PetLogPhotoEditScreen>
     Navigator.of(context).pop();
   }
 
+  Future<void> _addPhotos() async {
+    final callback = widget.onAddPhotos;
+    if (callback == null || _photos.length >= 10) return;
+    final additions = await callback(10 - _photos.length);
+    if (!mounted || additions.isEmpty) return;
+    setState(() => _photos.addAll(additions));
+  }
+
   void _remove(int index) {
-    if (_photos.length == 1) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('기록에는 사진이 한 장 이상 필요해요.')));
-      return;
-    }
     setState(() => _photos.removeAt(index));
   }
 
@@ -612,95 +805,255 @@ class _PetLogPhotoEditScreenState extends State<PetLogPhotoEditScreen>
     child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('사진 순서 편집'),
+        title: const Text('사진 편집'),
         leading: IconButton(
+          tooltip: '뒤로',
           onPressed: _goBack,
           icon: const Icon(Icons.arrow_back),
         ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              await allowDraftExit();
-              if (!mounted) return;
-              navigator.pop(List<Object>.unmodifiable(_photos));
-            },
-            child: const Text('완료'),
-          ),
-        ],
       ),
-      body: ReorderableListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        itemCount: _photos.length,
-        onReorderItem: (oldIndex, newIndex) => setState(
-          () => _photos.insert(newIndex, _photos.removeAt(oldIndex)),
-        ),
-        itemBuilder: (context, index) {
-          final photo = _photos[index];
-          final image = photo is PetLogPhoto
-              ? AuthenticatedNetworkImage(
-                  url: photo.url,
-                  fallback: const ColoredBox(color: AppColors.surfaceSoft),
-                  fit: BoxFit.contain,
-                )
-              : Image.memory(
-                  (photo as PreparedPhoto).bytes,
-                  fit: BoxFit.contain,
-                );
-          return Container(
-            key: ValueKey(
-              photo is PetLogPhoto
-                  ? 'photo-${photo.id}'
-                  : 'draft-${identityHashCode(photo)}',
-            ),
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: SizedBox(height: 210, child: image)),
-                IconButton(
-                  tooltip: '사진 ${index + 1} 이전으로 이동',
-                  onPressed: index == 0
-                      ? null
-                      : () => setState(() {
-                          final photo = _photos.removeAt(index);
-                          _photos.insert(index - 1, photo);
-                        }),
-                  icon: const Icon(Icons.arrow_upward),
+                Text(
+                  '사진 ${_photos.length}장',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
-                IconButton(
-                  tooltip: '사진 ${index + 1} 다음으로 이동',
-                  onPressed: index == _photos.length - 1
-                      ? null
-                      : () => setState(() {
-                          final photo = _photos.removeAt(index);
-                          _photos.insert(index + 1, photo);
-                        }),
-                  icon: const Icon(Icons.arrow_downward),
-                ),
-                IconButton(
-                  tooltip: '사진 삭제',
-                  onPressed: () => _remove(index),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-                ReorderableDragStartListener(
-                  index: index,
-                  child: Semantics(
-                    label: '사진 ${index + 1} 순서 변경',
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.drag_handle),
-                    ),
+                const SizedBox(height: 7),
+                const Text(
+                  '오른쪽 손잡이를 길게 눌러 순서를 바꿔요.\n첫 번째 사진이 목록의 대표사진이 돼요.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: _photos.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '첨부한 사진이 없어요.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '기록에 담을 사진을 한 장 이상 추가해주세요.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: FilledButton(
+                              onPressed: widget.onAddPhotos == null
+                                  ? null
+                                  : _addPhotos,
+                              child: const Text('사진 추가'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ReorderableListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    itemCount: _photos.length,
+                    onReorderItem: (oldIndex, newIndex) => setState(
+                      () =>
+                          _photos.insert(newIndex, _photos.removeAt(oldIndex)),
+                    ),
+                    itemBuilder: (context, index) {
+                      final photo = _photos[index];
+                      final image = photo is PetLogPhoto
+                          ? AuthenticatedNetworkImage(
+                              url: photo.url,
+                              fallback: const ColoredBox(
+                                color: AppColors.surfaceSoft,
+                              ),
+                              fit: BoxFit.cover,
+                            )
+                          : Image.memory(
+                              (photo as PreparedPhoto).bytes,
+                              fit: BoxFit.cover,
+                            );
+                      return Container(
+                        key: ValueKey(
+                          photo is PetLogPhoto
+                              ? 'photo-${photo.id}'
+                              : 'draft-${identityHashCode(photo)}',
+                        ),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: SizedBox(
+                                key: const Key('pet-log-photo-edit-thumbnail'),
+                                width: 124,
+                                height: 124,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    const ColoredBox(
+                                      color: AppColors.surfaceSoft,
+                                    ),
+                                    image,
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Material(
+                                        color: Colors.white,
+                                        shape: const CircleBorder(),
+                                        child: IconButton(
+                                          tooltip: '사진 삭제',
+                                          visualDensity: VisualDensity.compact,
+                                          constraints:
+                                              const BoxConstraints.tightFor(
+                                                width: 30,
+                                                height: 30,
+                                              ),
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () => _remove(index),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            size: 16,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    index == 0 ? '대표사진' : '사진 ${index + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    '원본 비율 유지',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Semantics(
+                              customSemanticsActions: {
+                                if (index > 0)
+                                  CustomSemanticsAction(
+                                    label: '사진 ${index + 1} 앞으로 이동',
+                                  ): () => setState(() {
+                                    final moved = _photos.removeAt(index);
+                                    _photos.insert(index - 1, moved);
+                                  }),
+                                if (index < _photos.length - 1)
+                                  CustomSemanticsAction(
+                                    label: '사진 ${index + 1} 뒤로 이동',
+                                  ): () => setState(() {
+                                    final moved = _photos.removeAt(index);
+                                    _photos.insert(index + 1, moved);
+                                  }),
+                              },
+                              child: ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Icons.drag_handle_rounded,
+                                    color: AppColors.muted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          SafeArea(
+            top: false,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFF0F2F1))),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    '완료하면 작성 화면에 반영돼요. 기록의 저장 버튼을 눌러야 최종 저장돼요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: FilledButton(
+                      onPressed: _photos.isEmpty
+                          ? null
+                          : () async {
+                              final navigator = Navigator.of(context);
+                              await allowDraftExit();
+                              if (!mounted) return;
+                              navigator.pop(List<Object>.unmodifiable(_photos));
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('완료'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     ),
   );

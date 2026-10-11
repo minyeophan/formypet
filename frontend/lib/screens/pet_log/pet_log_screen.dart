@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
@@ -12,14 +13,25 @@ import '../../widgets/app_text.dart';
 import '../../widgets/app_confirmation_sheet.dart';
 
 final _petLogService = PetLogService();
+const _exampleRecordedAt = '2026.10.09 19:15';
+
+String _formatTimelineTimestamp(PetLog item) {
+  final dateParts = item.date.split('-');
+  final date = dateParts.length == 3
+      ? '${dateParts[0]}.${dateParts[1]}.${dateParts[2]}'
+      : item.date;
+  final time = item.time.substring(0, min(5, item.time.length));
+  return '$date $time';
+}
 
 Widget _photoRetryPlaceholder(
   BuildContext context,
   VoidCallback retry, {
   bool dark = false,
+  double height = 220,
 }) => Container(
   width: double.infinity,
-  height: 220,
+  height: height,
   color: dark ? Colors.black : AppColors.surfaceSoft,
   alignment: Alignment.center,
   child: Column(
@@ -262,6 +274,17 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
         (year == initial.$1 && month == initial.$2 && all == initial.$3)) {
       return;
     }
+    await _applyPeriod(year: year, month: month, all: all);
+  }
+
+  Future<void> _showAllRecords() =>
+      _applyPeriod(year: _year, month: null, all: true);
+
+  Future<void> _applyPeriod({
+    required int year,
+    required int? month,
+    required bool all,
+  }) async {
     final generation = ++_requestGeneration;
     final pet = ref.read(petProvider).activePetId;
     if (pet == null) return;
@@ -300,6 +323,125 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
     }
   }
 
+  Widget _bookEmptyState() {
+    if (!_hasAny) {
+      return Column(
+        children: [
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 44, 20, 28),
+              child: Column(
+                children: [
+                  SvgPicture.asset(
+                    'assets/illustrations/pet_log_book_empty.svg',
+                    key: const Key('pet-log-book-empty-illustration'),
+                    width: 250,
+                    height: 172,
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    '아직 모아둔 기록이 없어요',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      height: 1.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    '사진과 이야기를 남기면 이곳에 날짜별로 모아볼 수 있어요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.55,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: () => context.push('/pet-log/new'),
+                      child: const Text('첫 기록 남기기'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final periodName = _month == null ? '$_year년' : '$_month월';
+    return Column(
+      children: [
+        const Divider(height: 1, color: AppColors.border),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 66, 20, 28),
+            child: Column(
+              children: [
+                SvgPicture.asset(
+                  'assets/illustrations/pet_log_month_empty.svg',
+                  key: const Key('pet-log-month-empty-illustration'),
+                  width: 148,
+                  height: 148,
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  '$periodName에는 남긴 기록이 없어요',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '다른 달의 순간을 찾아보거나\n전체 기록을 한 번에 둘러보세요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: FilledButton(
+                    onPressed: _changingPeriod ? null : _period,
+                    child: const Text('다른 달 보기'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: TextButton(
+                    onPressed: _changingPeriod ? null : _showAllRecords,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.surfaceSoft,
+                      foregroundColor: AppColors.text,
+                    ),
+                    child: const Text('전체 기록 보기'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final petState = ref.watch(petProvider);
@@ -315,47 +457,90 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: '뒤로',
+          onPressed: () => context.go('/pet-log'),
+          icon: const Icon(Icons.arrow_back, size: 22),
+        ),
+        titleSpacing: 0,
         title: const Text('기록집'),
-        actions: [
-          IconButton(
-            onPressed: _changingPeriod ? null : _period,
-            icon: const Icon(Icons.calendar_month_outlined),
-          ),
-        ],
+        actions: _items.isEmpty
+            ? const []
+            : [
+                IconButton(
+                  tooltip: '기록집 공유',
+                  onPressed: _items.isEmpty ? null : () {},
+                  icon: const Icon(Icons.ios_share_outlined),
+                ),
+              ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _changingPeriod ? null : _period,
-                    icon: const Icon(Icons.calendar_month_outlined),
-                    label: Text(title),
+          if (_hasAny || _items.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Row(
+                children: [
+                  Material(
+                    color: AppColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: _changingPeriod ? null : _period,
+                      child: SizedBox(
+                        height: 36,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                color: AppColors.primary,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  color: AppColors.text,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Text('${_items.length}개 기록'),
-              ],
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.go('/pet-log'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.text,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('전체 기록'),
+                  ),
+                ],
+              ),
             ),
-          ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextButton(onPressed: _load, child: Text(_error!)),
             ),
           Expanded(
-            child: activePetId == null
+            child: petState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : activePetId == null
                 ? const Center(child: Text('아이를 먼저 등록해 주세요.'))
                 : _loading && _items.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _items.isEmpty
-                ? Center(
-                    child: Text(
-                      _error ?? (_hasAny ? '선택한 기간에는 기록이 없어요' : '아직 기록이 없어요'),
-                    ),
-                  )
+                ? _bookEmptyState()
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -369,7 +554,7 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
                       }
                       final item = _items[i];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: GestureDetector(
                           onTap: () =>
                               context.push('/pet-log/${item.id}', extra: item),
@@ -378,7 +563,8 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
                             child: Stack(
                               children: [
                                 AspectRatio(
-                                  aspectRatio: 1.8,
+                                  key: const Key('pet-log-book-cover'),
+                                  aspectRatio: 358 / 160,
                                   child: AuthenticatedNetworkImage(
                                     url: item.cover?.url,
                                     fallback: const ColoredBox(
@@ -388,14 +574,38 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
                                     errorBuilder: _photoRetryPlaceholder,
                                   ),
                                 ),
+                                const Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  height: 64,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Color(0xAD000000),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 Positioned(
                                   left: 14,
                                   bottom: 12,
                                   child: Text(
-                                    '${item.date}  ${item.time.substring(0, min(5, item.time.length))}',
+                                    _formatTimelineTimestamp(item),
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black54,
+                                          blurRadius: 5,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -539,39 +749,87 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
     }
   }
 
-  Widget _emptyView(Pet? active) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _emptyView(Pet? active) {
+    if (active == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('아이를 등록하면 기록을 남길 수 있어요'),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => context.push('/pets/new'),
+              child: const Text('아이 등록하기'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
       children: [
-        const Icon(
-          Icons.photo_album_outlined,
-          size: 54,
-          color: AppColors.brandMint,
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 84),
+          child: Text(
+            '2026년',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 23,
+              height: 33 / 23,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
-        const SizedBox(height: 16),
-        Text(
-          active == null ? '아이를 등록하면 기록을 남길 수 있어요' : '아직 모아둔 기록이 없어요',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        Center(
+          child: SizedBox(
+            key: Key('pet-log-empty-illustration'),
+            width: 250,
+            height: 172,
+            child: SvgPicture.asset('assets/illustrations/pet_log_empty.svg'),
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          active == null ? '반려동물을 먼저 등록해 주세요.' : '사진과 이야기를 남기면 이곳에 모아볼 수 있어요.',
+        const SizedBox(height: 24),
+        const Text(
+          '우리 아이의 첫 순간을\n남겨볼까요?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 23,
+            height: 33 / 23,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        const SizedBox(height: 18),
-        FilledButton(
-          onPressed: active == null
-              ? () => context.push('/pets/new')
-              : () => context.push('/pet-log/new'),
-          child: Text(active == null ? '아이 등록하기' : '첫 기록 남기기'),
+        const SizedBox(height: 12),
+        const Text(
+          '사진 한 장과 짧은 메모면 충분해요.\n소중한 하루를 차곡차곡 모아보세요.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            height: 22 / 13,
+          ),
         ),
       ],
-    ),
-  );
-  Widget _exampleView(Pet? active) {
-    final petName = active?.name ?? '우리 아이';
+    );
+  }
+
+  Widget _exampleView() {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
       children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: Text(
+            '2026년',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 23,
+              height: 33 / 23,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
         GestureDetector(
           onTap: () {
             final id = _petId;
@@ -580,7 +838,7 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
-              aspectRatio: 2.55,
+              aspectRatio: 358 / 140,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -589,52 +847,61 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
                     'assets/images/pet_log_example.png',
                     fit: BoxFit.cover,
                   ),
-                  Positioned(
-                    left: 14,
-                    bottom: 12,
-                    child: Text(
-                      '2026.10.10  15:30',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 60,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xAD000000)],
+                        ),
                       ),
                     ),
                   ),
-                  Positioned(
-                    right: 10,
-                    top: 10,
+                  const Positioned(
+                    left: 14,
+                    bottom: 12,
+                    child: Text(
+                      _exampleRecordedAt,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 5)],
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 12,
+                    top: 12,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.all(Radius.circular(7)),
                       ),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+                          horizontal: 9,
+                          vertical: 4,
                         ),
-                        child: Text('예시 기록'),
+                        child: Text(
+                          '예시',
+                          style: TextStyle(
+                            color: Color(0xFF3C4A42),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          '$petName와 보낸 산책 시간',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 5),
-        const Text('카드를 누르면 기록 상세 예시를 볼 수 있어요.'),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: _dismissExample,
-            child: const Text('예시 기록 삭제'),
           ),
         ),
       ],
@@ -650,14 +917,15 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
         children.add(
           Padding(
             padding: EdgeInsets.only(
-              bottom: 10,
+              bottom: 14,
               top: previousYear == null ? 0 : 8,
             ),
             child: Text(
               '$year년',
               style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 18,
+                color: AppColors.text,
+                fontSize: 23,
+                height: 33 / 23,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -675,7 +943,7 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
               child: Stack(
                 children: [
                   AspectRatio(
-                    aspectRatio: 2.55,
+                    aspectRatio: 358 / 140,
                     child: AuthenticatedNetworkImage(
                       url: item.cover?.url,
                       fallback: const ColoredBox(color: AppColors.surfaceSoft),
@@ -683,11 +951,26 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
                       errorBuilder: _photoRetryPlaceholder,
                     ),
                   ),
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 60,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xAD000000)],
+                        ),
+                      ),
+                    ),
+                  ),
                   Positioned(
                     left: 14,
                     bottom: 12,
                     child: Text(
-                      '${item.date}  ${item.time.substring(0, min(5, item.time.length))}',
+                      _formatTimelineTimestamp(item),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -705,21 +988,6 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
     return children;
   }
 
-  Future<void> _dismissExample() async {
-    final id = _petId;
-    if (id == null) return;
-    try {
-      await _petLogService.dismissExample(id);
-      PetLogService.notifyChanged();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('예시를 삭제하지 못했어요. 다시 시도해 주세요.')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final active = ref.watch(petProvider).activePet;
@@ -733,7 +1001,15 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        leadingWidth: 54,
+        leading: IconButton(
+          tooltip: '뒤로',
+          onPressed: () => context.go('/home'),
+          icon: const Icon(Icons.arrow_back, size: 22),
+        ),
         title: const Text('반려로그'),
+        titleSpacing: 0,
+        elevation: 0,
         actions: [
           TextButton(
             onPressed: () => context.push('/pet-log/book'),
@@ -750,7 +1026,7 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
           : _items.isEmpty
           ? _exampleDismissed
                 ? _emptyView(active)
-                : _exampleView(active)
+                : _exampleView()
           : RefreshIndicator(
               onRefresh: () => _load(force: true),
               child: ListView(
@@ -773,12 +1049,19 @@ class _PetLogScreenState extends ConsumerState<PetLogScreen> {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        onPressed: active == null ? null : () => context.push('/pet-log/new'),
-        child: const Icon(Icons.edit_outlined),
-      ),
+      floatingActionButton: active == null
+          ? null
+          : FloatingActionButton(
+              key: const Key('pet-log-create-fab'),
+              heroTag: 'pet-log-create',
+              tooltip: _items.isEmpty && _exampleDismissed
+                  ? '첫 기록 남기기'
+                  : '기록 남기기',
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              onPressed: () => context.push('/pet-log/new'),
+              child: const Icon(Icons.edit_outlined),
+            ),
     );
   }
 }
@@ -788,6 +1071,14 @@ class PetLogExampleDetailScreen extends StatelessWidget {
   final String petId;
 
   Future<void> _delete(BuildContext context) async {
+    final confirm = await showAppConfirmationSheet(
+      context,
+      title: '예시 기록을 삭제할까요?',
+      message: '예시 기록이 목록에서 사라져요.',
+      confirmLabel: '삭제',
+      confirmKey: const Key('pet-log-example-delete-confirm'),
+    );
+    if (confirm != true) return;
     try {
       await _petLogService.dismissExample(petId);
       PetLogService.notifyChanged();
@@ -804,61 +1095,73 @@ class PetLogExampleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
-    appBar: AppBar(title: const Text('기록 예시')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.asset(
-              'assets/images/pet_log_example.png',
-              fit: BoxFit.contain,
-            ),
+    appBar: AppBar(
+      title: const Text('10월 9일'),
+      actions: [
+        TextButton(
+          onPressed: () => _delete(context),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.text,
+            minimumSize: const Size(52, 44),
           ),
+          child: const Text('삭제'),
         ),
-        const SizedBox(height: 20),
-        Container(
-          alignment: Alignment.centerLeft,
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              child: Text(
-                '예시 화면입니다',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
+      ],
+    ),
+    body: Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            children: [
+              const Text(
+                '2026년 10월 9일 금요일 19:15',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              AspectRatio(
+                aspectRatio: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.asset(
+                    'assets/images/pet_log_example.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 22),
+              const Text(
+                '예시 화면입니다.',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '사진을 올리고 그날의 이야기를 남겨보세요. 기록이 쌓이면 날짜순으로 다시 볼 수 있어요. 이 예시 기록은 원할 때 삭제할 수 있어요.',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.55,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 14),
-        const Text(
-          '2026년 10월 10일 · 오후 3:30',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          '산책하다 만난 기분 좋은 순간',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
-        const Text('사진과 짧은 메모를 남기면 우리 아이와 보낸 하루가 이곳에 차곡차곡 모여요.'),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: () => context.push('/pet-log/new'),
-          child: const Text('내 기록 남기기'),
-        ),
-        Center(
-          child: TextButton(
-            onPressed: () => _delete(context),
-            child: const Text('예시 기록 삭제'),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: FilledButton(
+                onPressed: () => context.push('/pet-log/new'),
+                child: const Text('내 기록 남기기'),
+              ),
+            ),
           ),
         ),
       ],
@@ -950,92 +1253,207 @@ class _PetLogDetailLoaderState extends ConsumerState<PetLogDetailLoader> {
 class PetLogDetailScreen extends StatelessWidget {
   const PetLogDetailScreen({super.key, required this.log});
   final PetLog log;
+
+  String get _title {
+    final parts = log.date.split('-');
+    if (parts.length != 3) return log.date;
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (month == null || day == null) return log.date;
+    return '$month월 $day일';
+  }
+
+  String get _dateTimeLabel {
+    const weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+    final date = DateTime.tryParse(log.date);
+    if (date == null) {
+      return '${log.date} ${log.time.substring(0, min(5, log.time.length))}';
+    }
+    final time = log.time.substring(0, min(5, log.time.length));
+    return '${date.year}년 ${date.month}월 ${date.day}일 ${weekdays[date.weekday - 1]} $time';
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final ok = await showAppConfirmationSheet(
+      context,
+      title: '기록을 삭제할까요?',
+      message: '삭제한 기록은 다시 복구할 수 없어요.',
+      confirmLabel: '삭제',
+      confirmKey: const Key('pet-log-delete-confirm'),
+    );
+    if (ok != true) return;
+    try {
+      await _petLogService.delete(
+        log.petId,
+        log.id,
+        log.version,
+        'petlog-delete-${log.id}-${log.version}',
+      );
+      PetLogService.notifyChanged();
+      if (context.mounted) context.pop(true);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('기록을 삭제하지 못했어요. 다시 시도해 주세요.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
     appBar: AppBar(
-      title: Text(log.date),
+      title: Text(_title),
       actions: [
-        IconButton(
+        TextButton(
           onPressed: () => context.push('/pet-log/new', extra: log),
-          icon: const Icon(Icons.edit_outlined),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.text,
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          child: const Text('수정'),
         ),
-        IconButton(
-          onPressed: () async {
-            final ok = await showAppConfirmationSheet(
-              context,
-              title: '기록을 삭제할까요?',
-              message: '삭제한 기록은 다시 복구할 수 없어요.',
-              confirmLabel: '삭제',
-              confirmKey: const Key('pet-log-delete-confirm'),
-            );
-            if (ok == true) {
-              try {
-                await _petLogService.delete(
-                  log.petId,
-                  log.id,
-                  log.version,
-                  'petlog-delete-${log.id}-${log.version}',
-                );
-                PetLogService.notifyChanged();
-                if (context.mounted) context.pop(true);
-              } catch (_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('기록을 삭제하지 못했어요. 다시 시도해 주세요.')),
-                  );
-                }
-              }
-            }
+        PopupMenuButton<String>(
+          tooltip: '기록 더보기',
+          onSelected: (value) {
+            if (value == 'delete') _delete(context);
           },
-          icon: const Icon(Icons.delete_outline),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'delete', child: Text('기록 삭제')),
+          ],
         ),
       ],
     ),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
+    body: Column(
       children: [
-        if (log.appliedVersion != null && log.version > log.appliedVersion!)
-          Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text('저장 요청 이후 기록이 다시 수정되어 최신 내용을 표시하고 있어요.'),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final imageWidth = (constraints.maxWidth - 40)
+                  .clamp(0.0, double.infinity)
+                  .toDouble();
+              return ListView(
+                key: const Key('pet-log-detail-scroll'),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                children: [
+                  Text(
+                    _dateTimeLabel,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  if (log.appliedVersion != null &&
+                      log.version > log.appliedVersion!)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceSoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        '저장 요청 이후 기록이 다시 수정되어 최신 내용을 표시하고 있어요.',
+                      ),
+                    ),
+                  for (var index = 0; index < log.photos.length; index++) ...[
+                    _detailPhoto(context, log.photos[index], index, imageWidth),
+                    if (index < log.photos.length - 1)
+                      const SizedBox(height: 10),
+                  ],
+                  if (log.note?.isNotEmpty == true) ...[
+                    const SizedBox(height: 16),
+                    AppText(log.note!, fontSize: 16),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${log.time.substring(0, min(5, log.time.length))}에 남긴 이야기',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
-        Text('${log.date} ${log.time.substring(0, min(5, log.time.length))}'),
-        const SizedBox(height: 16),
-        for (final photo in log.photos)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _PetLogPhotoViewer(
-                    photos: log.photos,
-                    index: photo.position,
+        ),
+        SafeArea(
+          top: false,
+          child: Container(
+            key: const Key('pet-log-detail-photo-action'),
+            height: 68,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  '사진 ${log.photos.length}장',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              ),
-              child: AuthenticatedNetworkImage(
-                url: photo.url,
-                fallback: const SizedBox(height: 240),
-                fit: BoxFit.contain,
-                errorBuilder: _photoRetryPlaceholder,
-              ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => context.push('/pet-log/new', extra: log),
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.surfaceSoft,
+                    foregroundColor: AppColors.text,
+                    minimumSize: const Size(107, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('사진 선택'),
+                ),
+              ],
             ),
           ),
-        if (log.note?.isNotEmpty == true)
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: AppText(log.note!, fontSize: 16),
-          ),
+        ),
       ],
     ),
   );
+
+  Widget _detailPhoto(
+    BuildContext context,
+    PetLogPhoto photo,
+    int index,
+    double width,
+  ) {
+    final aspectRatio = photo.width > 0 && photo.height > 0
+        ? photo.width / photo.height
+        : 1.0;
+    final height = aspectRatio > 0 ? width / aspectRatio : width;
+    return GestureDetector(
+      key: ValueKey('pet-log-photo-${photo.id}'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _PetLogPhotoViewer(photos: log.photos, index: index),
+        ),
+      ),
+      child: AuthenticatedNetworkImage(
+        url: photo.url,
+        width: width,
+        height: height,
+        fallback: SizedBox(height: height),
+        fit: BoxFit.contain,
+        errorBuilder: (context, retry) =>
+            _photoRetryPlaceholder(context, retry, height: height),
+      ),
+    );
+  }
 }
 
 class _PetLogPhotoViewer extends StatefulWidget {

@@ -68,7 +68,7 @@ public class PetLogService {
             args.add(before); args.add(before); args.add(beforeId);
         }
         sql.append(" ORDER BY entry_at DESC,id DESC LIMIT ?"); args.add(limit+1);
-        List<PetLogResponse> found = jdbc.query(sql.toString(), (rs,n) -> response(rs.getLong("id"),rs.getLong("pet_id"),rs.getTimestamp("entry_at").toLocalDateTime(),rs.getString("note"),rs.getLong("version"),rs.getTimestamp("created_at").toInstant()), args.toArray());
+        List<PetLogResponse> found = jdbc.query(sql.toString(), (rs,n) -> response(rs.getLong("id"),rs.getLong("pet_id"),rs.getObject("entry_at", LocalDateTime.class),rs.getString("note"),rs.getLong("version"),rs.getTimestamp("created_at").toInstant()), args.toArray());
         boolean more=found.size()>limit;
         if (more) found=found.subList(0,limit);
         String next=null;
@@ -81,7 +81,7 @@ public class PetLogService {
     @Transactional(readOnly = true)
     public PetLogResponse get(Long userId, Long petId, Long id) {
         owned(userId, petId);
-        var rows = jdbc.query("SELECT id,pet_id,entry_at,note,version,created_at FROM pet_logs WHERE id=? AND pet_id=?", (rs,n)->response(rs.getLong("id"),rs.getLong("pet_id"),rs.getTimestamp("entry_at").toLocalDateTime(),rs.getString("note"),rs.getLong("version"),rs.getTimestamp("created_at").toInstant()), id, petId);
+        var rows = jdbc.query("SELECT id,pet_id,entry_at,note,version,created_at FROM pet_logs WHERE id=? AND pet_id=?", (rs,n)->response(rs.getLong("id"),rs.getLong("pet_id"),rs.getObject("entry_at", LocalDateTime.class),rs.getString("note"),rs.getLong("version"),rs.getTimestamp("created_at").toInstant()), id, petId);
         if (rows.isEmpty()) throw new NotFoundException("Pet log not found.", "PET_LOG_NOT_FOUND");
         return rows.getFirst();
     }
