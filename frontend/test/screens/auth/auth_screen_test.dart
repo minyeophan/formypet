@@ -10,6 +10,7 @@ import 'package:frontend/core/app_theme.dart';
 import 'package:frontend/core/app_colors.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/screens/auth/auth_screen.dart';
+import 'package:frontend/widgets/app_icon.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/policy_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -342,9 +343,31 @@ void main() {
       await _openLogin(tester);
 
       expect(_passwordField(tester).obscureText, isTrue);
+      expect(
+        tester
+            .widget<AppIcon>(
+              find.descendant(
+                of: find.byKey(const Key('auth-password-visibility')),
+                matching: find.byType(AppIcon),
+              ),
+            )
+            .icon,
+        Icons.visibility_off,
+      );
       await tester.tap(find.byKey(const Key('auth-password-visibility')));
       await tester.pump();
       expect(_passwordField(tester).obscureText, isFalse);
+      expect(
+        tester
+            .widget<AppIcon>(
+              find.descendant(
+                of: find.byKey(const Key('auth-password-visibility')),
+                matching: find.byType(AppIcon),
+              ),
+            )
+            .icon,
+        Icons.visibility,
+      );
     },
   );
 

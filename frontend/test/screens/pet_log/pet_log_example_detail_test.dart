@@ -20,10 +20,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('예시 화면입니다.'), findsOneWidget);
+    expect(
+      find.text(
+        '사진을 올리고 그날의 이야기를 남겨보세요.\n'
+        '기록이 쌓이면 날짜순으로 다시 볼 수 있어요.\n\n'
+        '이 예시 기록은 원할 때 삭제할 수 있어요.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('내 기록 남기기'), findsOneWidget);
-    expect(find.text('삭제'), findsOneWidget);
+    expect(find.text('삭제'), findsNothing);
     final photoRect = tester.getRect(find.byType(Image).first);
     expect(photoRect.width / photoRect.height, closeTo(1, 0.02));
+    expect(
+      find.ancestor(
+        of: find.byType(Image).first,
+        matching: find.byType(ClipRRect),
+      ),
+      findsNothing,
+    );
+    expect(find.byTooltip('예시 기록 더보기'), findsNothing);
+    expect(find.text('예시 기록을 삭제할까요?'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

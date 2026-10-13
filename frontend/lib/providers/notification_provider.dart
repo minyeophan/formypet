@@ -9,6 +9,7 @@ class NotificationState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool isMarkingAllRead;
+  final bool hasLoaded;
   final List<NotificationItem> items;
   final String? nextCursor;
   final bool hasMore;
@@ -19,6 +20,7 @@ class NotificationState {
     required this.isLoading,
     this.isLoadingMore = false,
     this.isMarkingAllRead = false,
+    this.hasLoaded = false,
     required this.items,
     this.nextCursor,
     required this.hasMore,
@@ -37,6 +39,7 @@ class NotificationState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? isMarkingAllRead,
+    bool? hasLoaded,
     List<NotificationItem>? items,
     String? nextCursor,
     bool clearNextCursor = false,
@@ -48,6 +51,7 @@ class NotificationState {
     isLoading: isLoading ?? this.isLoading,
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     isMarkingAllRead: isMarkingAllRead ?? this.isMarkingAllRead,
+    hasLoaded: hasLoaded ?? this.hasLoaded,
     items: items ?? this.items,
     nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
     hasMore: hasMore ?? this.hasMore,
@@ -94,6 +98,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       if (!_isCurrent(session) || version != _feedVersion) return;
       state = state.copyWith(
         isLoading: false,
+        hasLoaded: true,
         items: _unique(feed.items),
         nextCursor: feed.nextCursor,
         clearNextCursor: feed.nextCursor == null,
@@ -105,6 +110,11 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       state = state.copyWith(isLoading: false, errorText: '알림을 불러오지 못했어요.');
       rethrow;
     }
+  }
+
+  Future<void> loadFirstPageIfNeeded() async {
+    if (!_sessionActive || state.isLoading || state.hasLoaded) return;
+    await loadFirstPage();
   }
 
   Future<void> loadMore() async {

@@ -233,7 +233,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const Key('home-notification-unread-dot')),
+      find.byKey(const Key('app-header-notification-unread-dot')),
       findsOneWidget,
     );
     expect(find.text('1'), findsNothing);
@@ -257,7 +257,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const Key('home-notification-unread-dot')),
+        find.byKey(const Key('app-header-notification-unread-dot')),
         findsNothing,
       );
     },

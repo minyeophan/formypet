@@ -15,6 +15,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final bool showDivider;
   final VoidCallback? onBack;
   final Widget? leading;
+  final double? leadingWidth;
   final Key? titleKey;
   final Key? leadingKey;
 
@@ -27,6 +28,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.showDivider = false,
     this.onBack,
     this.leading,
+    this.leadingWidth,
     this.titleKey,
     this.leadingKey,
   }) : assert(!showBackButton || onBack != null);
@@ -38,7 +40,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       toolbarHeight: 56,
-      leadingWidth: (leading != null || showBackButton) ? 44 : null,
+      leadingWidth: (leading != null || showBackButton)
+          ? (leadingWidth ?? 44)
+          : null,
       titleSpacing: (leading != null || showBackButton) ? 0 : null,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -253,9 +257,9 @@ class _AppHeaderIconButtonState extends State<AppHeaderIconButton> {
                     ),
                     if (widget.showUnreadIndicator)
                       const Positioned(
-                        key: Key('home-notification-unread-dot'),
-                        right: -2,
-                        top: -2,
+                        key: Key('app-header-notification-unread-dot'),
+                        right: 3,
+                        top: 3,
                         child: SizedBox(
                           width: 7,
                           height: 7,
