@@ -164,6 +164,23 @@ void main() {
     },
   );
 
+  testWidgets('pet log book hides the main bottom navigation', (tester) async {
+    final pet = _pet('1');
+    await _pumpRouter(
+      tester,
+      initialLocation: '/pet-log/book',
+      authState: const AuthState(isLoading: false, isAuthenticated: true),
+      petState: _petState(
+        isLoading: false,
+        hasOnboarded: true,
+        pets: [pet],
+        activePetId: pet.id,
+      ),
+    );
+
+    expect(find.byType(BottomNavigationBar), findsNothing);
+  });
+
   testWidgets(
     'actual community comments is authenticated and receives query fields',
     (tester) async {
