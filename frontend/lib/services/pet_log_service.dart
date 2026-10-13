@@ -24,6 +24,7 @@ class PetLogService {
     int? year,
     int? month,
     String? cursor,
+    CancelToken? cancelToken,
   }) async {
     final r = await dio.get(
       '/api/v1/pets/$petId/pet-logs',
@@ -33,6 +34,7 @@ class PetLogService {
         'limit': 20,
         ...?(cursor == null ? null : {'cursor': cursor}),
       },
+      cancelToken: cancelToken,
     );
     return PetLogPage.fromJson((r.data as Map)['data'] as Map<String, dynamic>);
   }
