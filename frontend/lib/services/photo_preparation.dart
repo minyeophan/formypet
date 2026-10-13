@@ -15,7 +15,15 @@ class PreparedPhoto {
   final Uint8List bytes;
   final String filename;
   final String mimeType;
-  const PreparedPhoto(this.bytes, this.filename, this.mimeType);
+  final int width;
+  final int height;
+  const PreparedPhoto(
+    this.bytes,
+    this.filename,
+    this.mimeType, {
+    this.width = 0,
+    this.height = 0,
+  });
   XFile asFile() =>
       XFile.fromData(bytes, name: filename, path: filename, mimeType: mimeType);
 }
@@ -91,7 +99,13 @@ PreparedPhoto _preparePhotoBytes(Uint8List bytes, String filename) {
   }
   final mime = 'image/${expected == img.ImageFormat.jpg ? 'jpeg' : ext}';
   if (!resize && bytes.length <= maxPhotoBytes) {
-    return PreparedPhoto(bytes, filename, mime);
+    return PreparedPhoto(
+      bytes,
+      filename,
+      mime,
+      width: source.width,
+      height: source.height,
+    );
   }
   source = img.bakeOrientation(source);
   if (resize) {
@@ -114,7 +128,13 @@ PreparedPhoto _preparePhotoBytes(Uint8List bytes, String filename) {
         ? img.encodeWebP(source, lossless: false, quality: quality)
         : img.encodeJpg(source, quality: quality);
     if (output.length <= maxPhotoBytes) {
-      return PreparedPhoto(Uint8List.fromList(output), filename, mime);
+      return PreparedPhoto(
+        Uint8List.fromList(output),
+        filename,
+        mime,
+        width: source.width,
+        height: source.height,
+      );
     }
     if (expected == img.ImageFormat.png) {
       break;

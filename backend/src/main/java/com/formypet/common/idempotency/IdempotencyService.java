@@ -18,6 +18,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.function.LongFunction;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToLongFunction;
 
@@ -33,38 +35,54 @@ public class IdempotencyService {
     public <T> T execute(Long actorId, String operation, String target, String key,
                          Object payload, List<MultipartFile> files,
                          Supplier<T> create, ToLongFunction<T> resultId, LongFunction<T> replay) {
+        return executeInternal(actorId,operation,target,key,payload,files,create,resultId,value->null,
+                (id,version)->replay.apply(id));
+    }
+
+    public <T> T executeVersioned(Long actorId, String operation, String target, String key,
+                                  Object payload, List<MultipartFile> files, Supplier<T> create,
+                                  ToLongFunction<T> resultId, Function<T,Long> resultVersion,
+                                  BiFunction<Long,Long,T> replay) {
+        return executeInternal(actorId,operation,target,key,payload,files,create,resultId,resultVersion,replay);
+    }
+
+    private <T> T executeInternal(Long actorId, String operation, String target, String key,
+                         Object payload, List<MultipartFile> files,
+                         Supplier<T> create, ToLongFunction<T> resultId, Function<T,Long> resultVersion,
+                         BiFunction<Long,Long,T> replay) {
         if (key == null) return create.get();
         if (key.isBlank() || key.length() > 128 || !key.matches("[A-Za-z0-9._:-]+")) {
             throw new IllegalArgumentException("Idempotency-Key must contain 1 to 128 letters, digits, '.', '_', ':', or '-'.");
         }
         String fingerprint = fingerprint(payload, files);
         return new TransactionTemplate(transactions).execute(status ->
-                executeLocked(actorId, operation, target, key, fingerprint, create, resultId, replay));
+                executeLocked(actorId, operation, target, key, fingerprint, create, resultId, resultVersion, replay));
     }
 
     private <T> T executeLocked(Long actorId, String operation, String target, String key,
                                 String fingerprint, Supplier<T> create,
-                                ToLongFunction<T> resultId, LongFunction<T> replay) {
+                                ToLongFunction<T> resultId, Function<T,Long> resultVersion,
+                                BiFunction<Long,Long,T> replay) {
         // The account row predates receipts, closing the simultaneous first-request race.
         sessions.lockCurrent(actorId);
         var receipts = jdbc.query("""
-                SELECT request_hash, result_id FROM idempotency_requests
+                SELECT request_hash, result_id, result_version FROM idempotency_requests
                 WHERE user_id=? AND operation=? AND target=? AND request_key=? FOR UPDATE
-                """, (rs, n) -> new Receipt(rs.getString(1), rs.getLong(2)), actorId, operation, target, key);
+                """, (rs, n) -> new Receipt(rs.getString(1), rs.getLong(2), (Long)rs.getObject(3)), actorId, operation, target, key);
         if (!receipts.isEmpty()) {
             Receipt receipt = receipts.getFirst();
             if (!receipt.hash().equals(fingerprint)) {
                 throw new ApiException(HttpStatus.CONFLICT, "idempotency-conflict", "Idempotency conflict",
                         "This key was already used for different content.", "IDEMPOTENCY_CONFLICT");
             }
-            return replay.apply(receipt.resultId());
+            return replay.apply(receipt.resultId(),receipt.resultVersion());
         }
         T result = create.get();
         // Store identifiers only: deleted private content must not survive inside receipts.
         jdbc.update("""
-                INSERT INTO idempotency_requests(user_id, operation, target, request_key, request_hash, result_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """, actorId, operation, target, key, fingerprint, resultId.applyAsLong(result));
+                INSERT INTO idempotency_requests(user_id, operation, target, request_key, request_hash, result_id, result_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, actorId, operation, target, key, fingerprint, resultId.applyAsLong(result),resultVersion.apply(result));
         return result;
     }
 
@@ -133,5 +151,5 @@ public class IdempotencyService {
         digest.update(bytes);
     }
 
-    private record Receipt(String hash, long resultId) {}
+    private record Receipt(String hash, long resultId, Long resultVersion) {}
 }

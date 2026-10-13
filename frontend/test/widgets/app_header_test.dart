@@ -52,6 +52,32 @@ void main() {
     expect(icon.color, AppColors.textSecondary);
   });
 
+  testWidgets('unread dot stays inside the notification icon border', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AppHeaderIconButton(
+              icon: Icons.notifications_none_rounded,
+              tooltip: '알림',
+              onTap: null,
+              showUnreadIndicator: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final surface = tester.getRect(find.byType(Ink));
+    final dot = tester.getRect(
+      find.byKey(const Key('app-header-notification-unread-dot')),
+    );
+    expect(surface.contains(dot.topLeft), isTrue);
+    expect(surface.contains(dot.bottomRight), isTrue);
+  });
+
   testWidgets('AppHeaderIconButton supports a disabled shared icon surface', (
     tester,
   ) async {

@@ -662,7 +662,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ? null
                   : () => setState(() => _passwordVisible = !_passwordVisible),
               icon: AppIcon(
-                _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                _passwordVisible ? Icons.visibility : Icons.visibility_off,
                 size: 24,
               ),
             ),

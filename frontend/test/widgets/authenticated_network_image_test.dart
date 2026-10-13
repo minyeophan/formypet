@@ -79,6 +79,41 @@ void main() {
 
     expect(requestedPaths, ['/first.png', '/second.png']);
   });
+
+  testWidgets('custom error action retries image loading', (tester) async {
+    var attempts = 0;
+    dio.httpClientAdapter = _CannedAdapter((_) async {
+      attempts++;
+      if (attempts == 1) return ResponseBody.fromString('failed', 503);
+      return _bytesResponse(_png);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AuthenticatedNetworkImage(
+            url: '/retry.png',
+            width: 72,
+            height: 48,
+            fallback: const ColoredBox(
+              key: Key('fallback'),
+              color: Colors.transparent,
+            ),
+            errorBuilder: (context, retry) =>
+                TextButton(onPressed: retry, child: const Text('다시 불러오기')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('다시 불러오기'), findsOneWidget);
+
+    await tester.tap(find.text('다시 불러오기'));
+    await tester.pumpAndSettle();
+
+    expect(attempts, 2);
+    expect(find.byType(Image), findsOneWidget);
+  });
 }
 
 Future<void> _pump(WidgetTester tester, {String? url}) {

@@ -7,6 +7,7 @@ import com.formypet.pet.dto.PetCreateRequest;
 import com.formypet.pet.dto.PetResponse;
 import com.formypet.pet.dto.PetUpdateRequest;
 import com.formypet.pet.repository.PetRepository;
+import com.formypet.media.MediaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +34,7 @@ public class PetService {
     private final PetRepository petRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final MediaService mediaService;
 
     @Transactional
     public PetResponse create(Long actorId, PetCreateRequest request) {
@@ -80,7 +82,9 @@ public class PetService {
 
     @Transactional
     public void delete(Long actorId, Long petId) {
-        findOwnedPet(actorId, petId).softDelete();
+        Pet pet=findOwnedPet(actorId, petId);
+        mediaService.deletePetLogDataForPet(actorId,petId);
+        pet.softDelete();
     }
 
     private Pet findOwnedPet(Long actorId, Long petId) {
@@ -102,7 +106,7 @@ public class PetService {
         var ids = jdbcTemplate.queryForList("""
                 SELECT id
                 FROM media_resources
-                WHERE pet_id = ? AND record_id IS NULL AND status = 'STORED'
+                WHERE pet_id = ? AND record_id IS NULL AND media_kind = 'PET_PROFILE' AND status = 'STORED'
                 ORDER BY created_at DESC, id DESC
                 LIMIT 1
                 """, Long.class, petId);

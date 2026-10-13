@@ -9,6 +9,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_v2_tokens.dart';
 import '../../providers/community_provider.dart';
 import '../../providers/content_visibility_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_text.dart';
@@ -27,6 +28,16 @@ TextStyle _communityStyle({
   Color? color,
 }) => TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
 
+void _ensureCommunityNotificationsLoaded(WidgetRef ref) {
+  Future.microtask(() async {
+    try {
+      await ref.read(notificationProvider.notifier).loadFirstPageIfNeeded();
+    } catch (_) {
+      // Notification loading must not prevent community screens from opening.
+    }
+  });
+}
+
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
 
@@ -38,6 +49,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void initState() {
     super.initState();
+    _ensureCommunityNotificationsLoaded(ref);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(communityProvider.notifier).setFeedKey('popular');
@@ -98,6 +110,7 @@ class _CommunityCategoryScreenState
   @override
   void initState() {
     super.initState();
+    _ensureCommunityNotificationsLoaded(ref);
     ref.listenManual(contentVisibilityProvider, (_, _) => _activateRouteFeed());
     _activateRouteFeed();
   }
@@ -236,13 +249,13 @@ class _CommunityCategoryBody extends ConsumerWidget {
   }
 }
 
-class _CommunityHeader extends StatelessWidget {
+class _CommunityHeader extends ConsumerWidget {
   final bool showBack;
 
   const _CommunityHeader({this.showBack = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       key: const Key('community-header'),
       decoration: const BoxDecoration(color: AppV2Tokens.background),
@@ -279,6 +292,8 @@ class _CommunityHeader extends StatelessWidget {
             key: const Key('community-notification-button'),
             icon: Icons.notifications_none_rounded,
             tooltip: '알림',
+            showUnreadIndicator:
+                ref.watch(notificationProvider).unreadCount > 0,
             onTap: () {
               final router = GoRouter.maybeOf(context);
               if (router == null) {

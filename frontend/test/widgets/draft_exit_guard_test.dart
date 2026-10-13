@@ -123,6 +123,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(state.exitCallbackCount, 1);
   });
+
+  testWidgets('pending work alone still guards system back', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const _Draft(customExit: true),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final popScope = tester.widget<PopScope<Object?>>(
+      find.byType(PopScope<Object?>),
+    );
+    expect(popScope.canPop, isFalse);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('계속 입력'), findsOneWidget);
+    await tester.tap(find.text('계속 입력'));
+    await tester.pumpAndSettle();
+    expect(find.text('open'), findsNothing);
+    expect(find.text('draft'), findsNothing);
+  });
 }
 
 class _Draft extends StatefulWidget {
