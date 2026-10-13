@@ -19,8 +19,10 @@ import '../../widgets/app_text.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_picker_sheet.dart';
 import '../../widgets/app_success_toast.dart';
-import '../../widgets/preparing_toast.dart';
 import '../../services/pet_log_photo_gallery_saver.dart';
+import '../../services/pet_log_video_exporter.dart';
+import '../../widgets/app_action_sheet.dart';
+import 'pet_log_export_screen.dart';
 
 final _petLogService = PetLogService();
 const _exampleRecordedDate = '2026.10.09';
@@ -611,7 +613,7 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
             : [
                 IconButton(
                   tooltip: '기록집 공유',
-                  onPressed: () => showPreparingToast(context),
+                  onPressed: _openExportOptions,
                   icon: const Icon(Icons.ios_share_outlined),
                 ),
               ],
@@ -752,6 +754,50 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _openExportOptions() async {
+    final petId = _petId;
+    if (petId == null) return;
+    await showAppActionSheet(
+      context,
+      title: '기록집 만들기',
+      actions: [
+        AppActionSheetItem(
+          label: '이미지 만들기',
+          description: '사진을 세로로 이어 붙여 저장하거나 공유해요.',
+          icon: Icons.photo_library_outlined,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => PetLogExportScreen(
+                petId: petId,
+                year: _year,
+                month: _month,
+                all: _all,
+                kind: PetLogExportKind.image,
+              ),
+            ),
+          ),
+        ),
+        if (PetLogVideoExporter.isSupported)
+          AppActionSheetItem(
+            label: '영상 만들기',
+            description: '사진마다 3초씩 재생되는 무음 영상을 만들어요.',
+            icon: Icons.movie_creation_outlined,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PetLogExportScreen(
+                  petId: petId,
+                  year: _year,
+                  month: _month,
+                  all: _all,
+                  kind: PetLogExportKind.video,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
