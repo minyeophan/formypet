@@ -36,9 +36,9 @@ Future<bool?> showAppConfirmationSheet(
               fontWeight: FontWeight.bold,
               color: AppColors.text,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 1),
             AppText(message, fontSize: 13, color: AppColors.textSecondary),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             SizedBox(
               height: 52,
               child: FilledButton(
@@ -61,7 +61,7 @@ Future<bool?> showAppConfirmationSheet(
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             SizedBox(
               height: 48,
               child: OutlinedButton(

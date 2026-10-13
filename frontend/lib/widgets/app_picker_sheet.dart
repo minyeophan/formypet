@@ -95,7 +95,11 @@ Future<T?> showAppPickerSheet<T>(
   BuildContext context, {
   required String title,
   required List<AppSelectOption<T>> options,
+  T? selectedValue,
   bool searchable = false,
+  bool showDragHandle = false,
+  bool showCloseAction = true,
+  bool showSeparators = true,
 }) {
   FocusScope.of(context).unfocus();
   return showModalBottomSheet<T>(
@@ -104,10 +108,14 @@ Future<T?> showAppPickerSheet<T>(
     barrierColor: const Color(0x66000000),
     useSafeArea: false,
     isScrollControlled: true,
+    showDragHandle: showDragHandle,
     builder: (context) => AppPickerSheet<T>(
       title: title,
       options: options,
+      selectedValue: selectedValue,
       searchable: searchable,
+      showCloseAction: showCloseAction,
+      showSeparators: showSeparators,
     ),
   );
 }
@@ -115,13 +123,19 @@ Future<T?> showAppPickerSheet<T>(
 class AppPickerSheet<T> extends StatefulWidget {
   final String title;
   final List<AppSelectOption<T>> options;
+  final T? selectedValue;
   final bool searchable;
+  final bool showCloseAction;
+  final bool showSeparators;
 
   const AppPickerSheet({
     super.key,
     required this.title,
     required this.options,
+    this.selectedValue,
     this.searchable = false,
+    this.showCloseAction = true,
+    this.showSeparators = true,
   });
 
   @override
@@ -182,20 +196,24 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
                       ),
                       SizedBox(
                         width: 72,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(null),
-                          child: const AppText(
-                            '닫기',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                        child: widget.showCloseAction
+                            ? TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(null),
+                                child: const AppText(
+                                  '닫기',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : null,
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.border),
+                if (widget.showSeparators)
+                  const Divider(height: 1, color: AppColors.border),
                 if (widget.searchable) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -227,12 +245,58 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      vertical: widget.showSeparators ? 8 : 4,
+                    ),
                     itemCount: options.length,
-                    separatorBuilder: (_, _) =>
-                        const Divider(height: 1, color: AppColors.border),
+                    separatorBuilder: (_, _) => widget.showSeparators
+                        ? const Divider(height: 1, color: AppColors.border)
+                        : const SizedBox(height: 0),
                     itemBuilder: (context, index) {
                       final option = options[index];
+                      final isSelected =
+                          widget.selectedValue != null &&
+                          option.value == widget.selectedValue;
+                      if (widget.selectedValue != null) {
+                        return AppFocusIndicator(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 2,
+                            ),
+                            child: Material(
+                              color: isSelected
+                                  ? AppColors.actionMint
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () =>
+                                    Navigator.of(context).pop(option.value),
+                                child: SizedBox(
+                                  height: 36,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: AppText(
+                                        option.label,
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
                       return AppFocusIndicator(
                         child: ListTile(
                           hoverColor: Colors.transparent,

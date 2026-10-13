@@ -18,6 +18,7 @@ void main() {
       expect(prepared.asFile().name, 'selected.png');
       expect(await prepared.asFile().readAsBytes(), bytes);
       expect(prepared.mimeType, 'image/png');
+      expect((prepared.width, prepared.height), (2, 1));
     },
   );
   test('oversize input is rejected before loading file bytes', () async {
@@ -33,6 +34,7 @@ void main() {
     final bytes = Uint8List.fromList(img.encodePng(source));
     final result = preparePhotoBytes(bytes, 'photo.png');
     expect(result.bytes, bytes);
+    expect((result.width, result.height), (10, 5));
     expect(img.decodePng(result.bytes)!.getPixel(0, 0).a, 0);
   });
   test('large portrait PNG preserves ratio and alpha without cropping', () {
@@ -44,6 +46,7 @@ void main() {
     final decoded = img.decodePng(result.bytes)!;
     expect(decoded.width, 800);
     expect(decoded.height, 1600);
+    expect((result.width, result.height), (800, 1600));
     expect(decoded.getPixel(0, 0).a, 0);
   });
   test('mismatched filename and corrupt input are rejected', () {
@@ -103,6 +106,7 @@ void main() {
     );
     final decoded = img.decodeJpg(result.bytes)!;
     expect((decoded.width, decoded.height), (80, 1600));
+    expect((result.width, result.height), (80, 1600));
     expect(decoded.exif.imageIfd.orientation, anyOf(isNull, 1));
   });
   test('transparent WebP keeps transparency when resized', () {

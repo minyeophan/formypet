@@ -7,10 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/app_v2_tokens.dart';
 import 'package:frontend/models/post.dart';
+import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/models/notification.dart';
+import 'package:frontend/providers/notification_provider.dart';
 import 'package:frontend/screens/community/community_screen.dart';
 import 'package:frontend/screens/community/write_screen.dart';
 import 'package:frontend/services/community_service.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:frontend/widgets/app_navigation.dart';
 import 'package:frontend/widgets/app_text.dart';
 import 'package:go_router/go_router.dart';
@@ -150,6 +154,76 @@ void main() {
     expect(find.byKey(const Key('community-write-fab')), findsOneWidget);
     expect(find.text('제목 없음'), findsOneWidget);
   });
+
+  testWidgets('community notification dot follows unread notification state', (
+    tester,
+  ) async {
+    await installUiTestFonts();
+    final container = ProviderContainer(
+      overrides: [
+        communityServiceProvider.overrideWithValue(_FakeCommunityService()),
+        authProvider.overrideWith(
+          (_) => AuthNotifier.test(
+            const AuthState(isLoading: false, isAuthenticated: true),
+          ),
+        ),
+        notificationServiceProvider.overrideWithValue(
+          _UnreadNotificationService(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: CommunityScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const unreadDot = Key('app-header-notification-unread-dot');
+    expect(find.byKey(unreadDot), findsOneWidget);
+
+    await container.read(notificationProvider.notifier).markAllRead();
+    await tester.pumpAndSettle();
+    expect(find.byKey(unreadDot), findsNothing);
+  });
+
+  testWidgets(
+    'direct community category entry loads unread notification state',
+    (tester) async {
+      await installUiTestFonts();
+      final container = ProviderContainer(
+        overrides: [
+          communityServiceProvider.overrideWithValue(_FakeCommunityService()),
+          authProvider.overrideWith(
+            (_) => AuthNotifier.test(
+              const AuthState(isLoading: false, isAuthenticated: true),
+            ),
+          ),
+          notificationServiceProvider.overrideWithValue(
+            _UnreadNotificationService(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: CommunityCategoryScreen(initialCategory: 'NEWS'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('app-header-notification-unread-dot')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('main popular feed renders the compact post card layout', (
     tester,
@@ -1207,4 +1281,24 @@ class _FakeCommunityService extends CommunityService {
     lastCreatedContent = content;
     return _post(content, category);
   }
+}
+
+class _UnreadNotificationService extends NotificationService {
+  @override
+  Future<NotificationFeed> list({String? cursor, int limit = 20}) async =>
+      const NotificationFeed(
+        items: [
+          NotificationItem(
+            id: 'notification-1',
+            type: 'LIKE',
+            title: '새 알림',
+            body: '새 알림이 도착했어요.',
+          ),
+        ],
+        hasMore: false,
+        unreadCount: 1,
+      );
+
+  @override
+  Future<void> markAllRead() async {}
 }
