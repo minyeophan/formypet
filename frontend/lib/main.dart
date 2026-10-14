@@ -42,14 +42,16 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const configuredUrl = String.fromEnvironment('API_BASE_URL');
+  const productionApiUrl =
+      'https://formypet-production-production.up.railway.app';
   final baseUrl = configuredUrl.isNotEmpty
       ? configuredUrl
       : kReleaseMode
-      ? ''
+      ? productionApiUrl
       : kIsWeb
       ? 'http://localhost:8083'
       : 'http://10.0.2.2:8083';
-  // A release with no HTTPS deployment cannot send account data over HTTP.
+  // Keep release account requests on HTTPS even when a build override is invalid.
   initApiClient(kReleaseMode && !baseUrl.startsWith('https://') ? '' : baseUrl);
   final container = ProviderContainer();
   runApp(
