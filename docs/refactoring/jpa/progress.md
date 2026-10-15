@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: record (4/12); wallet, pet and routine complete
-Status: record JPA implementation, review, targeted tests and full MuMu passed; final regression and restart verification running
-Base: origin/develop c54556879aa4589d014c9d5ac70fd563de70d80c
-Branch: refactor/jpa-record
+Current domain: community (5/12); wallet, pet, routine and record complete
+Status: record merged verification complete; community baseline inspection starting
+Base: origin/develop 509bb551af7e7d0f3a2855fe9e688f340acc2462
+Branch: refactor/jpa-community
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated record QA backend24439/PID27176 are running.
+Docker and isolated merged record QA backend9473/PID1916 are running.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -105,3 +105,12 @@ Rollback GREEN87291 succeeded2m5s:35 record tests, all pass after factory fix. S
 MuMu23406 passed RECORD_UI_VERIFIED3m57s on fixed backend24439: all9 types screen create/edit/detail/delete cancel+confirm, API filters/limit/routine completion status, photo upload/decode/delete. Starting VERIFY_EXISTING_RECORD=true new-process run, --no-uninstall. Final full75394 still live.
 MuMu6054 passed RECORD_RESTART_VERIFIED7s with persisted credentials/data and actual image decode, --no-uninstall. Final full75394 remains live. No record PR yet. All source/test reviews resolved.
 Final backend75394 succeeded7m48s, XML408 tests/0 failures/0 errors/0 skipped in Asia/Seoul. MuMu23406 full3m57s and6054 restart7s passed on fixed code; analyzer13274 clean, independent review no outstanding findings. Ready for commit/push/PR; merge and merged-SHA checks remain pending.
+PR102 created/attached https://github.com/minyeophan/formypet/pull/102 at head9d8b0e67f184482bed60a6db60143cf3537677ca, base develop. All local gates passed: backend408/0, MuMu full+restart, analyzer, reviews. CI monitoring2 successful, backend/Flutter4 running; no merge yet. Next all6 CI then squash and actual merged SHA rebuild/MuMu existing/full/common/develop CI. Backend24439 remains healthy.
+PR102 head9d8b0e6 all6 CI successful (runs38776241150,38776164243), no GitHub reviews/comments. Squash merged509bb551af7e7d0f3a2855fe9e688f340acc2462, tree identical to tested head. Detached at merge SHA, backend24439 stopped. Forced bootJar34379 LIVE. Next merged backend + MuMu existing/full/common and develop CI; do not start community before these gates.
+Merged509bb55 forced bootJar34379 succeeded44s. Backend9473 PID1916 port18083 running schema43. MuMu existing81885 LIVE VERIFY_EXISTING_RECORD=true --no-uninstall. Poll before another Flutter build. Develop CI remains to verify.
+Merged MuMu81885 passed RECORD_RESTART_VERIFIED8s preserving existing account/records/photo. Starting full record scenario on merged backend9473, --no-uninstall. Develop CI run38777175987 in_progress. Next full result then common android_ux with QA_API_BASE_URL18083; do not start community yet.
+Merged full record MuMu1325 LIVE; poll this handle before next Flutter invocation. Backend9473 remains running, merged509bb55. Original checkout untouched; only evidence docs modified in detached managed worktree.
+Develop509bb55 run38777175987 all3 CI successful. Merged MuMu1325 APK installed, test live; no restart. Remaining record gates: full MuMu then common android_ux and final backend log inspection.
+Merged full MuMu1325 passed RECORD_UI_VERIFIED3m56s. Develop all3 CI success. Starting common android_ux smoke with QA_API_BASE_URL18083 and --no-uninstall; record completion requires its terminal success and server logs. Backend9473 remains active.
+Common merged smoke5776 LIVE, poll before another Flutter build. Backend9473 log inspection so far shows no request errors.
+Merged common5776 passed51s, backend9473 logs clean. Record complete (4/12). Latest develop509bb55 fetched; beginning community only now.
