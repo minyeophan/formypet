@@ -1,6 +1,6 @@
 # 02 반려동물 전환
 
-상태: 구현·독립 소스 리뷰·전체 회귀·MuMu 검증 완료, PR CI 및 머지 후 검증 예정. 기준 develop e482cf28bd9bbc9f7ab7ea4821bc7715b341d434.
+상태: 완료. PR #100 develop 머지 및 머지 SHA MuMu 검증 완료. 기준 develop e482cf28bd9bbc9f7ab7ea4821bc7715b341d434.
 브랜치: refactor/jpa-pet. 이전 wallet PR #99 머지 후 검증 완료.
 
 ## 변경 계약
@@ -18,9 +18,9 @@
 - [x] PetIntegrationTest/PetWeightDeserializerTest 기준선
 - [x] 엔티티 생일·색상 규칙 테스트
 - [x] 이동 후 pet/wallet/media 연계 및 전체 backend 회귀
-- [ ] 독립 코드 리뷰 및 PR CI
+- [x] 독립 코드 리뷰 및 PR CI
 - [x] MuMu 등록/수정/삭제/사진/생일 미상/체중/wallet 연계
-- [ ] develop 머지 후 동일 SHA 실행·MuMu·재실행 확인
+- [x] develop 머지 후 동일 SHA 실행·MuMu·재실행 확인
 
 ## 현재 증적
 - 기준선52790 성공, 새 엔티티 테스트 RED85055(대상 패키지 부재), GREEN72206(pet/wallet) 성공.
@@ -32,3 +32,7 @@
 - 전체 재검사42692: BUILD SUCCESSFUL, 12분14초. 기존 클래스명 문자열 수정까지 포함. 서버61430의 MuMu 요청 오류 없음. PR CI와 머지된 SHA의 재검증은 아직 미완료.
 - PR #100 생성, 최초 head6a45ba0. 최종 테스트 리뷰의 P3 반영: 사진 위젯 존재 대신 RawImage.image 비-null로 디코딩 성공까지 검사. 보강 후 MuMu90256 PET_UI_VERIFIED18초, 정적 분석55706 성공.
 - 보강 후 재실행7073 PET_RESTART_VERIFIED5초 통과. 리뷰어 P3 해소 확인, 잔여 지적 없음.
+
+- 최종 head b4d0f7d CI 6개 통과 후 PR #100 squash merge. 머지 SHA 0de22531e3148069c1f5e279bb09f54292fd2ec0, 테스트 head와 소스 트리 동일.
+- 머지 SHA bootJar19872 강제 빌드 성공(42초), 서버31441/PID25092/18083, DB3318/schema43. 기존 데이터 재실행80247 PET_RESTART_VERIFIED6초 통과. 전체 UI64471 및 공통 smoke/develop CI 진행 예정.
+- 최종 머지 후 증적: 기존 데이터80247(6초), 전체 반려동물64471(18초), 공통 화면·지출 CRUD40091(51초) 모두 통과. develop CI 3개 성공. 서버31441 요청 오류 없음. 다음: routine.

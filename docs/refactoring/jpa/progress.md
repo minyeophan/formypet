@@ -1,9 +1,9 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: pet (2/12); wallet complete
-Status: wallet merged and verified; pet baseline inspection starting
-Base: origin/develop 8413dcb
-Branch: refactor/jpa-pet
+Current domain: routine (3/12); wallet and pet complete
+Status: wallet and pet merged and verified; routine baseline inspection starting
+Base: origin/develop 0de22531e3148069c1f5e279bb09f54292fd2ec0
+Branch: refactor/jpa-routine
 MuMu ADB: 127.0.0.1:16384
 Docker was stopped; Docker Desktop startup requested.
 Chronological entries below describe earlier states; latest entries supersede them.
@@ -65,3 +65,7 @@ MuMu72968 passed PET_UI_VERIFIED27s after keyboard/reveal fix; all taps hit-test
 MuMu restart17364 passed PET_RESTART_VERIFIED12s with existing fixtures, no writes. Full42692 confirmed still running. Goal previous turn classified progress: pet test added/fixed and actual UI test passed. Next commit/push/PR gated on full test terminal success; merged SHA MuMu still required.
 Full42692 BUILD SUCCESSFUL12m14s; XML totals385 tests/0 failures/0 errors/0 skipped. Pet branch implementation ready for commit and PR. Latest develop remains e482cf2. No source changes after full test compilation; only evidence docs updated.
 PR100 created/attached at6a45ba0. Backend385/0 passed. Final test review P3: Image presence alone could pass decoding fallback. Changed assertion to RawImage.image non-null; reviewer confirms resolved. MuMu90256 full18s and7073 restart5s passed, analyzer55706 clean. Follow-up test-only commit pending; all required CI must be checked at latest head before squash and merged-SHA MuMu.
+Final pet head b4d0f7d all6 CI success. PR100 squash merged 0de22531e3148069c1f5e279bb09f54292fd2ec0; merged tree identical to tested head. Worktree detached at merged SHA. Backend61430 stopped, forced bootJar19872 running. Merged MuMu and develop CI pending; do not start routine yet.
+Merged 0de2253 forced bootJar19872 succeeded42s. Backend31441 PID25092 port18083 healthy; schema43 unchanged. MuMu existing-fixture80247 running, --no-uninstall. Common android_ux_test requires QA_API_BASE_URL=http://127.0.0.1:18083 in addition to API_BASE_URL; do not use its default8094.
+Merged MuMu existing80247 passed PET_RESTART_VERIFIED6s, full64471 passed PET_UI_VERIFIED18s. Develop0de2253 all3 CI success. Common native smoke40091 running with QA_API_BASE_URL18083, poll before another Flutter build. Backend31441 remains active. Routine not started.
+Pet merged common smoke40091 passed51s; backend31441 logs clean. Pet complete. Latest develop0de2253 fetched, refactor/jpa-routine created; no routine production changes yet.
