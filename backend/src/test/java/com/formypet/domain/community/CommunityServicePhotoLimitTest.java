@@ -11,7 +11,7 @@ import com.formypet.domain.community.repository.PostRepository;
 import com.formypet.domain.community.dto.request.PostCreateRequest;
 import com.formypet.domain.media.service.MediaService;
 import com.formypet.domain.media.dto.response.MediaResponse;
-import com.formypet.notification.NotificationService;
+import com.formypet.domain.notification.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

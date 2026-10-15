@@ -36,7 +36,7 @@ class RecoveryFlowIntegrationTest extends IntegrationTestSupport {
     @Autowired AuthService auth;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
     @Autowired com.formypet.auth.repository.UserRepository users;
-    @Autowired com.formypet.notification.DeviceTokenService devices;
+    @Autowired com.formypet.domain.notification.service.DeviceTokenService devices;
     @Autowired com.formypet.auth.recovery.RecoveryCleanup cleanup;
     @Autowired com.formypet.auth.recovery.RecoveryCrypto recoveryCrypto;
     @Autowired com.formypet.auth.recovery.RecoveryMailQueue mailQueue;
@@ -246,7 +246,7 @@ class RecoveryFlowIntegrationTest extends IntegrationTestSupport {
         org.springframework.security.core.context.SecurityContextHolder.setContext(context);
         try{
             org.assertj.core.api.Assertions.assertThatThrownBy(()->devices.register(uid,
-                new com.formypet.notification.dto.DeviceTokenRequest("recovery-device-"+uid,"ANDROID")))
+                new com.formypet.domain.notification.dto.request.DeviceTokenRequest("recovery-device-"+uid,"ANDROID")))
                 .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
         }finally{org.springframework.security.core.context.SecurityContextHolder.clearContext();}
         assertThat(jdbc.queryForObject("SELECT enabled FROM device_tokens WHERE token=?",Boolean.class,"recovery-device-"+uid)).isFalse();

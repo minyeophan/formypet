@@ -2,12 +2,12 @@
 
 ## 상태와 기준
 
-- 상태: JPA 전환·서비스 분리·패키지 이동 완료. 전체 회귀 및 MuMu 검증 중.
+- 상태: 완료. PR #105 머지 (`7936cb8`), backend 468개, CI 및 실제 머지 버전 MuMu 검증 통과.
 - 기준 develop: `9ef997043e767bc165192710d66f4b5e536a4726` (미디어 PR104 머지 후 모든 검사 완료)
 - 브랜치: `refactor/jpa-policy`
 - 선행 커밋 `0d3107f`: 미디어 완료 증적만 포함.
 - 기준선: `gradlew.bat test --tests 'com.formypet.auth.Policy*' --tests 'com.formypet.auth.PublicPolicyIntegrationTest' --tests 'com.formypet.auth.KakaoConsentIntegrationTest' -PtestTimezone=Asia/Seoul --no-daemon`, 세션54633 성공1분38초. XML11개/실패0/오류0/스킵0.
-- QA 서버37583/PID39664는 아직 미디어 merge9ef9970. 격리 DB3318/API18083/MuMu127.0.0.1:16384/mediatest 앱 사용.
+- 현재 QA 서버60471/PID5072는 약관 merge7936cb8. 격리 DB3318/API18083/MuMu127.0.0.1:16384/mediatest 앱 사용.
 
 ## 조사한 계약
 
@@ -48,10 +48,10 @@ JPA 영속성 컨텍스트의 오래된 runtime/publication 값이 기존 curren
 - [x] publication immutable hash/부분 batch rollback/동시 게시 및 activate=false 보존
 - [ ] 미래 게시/발효·마이크로초·동일 시각 버전 정렬·DB 시계
 - [x] 서비스 SQL/Map 행 매핑 제거, 인터페이스/패키지/호출부 정리
-- [ ] 관련/전체 backend 테스트 및 대표 조회 비용, 독립 리뷰
-- [ ] MuMu 실제 격리 테스트용 정책: 열람·동의·이력·재동의 제한·앱 재실행
-- [ ] PR develop 최신 head CI 전체 통과 후 squash merge
-- [ ] 실제 merge SHA 재빌드, MuMu 기존/전체/공통 및 develop CI/로그 확인
+- [x] 관련/전체 backend 테스트 및 대표 조회 비용, 독립 리뷰
+- [x] MuMu 실제 격리 테스트용 정책: 열람·동의·이력·재동의 제한·앱 재실행
+- [x] PR develop 최신 head CI 전체 통과 후 squash merge
+- [x] 실제 merge SHA 재빌드, MuMu 기존/전체/공통 및 develop CI/로그 확인
 
 실제 운영 약관 동의 대신 `TEST FIXTURE ONLY` 문서만 격리 QA에 사용한다. 정책 게시/개정 fixture는 테스트 DB에만 넣고 실제 배포 catalog는 유지한다. Kakao 외부 계정 연결은 기존 mock 통합 테스트 결과와 단말 정책 UI 검증을 구분한다.
 
@@ -83,3 +83,9 @@ JPA 영속성 컨텍스트의 오래된 runtime/publication 값이 기존 curren
 - MuMu reaccept57809 성공20초. 신규 r2에서 기존 기능403/정책화면 이동, 취소 후 제한 유지, 실제 전문 열람·체크 후 재동의, 기능 해제, v1/v2 각2개 이력 및 구버전 전문 보존 확인. 기존 계정 새 프로세스45755 실행 중. Analyzer64811 통과. QA25144 로그 추가 오류 없음.
 - 전체60418 최종 성공7분42초. MuMu 기존 계정 새 프로세스45755 성공8초(POLICY_EXISTING_VERIFIED). v1/v2 전문·이력·동의 상태 유지. 마지막 소스 변경 이후 backend 회귀 완료, MuMu 테스트만 이력 복귀 탐색을 보강했고 analyzer64811/reaccept57809/existing45755로 검증했다.
 - 전체 XML468 tests/0 failures/0 errors/0 skipped 확인. 로컬 검사·독립 리뷰·MuMu signup/reaccept/existing 완료. PR CI 및 실제 머지 SHA 검증은 아직 미완료.
+- 구현1640298923da0571502835983479968addff1734 push 완료. develop PR105 생성·채팅 연결 완료: https://github.com/minyeophan/formypet/pull/105. 현재 CI 실행 중, 아직 머지하지 않았다.
+- PR105 head1640298의 push38801663953/PR38801815887 CI6개 모두 성공. 리뷰/코멘트 없음. squash merge7936cb86cd95a8a6cb2884d01d865b17adf7b032 완료. 검사한 head와 merge tree 동일. 실제 merge SHA bootJar29585 재빌드 중.
+
+- 실제 merge7936cb8의 bootJar29585 성공46초. 기존계정46575 성공9초, 신규 v2 가입21247 성공16초, v3 개정 재동의72909 성공20초. develop CI38802609143 세 검사 모두 성공. QA5880/PID29080은 동일 머지 jar/v3로 동작 중. 마지막 재실행 및 공통 smoke 남음.
+
+- 최종 merge 검증: 재실행91924 성공8초, 공통28544 성공52초. QA11848/PID37784 로그 신규 오류 없음. 합성 QA enforcement만 false로 복원하고 게시·동의 이력 유지. develop CI38802609143 전체 성공. 약관 단계7/12 완료.
