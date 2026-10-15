@@ -19,4 +19,3 @@ public record WalletExpenseUpdateRequest(
         @Size(max = 500) String note
 ) {
 }
-

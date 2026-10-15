@@ -28,7 +28,9 @@ public class WalletExpenseServiceImpl implements WalletExpenseService {
         var pet = findVisibleOwnedPet(actorId, petId);
         var expense = WalletExpense.create(pet.userId(), pet.id(), request.expenseDate(), request.expenseTime(),
                 request.amount(), request.currency(), request.category(), request.itemName(), request.note());
-        return response(expenses.save(expense));
+        expenses.save(expense);
+        expenses.refreshStoredValues(expense);
+        return response(expense);
     }
 
     @Override
@@ -56,8 +58,7 @@ public class WalletExpenseServiceImpl implements WalletExpenseService {
         var expense = requireExpense(petId, expenseId);
         expense.update(request.expenseDate(), request.expenseTime(), request.amount(), request.currency(),
                 request.category(), request.itemName(), request.note());
-        // JDBC projections in a surrounding transaction must see this mutation too.
-        expenses.flush();
+        expenses.refreshStoredValues(expense);
         return response(expense);
     }
 
@@ -93,5 +94,3 @@ public class WalletExpenseServiceImpl implements WalletExpenseService {
                 WalletExpenseResponse.categoryLabel(expense.getCategory()), expense.getItemName(), expense.getNote());
     }
 }
-
-

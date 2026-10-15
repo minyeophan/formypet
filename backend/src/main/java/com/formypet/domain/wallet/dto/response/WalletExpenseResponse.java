@@ -28,5 +28,3 @@ public record WalletExpenseResponse(
         };
     }
 }
-
-

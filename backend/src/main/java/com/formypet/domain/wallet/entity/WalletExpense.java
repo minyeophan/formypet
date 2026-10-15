@@ -24,6 +24,7 @@ public class WalletExpense {
     private Long petId;
     @Column(name = "expense_date", nullable = false)
     private LocalDate expenseDate;
+    @org.hibernate.annotations.JdbcType(org.hibernate.type.descriptor.jdbc.LocalTimeJdbcType.class)
     @Column(name = "expense_time")
     private LocalTime expenseTime;
     @Column(nullable = false)
@@ -73,6 +74,8 @@ public class WalletExpense {
     }
 
     private static String optionalText(String text) {
-        return text == null || text.isBlank() ? null : text.trim();
+        if (text == null) return null;
+        String trimmed = text.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

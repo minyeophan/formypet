@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class WalletExpenseIntegrationTest extends IntegrationTestSupport {
 
+    @Autowired jakarta.persistence.EntityManager entityManager;
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
@@ -85,6 +86,32 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
         } finally {
             jdbcTemplate.update("DELETE FROM users WHERE email = ?", "wallet-commit@example.com");
         }
+    }
+    @Test
+    void wallClockTimeAndDatabasePrecisionMatchAcrossJpaAndJdbc() throws Exception {
+        String token = registerAndGetToken("wallet-time@example.com", "wallet-time");
+        Long petId = createPet(token, "Mochi");
+        Long legacyId = createExpense(token, petId, "2026-06-12", "14:30", 1000, "food", null, null);
+        jdbcTemplate.update("UPDATE wallet_expenses SET expense_time = '14:30:00' WHERE id = ?", legacyId);
+        entityManager.clear();
+        mockMvc.perform(get(expensesUrl(petId) + "/" + legacyId).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.expenseTime").value("14:30:00"));
+        var body = objectMapper.writeValueAsString(Map.of("expenseDate", "2026-06-12",
+                "expenseTime", "14:30:00.123456", "amount", 1000, "category", "food"));
+        var created = mockMvc.perform(post(expensesUrl(petId)).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.expenseTime").value("14:30:00"))
+                .andReturn();
+        long id = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT TIME_FORMAT(expense_time, '%H:%i:%s') FROM wallet_expenses WHERE id = ?", String.class, id))
+                .isEqualTo("14:30:00");
+        mockMvc.perform(put(expensesUrl(petId) + "/" + id).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body.replace("14:30", "21:45")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.expenseTime").value("21:45:00"));
+        entityManager.clear();
+        mockMvc.perform(get(expensesUrl(petId) + "/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.expenseTime").value("21:45:00"));
     }
     @BeforeEach
     void setUp() {
@@ -494,5 +521,3 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
         return "/api/v1/pets/" + petId + "/wallet/expenses";
     }
 }
-
-

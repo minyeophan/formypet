@@ -101,4 +101,3 @@ public class WalletExpenseController {
         walletExpenseService.delete(actorId, petId, expenseId);
     }
 }
-

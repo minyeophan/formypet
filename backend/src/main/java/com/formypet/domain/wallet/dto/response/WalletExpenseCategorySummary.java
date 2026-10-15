@@ -7,4 +7,3 @@ public record WalletExpenseCategorySummary(
         Long count
 ) {
 }
-

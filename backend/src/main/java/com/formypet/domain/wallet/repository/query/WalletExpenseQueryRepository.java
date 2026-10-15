@@ -217,7 +217,3 @@ public class WalletExpenseQueryRepository {
     }
     private record Cursor(LocalDate expenseDate, LocalTime expenseTime, Long id) {} 
 }
-
-
-
-

@@ -11,6 +11,12 @@ class WalletExpenseTest {
                 amount, currency, category, "  food  ", "   ");
     }
 
+    @Test void preservesLegacyTrimSemantics() {
+        var expense = WalletExpense.create(1L, 2L, LocalDate.of(2026, 10, 15), null,
+                1000L, "KRW", "food", "\u2003", "\u0000");
+        assertThat(expense.getItemName()).isEqualTo("\u2003");
+        assertThat(expense.getNote()).isNull();
+    }
     @Test void normalizesCurrencyCategoryAndOptionalText() {
         var expense = create(1000L, null, " food ");
         assertThat(expense.getCurrency()).isEqualTo("KRW");
