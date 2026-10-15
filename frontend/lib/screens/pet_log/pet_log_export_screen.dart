@@ -209,6 +209,8 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppHeader(
+      titleSize: 21,
+      leadingWidth: 55,
       title: widget.kind == PetLogExportKind.image ? '이미지 만들기' : '영상 만들기',
       showBackButton: true,
       onBack: () => Navigator.of(context).maybePop(),
@@ -247,160 +249,246 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
           )
         : _photos.isEmpty
         ? const Center(child: Text('이 기간에는 사진이 없어요.'))
-        : Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: Text(_period)),
-                        IconButton(
-                          tooltip: '선택 사진 순서 변경',
-                          onPressed: _selection.ids.length < 2
-                              ? null
-                              : _reorder,
-                          icon: const Icon(Icons.swap_horiz),
-                        ),
-                        TextButton(
-                          onPressed: () => setState(_selection.clear),
-                          child: const Text('전체 해제'),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      widget.kind == PetLogExportKind.video
-                          ? '영상에 담을 순간을 골라주세요'
-                          : '이미지에 담을 순간을 골라주세요',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: GridView.builder(
-                  controller: _gridController,
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 16,
-                    mainAxisExtent: 142,
-                  ),
-                  itemCount:
-                      _photos.length +
-                      (_nextCursor == null && _pageError == null ? 0 : 1),
-                  itemBuilder: (context, index) {
-                    if (index == _photos.length) {
-                      return Center(
-                        child: _pageError == null
-                            ? TextButton(
-                                onPressed: _loadingMore ? null : _loadNextPage,
-                                child: const Text('더 불러오기'),
-                              )
-                            : _nextCursor == null
-                            ? TextButton(
-                                onPressed: _load,
-                                child: const Text('목록 다시 불러오기'),
-                              )
-                            : TextButton(
-                                onPressed: _loadNextPage,
-                                child: const Text('다시 시도'),
-                              ),
-                      );
-                    }
-                    final item = _photos[index];
-                    final selected = _selection.contains(item.photo.id);
-                    final n = _selection.ids.indexOf(item.photo.id) + 1;
-                    return DragTarget<String>(
-                      onWillAcceptWithDetails: (details) =>
-                          selected && details.data != item.photo.id,
-                      onAcceptWithDetails: (details) {
-                        final from = _selection.ids.indexOf(details.data);
-                        final to = _selection.ids.indexOf(item.photo.id);
-                        if (from >= 0 && to >= 0) {
-                          setState(() => _selection.reorder(from, to));
-                        }
-                      },
-                      builder: (context, candidate, rejected) =>
-                          LongPressDraggable<String>(
-                            data: item.photo.id,
-                            maxSimultaneousDrags: selected ? 1 : 0,
-                            feedback: Material(
-                              color: Colors.transparent,
-                              child: SizedBox(
-                                width: 106,
-                                height: 106,
-                                child: _photo(item),
+        : _selectionViewport(
+            (compact) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _period,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1.5,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            childWhenDragging: Opacity(
-                              opacity: .35,
-                              child: _photoTile(item, n, selected),
-                            ),
-                            child: _photoTile(item, n, selected),
                           ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      '${_selection.ids.length}장 선택${widget.kind == PetLogExportKind.video ? ' · 예상 길이 ${_selection.ids.length * 3}초' : ''}',
-                    ),
-                    if (widget.kind == PetLogExportKind.video) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        '사진이 많을수록 영상 제작에 시간이 걸릴 수 있어요.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
+                          IconButton(
+                            tooltip: '선택 사진 순서 변경',
+                            onPressed: _selection.ids.length < 2
+                                ? null
+                                : _reorder,
+                            icon: const Icon(Icons.swap_horiz),
+                          ),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              if (_selection.ids.isNotEmpty) {
+                                _selection.clear();
+                              } else {
+                                for (final item in _photos.take(
+                                  _selection.limit,
+                                )) {
+                                  _selection.add(item.photo.id);
+                                }
+                              }
+                            }),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              textStyle: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: Text(
+                              _selection.ids.isEmpty ? '전체 선택' : '전체 해제',
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        '사진 한 장당 3초 · 기록 글은 영상에 포함되지 않아요.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.kind == PetLogExportKind.video
+                            ? '영상에 담을 순간을 골라주세요'
+                            : '이미지에 담을 순간을 골라주세요',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          height: 1.5,
+                          color: AppColors.text,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: petLogExportButtonStyle(),
-                      onPressed: _selection.ids.isEmpty ? null : _create,
-                      child: Text(
-                        widget.kind == PetLogExportKind.image
-                            ? '이미지 미리보기'
-                            : '영상 만들기',
+                _photoGridViewport(
+                  compact,
+                  GridView.builder(
+                    shrinkWrap: compact,
+                    physics: compact
+                        ? const NeverScrollableScrollPhysics()
+                        : null,
+                    controller: compact ? null : _gridController,
+                    padding: const EdgeInsets.fromLTRB(20, 48, 20, 12),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 0,
+                      mainAxisExtent: _photoRowExtent(context),
+                    ),
+                    itemCount:
+                        _photos.length +
+                        (_nextCursor == null && _pageError == null ? 0 : 1),
+                    itemBuilder: (context, index) {
+                      if (index == _photos.length) {
+                        return Center(
+                          child: _pageError == null
+                              ? TextButton(
+                                  onPressed: _loadingMore
+                                      ? null
+                                      : _loadNextPage,
+                                  child: const Text('더 불러오기'),
+                                )
+                              : _nextCursor == null
+                              ? TextButton(
+                                  onPressed: _load,
+                                  child: const Text('목록 다시 불러오기'),
+                                )
+                              : TextButton(
+                                  onPressed: _loadNextPage,
+                                  child: const Text('다시 시도'),
+                                ),
+                        );
+                      }
+                      final item = _photos[index];
+                      final selected = _selection.contains(item.photo.id);
+                      final n = _selection.ids.indexOf(item.photo.id) + 1;
+                      return DragTarget<String>(
+                        onWillAcceptWithDetails: (details) =>
+                            selected && details.data != item.photo.id,
+                        onAcceptWithDetails: (details) {
+                          final from = _selection.ids.indexOf(details.data);
+                          final to = _selection.ids.indexOf(item.photo.id);
+                          if (from >= 0 && to >= 0) {
+                            setState(() => _selection.reorder(from, to));
+                          }
+                        },
+                        builder: (context, candidate, rejected) =>
+                            LongPressDraggable<String>(
+                              data: item.photo.id,
+                              maxSimultaneousDrags: selected ? 1 : 0,
+                              feedback: Material(
+                                color: Colors.transparent,
+                                child: SizedBox(
+                                  width: 106,
+                                  height: 106,
+                                  child: _photo(item),
+                                ),
+                              ),
+                              childWhenDragging: Opacity(
+                                opacity: .35,
+                                child: _photoTile(item, n, selected),
+                              ),
+                              child: _photoTile(item, n, selected),
+                            ),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        widget.kind == PetLogExportKind.video
+                            ? '사진 ${_selection.ids.length}장   ${_selection.ids.isEmpty ? '사진을 선택해주세요' : '영상 길이 약 ${_selection.ids.length * 3}초'}'
+                            : '${_selection.ids.length}장 선택',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 23 / 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      if (widget.kind == PetLogExportKind.video) ...[
+                        const SizedBox(height: 11),
+                        const Text(
+                          '사진이 많을수록 영상 제작에 시간이 걸릴 수 있어요.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: petLogExportMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        const Text(
+                          '사진 한 장당 3초  기록 글은 영상에 포함되지 않아요.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 17 / 11,
+                            color: petLogExportMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.only(bottom: 34),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 26, 20, 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: petLogExportButtonStyle(),
+                        onPressed: _selection.ids.isEmpty ? null : _create,
+                        child: Text(
+                          widget.kind == PetLogExportKind.image
+                              ? '이미지 미리보기'
+                              : _selection.ids.isEmpty
+                              ? '사진을 선택해주세요'
+                              : '영상 만들기',
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
   );
+
+  Widget _photoGridViewport(bool compact, Widget grid) =>
+      compact ? grid : Expanded(child: grid);
+
+  Widget _selectionViewport(Widget Function(bool) builder) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scale = MediaQuery.textScalerOf(context).scale(1);
+      final compact =
+          constraints.maxHeight <
+          350 + 650 * (scale - 1).clamp(0, double.infinity);
+      if (!compact) return builder(false);
+      return SingleChildScrollView(child: builder(true));
+    },
+  );
+
+  double _photoRowExtent(BuildContext context) {
+    final text = TextPainter(
+      text: TextSpan(
+        text: '12월 31일',
+        style: TextStyle(
+          fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+          fontSize: 11,
+          height: 17 / 11,
+        ),
+      ),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 106);
+    final height = (115 + text.height).clamp(132.0, double.infinity);
+    text.dispose();
+    return height;
+  }
 
   Future<void> _showLimit() async {
     if (_limitVisible) return;
@@ -408,7 +496,7 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
     try {
       await showPetLogExportSheet(
         context,
-        title: '기본 플랜은 사진을 최대 5장까지 선택할 수 있어요.',
+        title: '기본 플랜은 사진을 최대 5장까지\n선택할 수 있어요.',
         description: '선택한 사진을 해제하면 다른 사진을 고를 수 있어요.',
       );
     } finally {
@@ -464,10 +552,10 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
   }
 
   Widget _photo(PetLogExportPhoto item) => ClipRRect(
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(10),
     child: AuthenticatedNetworkImage(
       url: item.photo.url,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       fallback: const ColoredBox(color: AppColors.surfaceSoft),
     ),
   );
@@ -502,11 +590,11 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: selected ? AppColors.primary : Colors.white70,
+                        color: selected ? AppColors.primary : Colors.white,
                         border: Border.all(
                           color: selected
                               ? AppColors.primary
-                              : AppColors.textSecondary,
+                              : petLogExportMuted,
                         ),
                       ),
                       child: selected
@@ -514,7 +602,7 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
                               '$number',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             )
@@ -524,17 +612,26 @@ class _PetLogExportScreenState extends State<PetLogExportScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              item.logDate.replaceAll('-', '.'),
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
+            const SizedBox(height: 2),
+            SizedBox(
+              width: 106,
+              child: Text(
+                _photoDate(item.logDate),
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 17 / 11,
+                  color: petLogExportMuted,
+                ),
               ),
             ),
           ],
         ),
       );
+
+  String _photoDate(String date) {
+    final parsed = DateTime.tryParse(date);
+    return parsed == null ? date : '${parsed.month}월 ${parsed.day}일';
+  }
 }
 
 class PetLogExportResultScreen extends StatefulWidget {
@@ -676,7 +773,17 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
         await savePetLogVideoToGallery(_video!);
       }
       if (mounted) {
-        showAppSuccessToast(context, '저장 완료');
+        final shareBox = _shareButtonKey.currentContext?.findRenderObject();
+        showAppSuccessToast(
+          context,
+          '저장 완료',
+          bottomOffset:
+              widget.kind == PetLogExportKind.video && shareBox is RenderBox
+              ? MediaQuery.sizeOf(context).height -
+                    shareBox.localToGlobal(Offset.zero).dy +
+                    14
+              : null,
+        );
       }
     } catch (error) {
       if (mounted) {
@@ -685,10 +792,14 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
             error.type == GalExceptionType.accessDenied;
         final retry = await showPetLogExportSheet(
           context,
-          title: denied ? '사진 저장 권한이 필요해요' : '결과물을 저장하지 못했어요',
+          title: denied
+              ? '사진 저장 권한이 필요해요'
+              : widget.kind == PetLogExportKind.video
+              ? '영상을 저장하지 못했어요'
+              : '결과물을 저장하지 못했어요',
           description: denied
-              ? '설정에서 사진 저장 권한을 허용해주세요.'
-              : '저장 공간을 확인하고 다시 시도해주세요. 공유하기로 결과물을 보낼 수도 있어요.',
+              ? '${widget.kind == PetLogExportKind.video ? '완성된 영상을' : '완성된 이미지를'} 사진첩에 저장하려면\n설정에서 사진 추가 권한을 허용해주세요.'
+              : '휴대폰 저장 공간을 확인하고 다시 시도해주세요.\n미리보기로 돌아가 공유할 수도 있어요.',
           confirm: denied
               ? (defaultTargetPlatform == TargetPlatform.android
                     ? '설정 열기'
@@ -823,115 +934,208 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
   String _time(Duration duration) =>
       '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
 
-  Widget _generation() => SingleChildScrollView(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      children: [
-        const SizedBox(height: 24),
-        SizedBox(
-          width: 148,
-          height: 148,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: AuthenticatedNetworkImage(
-              url: widget.photos.first.photo.url,
-              fit: BoxFit.cover,
-              fallback: const ColoredBox(color: AppColors.surfaceSoft),
-            ),
+  Widget _generation() => Column(
+    children: [
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              const SizedBox(height: 85),
+              SizedBox(
+                width: 148,
+                height: 148,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: AuthenticatedNetworkImage(
+                    url: widget.photos.first.photo.url,
+                    fit: BoxFit.contain,
+                    fallback: const ColoredBox(color: AppColors.surfaceSoft),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                '우리 아이의 순간을\n하나의 영상으로 모으고 있어요',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  height: 1.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 27),
+              Text(
+                !_encoding
+                    ? '사진을 준비하고 있어요'
+                    : _progress == null
+                    ? '영상을 만드는 중'
+                    : '영상을 만드는 중 ${(_progress! * 100).floor()}%',
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 17),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: LinearProgressIndicator(
+                  value: _encoding ? _progress : null,
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(3),
+                  backgroundColor: const Color(0xFFEAF7F0),
+                  color: AppColors.primary,
+                  stopIndicatorRadius: 0,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '사진 ${widget.photos.length}장  완성 영상 약 ${widget.photos.length * 3}초',
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 20 / 13,
+                  color: petLogExportMuted,
+                ),
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                '제작이 끝날 때까지 이 화면을 유지해주세요.\n사진 수와 휴대폰 성능에 따라 시간이 달라져요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: petLogExportMuted,
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
-        const SizedBox(height: 28),
-        const Text(
-          '우리 아이의 순간을\n하나의 영상으로 모으고 있어요',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        child: FilledButton(
+          style: petLogExportButtonStyle(secondary: true),
+          onPressed: _leave,
+          child: const Text('제작 취소'),
         ),
-        const SizedBox(height: 28),
-        Text(
-          !_encoding
-              ? '사진을 준비하고 있어요'
-              : _progress == null
-              ? '영상을 만드는 중'
-              : '영상을 만드는 중 ${(_progress! * 100).floor()}%',
-        ),
-        const SizedBox(height: 12),
-        LinearProgressIndicator(
-          value: _encoding ? _progress : null,
-          minHeight: 6,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          '사진 ${widget.photos.length}장 · 예상 길이 ${widget.photos.length * 3}초',
-        ),
-        const SizedBox(height: 28),
-        const Text(
-          '제작이 끝날 때까지 이 화면을 유지해주세요.\n사진 수와 휴대폰 성능에 따라 시간이 달라져요.',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        TextButton(onPressed: _leave, child: const Text('제작 취소')),
-      ],
-    ),
+      ),
+    ],
   );
 
   Widget _videoPreview() => ValueListenableBuilder<VideoPlayerValue>(
     valueListenable: _player!,
     builder: (context, value, _) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           '${widget.period}의 순간들',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: 18,
+            height: 1.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+          ),
         ),
-        const SizedBox(height: 8),
-        Text('사진 ${widget.photos.length}장 · ${_time(value.duration)}'),
-        const SizedBox(height: 20),
+        const SizedBox(height: 5),
+        Text(
+          '사진 ${widget.photos.length}장  ${_time(value.duration)}',
+          style: const TextStyle(
+            fontSize: 13,
+            height: 20 / 13,
+            color: petLogExportMuted,
+          ),
+        ),
+        const SizedBox(height: 24),
         Expanded(
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  VideoPlayer(_player!),
-                  IconButton.filled(
-                    tooltip: value.isPlaying ? '일시정지' : '재생',
-                    iconSize: 36,
-                    onPressed: () async {
-                      if (value.isPlaying) {
-                        await _player!.pause();
-                      } else {
-                        if (value.position >= value.duration) {
-                          await _player!.seekTo(Duration.zero);
-                        }
-                        await _player!.play();
-                      }
-                    },
-                    icon: Icon(
-                      value.isPlaying ? Icons.pause : Icons.play_arrow,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 27),
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: value.aspectRatio,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: VideoPlayer(_player!),
                     ),
-                  ),
-                ],
+                    IconButton.filled(
+                      tooltip: value.isPlaying ? '일시정지' : '재생',
+                      iconSize: 26,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
+                        fixedSize: const Size(52, 52),
+                      ),
+                      onPressed: () async {
+                        if (value.isPlaying) {
+                          await _player!.pause();
+                        } else {
+                          if (value.position >= value.duration) {
+                            await _player!.seekTo(Duration.zero);
+                          }
+                          await _player!.play();
+                        }
+                      },
+                      icon: Icon(
+                        value.isPlaying ? Icons.pause : Icons.play_arrow,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-        Slider(
-          value: value.position.inMilliseconds.toDouble().clamp(
-            0,
-            value.duration.inMilliseconds.toDouble(),
+        const SizedBox(height: 2),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: AppColors.border,
+            thumbColor: AppColors.primary,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 3),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
-          max: value.duration.inMilliseconds.toDouble().clamp(
-            1,
-            double.infinity,
+          child: Slider(
+            padding: EdgeInsets.zero,
+            value: value.position.inMilliseconds.toDouble().clamp(
+              0,
+              value.duration.inMilliseconds.toDouble(),
+            ),
+            max: value.duration.inMilliseconds.toDouble().clamp(
+              1,
+              double.infinity,
+            ),
+            onChanged: (position) =>
+                _player!.seekTo(Duration(milliseconds: position.round())),
           ),
-          onChanged: (position) =>
-              _player!.seekTo(Duration(milliseconds: position.round())),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text(_time(value.position)), Text(_time(value.duration))],
+          children: [
+            Text(
+              _time(value.position),
+              style: const TextStyle(
+                fontSize: 11,
+                height: 17 / 11,
+                color: petLogExportMuted,
+              ),
+            ),
+            Text(
+              _time(value.duration),
+              style: const TextStyle(
+                fontSize: 11,
+                height: 17 / 11,
+                color: petLogExportMuted,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 43),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
@@ -955,28 +1159,36 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
   );
 
   Widget _videoFailure() => Padding(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
     child: Column(
       children: [
         const Expanded(
           child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '영상을 만들지 못했어요',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  '선택한 사진은 그대로예요.\n잠시 후 다시 시도해주세요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '영상을 만들지 못했어요',
+                    style: TextStyle(
+                      fontSize: 22,
+                      height: 1.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                    ),
                   ),
-                ),
-              ],
+                  SizedBox(height: 16),
+                  Text(
+                    '선택한 사진은 그대로예요.\n잠시 후 다시 시도해주세요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: petLogExportMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1003,6 +1215,8 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
     },
     child: Scaffold(
       appBar: AppHeader(
+        titleSize: 21,
+        leadingWidth: 55,
         title: widget.kind == PetLogExportKind.image
             ? '이미지 미리보기'
             : _busy || _error != null
@@ -1015,6 +1229,9 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
       ),
       body: SafeArea(
         top: false,
+        minimum: widget.kind == PetLogExportKind.video
+            ? const EdgeInsets.only(bottom: 34)
+            : EdgeInsets.zero,
         child: _busy
             ? widget.kind == PetLogExportKind.video
                   ? _generation()
@@ -1038,7 +1255,9 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
                       ),
                     )
             : Padding(
-                padding: const EdgeInsets.all(20),
+                padding: _player != null
+                    ? const EdgeInsets.fromLTRB(20, 20, 20, 12)
+                    : const EdgeInsets.all(20),
                 child: _player != null
                     ? LayoutBuilder(
                         builder: (context, constraints) =>

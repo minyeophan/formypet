@@ -6,6 +6,41 @@ import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   testWidgets(
+    'export sheets use left aligned copy and a filled secondary action',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showPetLogExportSheet(
+                  context,
+                  title: '영상 제작을 취소할까요?',
+                  description: '만들던 영상은 중단되지만,\n선택한 사진과 원본 기록은 그대로 남아요.',
+                  confirm: '계속 만들기',
+                  secondary: '제작 취소',
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('영상 제작을 취소할까요?')).textAlign,
+        TextAlign.left,
+      );
+      expect(find.widgetWithText(FilledButton, '제작 취소'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('영상 제작을 취소할까요?')).dx, 20);
+    },
+  );
+  testWidgets(
     'limit sheet stays scrollable with enlarged text on a small screen',
     (tester) async {
       tester.view.physicalSize = const Size(320, 480);

@@ -69,6 +69,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('2026년 10월'), findsOneWidget);
+        if (kind == PetLogExportKind.video) {
+          expect(
+            find.widgetWithText(FilledButton, '사진을 선택해주세요'),
+            findsOneWidget,
+          );
+        }
         for (var i = 0; i < 5; i++) {
           await tester.ensureVisible(find.byKey(ValueKey('$i')));
           await tester.tap(find.byKey(ValueKey('$i')));
@@ -77,15 +83,71 @@ void main() {
         await tester.ensureVisible(find.byKey(const ValueKey('5')));
         await tester.tap(find.byKey(const ValueKey('5')));
         await tester.pumpAndSettle();
-        expect(find.text('기본 플랜은 사진을 최대 5장까지 선택할 수 있어요.'), findsOneWidget);
+        expect(find.text('기본 플랜은 사진을 최대 5장까지\n선택할 수 있어요.'), findsOneWidget);
         await tester.tap(find.text('확인'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('5장 선택'), findsOneWidget);
+        expect(
+          find.textContaining(
+            kind == PetLogExportKind.video ? '사진 5장' : '5장 선택',
+          ),
+          findsOneWidget,
+        );
         await tester.tap(find.text('전체 해제'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('0장 선택'), findsOneWidget);
+        expect(
+          find.textContaining(
+            kind == PetLogExportKind.video ? '사진 0장' : '0장 선택',
+          ),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull);
+        await tester.tap(find.text('전체 선택'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining(
+            kind == PetLogExportKind.video ? '사진 5장' : '5장 선택',
+          ),
+          findsOneWidget,
+        );
       },
     );
   }
+  testWidgets(
+    'video selection remains usable with large text on a small display',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 480);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: const PetLogExportScreen(
+            petId: '1',
+            year: 2026,
+            month: 10,
+            all: false,
+            kind: PetLogExportKind.video,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byKey(const ValueKey('0')));
+      await tester.tap(find.byKey(const ValueKey('0')));
+      await tester.pumpAndSettle();
+      final create = find.widgetWithText(FilledButton, '영상 만들기');
+      for (var i = 0; i < 10 && create.hitTestable().evaluate().isEmpty; i++) {
+        await tester.dragFrom(const Offset(160, 350), const Offset(0, -250));
+        await tester.pumpAndSettle();
+      }
+      expect(create.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

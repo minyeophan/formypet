@@ -60,7 +60,7 @@ void main() {
       await tester.tap(find.text('제작 취소'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.widgetWithText(TextButton, '제작 취소').last);
+      await tester.tap(find.widgetWithText(FilledButton, '제작 취소').last);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
