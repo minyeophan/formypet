@@ -1049,10 +1049,13 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 27),
-            child: Center(
+            padding: EdgeInsets.zero,
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: 1,
               child: AspectRatio(
                 aspectRatio: value.aspectRatio,
                 child: Stack(
@@ -1090,7 +1093,7 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 14),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 3,
@@ -1135,7 +1138,7 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 43),
+        const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
@@ -1229,7 +1232,7 @@ class _PetLogExportResultScreenState extends State<PetLogExportResultScreen> {
       ),
       body: SafeArea(
         top: false,
-        minimum: widget.kind == PetLogExportKind.video
+        minimum: widget.kind == PetLogExportKind.video && _player == null
             ? const EdgeInsets.only(bottom: 34)
             : EdgeInsets.zero,
         child: _busy
