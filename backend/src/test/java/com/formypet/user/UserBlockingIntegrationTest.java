@@ -2,9 +2,9 @@ package com.formypet.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.UserRepository;
-import com.formypet.community.CommunityService;
-import com.formypet.community.dto.PostCommentCreateRequest;
-import com.formypet.community.dto.PostCreateRequest;
+import com.formypet.domain.community.service.CommunityService;
+import com.formypet.domain.community.dto.request.PostCommentCreateRequest;
+import com.formypet.domain.community.dto.request.PostCreateRequest;
 import com.formypet.common.exception.ApiException;
 import com.formypet.notification.NotificationService;
 import com.formypet.notification.NotificationType;

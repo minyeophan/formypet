@@ -42,8 +42,8 @@
 - [x] gradlew test --tests com.formypet.domain.record.* -PtestTimezone=Asia/Seoul --no-daemon 통과 후 전체 backend test.
 - [x] 독립 리뷰, 화면 쿼리 수 확인, flutter 정적 분석. 수정 후 영향 테스트 재실행.
 - [x] MuMu record_migration_test.dart: 9유형 등록/수정/조회/삭제, 사진 첨부·삭제, 루틴 연결 및 삭제 상태, 필터·상세·재실행. 화면 없는 연결 상태는 API/DB 증적 구분.
-- [ ] refactor : 활동 기록 도메인 JPA 전환 커밋/push, develop PR 생성·첨부, 최신 head 전체 CI·리뷰 후 squash.
-- [ ] 실제 merge SHA forced build/서버 교체, MuMu existing→full→common, develop CI와 서버 로그 확인 후 완료 기록.
+- [x] refactor : 활동 기록 도메인 JPA 전환 커밋/push, develop PR 생성·첨부, 최신 head 전체 CI·리뷰 후 squash.
+- [x] 실제 merge SHA forced build/서버 교체, MuMu existing→full→common, develop CI와 서버 로그 확인 후 완료 기록.
 
 ## 증적
 
@@ -56,3 +56,9 @@
 - MuMu23406 성공3분57초: 9유형 화면 등록/수정/상세/삭제 취소·확정, API 필터/limit/루틴 상태, 사진 업로드·실제 decode·삭제. 재실행6054 진행 중. analyzer13274 clean.
 - MuMu 재실행6054 성공7초: 기존 계정/기록/이미지 보존 확인. 최종 전체75394 결과 대기 후 PR.
 - 최종 전체75394 성공7분48초:408 tests/0 failures/0 errors/0 skipped (Asia/Seoul). PR 전 검증 완료. 머지 후 검증은 별도 진행.
+
+- PR #102 head9d8b0e6의 push/PR 검사6개 통과 후 squash509bb551af7e7d0f3a2855fe9e688f340acc2462. 테스트 head와 tree 동일. 머지 버전 forced build34379 성공44초, 서버9473/PID1916/18083. 기존 데이터 MuMu81885 성공8초, develop CI3개 성공. 전체1325 실행 중이며 공통 검증은 다음 단계.
+
+## 최종 완료
+- PR #102 squash509bb55. 머지 버전 기존 데이터81885(8초), 전체 기록1325(3분56초), 공통5776(51초) 모두 통과.
+- develop CI run38777175987의3개 검사 성공. 서버9473 로그 요청 오류 없음. 기록 단계 완료.
