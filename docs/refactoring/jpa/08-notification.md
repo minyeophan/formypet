@@ -3,8 +3,8 @@
 ## 현재 상태
 - 기준 develop: 7936cb86cd95a8a6cb2884d01d865b17adf7b032 (약관 PR105 실제 머지 후 검증 완료).
 - 브랜치 refactor/jpa-notification. 선행 커밋881e1e0은 약관 완료 증적만 포함.
-- 구현/관련46개 테스트/전체481개 테스트/독립 리뷰/MuMu 전체 및 재실행 통과. PR 생성 준비.
-- QA55551/PID34692는 현재 알림 구현 jar, API18083/격리 MySQL3318, scheduler=true/1000ms. MuMu16384의 mediatest 앱 사용. 외부 FCM 자격 증명 없음.
+- 구현/관련46개 테스트/전체481개 테스트/독립 리뷰/MuMu 전체 및 재실행 통과. PR106 머지 및 실제 머지 후 검증 완료.
+- QA69236/PID13340는 merge1b57d77 jar, API18083/격리 MySQL3318, scheduler=true/1000ms. MuMu16384의 mediatest 앱 사용. 외부 FCM 자격 증명 없음.
 
 ## 보존 계약
 - V22/V23 notifications: IDENTITY, recipient/actor/post/comment FK 및 삭제 cascade; actor/post nullable; 예약 unique(recipient,source_type,source_id,scheduled_for,type).
@@ -38,8 +38,8 @@
 4. [x] 예약 생성 afterCommit/중복/rollback 및 타 도메인 snapshot 조회, 순수 recurrence 분리. 기존 테스트의 mock만 새 경계에 맞춰 수정하고 동작 assertion 유지.
 5. [x] domain 패키지/인터페이스/Job/client/config 이동. 외부 호출 import 수정. 서비스 SQL/Map 행매핑 잔여 검색.
 6. [x] 관련+전체backend/조회비용/독립 최종 리뷰. MuMu 목록/읽음/전체읽음/설정/예약 이력/앱 재실행; FCM 실외부 발송은 mock 검증과 구분.
-7. [ ] refactor : 알림 도메인 JPA 전환 및 발송 처리 분리 커밋/push/develop PR, head CI 전부 통과 후 머지.
-8. [ ] 실제 merge jar 재빌드, MuMu 전체+기존+공통, develop CI 및 로그 후 다음 support.
+7. [x] refactor : 알림 도메인 JPA 전환 및 발송 처리 분리 커밋/push/develop PR, head CI 전부 통과 후 머지.
+8. [x] 실제 merge jar 재빌드, MuMu 전체+기존+공통, develop CI 및 로그 후 다음 support.
 - 기준선26602 성공1분45초, XML33/0/0/0. 엔티티/저장소 RED84699는 새 타입 부재6건으로 실패. Notification/DeviceToken 매핑 및 JpaRepository 추가 후 GREEN11525 실행 중. 아직 기존 서비스는 변경하지 않았다.
 - 저장소 RED26760은 신규 메서드 부재로 실패. GREEN52544는39개 중1개 실패: JPA native interface projection의 read_at이 기대 UTC LocalDateTime보다 정확히9시간 뒤로 변환됨. JDBC 직접 LocalDateTime 추출을 하는 JPA repository fragment(NotificationFeedImpl)로 조회를 격리하고 재검증4154 실행 중.
 - 조회 수정4154 성공2분, XML39/0. 서비스 연결55565 성공2분2초, XML39/0. NotificationService 및 DeviceTokenService의 직접 SQL 제거. 예약 대상/순수 규칙 RED45778은 신규 타입 부재21건으로 실패. ReminderSchedule/typed candidate 조회 저장소 추가 후49596 검증 중.
@@ -70,3 +70,10 @@
 - develop 머지와 실제 merge SHA의 MuMu 재검증은 아직 수행 전이다.
 
 - 전체8146은481개 중 reflection 경로 오류1건으로 실패. 테스트 문자열을 새 패키지로 수정한 전체10713은8분39초 성공, 최신 XML481/실패0/오류0/스킵0 및 TimeModelTest1/0 확인. QA55551 로그 요청 오류 없음. 최신 origin/develop7936cb8 확인.
+
+- PR: https://github.com/minyeophan/formypet/pull/106. 최종 head479668fbf7df7171047d70ab13f758f992270c70, push38811389759/PR38811442048 총6개 CI 모두 통과. squash merge1b57d77f0486ec0a13666519815efbbdfb9677c6은 검증한 head와 동일 tree. 강제 bootJar82964 성공46초. 기존 fixture MuMu66870 및 develop CI38812249038 진행 중.
+
+## 완료 증적
+- 실제 merge1b57d77: 기존 fixture66870(7초), 전체44913(25초), 새 fixture 재실행7521(5초), 공통93975(52초) 모두 통과. 모든 Flutter 실행 --no-uninstall.
+- develop CI38812249038의 backend/Flutter/monitoring 모두 success. QA69236 서버 로그 요청 오류 없음.
+- 완료: 8/12. 다음은 최신 develop 기반 refactor/jpa-support.

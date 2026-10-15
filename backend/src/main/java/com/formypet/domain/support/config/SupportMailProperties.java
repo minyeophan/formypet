@@ -1,4 +1,4 @@
-package com.formypet.support;
+package com.formypet.domain.support.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

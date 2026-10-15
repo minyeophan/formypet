@@ -1,4 +1,11 @@
-package com.formypet.support;
+package com.formypet.domain.support;
+
+import com.formypet.support.IntegrationTestSupport;
+import com.formypet.domain.support.service.SupportService;
+import com.formypet.domain.support.service.SupportMailWorker;
+import com.formypet.domain.support.client.SupportMailTransport;
+import com.formypet.domain.support.dto.request.InquiryRequest;
+import com.formypet.domain.support.dto.request.ReportRequest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,7 +129,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void concurrentSameRequestProducesOneReceipt() throws Exception {
-        var request = new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "concurrent");
+        var request = new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "concurrent");
         var start = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var first = executor.submit(() -> { start.await(); return service.inquiry(uid, request); });
@@ -135,7 +142,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void concurrentReportRetriesReturnSameReceipt() throws Exception {
-        var request = new SupportController.ReportRequest("SPAM", "광고", "same-report");
+        var request = new ReportRequest("SPAM", "광고", "same-report");
         var start = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var first = executor.submit(() -> { start.await(); return service.report(uid, postId, request); });
@@ -162,7 +169,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void outboxInsertFailureRollsBackTicketAndAllowsRetry() {
-        var request = new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "atomic");
+        var request = new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "atomic");
         jdbc.execute("""
                 CREATE TRIGGER support_test_outbox_failure BEFORE INSERT ON support_mail_outbox
                 FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test outbox failure'
@@ -179,7 +186,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
 
     private String reportOutcome(String requestId) {
         try {
-            service.report(uid, postId, new SupportController.ReportRequest("SPAM", "광고", requestId));
+            service.report(uid, postId, new ReportRequest("SPAM", "광고", requestId));
             return "accepted";
         } catch (com.formypet.common.exception.ApiException conflict) {
             assertEquals(org.springframework.http.HttpStatus.CONFLICT, conflict.status());
@@ -188,7 +195,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void mailFailureRetainsTicketAndRetriesThenSucceeds() throws Exception {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "retry"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "retry"));
         doThrow(new IllegalStateException("sensitive SMTP diagnostic")).doNothing().when(transport).send(anyString(), anyString(), anyString());
         worker.processOne();
         assertEquals("PENDING", state());
@@ -202,7 +209,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void retryScheduleAndExhaustionArePersisted() throws Exception {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "fail"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "fail"));
         doThrow(new IllegalStateException()).when(transport).send(anyString(), anyString(), anyString());
         int[] delays = {60, 300, 1800, 7200};
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -220,7 +227,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void expiredLeaseIsRecoveredButActiveLeaseIsNotStolen() {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "lease"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "lease"));
         jdbc.update("UPDATE support_mail_outbox SET status='PROCESSING',attempts=1,lease_until=DATE_ADD(UTC_TIMESTAMP(), INTERVAL 5 MINUTE),claim_token='old'");
         assertFalse(worker.processOne());
         jdbc.update("UPDATE support_mail_outbox SET lease_until=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 MINUTE)");
@@ -230,7 +237,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void finalExpiredLeaseBecomesFailed() {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "final-lease"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "final-lease"));
         jdbc.update("UPDATE support_mail_outbox SET status='PROCESSING',attempts=5,lease_until=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 MINUTE)");
         assertFalse(worker.processOne());
         assertEquals("FAILED", state());
@@ -238,7 +245,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void concurrentWorkersDoNotSendAnActiveClaimTwice() throws Exception {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "worker-race"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "worker-race"));
         var started = new CountDownLatch(1);
         var release = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -259,7 +266,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test void expiredWorkerCannotOverwriteNewClaim() throws Exception {
-        service.inquiry(uid, new SupportController.InquiryRequest("BUG", "reply@example.test", "제목", "본문", "worker-fence"));
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "worker-fence"));
         doAnswer(invocation -> {
             jdbc.update("UPDATE support_mail_outbox SET claim_token='new-worker'");
             return null;
@@ -267,6 +274,42 @@ class SupportIntegrationTest extends IntegrationTestSupport {
         worker.processOne();
         assertEquals("PROCESSING", state());
         assertEquals("new-worker", jdbc.queryForObject("SELECT claim_token FROM support_mail_outbox", String.class));
+    }
+
+    @Test void failureFromAnExpiredWorkerCannotOverwriteANewClaim() throws Exception {
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "failure-fence"));
+        doAnswer(invocation -> {
+            jdbc.update("UPDATE support_mail_outbox SET claim_token='new-worker',attempts=4");
+            throw new IllegalStateException("private SMTP diagnostic");
+        }).when(transport).send(anyString(), anyString(), anyString());
+        assertTrue(worker.processOne());
+        assertEquals("PROCESSING", state());
+        assertEquals("new-worker", jdbc.queryForObject("SELECT claim_token FROM support_mail_outbox", String.class));
+        assertEquals(4, jdbc.queryForObject("SELECT attempts FROM support_mail_outbox", Integer.class));
+        assertNull(jdbc.queryForObject("SELECT last_error FROM support_mail_outbox", String.class));
+    }
+
+    @Test void mailUsesUtcReceiptFieldsToRenderKoreanTime() throws Exception {
+        service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "mail-time"));
+        jdbc.update("UPDATE support_tickets SET created_at='2026-10-16 01:02:03.123456'");
+        assertTrue(worker.processOne());
+        verify(transport).send(anyString(), contains("접수시각(한국시간): 2026-10-16 10:02:03"), eq("reply@example.test"));
+    }
+
+    @Test void canonicalPayloadHashAndReportSnapshotStayCompatible() throws Exception {
+        var receipt = service.inquiry(uid, new InquiryRequest("BUG", " reply@example.test ", " 제목 ", " 본문 ", "canonical"));
+        String canonical = json.writeValueAsString(List.of("BUG", "제목", "본문", "reply@example.test"));
+        String hash = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        assertEquals(hash, jdbc.queryForObject("SELECT payload_hash FROM support_tickets WHERE id=?", String.class, receipt.id()));
+        assertEquals(receipt, service.inquiry(uid, new InquiryRequest("BUG", "reply@example.test", "제목", "본문", "canonical")));
+        var report = service.report(uid, postId, new ReportRequest("SPAM", " 광고 ", "snapshot"));
+        var snapshot = new java.util.LinkedHashMap<String, Object>();
+        snapshot.put("user_id", jdbc.queryForObject("SELECT user_id FROM posts WHERE id=?", Long.class, postId));
+        snapshot.put("title", "신고 대상");
+        snapshot.put("content", "원본 내용");
+        snapshot.put("nickname", "테스트");
+        assertEquals(json.writeValueAsString(snapshot), jdbc.queryForObject("SELECT target_snapshot FROM support_tickets WHERE id=?", String.class, report.id()));
     }
 
     private long user(String address) {
