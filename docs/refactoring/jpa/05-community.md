@@ -2,10 +2,12 @@
 
 ## 상태와 기준
 
-- 상태: 로컬 전체 회귀/독립 리뷰/MuMu 통과, PR 및 CI 준비
+- 상태: 완료 — PR #103 머지 및 머지 SHA의 CI/재실행/전체/공통 MuMu 검증 통과
 - 기준 develop: `509bb551af7e7d0f3a2855fe9e688f340acc2462` (기록 PR #102 머지 및 MuMu 검증 완료)
 - 브랜치: `refactor/jpa-community`
-- PR / 검증 head / merge SHA: 아직 없음
+- PR: https://github.com/minyeophan/formypet/pull/103
+- 검증 head: `980bebb442b933870022bb0cd6c54e0d4ae4057a`
+- merge SHA: `607299ef2ac662173b62d7d16d49392817ec70a8` (검증 head와 tree 동일)
 - 기준선: `gradlew.bat test --tests 'com.formypet.community.*' --no-daemon`, 세션 79235, 1분 56초 성공. XML 43 tests / 0 failures / 0 errors / 0 skipped.
 
 ## 파일과 책임
@@ -49,12 +51,12 @@
 - [x] 관련 테스트 및 전체 backend Asia/Seoul 통과
 - [x] 독립 코드 리뷰 해결
 - [x] MuMu 작성/편집/삭제, 대댓글, 좋아요/투표, 차단, 내 활동/페이지 이동 및 앱 재실행
-- [ ] refactor : 커밋, develop PR, 최신 head의 전체 CI 통과
-- [ ] squash merge 후 실제 develop SHA 빌드/기동
-- [ ] 머지 SHA의 MuMu 재실행/전체 시나리오/공통 smoke 및 서버 로그 확인
-- [ ] 증적 기록 후 media 시작
+- [x] refactor : 커밋, develop PR, 최신 head의 전체 CI 통과
+- [x] squash merge 후 실제 develop SHA 빌드/기동
+- [x] 머지 SHA의 MuMu 재실행/전체 시나리오/공통 smoke 및 서버 로그 확인
+- [x] 증적 기록 후 media 시작
 
-현재 QA 백엔드는 최종 커뮤니티 소스의 bootJar85055, 세션50305/PID23748이다. MuMu 127.0.0.1:16384, mediatest 앱, --no-uninstall, 격리 API18083/DB3318만 사용한다. 머지 후에는 실제 develop SHA로 다시 빌드한다.
+현재 QA 백엔드는 머지 SHA607299e의 forced bootJar98525, 세션51889/PID22584이다. MuMu 127.0.0.1:16384, mediatest 앱, --no-uninstall, 격리 API18083/DB3318만 사용한다.
 
 ## 구현 기록
 
@@ -95,3 +97,6 @@
 - MuMu40213의 lazy finder 조기 평가를 수정한62156은 페이지 이동/차단/신고 전체를 통과했다. 마지막 댓글 재조회에서 테스트가 같은 댓글 route의 postId만 교체해 기존 화면 상태가 재사용되었다. 기존 CommunityCommentsScreen은 didUpdateWidget이 없으며 이번 Java 변경 범위 밖이므로, 실제 사용자 흐름인 상세 → 댓글 열기로 테스트를 변경했다. 직접 route 교체의 이 제한은 해결했다고 주장하지 않는다.
 - MuMu11060은 수정된 실제 진입 흐름으로 재실행 보존 검증 성공(8초): 저장된 인증/게시글/좋아요/투표/삭제 부모 및 답글/사진 실제 디코딩. 전체 시나리오82173과 backend79200은 실행 중이다.
 - 최종 결과: backend79200 성공9분13초, XML432 tests/0 failures/0 errors/0 skipped(Asia/Seoul). MuMu82173 전체 성공1분2초, COMMUNITY_PAGINATION_BLOCK_REPORT_VERIFIED 및 COMMUNITY_UI_VERIFIED. 재실행11060 성공8초. Flutter analyze46233 성공15.1초. 최종 패키지 이동 재리뷰도 미해결 지적 없음. 서버50305 요청 오류 로그 없음. PR/CI/머지 및 머지 후 MuMu는 별도 미완료 단계다.
+- PR103 검증 head의 push38787205507와 PR38787282793 모두 backend/Flutter/monitoring 성공(6개). GitHub 리뷰 지적 없음. squash merge607299e를 fetch 및 UI로 확인했다. 이전 QA50305 종료, 머지 SHA forced bootJar98525 실행 중. develop CI38787977229와 머지 후 MuMu는 아직 진행 단계다.
+- 머지 SHA forced bootJar98525 성공43초, QA51889/PID22584 health200/schema43. develop CI38787977229 전체3개 성공. 머지 후 MuMu 기존 데이터52727 성공7초, 전체31940 성공1분2초. 공통 android_ux17980 진행 중이며 마지막 gate와 서버 로그 확인 후 완료 처리한다.
+- 공통 android_ux17980 성공50초: 주요18개 화면, 지출 저장/실패/재시도 검증. 서버51889 요청 오류 로그 없음. 커뮤니티 전환의 모든 gate 완료. 다음 도메인은 최신 develop607299e 기준 media이다.

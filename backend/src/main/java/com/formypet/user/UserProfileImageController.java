@@ -1,7 +1,7 @@
 package com.formypet.user;
 
-import com.formypet.media.MediaService;
-import com.formypet.media.storage.LoadedMedia;
+import com.formypet.domain.media.service.MediaService;
+import com.formypet.domain.media.storage.LoadedMedia;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

@@ -40,7 +40,7 @@ public class CommunityController {
     private final CommunityService communityService;
     private final com.formypet.common.idempotency.IdempotencyService idempotency;
     private final ObjectMapper objectMapper;
-    private final com.formypet.media.MediaService mediaService;
+    private final com.formypet.domain.media.service.MediaService mediaService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "게시글 작성")

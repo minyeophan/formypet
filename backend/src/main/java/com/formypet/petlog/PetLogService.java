@@ -5,7 +5,7 @@ import com.formypet.auth.repository.UserRepository;
 import com.formypet.common.exception.NotFoundException;
 import com.formypet.common.exception.ApiException;
 import com.formypet.common.time.UtcTime;
-import com.formypet.media.MediaService;
+import com.formypet.domain.media.service.MediaService;
 import com.formypet.domain.pet.entity.Pet;
 import com.formypet.domain.pet.repository.PetRepository;
 import lombok.RequiredArgsConstructor;

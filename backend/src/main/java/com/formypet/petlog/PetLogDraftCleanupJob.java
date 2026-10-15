@@ -1,6 +1,6 @@
 package com.formypet.petlog;
 
-import com.formypet.media.MediaService;
+import com.formypet.domain.media.service.MediaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

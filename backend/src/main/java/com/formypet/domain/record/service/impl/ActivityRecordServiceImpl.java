@@ -12,7 +12,7 @@ import com.formypet.domain.record.entity.detail.RecordDetail;
 import com.formypet.domain.record.repository.*;
 import com.formypet.domain.record.service.ActivityRecordService;
 import com.formypet.domain.routine.repository.RoutineRepository;
-import com.formypet.media.MediaService;
+import com.formypet.domain.media.service.MediaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
