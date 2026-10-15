@@ -9,5 +9,6 @@ class PetLogVideoExporter {
     List<String> paths,
     String output, {
     CancelToken? cancelToken,
-  }) => platform.createPetLogVideo(paths, output, cancelToken: cancelToken);
+    void Function(double)? onProgress,
+  }) => platform.createPetLogVideo(paths, output, cancelToken: cancelToken, onProgress: onProgress);
 }

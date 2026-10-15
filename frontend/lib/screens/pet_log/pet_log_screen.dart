@@ -604,7 +604,7 @@ class _PetLogBookScreenState extends ConsumerState<PetLogBookScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppHeader(
-        title: '기록집',
+        title: '전체 보기',
         showBackButton: true,
         leadingWidth: 54,
         onBack: () => context.go('/pet-log'),
