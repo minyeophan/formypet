@@ -1,6 +1,6 @@
-package com.formypet.pet.repository;
+package com.formypet.domain.pet.repository;
 
-import com.formypet.pet.domain.Pet;
+import com.formypet.domain.pet.entity.Pet;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

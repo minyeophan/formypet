@@ -1,6 +1,6 @@
-package com.formypet.pet.dto;
+package com.formypet.domain.pet.dto.request;
 
-import com.formypet.pet.domain.Gender;
+import com.formypet.domain.pet.entity.Gender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;

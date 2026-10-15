@@ -1,4 +1,4 @@
-package com.formypet.pet.dto;
+package com.formypet.domain.pet.dto.request;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;

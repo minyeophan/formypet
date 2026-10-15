@@ -1,9 +1,9 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: wallet (1/12)
-Status: wallet PR #99 open; backend and MuMu branch validation passed; final test commit CI and merge pending
+Current domain: pet (2/12); wallet complete
+Status: wallet merged and verified; pet baseline inspection starting
 Base: origin/develop 8413dcb
-Branch: refactor/jpa-wallet
+Branch: refactor/jpa-pet
 MuMu ADB: 127.0.0.1:16384
 Docker was stopped; Docker Desktop startup requested.
 Chronological entries below describe earlier states; latest entries supersede them.
@@ -51,3 +51,17 @@ Wallet screen test8254 passed WALLET_UI_VERIFIED in13s: report20000, food/hospit
 PR804b8b8 all6 push/PR checks success. Screen test8254 and analyzer45671 passed. Restart35414 failed auth false because Flutter test defaults uninstall=true; source integration_test_device.kill and commands/test.dart confirmed, adb pm listed only original app afterwards. No backend regression inferred. Rerun fixture85223 uses --no-uninstall; next existing-mode MUST also --no-uninstall. Reviewer found only month-boundary fixture issue, addressed by choosing stored expense month before UI checks.
 
 MuMu fixture85223 passed WALLET_UI_VERIFIED; restart18288 passed WALLET_RESTART_VERIFIED (8s), both --no-uninstall. Analyzer91905 No issues found. Actual category/month/report and new-process credential/data persistence verified. New test and ledger ready for final PR update; merged SHA verification still required.
+Final head5610d2d: all6 push/PR checks success; no GitHub review/comments outstanding. PR99 squash merged via signed-in GitHub UI (connector merge403), commit e482cf28bd9bbc9f7ab7ea4821bc7715b341d434. Worktree detached at merged SHA, tree identical to5610d2d. Old backend77406 stopped. Forced bootJar56585 running. Merged-version MuMu and develop CI still pending.
+Merged e482cf2 bootJar56585 BUILD SUCCESSFUL1m4s (--rerun-tasks). Server session9196 PID33396 bound18083, health success, schema43 unchanged. Existing-fixture MuMu43391 running (assembleDebug); preserves pre-merge data. Poll before another Flutter build. Develop CI backend/Flutter pending, monitoring success.
+Merged-SHA restart43391 passed WALLET_RESTART_VERIFIED17s: pre-merge fixtures/credentials preserved, actual category/month/report checks green. Develop e482cf2 all3 checks success. Merged CRUD/native smoke40157 running. Backend9196 PID33396 remains active.
+
+Merged CRUD40157 passed65s, native route smoke and actual wallet mutations verified. Server9196 logs have no request errors. Wallet complete. Latest origin/develop e482cf2 fetched; new refactor/jpa-pet branch created at that SHA in reused managed worktree. No pet source changes yet. Prior wallet completion docs carried into pet branch.
+Pet baseline52790 passed2m21s before new tests. New domain.pet.entity.PetTest defines color cycle and unknown/omitted birth date compatibility. RED85055 running; production not moved yet. Detailed plan02-pet.md added. Ruling: preserve wallet raw pet access repository because its error precedence differs from Pet403/soft-delete filtering.
+Pet RED85055 failed missing target entity as expected. Package/controller/service interface+impl and profile-image SQL extraction applied; entity owns color fallback and birth/species preservation. Green72206 passed2m10s pet+wallet (before 2 additional projection/persistence tests). Added tie/kind/pet isolation projection case and committed-update/soft-delete test; full backend verification now running. No PR or MuMu pet run yet.
+Full backend live session13426. Poll it before launching another Gradle test; new projection/persistence tests included. Worktree refactor/jpa-pet at7159cb2 plus uncommitted implementation/tests/docs. Local UI backend9196 still wallet merged e482cf2 on18083; MUST build/restart pet version before claiming pet UI validation.
+Pet full13426 finished385 tests/1 failure, solely TimeModelTest legacy reflection path (XML confirmed); added pet integration15 tests all passed. Corrected string to domain.pet.entity.Pet; full42692 running. bootJar10106 succeeded, wallet backend9196 stopped and pet backend61430/PID19968 now healthy on18083 (isolated DB3318). Independent pet_review reports no actionable backend findings.
+MuMu34384 ran profile fixture/media/render/edit/add/delete but birthUnknown assertion failed because tap was offscreen (725.7 outside640 viewport), not backend failure; trace confirms missed tap. Test now unfocuses/hides keyboard and settles before center-aligned reveal, asserts hitTestable before taps. Rerun72968 live, analyzer28531 live. No PR/commit of implementation yet. All Flutter runs use --no-uninstall.
+MuMu72968 passed PET_UI_VERIFIED27s after keyboard/reveal fix; all taps hit-testable. Analyzer28531 no issues41.9s. Starting VERIFY_EXISTING_PET=true new-process run; full backend42692 still live. Poll both before subsequent builds.
+MuMu restart17364 passed PET_RESTART_VERIFIED12s with existing fixtures, no writes. Full42692 confirmed still running. Goal previous turn classified progress: pet test added/fixed and actual UI test passed. Next commit/push/PR gated on full test terminal success; merged SHA MuMu still required.
+Full42692 BUILD SUCCESSFUL12m14s; XML totals385 tests/0 failures/0 errors/0 skipped. Pet branch implementation ready for commit and PR. Latest develop remains e482cf2. No source changes after full test compilation; only evidence docs updated.
+PR100 created/attached at6a45ba0. Backend385/0 passed. Final test review P3: Image presence alone could pass decoding fallback. Changed assertion to RawImage.image non-null; reviewer confirms resolved. MuMu90256 full18s and7073 restart5s passed, analyzer55706 clean. Follow-up test-only commit pending; all required CI must be checked at latest head before squash and merged-SHA MuMu.

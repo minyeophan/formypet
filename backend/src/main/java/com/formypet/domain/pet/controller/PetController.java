@@ -1,9 +1,10 @@
-package com.formypet.pet;
+package com.formypet.domain.pet.controller;
 
+import com.formypet.domain.pet.service.PetService;
 import com.formypet.common.response.ApiResponse;
-import com.formypet.pet.dto.PetCreateRequest;
-import com.formypet.pet.dto.PetResponse;
-import com.formypet.pet.dto.PetUpdateRequest;
+import com.formypet.domain.pet.dto.request.PetCreateRequest;
+import com.formypet.domain.pet.dto.response.PetResponse;
+import com.formypet.domain.pet.dto.request.PetUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

@@ -1,4 +1,4 @@
-package com.formypet.pet;
+package com.formypet.domain.pet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
@@ -30,6 +30,9 @@ class PetIntegrationTest extends IntegrationTestSupport {
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired jakarta.persistence.EntityManager entityManager;
+    @Autowired com.formypet.domain.pet.repository.query.PetProfileImageQueryRepository profileImages;
 
     private static final String PETS_URL    = "/api/v1/pets";
     private static final String AUTH_URL    = "/api/v1/auth/register";
@@ -59,6 +62,66 @@ class PetIntegrationTest extends IntegrationTestSupport {
                 "species",   "dog",
                 "birthDate", "2022-03-15"
         );
+    }
+
+    private Long createPetId(String token) throws Exception {
+        var result = mockMvc.perform(post(PETS_URL).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(petBody("Mochi"))))
+                .andExpect(status().isCreated()).andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
+    }
+
+    @Test
+    void profileProjectionBreaksTimestampTiesAndExcludesOtherKindsAndPets() throws Exception {
+        String token = registerAndGetToken("pet-projection@example.com", "projection");
+        Long petId = createPetId(token);
+        Long otherPetId = createPetId(token);
+        entityManager.flush();
+        Long userId = jdbc.queryForObject("SELECT user_id FROM pets WHERE id=?", Long.class, petId);
+        for (int i = 0; i < 4; i++) {
+            jdbc.update("""
+                    INSERT INTO media_resources
+                    (user_id,pet_id,storage_key,original_name,content_type,extension,file_size,status,media_kind,created_at)
+                    VALUES (?,?,?,'fixture.png','image/png','png',1,'STORED',?,'2026-01-01 12:00:00')
+                    """, userId, i == 3 ? otherPetId : petId, "pet-projection-" + i,
+                    i == 2 ? "GENERAL" : "PET_PROFILE");
+        }
+        Long expected = jdbc.queryForObject("SELECT id FROM media_resources WHERE storage_key='pet-projection-1'", Long.class);
+        org.junit.jupiter.api.Assertions.assertEquals(expected, profileImages.findLatestId(petId).orElseThrow());
+        mockMvc.perform(get(PETS_URL).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == " + petId + ")].profileImageUrl")
+                        .value(org.hamcrest.Matchers.contains("/api/v1/media/" + expected)));
+    }
+
+    @Test
+    void changesAndSoftDeletionRemainVisibleAcrossCommittedRequests() throws Exception {
+        String token = registerAndGetToken("pet-commit@example.com", "petcommit");
+        Long petId = createPetId(token);
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
+        try {
+            mockMvc.perform(put(PETS_URL + "/" + petId).header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Mandu\",\"weight\":4.25,\"birthDateUnknown\":true}"))
+                    .andExpect(status().isOk());
+            mockMvc.perform(get(PETS_URL).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].name").value("Mandu"))
+                    .andExpect(jsonPath("$.data[0].weight").value(4.25))
+                    .andExpect(jsonPath("$.data[0].birthDate").doesNotExist());
+            mockMvc.perform(delete(PETS_URL + "/" + petId).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isNoContent());
+            mockMvc.perform(get(PETS_URL).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+            mockMvc.perform(put(PETS_URL + "/" + petId).header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Again\"}"))
+                    .andExpect(status().isForbidden());
+            org.junit.jupiter.api.Assertions.assertEquals(1,
+                    jdbc.queryForObject("SELECT is_deleted FROM pets WHERE id=?", Integer.class, petId));
+        } finally {
+            jdbc.update("DELETE FROM users WHERE email='pet-commit@example.com'");
+        }
     }
 
     @Test
