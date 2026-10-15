@@ -18,8 +18,8 @@ class TimeModelTest {
                 "community.dto.PostCommentResponse", "updatedAt",
                 "community.dto.MyActivityResponse$Item", "activityAt",
                 "notification.dto.NotificationResponse", "readAt",
-                "routine.dto.CareScheduleResponse", "createdAt",
-                "routine.dto.RoutineCompletionResponse", "completedAt").entrySet()) {
+                "domain.routine.dto.response.CareScheduleResponse", "createdAt",
+                "domain.routine.dto.response.RoutineCompletionResponse", "completedAt").entrySet()) {
             var type = Class.forName("com.formypet." + entry.getKey());
             assertThat(type.getDeclaredField(entry.getValue()).getType())
                     .as(entry.getKey() + "." + entry.getValue()).isEqualTo(Instant.class);

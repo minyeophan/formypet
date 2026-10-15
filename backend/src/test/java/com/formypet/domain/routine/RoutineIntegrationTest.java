@@ -1,4 +1,4 @@
-package com.formypet.routine;
+package com.formypet.domain.routine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
@@ -29,6 +29,7 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Autowired jakarta.persistence.EntityManager entityManager;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
@@ -178,6 +179,8 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
         Long id = readId(created);
         String legacy = "{\"distance\":2.4,\"memo\":\"park\",\"startLng\":127,\"startLat\":37,\"endLng\":128,\"endLat\":38,\"clinicLng\":129,\"clinicLat\":39}";
         jdbcTemplate.update("UPDATE routines SET detail=? WHERE id=?", legacy, id);
+        // Simulate a fresh request after seeding a legacy DB row outside JPA.
+        entityManager.clear();
         for (String url : List.of(routinesUrl(petId), routinesUrl(petId) + "/today?date=2026-05-09")) {
             String prefix = url.contains("today?") ? "$.data.routines[0].routine.detail" : "$.data[0].detail";
             var response = mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
@@ -441,6 +444,52 @@ class RoutineIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(get(routinesUrl(petId)).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void repeatedCompletionAndTodayReadsPreserveIdRecordLinkAndUtcTimestamp() throws Exception {
+        String token = registerAndGetToken("routine-jpa-completion@example.com", "completion");
+        Long petId = createPet(token, "Mochi");
+        Long routineId = createRoutine(token, petId, "Meal", "meal");
+        jdbcTemplate.update("INSERT INTO activity_records(pet_id,type_id,date,routine_id) VALUES (?,'meal','2026-05-09',?)",
+                petId, routineId);
+        Long recordId = jdbcTemplate.queryForObject("SELECT id FROM activity_records WHERE pet_id=?", Long.class, petId);
+        jdbcTemplate.update("""
+                INSERT INTO routine_completions(routine_id,pet_id,activity_record_id,scheduled_date,status,completed_at)
+                VALUES (?,?,?,'2026-05-09','COMPLETED','2026-05-09 01:02:03.123456')
+                """, routineId, petId, recordId);
+        Long completionId = jdbcTemplate.queryForObject("SELECT id FROM routine_completions WHERE routine_id=?", Long.class, routineId);
+        mockMvc.perform(get(routinesUrl(petId) + "/today?date=2026-05-09")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routines[0].completion.completedAt").value("2026-05-09T01:02:03.123456Z"));
+        for (String completionStatus : List.of("PENDING", "SKIPPED", "COMPLETED", "COMPLETED")) {
+            var before = java.time.Instant.now().minusSeconds(2);
+            var result = mockMvc.perform(patch(routinesUrl(petId) + "/" + routineId + "/completions/2026-05-09")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("status", completionStatus.toLowerCase(java.util.Locale.ROOT)))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.id").value(completionId))
+                    .andExpect(jsonPath("$.data.status").value(completionStatus));
+            if (completionStatus.equals("COMPLETED")) {
+                var data = objectMapper.readTree(result.andReturn().getResponse().getContentAsString()).get("data");
+                org.assertj.core.api.Assertions.assertThat(java.time.Instant.parse(data.get("completedAt").asText()))
+                        .isBetween(before, java.time.Instant.now().plusSeconds(2));
+            } else result.andExpect(jsonPath("$.data.completedAt").doesNotExist());
+            mockMvc.perform(get(routinesUrl(petId) + "/today?date=2026-05-09")
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.routines[0].completion.status").value(completionStatus));
+        }
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM routine_completions WHERE routine_id=?", Integer.class, routineId)).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT activity_record_id FROM routine_completions WHERE routine_id=?", Long.class, routineId)).isEqualTo(recordId);
+        mockMvc.perform(delete(routinesUrl(petId) + "/" + routineId).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM routine_completions WHERE routine_id=?", Integer.class, routineId)).isZero();
     }
 
     private Long createRoutine(String token, Long petId, String label, String typeId) throws Exception {

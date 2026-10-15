@@ -1,9 +1,9 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: pet (2/12); wallet complete
-Status: wallet merged and verified; pet baseline inspection starting
-Base: origin/develop 8413dcb
-Branch: refactor/jpa-pet
+Current domain: routine (3/12); wallet and pet complete
+Status: wallet and pet merged and verified; routine baseline inspection starting
+Base: origin/develop 0de22531e3148069c1f5e279bb09f54292fd2ec0
+Branch: refactor/jpa-routine
 MuMu ADB: 127.0.0.1:16384
 Docker was stopped; Docker Desktop startup requested.
 Chronological entries below describe earlier states; latest entries supersede them.
@@ -65,3 +65,21 @@ MuMu72968 passed PET_UI_VERIFIED27s after keyboard/reveal fix; all taps hit-test
 MuMu restart17364 passed PET_RESTART_VERIFIED12s with existing fixtures, no writes. Full42692 confirmed still running. Goal previous turn classified progress: pet test added/fixed and actual UI test passed. Next commit/push/PR gated on full test terminal success; merged SHA MuMu still required.
 Full42692 BUILD SUCCESSFUL12m14s; XML totals385 tests/0 failures/0 errors/0 skipped. Pet branch implementation ready for commit and PR. Latest develop remains e482cf2. No source changes after full test compilation; only evidence docs updated.
 PR100 created/attached at6a45ba0. Backend385/0 passed. Final test review P3: Image presence alone could pass decoding fallback. Changed assertion to RawImage.image non-null; reviewer confirms resolved. MuMu90256 full18s and7073 restart5s passed, analyzer55706 clean. Follow-up test-only commit pending; all required CI must be checked at latest head before squash and merged-SHA MuMu.
+Final pet head b4d0f7d all6 CI success. PR100 squash merged 0de22531e3148069c1f5e279bb09f54292fd2ec0; merged tree identical to tested head. Worktree detached at merged SHA. Backend61430 stopped, forced bootJar19872 running. Merged MuMu and develop CI pending; do not start routine yet.
+Merged 0de2253 forced bootJar19872 succeeded42s. Backend31441 PID25092 port18083 healthy; schema43 unchanged. MuMu existing-fixture80247 running, --no-uninstall. Common android_ux_test requires QA_API_BASE_URL=http://127.0.0.1:18083 in addition to API_BASE_URL; do not use its default8094.
+Merged MuMu existing80247 passed PET_RESTART_VERIFIED6s, full64471 passed PET_UI_VERIFIED18s. Develop0de2253 all3 CI success. Common native smoke40091 running with QA_API_BASE_URL18083, poll before another Flutter build. Backend31441 remains active. Routine not started.
+Pet merged common smoke40091 passed51s; backend31441 logs clean. Pet complete. Latest develop0de2253 fetched, refactor/jpa-routine created; no routine production changes yet.
+Routine baseline56096 running: gradlew test --tests com.formypet.routine.* --no-daemon. Poll before another Gradle test. Current branch refactor/jpa-routine commit191ee92 contains pet completion evidence only. Backend31441 still runs pet merged0de2253. No routine source modifications.
+Routine baseline56096 succeeded1m27s. CareScheduleTest RED35323 confirmed missing entity. Care schedule entity/JPA CRUD/service interface+impl and DTO/controller moves implemented; SQL access facts isolated. GREEN34820 running with Asia/Seoul, poll before another build. Added legacy wall clock/UTC/NULL ordering regression and updated TimeModelTest reflection after launch; these need next run. RoutineService remains old JDBC pending next implementation.
+Care JPA first GREEN34820 succeeded1m40s with Asia/Seoul. Follow-up86384 LIVE includes new legacy timestamp/time/NULL-order regression and TimeModelTest reflection path. Poll before another Gradle build.
+Care followup86384 succeeded1m47s including UTC/time/NULL-order and reflection regression. RoutineTest RED48351 missing entity confirmed. Routine JPA entity/repository/service and Completion entity/JPA query+atomic JDBC fragment now implemented; all routine DTO/controller/tests moved. GREEN26297 LIVE Asia/Seoul. Additional completion UTC/idempotency/record-link regression added after launch, must rerun. Read-only pet_review reviewing uncommitted delta vs0de2253. No PR/commit of implementation yet.
+Independent pet_review final: no actionable findings across DTO/controller, authorization/error precedence, recurrence, JSON sanitation, JPA/JDBC completion, care timestamps/order/reminder cleanup. Source review only; test/CI/MuMu still required.
+Routine GREEN26297 succeeded1m48s, XML31 tests/0 failures/0 errors (TimeModel1, care integration5, care entity3, routine entity4, routine integration18). Service/controller SQL scan empty. Full backend46283 LIVE with -PtestTimezone=Asia/Seoul, includes added completion idempotency/UTC/record-link case. Poll before launching further Gradle tests. Backend31441 still pet merged0de2253, not routine; need bootJar and restart before routine MuMu. All implementation uncommitted; no PR yet.
+Routine MuMu test created: screen routine/schedule create-edit-delete/cancel, all recurrence listing, service/API completion pending/skipped/completed (no current screen control), persisted existing-mode. Analyzer37349 clean. bootJar82842 passed26s; pet backend31441 stopped, routine backend17438 PID36936 healthy18083 DB3318/schema43. MuMu44282 LIVE --no-uninstall; fullbackend46283 LIVE. Followup reviewer checking test. Do not restart live runs.
+MuMu44282 failed test selector routine-category-water absent; observed source options medicine/meal/vet. Changed only test create selector to meal; backend unaffected. Rerun session recorded next. Full backend46283 remains running.
+MuMu retry17371 LIVE. Poll before next Flutter build. Backend17438 remains live; no routine commit/PR yet.
+Full backend46283 succeeded7m44s: XML394 tests/0 failures/0 errors/0 skipped, Asia/Seoul including completion regression. MuMu17371 passed CRUD/API assertions but timed out awaiting lazy SliverList routine-detail-edit-button at line296. Changed test to await visible title then scrollUntilVisible time text and assert hitTestable. Production unchanged. Retry session recorded next.
+MuMu89253 LIVE after lazy-scroll test correction; poll before another Flutter test. Backend46283 is terminal success, do not rerun it without a code change. Backend17438 still running routine implementation18083. Current source uncommitted; PR pending UI success.
+MuMu89253 passed ROUTINE_UI_VERIFIED31s, analyzer48887 clean. Full screen CRUD/list/detail and explicit service/API completion verification passed. Starting existing-fixture new-process verification; no fixture creation in that mode. Backend17438 unchanged.
+Existing-fixture MuMu98457 LIVE --no-uninstall VERIFY_EXISTING_ROUTINE=true. Origin/develop remains0de2253. No backend request errors. Full implementation can be committed after this result; PR still absent.
+MuMu98457 passed ROUTINE_RESTART_VERIFIED7s. All branch-local tests/review/UI now passed. Prepare implementation commit and develop PR, then latest-head CI/squash/merged SHA rebuild+MuMu gates. Goal remains active; routine not complete until merged gates.

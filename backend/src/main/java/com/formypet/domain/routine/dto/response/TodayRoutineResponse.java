@@ -1,4 +1,4 @@
-package com.formypet.routine.dto;
+package com.formypet.domain.routine.dto.response;
 
 import java.util.List;
 
