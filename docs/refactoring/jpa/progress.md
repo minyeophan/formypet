@@ -11,3 +11,4 @@ Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain be
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
 Docker diagnostic: sailor-ingest.sock rename/access failure prevents engine startup. Requested non-destructive `docker desktop restart`, session 43869; poll live sessions before retrying.
 MuMu UI has not been tested; only ADB connectivity confirmed.
+Docker recovery operation was rejected by automatic approval review. Requested user to restore Docker Desktop; do not bypass. Baseline integration failures are DockerClientProviderStrategy initialization failures, not implementation regressions. Detailed wallet mapping and verification checklist saved in 01-wallet.md.
