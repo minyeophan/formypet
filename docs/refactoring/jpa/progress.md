@@ -1,12 +1,12 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
 Current domain: wallet (1/12)
-Status: baseline verification
+Status: wallet implemented and reviewed; final regression and MuMu integration running; no PR/merge yet
 Base: origin/develop 8413dcb
 Branch: refactor/jpa-wallet
 MuMu ADB: 127.0.0.1:16384
 Docker was stopped; Docker Desktop startup requested.
-No implementation, PR or merge yet.
+Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
 Docker diagnostic: sailor-ingest.sock rename/access failure prevents engine startup. Requested non-destructive `docker desktop restart`, session 43869; poll live sessions before retrying.
@@ -38,3 +38,10 @@ APK version7 54493 built, installation failed signature mismatch against existin
 Isolated APK build 99677 succeeded; adb install succeeded for com.formypet.frontend.mediatest. Original com.formypet.frontend remains installed. Test API target http://127.0.0.1:18083 via adb reverse.
 Seoul GREEN test session 36238 live, compile succeeded. Starting bootJar with unchanged production sources to prepare local UI backend; no further source mutation until both builds complete.
 Seoul GREEN suite 36238 passed (2m59s); bootJar 20945 passed. UI backend starting with isolated DB on port 18083, JVM Asia/Seoul, live session 77406. First unquoted JVM arg invocation failed before startup; corrected quoted invocation is the only live server.
+Fix commit 60eac64. Reviewer follow-up confirms all prior findings addressed, no critical/important; retain Seoul CI invocation recommended. UI backend 77406 started successfully at port18083 with fresh isolated schema v43. Test app initially showed prior video-preview activity despite correct mediatest resumed package; force-stopped only mediatest and relaunched (no data cleared). Inspect next screenshot before acting. Native sky binding mw identifies MuMu window4327228. Review/CI/UI completion still pending.
+Latest resume: origin/develop remains 8413dcb. Backend health on18083 passed; isolated DB had zero users/pets. Observed foreground package was original com.formypet.frontend, so prior cached UI was not valid wallet evidence. Launched mediatest explicitly, confirmed login screen. Added Seoul wallet test to CI and expanded Android integration fixture with local18083 override, actual deletion/filter/summary assertions. Full backend session13518 and MuMu integration session71116 are live; do not restart until terminal state. Integration hospital category corrected during build; ensure final test snapshot includes correction. No PR/push/merge yet.
+GitHub branch rules inspected via rules/branches/develop: PR required, no minimum approving review count, Flutter analyze and tests required, force-push/deletion blocked, squash allowed. All planned backend/monitoring checks will also be required for this migration even though branch rules require only Flutter.
+Read-only reviewer confirmed CI/integration-test delta has no findings; filter/summary assertions verify API, not UI interactions. MuMu session71116 built successfully (236.6s); Flutter installer encountered version7-to5 downgrade and automatically reinstalled the isolated mediatest package. Check original app still installed. Tests not yet terminal.
+MuMu71116 failed before wallet: logout Text tap was offscreen at y611 and hit bottom navigation; expected settings route became home. Replaced direct tap with existing _tap reveal helper. MuMu rerun85778 live. Original com.formypet.frontend still installed; only mediatest reinstalled. Backend13518 remains live.
+MuMu85778 completed exit0 All tests passed (54s test execution;69.2s APK build): wallet failed-save/retry, duplicate-submit guard, create12000, edit, delete cancellation, actual delete, API food/hospital filters and total/count checks; listed20 native routes without framework exceptions. Isolated local backend18083, real MySQL3318. Screen filter/report interactions and merged-SHA/relaunch persistence remain pending. Backend13518 still running with growing output at23:32KST.
+Final backend13518 completed BUILD SUCCESSFUL11m39s:380 tests,0failures,0errors,0skipped from XML. Dart analyze14821 for android_ux_test.dart completed No issues found. Ready to publish wallet PR; native UI filters/report and merged-SHA/relaunch checks remain explicit follow-up gates.

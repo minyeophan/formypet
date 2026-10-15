@@ -1,6 +1,6 @@
 # 01 Wallet 전환 상세 체크리스트
 
-상태: 기준선 검증 중 (Docker 엔진 시작 오류)
+상태: 구현 및 독립 리뷰 완료, 최종 회귀·MuMu 검증 진행 중. PR/머지는 아직 미실행.
 
 ## 파일 매핑
 - wallet/WalletExpenseController.java → domain/wallet/controller/WalletExpenseController.java
@@ -19,15 +19,17 @@
 - 다른 도메인 테이블 수정/패키지 이동 없음. 후속 pet 단계에서 접근 계약 통합 여부 검토.
 - amount 1..999999999, KRW 기본값/제한, 기존 7개 category 및 nullable text trim 규칙은 엔티티 생성/변경 경로에서 일관되게 적용.
 - 지출 목록 expense_date DESC, NULL 시간 후순위, expense_time DESC, id DESC 유지.
-- 읽기 조회와 JPA 쓰기 사이 flush를 명시적으로 고려. create/update 응답은 엔티티에서 구성해 JDBC stale read를 피함.
+- 읽기 조회와 JPA 쓰기 사이 flush를 명시적으로 고려. create/update는 Repository에서 flush/refresh 후 엔티티로 응답을 구성해 DB TIME(0) 정밀도를 유지한다.
+- LocalTimeJdbcType으로 JVM Asia/Seoul에서도 기존 JDBC의 시각 의미를 유지한다.
 
 ## 검증
-- [ ] 기존 WalletExpenseIntegrationTest 12개와 전체 backend 기준선 통과.
-- [ ] 새 엔티티 규칙 테스트: 기본 KRW, 잘못된 통화/분류/금액 거부, 텍스트 정리, 수정 시 null로 비우기.
-- [ ] 기존 API CRUD/통계/기간·분류 필터/에러 코드 테스트 유지.
-- [ ] 동일 날짜·시간 및 NULL 시간이 섞인 페이지 경계에서 중복/누락 없음.
-- [ ] 타인 펫, 삭제 펫, 존재하지 않는 지출의 기존 오류 응답 유지.
-- [ ] 실제 커밋 후 새 트랜잭션에서 수정/삭제 결과 재조회 (기존 테스트는 @Transactional이므로 별도 확인 필요).
+- [x] 기존 WalletExpenseIntegrationTest 12개와 전체 backend 기준선 통과.
+- [x] 새 엔티티 규칙 테스트: 기본 KRW, 잘못된 통화/분류/금액 거부, 텍스트 정리, 수정 시 null로 비우기.
+- [x] 기존 API CRUD/통계/기간·분류 필터/에러 코드 테스트 유지.
+- [x] 동일 날짜·시간 및 NULL 시간이 섞인 페이지 경계에서 중복/누락 없음.
+- [x] 타인 펫, 삭제 펫, 존재하지 않는 지출의 기존 오류 응답 유지.
+- [x] 실제 커밋 후 새 트랜잭션에서 수정/삭제 결과 재조회 (기존 테스트는 @Transactional이므로 별도 확인 필요).
+- [x] Asia/Seoul에서 JDBC 기존 행과 JPA 생성/수정의 시각·정밀도 회귀 검증 (session 36238).
 - [ ] 전체 backend 및 CI 통과.
 - [ ] 브랜치 MuMu 등록/수정/삭제/필터/통계 확인.
 - [ ] develop PR 리뷰·검사·머지.
