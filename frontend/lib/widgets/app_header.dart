@@ -18,6 +18,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final double? leadingWidth;
   final Key? titleKey;
   final Key? leadingKey;
+  final double titleSize;
 
   const AppHeader({
     super.key,
@@ -31,6 +32,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.leadingWidth,
     this.titleKey,
     this.leadingKey,
+    this.titleSize = AppV2Tokens.headerTitleSize,
   }) : assert(!showBackButton || onBack != null);
 
   @override
@@ -64,7 +66,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       title: AppText(
         title,
         key: titleKey,
-        fontSize: AppV2Tokens.headerTitleSize,
+        fontSize: titleSize,
         fontWeight: FontWeight.bold,
         color: AppColors.text,
         maxLines: 1,

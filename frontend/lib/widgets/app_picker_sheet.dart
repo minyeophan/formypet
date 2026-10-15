@@ -108,8 +108,10 @@ Future<T?> showAppPickerSheet<T>(
     barrierColor: const Color(0x66000000),
     useSafeArea: false,
     isScrollControlled: true,
-    showDragHandle: showDragHandle,
+    showDragHandle: false,
+    constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
     builder: (context) => AppPickerSheet<T>(
+      showDragHandle: showDragHandle,
       title: title,
       options: options,
       selectedValue: selectedValue,
@@ -121,6 +123,7 @@ Future<T?> showAppPickerSheet<T>(
 }
 
 class AppPickerSheet<T> extends StatefulWidget {
+  final bool showDragHandle;
   final String title;
   final List<AppSelectOption<T>> options;
   final T? selectedValue;
@@ -130,6 +133,7 @@ class AppPickerSheet<T> extends StatefulWidget {
 
   const AppPickerSheet({
     super.key,
+    this.showDragHandle = false,
     required this.title,
     required this.options,
     this.selectedValue,
@@ -177,6 +181,19 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.showDragHandle)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18, bottom: 4),
+                    child: Container(
+                      key: const Key('app-picker-drag-handle'),
+                      width: 32,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                 SizedBox(
                   height: 56,
                   child: Row(
@@ -273,11 +290,14 @@ class _AppPickerSheetState<T> extends State<AppPickerSheet<T>> {
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () =>
                                     Navigator.of(context).pop(option.value),
-                                child: SizedBox(
-                                  height: 36,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minHeight: 36,
+                                  ),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
+                                      vertical: 8,
                                     ),
                                     child: Align(
                                       alignment: Alignment.centerLeft,

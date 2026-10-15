@@ -15,6 +15,96 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  test(
+    'missing output and native finalization failure never report completion',
+    () async {
+      final values = <double>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(
+          code: 'encode_failed',
+          message: 'muxer stop failed',
+        );
+      });
+      await expectLater(
+        createPetLogVideo(
+          ['photo.jpg'],
+          '${Directory.systemTemp.path}/missing-polish.mp4',
+          onProgress: values.add,
+        ),
+        throwsA(isA<PlatformException>()),
+      );
+      expect(values, isEmpty);
+      messenger.setMockMethodCallHandler(channel, (call) async => null);
+      await expectLater(
+        createPetLogVideo(
+          ['photo.jpg'],
+          '${Directory.systemTemp.path}/missing-polish.mp4',
+          onProgress: values.add,
+        ),
+        throwsStateError,
+      );
+      expect(values, isEmpty);
+    },
+  );
+
+  test(
+    'progress is request scoped, monotonic and completes only after output exists',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'pet-log-progress-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final output = '${directory.path}/result.mp4';
+      final ready = Completer<String>();
+      final done = Completer<String>();
+      final values = <double>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'create') {
+          ready.complete((call.arguments as Map)['requestId'] as String);
+          return done.future;
+        }
+        return null;
+      });
+      final result = createPetLogVideo(
+        ['photo.jpg'],
+        output,
+        onProgress: values.add,
+      );
+      final id = await ready.future;
+      Future<void> emit(String requestId, int frames) async {
+        final finished = Completer<void>();
+        messenger.handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('progress', {
+              'requestId': requestId,
+              'completedFrames': frames,
+              'totalFrames': 30,
+            }),
+          ),
+          (_) => finished.complete(),
+        );
+        await finished.future;
+      }
+
+      await emit('different-request', 20);
+      await emit(id, 15);
+      await emit(id, 3);
+      await emit(id, 30);
+      expect(values, [.5, .99]);
+      await File(output).writeAsBytes([1, 2, 3]);
+      done.complete(output);
+      expect(await result, output);
+      expect(values, [.5, .99, 1]);
+      await emit(id, 20);
+      expect(values, [.5, .99, 1]);
+    },
+  );
+
   test('cancelling one export only targets its request ID', () async {
     final directory = await Directory.systemTemp.createTemp('pet-log-export-');
     final creates = <String, Completer<String>>{};

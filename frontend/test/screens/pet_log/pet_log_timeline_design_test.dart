@@ -688,7 +688,10 @@ void main() {
     expect(find.text('8월에는 남긴 기록이 없어요'), findsOneWidget);
     expect(find.text('다른 달 보기'), findsOneWidget);
     expect(find.text('다른 달의 순간을 찾아보거나\n전체 기록을 한 번에 둘러보세요.'), findsOneWidget);
-    expect(find.text('전체 보기'), findsOneWidget);
+    expect(
+      find.text('전체 보기'),
+      findsNWidgets(2),
+    ); // Header and empty-state action.
     expect(
       find.byKey(const Key('pet-log-month-empty-illustration')),
       findsOneWidget,
@@ -724,7 +727,7 @@ void main() {
           tester.getBottomLeft(otherMonthButton).dy,
       closeTo(14, 1),
     );
-    await tester.tap(find.text('전체 보기'));
+    await tester.tap(allRecordsButton);
     await tester.pumpAndSettle();
     expect(find.text('전체 기간'), findsOneWidget);
     expect(tester.takeException(), isNull);
