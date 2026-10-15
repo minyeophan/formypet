@@ -1,6 +1,6 @@
 # 01 Wallet 전환 상세 체크리스트
 
-상태: 구현·독립 리뷰·브랜치 MuMu 검증 완료. PR #99 최종 CI 및 머지 대기.
+상태: 완료. PR #99 머지, develop CI, 머지 SHA MuMu 검증 통과.
 
 ## 파일 매핑
 - wallet/WalletExpenseController.java → domain/wallet/controller/WalletExpenseController.java
@@ -30,10 +30,19 @@
 - [x] 타인 펫, 삭제 펫, 존재하지 않는 지출의 기존 오류 응답 유지.
 - [x] 실제 커밋 후 새 트랜잭션에서 수정/삭제 결과 재조회 (기존 테스트는 @Transactional이므로 별도 확인 필요).
 - [x] Asia/Seoul에서 JDBC 기존 행과 JPA 생성/수정의 시각·정밀도 회귀 검증 (session 36238).
-- [ ] 전체 backend 및 CI 통과.
+- [x] 전체 backend 380개 및 PR/develop CI 통과.
 - [x] 브랜치 MuMu 등록/수정/삭제/필터/통계 및 재실행 데이터 유지 확인.
-- [ ] develop PR 리뷰·검사·머지.
-- [ ] 머지 SHA 백엔드의 MuMu 동일 시나리오와 앱 재실행 후 저장 결과 확인.
+- [x] develop PR #99 리뷰·검사·squash 머지 (e482cf2).
+- [x] 머지 SHA 백엔드의 MuMu 동일 시나리오와 앱 재실행 후 저장 결과 확인.
 
 ## 환경 기록
 Docker 로그에서 sailor-ingest.sock rename/access 실패 확인. 자동 승인 검토가 프로세스 종료·소켓 제거·재시작 작업을 거부하여 해당 복구 작업을 수행하지 않음. 사용자에게 Docker 정상 기동 요청. 대체 경로로 이 거부를 우회하지 않는다.
+
+## 완료 증적
+- PR: https://github.com/minyeophan/formypet/pull/99
+- 검사 head: 5610d2d9463b2d38fe8ffe0a5ba8c825e96ec1f9 (6 checks success)
+- 머지 및 실행 SHA: e482cf28bd9bbc9f7ab7ea4821bc7715b341d434 (develop 3 checks success)
+- bootJar --rerun-tasks 성공. 실행 PID33396, API18083, 전용 MySQL3318/schema43.
+- MuMu127.0.0.1:16384, 별도 mediatest 앱: restart43391 통과17s, CRUD40157 통과65s.
+- 카테고리/월별 report, 머지 전 저장 데이터 재조회, 등록/수정/삭제/취소/실패재시도/중복제출 방지 및 공통 화면 smoke 통과. 서버 요청 오류 없음.
+- 복잡한 커서·통계 조회 SQL은 repository/query에 유지. 서비스 SQL 제거, 기본 CRUD JPA.

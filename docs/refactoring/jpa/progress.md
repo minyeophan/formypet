@@ -1,9 +1,9 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: wallet (1/12)
-Status: wallet PR #99 open; backend and MuMu branch validation passed; final test commit CI and merge pending
+Current domain: pet (2/12); wallet complete
+Status: wallet merged and verified; pet baseline inspection starting
 Base: origin/develop 8413dcb
-Branch: refactor/jpa-wallet
+Branch: refactor/jpa-pet
 MuMu ADB: 127.0.0.1:16384
 Docker was stopped; Docker Desktop startup requested.
 Chronological entries below describe earlier states; latest entries supersede them.
@@ -51,3 +51,8 @@ Wallet screen test8254 passed WALLET_UI_VERIFIED in13s: report20000, food/hospit
 PR804b8b8 all6 push/PR checks success. Screen test8254 and analyzer45671 passed. Restart35414 failed auth false because Flutter test defaults uninstall=true; source integration_test_device.kill and commands/test.dart confirmed, adb pm listed only original app afterwards. No backend regression inferred. Rerun fixture85223 uses --no-uninstall; next existing-mode MUST also --no-uninstall. Reviewer found only month-boundary fixture issue, addressed by choosing stored expense month before UI checks.
 
 MuMu fixture85223 passed WALLET_UI_VERIFIED; restart18288 passed WALLET_RESTART_VERIFIED (8s), both --no-uninstall. Analyzer91905 No issues found. Actual category/month/report and new-process credential/data persistence verified. New test and ledger ready for final PR update; merged SHA verification still required.
+Final head5610d2d: all6 push/PR checks success; no GitHub review/comments outstanding. PR99 squash merged via signed-in GitHub UI (connector merge403), commit e482cf28bd9bbc9f7ab7ea4821bc7715b341d434. Worktree detached at merged SHA, tree identical to5610d2d. Old backend77406 stopped. Forced bootJar56585 running. Merged-version MuMu and develop CI still pending.
+Merged e482cf2 bootJar56585 BUILD SUCCESSFUL1m4s (--rerun-tasks). Server session9196 PID33396 bound18083, health success, schema43 unchanged. Existing-fixture MuMu43391 running (assembleDebug); preserves pre-merge data. Poll before another Flutter build. Develop CI backend/Flutter pending, monitoring success.
+Merged-SHA restart43391 passed WALLET_RESTART_VERIFIED17s: pre-merge fixtures/credentials preserved, actual category/month/report checks green. Develop e482cf2 all3 checks success. Merged CRUD/native smoke40157 running. Backend9196 PID33396 remains active.
+
+Merged CRUD40157 passed65s, native route smoke and actual wallet mutations verified. Server9196 logs have no request errors. Wallet complete. Latest origin/develop e482cf2 fetched; new refactor/jpa-pet branch created at that SHA in reused managed worktree. No pet source changes yet. Prior wallet completion docs carried into pet branch.
