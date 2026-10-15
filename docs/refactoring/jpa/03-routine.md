@@ -1,6 +1,6 @@
 # 03 루틴 및 돌봄 일정 전환
 
-상태: 구현·전체 backend·독립 리뷰·MuMu 첫 실행 통과, 재실행 및 PR 검증 진행. 기준 develop 0de22531e3148069c1f5e279bb09f54292fd2ec0.
+상태: 완료. PR #101 머지 및 실제 머지 버전 MuMu/공통 smoke/develop CI 통과. 기준 develop 0de22531e3148069c1f5e279bb09f54292fd2ec0.
 브랜치: refactor/jpa-routine.
 
 ## 설계 계약
@@ -16,10 +16,10 @@
 ## 검증 계획
 - [x] 기존 RoutineIntegrationTest/CareScheduleIntegrationTest 기준선: 56096, 1분27초 성공
 - [x] 엔티티 반복 규칙/일정 정규화 RED → GREEN
-- [ ] JPA CRUD/정렬/UTC 및 Seoul 시간/알림 삭제/완료 중복/레코드 연결 회귀
+- [x] JPA CRUD/정렬/UTC 및 Seoul 시간/알림 삭제/완료 중복/레코드 연결 회귀
 - [x] 전체 backend 회귀 및 독립 코드 리뷰
-- [ ] MuMu 반복 목록, 완료/취소/건너뜀, 일정 등록/수정/삭제 및 재실행
-- [ ] PR 최신 head CI, develop 머지, 실제 머지 SHA 재빌드 및 MuMu
+- [x] MuMu 반복 목록, 일정 등록/수정/삭제 및 재실행. 완료/취소/건너뜀은 실제 앱 서비스/API 검증(화면 컨트롤 없음).
+- [x] PR 최신 head CI, develop 머지, 실제 머지 SHA 재빌드 및 MuMu
 
 현재 돌봄 엔티티 테스트35323 RED 실행 중. 운영 소스 변경 전.
 - 돌봄 엔티티 RED35323 대상 클래스 부재 확인 후 JPA CRUD 구현. GREEN34820 Asia/Seoul 성공(1분40초). 후속86384에서 legacy UTC/time/NULL 정렬 및 TimeModelTest 포함 재검사 중. 반복 RoutineService는 아직 이전 구현이며 PR 전 전체 전환 필요.
@@ -29,3 +29,9 @@
 - 전체 backend46283: Asia/Seoul 394개 테스트, 실패/오류/skip 0, 7분44초 성공. MuMu44282는 없는 water 카테고리 선택자로 실패하여 meal로 수정. 17371은 CRUD/API/저장값 검사를 지나 lazy 상세 버튼 대기에서 실패하여 표시된 제목과 시간 스크롤 검사로 수정. 제품 변경 없음. 재실행89253 진행 중.
 - MuMu89253 ROUTINE_UI_VERIFIED31초 통과, analyzer48887 성공. 새 프로세스98457 VERIFY_EXISTING_ROUTINE=true 검증 중. 서버17438 요청 오류 없음. 기준 develop0de2253 변경 없음.
 - 재실행98457 ROUTINE_RESTART_VERIFIED7초 통과. 앱 데이터 보존, 신규 fixture 생성 없이 기존 로그인/반복 루틴/완료 summary/시간/종일 일정·장소·메모/화면 상세를 검증했다. PR CI 및 실제 머지 SHA MuMu는 별도 미완료.
+
+## 머지 후 최종 증적
+- PR #101 head f865623: push/PR 6개 검사 성공. squash c54556879aa4589d014c9d5ac70fd563de70d80c, 테스트 head와 tree 동일.
+- forced bootJar34715 성공43초. 서버80072/PID5724/18083, 전용 MySQL3318 schema43, JVM Asia/Seoul.
+- MuMu21035 기존 데이터 재실행8초, 83859 전체 루틴/일정32초, 12682 공통 화면51초 모두 통과. 앱 데이터 보존(--no-uninstall).
+- develop 3개 CI 성공, 서버 요청 오류 없음. 루틴 단계 완료.

@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: routine (3/12); wallet and pet complete
-Status: wallet and pet merged and verified; routine baseline inspection starting
-Base: origin/develop 0de22531e3148069c1f5e279bb09f54292fd2ec0
-Branch: refactor/jpa-routine
+Current domain: record (4/12); wallet, pet and routine complete
+Status: routine merged verification complete; record baseline inspection starting
+Base: origin/develop c54556879aa4589d014c9d5ac70fd563de70d80c
+Branch: refactor/jpa-record
 MuMu ADB: 127.0.0.1:16384
-Docker was stopped; Docker Desktop startup requested.
+Docker and isolated QA backend80072/PID5724 are running.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -83,3 +83,10 @@ MuMu89253 LIVE after lazy-scroll test correction; poll before another Flutter te
 MuMu89253 passed ROUTINE_UI_VERIFIED31s, analyzer48887 clean. Full screen CRUD/list/detail and explicit service/API completion verification passed. Starting existing-fixture new-process verification; no fixture creation in that mode. Backend17438 unchanged.
 Existing-fixture MuMu98457 LIVE --no-uninstall VERIFY_EXISTING_ROUTINE=true. Origin/develop remains0de2253. No backend request errors. Full implementation can be committed after this result; PR still absent.
 MuMu98457 passed ROUTINE_RESTART_VERIFIED7s. All branch-local tests/review/UI now passed. Prepare implementation commit and develop PR, then latest-head CI/squash/merged SHA rebuild+MuMu gates. Goal remains active; routine not complete until merged gates.
+PR101 created and attached: https://github.com/minyeophan/formypet/pull/101. Head f8656233666b16e8850188ae6cdc17071560f54a, base develop. Docker isolated DB and backend18083 health confirmed. Monitoring push/PR green; backend and Flutter push/PR still in progress. No GitHub reviews/comments present. Not merged; next wait all6 checks then squash and merged-SHA MuMu existing/full/common.
+PR101 head f865623 all6 CI success, no unresolved review. Squash merged c54556879aa4589d014c9d5ac70fd563de70d80c (browser merged and fetched develop confirmed; initial API response briefly stale). Merged tree identical to tested head. Worktree detached at merged SHA; only evidence docs modified. Backend17438 stopped. Forced bootJar34715 LIVE; poll before starting server. Merged-SHA MuMu existing/full/common and develop CI pending.
+Merged c545568 forced bootJar34715 succeeded43s. Backend80072 PID5724 healthy18083, schema43. MuMu existing-fixture21035 LIVE --no-uninstall VERIFY_EXISTING_ROUTINE=true; poll before another Flutter build. Develop CI pending.
+Merged MuMu existing21035 passed ROUTINE_RESTART_VERIFIED8s. Full routine/care scenario83859 LIVE; poll before common smoke. Backend80072 remains active.
+Merged full MuMu83859 passed ROUTINE_UI_VERIFIED32s. Develop c545568 all3 CI success. Common native smoke12682 LIVE with QA_API_BASE_URL18083 and --no-uninstall. Poll before next Flutter build; routine completion requires this final common result. Backend80072 healthy, no request errors observed.
+
+Merged common12682 passed51s; backend80072 logs clean. Routine complete. Latest develop c545568 fetched, refactor/jpa-record created. No record implementation changes yet.
