@@ -1,8 +1,9 @@
-package com.formypet.routine;
+package com.formypet.domain.routine.controller;
 
 import com.formypet.common.response.ApiResponse;
-import com.formypet.routine.dto.CareScheduleRequest;
-import com.formypet.routine.dto.CareScheduleResponse;
+import com.formypet.domain.routine.service.CareScheduleService;
+import com.formypet.domain.routine.dto.request.CareScheduleRequest;
+import com.formypet.domain.routine.dto.response.CareScheduleResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

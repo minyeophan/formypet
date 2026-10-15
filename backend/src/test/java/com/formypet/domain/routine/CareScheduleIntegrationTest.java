@@ -1,4 +1,4 @@
-package com.formypet.routine;
+package com.formypet.domain.routine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
@@ -34,6 +34,7 @@ class CareScheduleIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired jakarta.persistence.EntityManager entityManager;
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
@@ -167,6 +168,46 @@ class CareScheduleIntegrationTest extends IntegrationTestSupport {
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("CARE_SCHEDULE_NOT_FOUND"));
+    }
+
+    @Test
+    void legacyWallClockAndUtcCreatedAtArePreservedWithNullTimesSortedLast() throws Exception {
+        String token = registerAndGetToken("care-jpa-time@example.com", "time");
+        Long petId = createPet(token, "Mochi");
+        Long first = createSchedule(token, petId);
+        Long second = createSchedule(token, petId);
+        Long third = createSchedule(token, petId);
+        entityManager.flush();
+        jdbcTemplate.update("UPDATE care_schedules SET start_time=NULL, end_time=NULL WHERE id=?", first);
+        jdbcTemplate.update("UPDATE care_schedules SET start_time='23:10:00', end_time='23:30:00', "
+                + "created_at='2026-07-01 01:02:03.123456' WHERE id=?", second);
+        jdbcTemplate.update("UPDATE care_schedules SET start_time='09:05:00' WHERE id=?", third);
+        entityManager.clear();
+
+        mockMvc.perform(get(schedulesUrl(petId)).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(third))
+                .andExpect(jsonPath("$.data[0].startTime").value("09:05"))
+                .andExpect(jsonPath("$.data[1].id").value(second))
+                .andExpect(jsonPath("$.data[1].startTime").value("23:10"))
+                .andExpect(jsonPath("$.data[1].createdAt").value("2026-07-01T01:02:03.123456Z"))
+                .andExpect(jsonPath("$.data[2].id").value(first));
+
+        mockMvc.perform(put(schedulesUrl(petId) + "/" + second)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(scheduleBody("hospital", "Changed",
+                                "2026-07-01", "22:45", "2026-07-01", "23:10", false, null, null, "none"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.startTime").value("22:45"))
+                .andExpect(jsonPath("$.data.createdAt").value("2026-07-01T01:02:03.123456Z"));
+        entityManager.clear();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT CAST(start_time AS CHAR) FROM care_schedules WHERE id=?", String.class, second))
+                .isEqualTo("22:45:00");
+        mockMvc.perform(get(schedulesUrl(petId) + "/" + second).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.startTime").value("22:45"));
     }
 
     private Long createSchedule(String token, Long petId) throws Exception {

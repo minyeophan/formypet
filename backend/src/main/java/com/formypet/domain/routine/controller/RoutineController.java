@@ -1,7 +1,9 @@
-package com.formypet.routine;
+package com.formypet.domain.routine.controller;
 
 import com.formypet.common.response.ApiResponse;
-import com.formypet.routine.dto.*;
+import com.formypet.domain.routine.dto.request.*;
+import com.formypet.domain.routine.dto.response.*;
+import com.formypet.domain.routine.service.RoutineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;

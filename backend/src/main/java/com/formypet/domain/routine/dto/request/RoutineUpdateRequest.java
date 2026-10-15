@@ -1,4 +1,4 @@
-package com.formypet.routine.dto;
+package com.formypet.domain.routine.dto.request;
 
 import java.time.LocalDate;
 import java.util.List;
