@@ -10,7 +10,7 @@ import com.formypet.domain.routine.entity.CareSchedule;
 import com.formypet.domain.routine.repository.CareScheduleRepository;
 import com.formypet.domain.routine.repository.query.CareSchedulePetAccessRepository;
 import com.formypet.domain.routine.service.CareScheduleService;
-import com.formypet.notification.NotificationService;
+import com.formypet.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
