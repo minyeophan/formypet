@@ -100,7 +100,12 @@ void main() {
     await _until(
       tester,
       () => find
-          .descendant(of: photo, matching: find.byType(Image))
+          .descendant(
+            of: photo,
+            matching: find.byWidgetPredicate(
+              (widget) => widget is RawImage && widget.image != null,
+            ),
+          )
           .evaluate()
           .isNotEmpty,
     );
