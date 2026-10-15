@@ -1,4 +1,7 @@
-package com.formypet.support;
+package com.formypet.domain.support.scheduling;
+
+import com.formypet.domain.support.config.SupportMailProperties;
+import com.formypet.domain.support.service.SupportMailWorker;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

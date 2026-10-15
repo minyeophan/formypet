@@ -1,4 +1,6 @@
-package com.formypet.support;
+package com.formypet.domain.support.client;
+
+import com.formypet.domain.support.config.SupportMailProperties;
 
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
