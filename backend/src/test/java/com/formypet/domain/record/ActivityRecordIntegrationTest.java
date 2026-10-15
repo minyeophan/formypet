@@ -1,4 +1,4 @@
-package com.formypet.record;
+package com.formypet.domain.record;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
@@ -50,6 +50,191 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @jakarta.persistence.PersistenceContext jakarta.persistence.EntityManager entityManager;
+
+    @Test
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void invalidDetailRollsBackFlushedCreateAndPendingBaseUpdate() throws Exception {
+        String token = registerAndGetToken("record-rollback@example.com", "rollback");
+        Long petId = createPet(token, "RollbackPet");
+        mockMvc.perform(post(recordsUrl(petId)).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"typeId\":\"water\",\"date\":\"2026-05-09\",\"detail\":{\"amount\":\"invalid\"}}"))
+                .andExpect(status().isBadRequest());
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM activity_records WHERE pet_id = ?", Integer.class, petId)).isZero();
+        Long id = createRecord(token, petId, "water", Map.of("amount", 120));
+        mockMvc.perform(put(recordsUrl(petId) + "/" + id).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"must rollback\",\"detail\":{\"amount\":\"invalid\"}}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(recordsUrl(petId) + "/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.note").isEmpty())
+                .andExpect(jsonPath("$.data.detail.amount").value(120));
+    }
+
+    @Test
+    void detailReplacementClearsOmittedColumnsForEveryTableAndKeepsNullKeys() throws Exception {
+        String token = registerAndGetToken("detail-replace@example.com", "replace");
+        Long petId = createPet(token, "DetailPet");
+        Map<String, Map<String, Object>> fixtures = Map.of(
+                "meal", Map.of("foodType", "dry", "brand", "old", "servedAmount", 120.5),
+                "water", Map.of("amount", 250),
+                "medicine", Map.of("medicineName", "pill", "ingredients", "old", "dosage", "1"),
+                "poop", Map.of("poopColor", "brown", "poopShape", "normal"),
+                "walk", Map.of("distance", 1.25, "duration", 30),
+                "weight", Map.of("weight", 5.2),
+                "vet", Map.of("vetClinicName", "clinic", "vetCost", 123, "vetNextVisitDate", "2026-12-31"));
+        Map<String, Integer> sizes = Map.of("meal", 8, "water", 1, "medicine", 3, "poop", 4,
+                "walk", 2, "weight", 1, "vet", 6);
+        for (var entry : fixtures.entrySet()) {
+            Long id = createRecord(token, petId, entry.getKey(), entry.getValue());
+            String url = recordsUrl(petId) + "/" + id;
+            mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"keep detail\"}"))
+                    .andExpect(status().isOk());
+            entityManager.flush();
+            entityManager.clear();
+            var preserved = objectMapper.readTree(mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("data").path("detail");
+            for (String key : entry.getValue().keySet())
+                org.assertj.core.api.Assertions.assertThat(preserved.path(key).isNull()).isFalse();
+            mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"detail\":{}}"))
+                    .andExpect(status().isOk());
+            entityManager.flush();
+            entityManager.clear();
+            var cleared = objectMapper.readTree(mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("data").path("detail");
+            org.assertj.core.api.Assertions.assertThat(cleared.size()).isEqualTo(sizes.get(entry.getKey()));
+            cleared.forEach(value -> org.assertj.core.api.Assertions.assertThat(value.isNull()).isTrue());
+        }
+    }
+
+    @Test
+    void legacyWallClockAndUtcTimestampsSurviveJpaReadAndUpdate() throws Exception {
+        String token = registerAndGetToken("legacy-time-record@example.com", "legacy-time");
+        Long petId = createPet(token, "TimePet");
+        Long id = createRecord(token, petId, "water", Map.of("amount", 100));
+        var created = java.time.LocalDateTime.of(2024, 1, 2, 3, 4, 5, 123456000);
+        jdbc.update("UPDATE activity_records SET time='23:10:15',created_at=?,updated_at=? WHERE id=?", created, created, id);
+        entityManager.clear();
+        String url = recordsUrl(petId) + "/" + id;
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.time").value("23:10:15"));
+        mockMvc.perform(put(url).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"updated\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.time").value("23:10:15"));
+        entityManager.clear();
+        java.time.LocalDateTime storedCreated = jdbc.queryForObject("SELECT created_at FROM activity_records WHERE id=?",
+                (rs, n) -> rs.getObject(1, java.time.LocalDateTime.class), id);
+        org.assertj.core.api.Assertions.assertThat(storedCreated).isEqualTo(created);
+        var updated = jdbc.queryForObject("SELECT updated_at FROM activity_records WHERE id=?",
+                (rs, n) -> rs.getObject(1, java.time.LocalDateTime.class), id);
+        org.assertj.core.api.Assertions.assertThat(updated)
+                .isBetween(com.formypet.common.time.UtcTime.toDatabase(java.time.Instant.now().minusSeconds(30)),
+                        com.formypet.common.time.UtcTime.toDatabase(java.time.Instant.now()));
+    }
+
+    @Test
+    void listUsesDateThenIdAndMissingLegacyDetailReturnsEmptyObject() throws Exception {
+        String token = registerAndGetToken("order-record@example.com", "order");
+        Long petId = createPet(token, "OrderPet");
+        Long first = createRecord(token, petId, "water", "2026-05-10", Map.of("amount", 10));
+        Long second = createRecord(token, petId, "water", "2026-05-10", Map.of("amount", 20));
+        createRecord(token, petId, "water", "2026-05-09", Map.of("amount", 30));
+        jdbc.update("UPDATE activity_records SET time='23:59:00' WHERE id=?", first);
+        jdbc.update("UPDATE activity_records SET time=NULL WHERE id=?", second);
+        jdbc.update("DELETE FROM record_water WHERE record_id=?", second);
+        entityManager.clear();
+        mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token).param("limit", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].id").value(second)).andExpect(jsonPath("$.data[1].id").value(first))
+                .andExpect(jsonPath("$.data[0].detail").isEmpty());
+        mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token).param("limit", "0"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void deletingRecordCascadesDetailAndClearsOnlyCompletionRecordLink() throws Exception {
+        String token = registerAndGetToken("completion-record@example.com", "completion");
+        Long petId = createPet(token, "CompletionPet");
+        Long id = createRecord(token, petId, "water", Map.of("amount", 100));
+        Long routineId = createRoutine(token, petId, "water", "water");
+        entityManager.flush();
+        jdbc.update("INSERT INTO routine_completions(routine_id,pet_id,activity_record_id,scheduled_date,status) VALUES (?,?,?,'2026-05-09','COMPLETED')",
+                routineId, petId, id);
+        mockMvc.perform(delete(recordsUrl(petId) + "/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM record_water WHERE record_id=?", Integer.class, id)).isZero();
+        var completion = jdbc.queryForMap("SELECT activity_record_id,status FROM routine_completions WHERE routine_id=?", routineId);
+        org.assertj.core.api.Assertions.assertThat(completion).containsEntry("activity_record_id", null).containsEntry("status", "COMPLETED");
+    }
+
+    @Test
+    void mutationResponseMatchesStoredTimeAndDecimalPrecision() throws Exception {
+        String token = registerAndGetToken("precision-record@example.com", "precision");
+        Long petId = createPet(token, "PrecisionPet");
+        var result = mockMvc.perform(post(recordsUrl(petId)).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"typeId\":\"water\",\"date\":\"2026-05-09\",\"time\":\"09:05:10.123456\",\"detail\":{\"amount\":\"12.345\"}}"))
+                .andExpect(status().isCreated()).andReturn();
+        Long id = readId(result);
+        var body = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+        var storedTime = jdbc.queryForObject("SELECT time FROM activity_records WHERE id=?",
+                (rs, n) -> rs.getObject(1, java.time.LocalTime.class), id);
+        var storedAmount = jdbc.queryForObject("SELECT amount FROM record_water WHERE record_id=?", java.math.BigDecimal.class, id);
+        org.assertj.core.api.Assertions.assertThat(java.time.LocalTime.parse(body.path("time").asText())).isEqualTo(storedTime);
+        org.assertj.core.api.Assertions.assertThat(body.path("detail").path("amount").decimalValue()).isEqualByComparingTo(storedAmount);
+        entityManager.clear();
+        var read = objectMapper.readTree(mockMvc.perform(get(recordsUrl(petId) + "/" + id)
+                .header("Authorization", "Bearer " + token)).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString()).path("data");
+        org.assertj.core.api.Assertions.assertThat(read).isEqualTo(body);
+    }
+
+    @Test
+    void listJpaQueryCountDoesNotGrowPerRecord() throws Exception {
+        String token = registerAndGetToken("batch-record@example.com", "batch");
+        Long petId = createPet(token, "BatchPet");
+        for (int i = 0; i < 12; i++) createRecord(token, petId, "water", Map.of("amount", i));
+        var stats = entityManager.getEntityManagerFactory().unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        boolean wasEnabled = stats.isStatisticsEnabled();
+        stats.setStatisticsEnabled(true);
+        try {
+            entityManager.flush();
+            entityManager.clear();
+            stats.clear();
+            mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token).param("limit", "2"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(2)));
+            long smallCount = stats.getPrepareStatementCount();
+            entityManager.clear();
+            stats.clear();
+            mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(12)));
+            org.assertj.core.api.Assertions.assertThat(stats.getPrepareStatementCount()).isEqualTo(smallCount);
+        } finally {
+            stats.setStatisticsEnabled(wasEnabled);
+        }
+    }
+
+    @Test
+    void deletedPetAndCrossPetRecordStayInaccessible() throws Exception {
+        String token = registerAndGetToken("isolation-record@example.com", "isolation");
+        Long petId = createPet(token, "FirstPet");
+        Long otherPet = createPet(token, "SecondPet");
+        Long id = createRecord(token, petId, "water", Map.of("amount", 20));
+        mockMvc.perform(get(recordsUrl(otherPet) + "/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.errorCode").value("ACTIVITY_RECORD_NOT_FOUND"));
+        jdbc.update("UPDATE pets SET is_deleted=true WHERE id=?", petId);
+        entityManager.clear();
+        mockMvc.perform(get(recordsUrl(petId)).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
+        mockMvc.perform(put(recordsUrl(petId) + "/" + id).header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"denied\"}")).andExpect(status().isForbidden());
+        mockMvc.perform(delete(recordsUrl(petId) + "/" + id).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
+    }
 
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";

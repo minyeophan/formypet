@@ -1,9 +1,11 @@
-package com.formypet.record;
+package com.formypet.domain.record.controller;
+
+import com.formypet.domain.record.service.ActivityRecordService;
 
 import com.formypet.common.response.ApiResponse;
-import com.formypet.record.dto.ActivityRecordCreateRequest;
-import com.formypet.record.dto.ActivityRecordResponse;
-import com.formypet.record.dto.ActivityRecordUpdateRequest;
+import com.formypet.domain.record.dto.request.ActivityRecordCreateRequest;
+import com.formypet.domain.record.dto.response.ActivityRecordResponse;
+import com.formypet.domain.record.dto.request.ActivityRecordUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;

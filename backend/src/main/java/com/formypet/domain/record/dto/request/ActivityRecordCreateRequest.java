@@ -1,4 +1,4 @@
-package com.formypet.record.dto;
+package com.formypet.domain.record.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
