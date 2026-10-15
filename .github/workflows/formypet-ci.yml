@@ -83,5 +83,5 @@ jobs:
       - name: Run backend tests
         run: bash ./gradlew test --no-daemon
 
-      - name: Verify wallet time mapping in Asia/Seoul
-        run: bash ./gradlew test --tests 'com.formypet.domain.wallet.*' -PtestTimezone=Asia/Seoul --rerun-tasks --no-daemon
+      - name: Verify migrated domain time mappings in Asia/Seoul
+        run: bash ./gradlew test --tests 'com.formypet.domain.*' -PtestTimezone=Asia/Seoul --rerun-tasks --no-daemon

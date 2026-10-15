@@ -1,4 +1,4 @@
-package com.formypet.record.dto;
+package com.formypet.domain.record.dto.response;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
