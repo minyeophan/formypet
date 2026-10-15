@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: community (5/12); wallet, pet, routine and record complete
-Status: record merged verification complete; community baseline inspection starting
-Base: origin/develop 509bb551af7e7d0f3a2855fe9e688f340acc2462
-Branch: refactor/jpa-community
+Current domain: policy (7/12); wallet, pet, routine, record, community and media complete
+Status: media completed6/12; policy baseline inspection starting
+Base: origin/develop 9ef997043e767bc165192710d66f4b5e536a4726
+Branch: refactor/jpa-policy
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated merged record QA backend9473/PID1916 are running.
+Docker and isolated merged media QA backend37583/PID39664 are running on18083.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -163,3 +163,39 @@ Extended MuMu22022 LIVE --no-uninstall. Poll same handle before another Flutter 
 Correction: full backend61173 just completed successfully8m16s (terminal exit0). Inspect XML totals before claiming count. Only extended MuMu22022 remains live; production unchanged after full suite. Do not rerun backend without source changes.
 
 Full backend61173 XML451/0/0/0 confirmed. Extended MuMu22022 succeeded19s incl public post deletion and pet cascade draft/log file deletion; prior restart61628 passed same production. All local gates pass; latest origin/develop607299e. Stage latest test/evidence then commit refactor rule and push refactor/jpa-media for develop PR. CI/merge/merged-SHA tests still pending.
+
+PR104 created/attached https://github.com/minyeophan/formypet/pull/104, head23dbf3e632e66ab8d330b143b671d0f75407c606 base develop607299e. All local gates backend451/0/fullMuMu22022(19s)/restart61628(11s)/review/analyzer passed. PushCI38794988045 and PRCI38795271135 LIVE. BrowserAX compare-page timed out after inputs succeeded; recovered via browser.tabs.get+Playwright DOM, PR creation verified UI+REST. Screenshot media-pr-104-created.png saved+embedded. Current mediaTab171956217 browser3 markedDeliverable. No merge yet; wait all6CI and review checks then squash and actual merged SHA bootJar/MuMu existing/full/common/developCI. QA98746 live.
+
+PR104 merged9ef997043e767bc165192710d66f4b5e536a4726 after all6 CI success and no review findings. Tree identical to tested23dbf3e. Detached merged SHA preserving evidence docs. Stopped QA98746; bootJar24147 LIVE. DevelopCI38796161447 LIVE. Next start merged backend then MuMu existing/full/common and logs before marking media6/12. No policy work yet.
+
+Merged bootJar24147 passed43s; QA37583/PID39664 healthy18083/schema43. Existing MuMu74468 passed10s MEDIA_RESTART_VERIFIED. Full62989 LIVE; develop CI backend+monitoring success, Flutter pending. Common smoke/logs remain. Do not start policy yet.
+
+Media merged verification complete6/12: existing74468 passed10s, full62989 passed19s, common44145 passed51s, developCI38796161447 all3success, QA37583 logs clean. Latest origin/develop9ef9970 fetched; created refactor/jpa-policy. No policy implementation yet. QA37583 remains merged media9ef9970. Next inspect policy contracts/schema/tests and baseline.
+
+Policy baseline54633 LIVE Asia/Seoul for auth.Policy*, PublicPolicyIntegrationTest, KakaoConsentIntegrationTest. Read all7 production policy files, V35/V37, all4 existing tests, callers/auth session guard and frontend policy UI/service. Added07-policy.md contracts/design/checklist. No production or test changes. Preserve DB clock, append-only hash, runtime lock, INSERT IGNORE idempotency, mandatory signup tx, history snake_case+Timestamp JSON. Next poll same baseline to terminal then entity/DTO compatibility RED tests. QA37583 remains merged media9ef9970.
+
+Policy baseline54633 completed successfully1m38s. Next verify XML totals and start entity/DTO compatibility tests; no live Gradle. QA37583 remains live. No policy production implementation yet.
+
+Policy entity/repository RED19405 confirmed missing types only. Added4 entities and3 JPA repositories (consent native INSERT IGNORE preserves idempotency/DB clock). Added3 repository integration tests and1 history JDBC JSON compatibility test. GREEN35568 LIVE all policy/auth existing tests, Asia/Seoul. Legacy policy services unchanged. Poll same handle; do not launch another Gradle until terminal. Next wire consent JPA then publication current-read/DB-clock repository methods and service/interface/package split.
+
+GREEN35568 completed1m49s XML15/0/0/0. Wired legacy PolicyConsentService to PolicyConsentRepository and typed PolicyConsentHistoryResponse (Timestamp.from UTC) preserving original serialization; controller generic updated. GREEN95381 LIVE same15 tests Asia/Seoul. Publication registry still JDBC, no package/service interface move yet. Next confirm history compatibility then publication JPA/DB-clock/locking tests.
+
+Consent wiring95381 failed only history JSON compatibility (14passed/1failed): old JDBC returns LocalDateTime .123456 without offset, not Timestamp. Corrected DTO to LocalDateTime passthrough. GREEN85907 LIVE same15. Keep exact old wire behavior; no frontend timezone change. Publication remains legacy JDBC. Next poll85907 then publication JPA methods/current-read lock/DB clock and rollback/concurrency tests.
+
+Consent GREEN85907 succeeded1m57s, history compatibility fixed. Added2 publication/runtime repository tests (past/future visibility, effective types, current lock read, scalar enforcement avoids stale managed runtime). RED12484 LIVE missing new methods expected. Next implement DB clock/runtime lock repository, JPA publication query+save, wire registry; legacy packages/interfaces still pending.
+
+Publication RED12484 confirmed missing5 methods. Implemented JPA publication visibility/effective count/current FOR UPDATE read, runtime scalar/monotonic JPQL update and JDBC PolicyDatabaseAccess clock/singleton lock. Registry now lock -> existing immutable hash check OR new JPA saveAndFlush; DB time preserved. All legacy policy services/controllers have no direct SQL/JdbcTemplate/row mapping (rg empty). GREEN72955 LIVE17 tests Asia/Seoul. Next terminal then batch rollback/concurrent publication tests and full package/interface/DTO/catalog loader split. No PR. QA37583 unchanged media SHA.
+
+Publication GREEN72955 completed1m52s, XML17/0/0/0. No live Gradle. Policy service direct SQL removed, but classes still legacy package and concrete services; domain entities/repos/typed history DTO new. Next add publish batch rollback/concurrency/current-read tests, then move all policy to domain.policy with service interfaces/impl, response DTOs and catalog resource loader. Fullbackend/reviewer/MuMu/PR/merge gates all pending. QA37583 remains live merged media9ef9970.
+
+Concurrency/batch67127 succeeded1m56s. Ran temp move-policy-packages.cjs once: all7 legacy production files moved to domain.policy;3 service interfaces+impl;3 response DTOs;PolicyCatalogLoader validation extraction; policy tests moved except KakaoConsent remains auth. External callers changed only FQN. Package GREEN87301 LIVE domain.policy.* + auth.KakaoConsentIntegrationTest, Asia/Seoul. No direct SQL in service/controller rg. Next terminal then loader/consent rollback/query-cost coverage, final review/fullbackend/MuMu. QA37583 still merged media.
+
+Package87301 succeeded1m58s. Additional loader/mandatory rollback/query cost suite48025 succeeded1m52s XML28/0/0/0. Independent source reviewer pet_review no findings. Full backend60418 LIVE Asia/Seoul; bootJar96195 passed27s, stopped mediaQA37583, newpolicyQA48081/PID31324 healthy18083/schema43 with TEMP jpa-policy-qa-catalog.json v1/enforcement=true. Production catalog unchanged. New policy_migration_test.dart analyzer49372 clean; MuMu signup launched next, no uninstall. Reviewer checking test. After signup: update TEMP catalog to v2/newrevision+effectiveyear2002, restart QA samejar, run reaccept then existing. Do not reset QApolicy until common smoke after merged verification; common register lacks acceptance so disable synthetic QA enforcement only after policy scenarios, never prod. No commit/PR.
+
+MuMu signup23225 LIVE building APK. Full backend60418 confirmed LIVE. QA48081 policyv1. Follow-up independent review of newMuMu test no findings. Poll same handles; no restart on observation timeout. Temp move-policy-packages.cjs already executed, do not rerun. Pending: signup result, v2 reaccept+existing, full suite terminal, then PR/CI/merge actualSHA and repeatpolicy/common gates.
+
+MuMu signup23225 succeeded17s POLICY_SIGNUP_VERIFIED. Updated TEMP catalog only to qa-jpa-policy-v2/r2/effective2002; stopped48081 and started QA25144/PID26760 samejar, endpoint confirmsv2. Reaccept57809 LIVE. Test now returns to history between archived versions to match normal navigation; analyzer64811 pending. Full60418 still LIVE. After reaccept run existing (samefixture, no uninstall), then fullterminal/CI gates. Originalcatalog unchanged.
+
+MuMu reaccept57809 passed20s POLICY_REACCEPT_VERIFIED againstv2 QA25144. Existing45755 LIVE build with --no-uninstall. Analyzer64811 clean. Full60418 confirmed LIVE, no terminal yet; latestdevelop9ef9970 unchanged. Source/testreview nofindings. Need existing+full terminal/SQLcountXML before commit; all changes still uncommitted. Next create refactor commit/push/develop PR only when bothgreen. Merged repeat must use currentv2 existing then freshsignup+newv3 reaccept and existing, common smoke after controlled QA fixture reset; restore QAenforcementfalse before otherdomain tests.
+
+Full60418 succeeded7m42s XML468/0/0/0. ExistingMuMu45755 passed8s POLICY_EXISTING_VERIFIED; signup23225(17s),reaccept57809(20s),review/analyzer allpass. Latestdevelop9ef9970 unchanged. Ready to commit/push policy and create developPR; noPRyet. QA25144/PID26760 v2 live. Merged actualSHA verification must precede notification start.

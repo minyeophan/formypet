@@ -23,7 +23,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class NotificationService {
  private static final Logger log=LoggerFactory.getLogger(NotificationService.class);
  private final JdbcTemplate jdbc; private final UserRepository users; private final ReminderPushDispatcher pushDispatcher; private final SessionGuard sessions;
- private final com.formypet.policy.PolicyConsentService policies;
+ private final com.formypet.domain.policy.service.PolicyConsentService policies;
  private final com.formypet.config.NotificationProperties notificationProperties;
  private static final String AGE="created_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)";
  // Correlated with the recipient, so list, counts and read mutations share the same visibility rule.

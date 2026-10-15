@@ -1,4 +1,4 @@
-package com.formypet.policy;
+package com.formypet.domain.policy.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 

@@ -39,8 +39,8 @@ public class AuthService {
     private final OAuthSignupService oauthSignupService;
     private final SessionGuard sessions;
     private final OAuthLifecycleGuard oauthLifecycle;
-    private final com.formypet.policy.PolicyConsentService policyConsents;
-    private final com.formypet.policy.PolicyCatalog policyCatalog;
+    private final com.formypet.domain.policy.service.PolicyConsentService policyConsents;
+    private final com.formypet.domain.policy.service.PolicyCatalog policyCatalog;
     private final KakaoSignupIntents signupIntents;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final org.springframework.transaction.support.TransactionTemplate transactions;

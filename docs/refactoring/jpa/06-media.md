@@ -2,12 +2,12 @@
 
 ## 상태와 기준
 
-- 상태: JPA/저장소 추출, 서비스 책임 분리와 domain.media 패키지 이동 완료. 전체 회귀 및 MuMu 검증 중.
+- 상태: 완료. PR104 머지 및 실제 머지 SHA의 MuMu/공통 smoke/develop CI 검증 모두 통과.
 - 기준 develop: `607299ef2ac662173b62d7d16d49392817ec70a8` (커뮤니티 PR103 머지 후 모든 gate 완료)
 - 브랜치: `refactor/jpa-media`
-- 현재 HEAD `c0ad961`은 커뮤니티 완료 증적만 포함한다.
+- 구현 HEAD: `23dbf3e632e66ab8d330b143b671d0f75407c606`. 선행 `c0ad961`은 커뮤니티 완료 증적만 포함한다.
 - 기준선: `gradlew.bat test --tests 'com.formypet.media.*' -PtestTimezone=Asia/Seoul --no-daemon`, 세션62950 성공1분53초. XML42 tests/0 failures/0 errors/0 skipped.
-- PR/head/merge SHA: 아직 없음.
+- PR: [#104](https://github.com/minyeophan/formypet/pull/104), base develop. 머지 SHA: `9ef997043e767bc165192710d66f4b5e536a4726`.
 
 ## 파일 및 책임
 
@@ -62,10 +62,10 @@
 - [x] 용량 경쟁·중복 삭제·교체 차액·외부 rollback·쓰기/삭제/큐 실패 회귀 보강
 - [x] backend 전체 Asia/Seoul 통과 및 독립 리뷰 해결
 - [x] MuMu 프로필/펫/기록/게시글 업로드·교체·삭제와 실제 사진 decode, 재실행 보존 검증. 반려로그 draft/commit/삭제 경로도 포함
-- [ ] refactor : 커밋/PR develop, 최신 head 전체 CI 통과
-- [ ] squash merge 후 실제 develop SHA 재빌드/기동
-- [ ] 머지 SHA MuMu 기존/전체/공통 smoke, develop CI 및 로그 확인
-- [ ] 증적 기록 후 policy 시작
+- [x] refactor : 커밋/PR develop, 최신 head 전체 CI 통과
+- [x] squash merge 후 실제 develop SHA 재빌드/기동
+- [x] 머지 SHA MuMu 기존/전체/공통 smoke, develop CI 및 로그 확인
+- [x] 증적 기록 후 policy 시작
 
 QA는 기존 격리 DB3318/API18083/mediatest 앱/MuMu127.0.0.1:16384를 사용한다. 커뮤니티 서버51889를 종료하고 미디어 구현 bootJar63701(29초 성공)로 서버98746/PID25556을 기동했다. schema43/health 정상. Flutter 실행은 `--no-uninstall`로 기존 인증/데이터를 보존한다.
 
@@ -86,3 +86,8 @@ QA는 기존 격리 DB3318/API18083/mediatest 앱/MuMu127.0.0.1:16384를 사용�
 - 전체61173 최종 성공8분16초. XML451개/실패0/오류0/스킵0, Asia/Seoul. 대표 메타데이터 entity/projection 조회 각각1 SQL, projection 엔티티 로딩0 검증 포함.
 - 게시글 사진 삭제 및 펫 삭제 시 초안/등록 반려로그 사진 제거를 MuMu 시나리오에 보강했다. Analyzer80146 통과. 확장 전체22022 실행 중이며 통과 전 PR하지 않는다.
 - 확장 전체22022도19초 통과. backend451/0, 독립 리뷰, Flutter analyzer, MuMu 전체·재실행 및 추가 삭제 경로의 로컬 gate를 모두 통과했다. 이제 구현 커밋/PR 후 최신 head CI 및 실제 머지 SHA 재검증이 남는다.
+- 구현 커밋23dbf3e를 refactor/jpa-media에 push하고 develop PR104를 생성했다. push38794988045/PR38795271135 CI 실행 중. 최초 확인 monitoring2개 성공, backend/Flutter4개 실행 중. GitHub 리뷰/리뷰 코멘트 없음. mergeable=true이며 아직 머지하지 않았다.
+- PR104 최신 head23dbf3e의 push/PR CI6개 모두 성공, 리뷰 지적 없음. squash merge9ef997043e767bc165192710d66f4b5e536a4726 완료. 테스트한 head와 merge tree 동일. 머지 SHA bootJar24147 재빌드 중이며 develop CI38796161447 실행 중.
+- 머지 SHA 재빌드24147 성공43초. 격리 서버37583/PID39664, schema43/health 정상. MuMu 기존 fixture74468 성공10초(MEDIA_RESTART_VERIFIED). 전체62989 실행 중.
+
+- 최종 머지 검증: MuMu74468 기존 데이터10초,62989 전체19초,44145 공통51초 모두 성공. 실제 merge9ef9970/서버37583 PID39664/API18083/격리DB3318. develop CI38796161447 backend/Flutter/monitoring 모두 성공. 서버 추가 오류 없음. 미디어 완료6/12, 다음 policy.
