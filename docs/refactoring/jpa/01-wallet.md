@@ -1,6 +1,6 @@
 # 01 Wallet 전환 상세 체크리스트
 
-상태: 구현 및 독립 리뷰 완료, 최종 회귀·MuMu 검증 진행 중. PR/머지는 아직 미실행.
+상태: 구현·독립 리뷰·브랜치 MuMu 검증 완료. PR #99 최종 CI 및 머지 대기.
 
 ## 파일 매핑
 - wallet/WalletExpenseController.java → domain/wallet/controller/WalletExpenseController.java
@@ -31,7 +31,7 @@
 - [x] 실제 커밋 후 새 트랜잭션에서 수정/삭제 결과 재조회 (기존 테스트는 @Transactional이므로 별도 확인 필요).
 - [x] Asia/Seoul에서 JDBC 기존 행과 JPA 생성/수정의 시각·정밀도 회귀 검증 (session 36238).
 - [ ] 전체 backend 및 CI 통과.
-- [ ] 브랜치 MuMu 등록/수정/삭제/필터/통계 확인.
+- [x] 브랜치 MuMu 등록/수정/삭제/필터/통계 및 재실행 데이터 유지 확인.
 - [ ] develop PR 리뷰·검사·머지.
 - [ ] 머지 SHA 백엔드의 MuMu 동일 시나리오와 앱 재실행 후 저장 결과 확인.
 

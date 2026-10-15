@@ -1,7 +1,7 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
 Current domain: wallet (1/12)
-Status: wallet implemented and reviewed; final regression and MuMu integration running; no PR/merge yet
+Status: wallet PR #99 open; backend and MuMu branch validation passed; final test commit CI and merge pending
 Base: origin/develop 8413dcb
 Branch: refactor/jpa-wallet
 MuMu ADB: 127.0.0.1:16384
@@ -45,3 +45,9 @@ Read-only reviewer confirmed CI/integration-test delta has no findings; filter/s
 MuMu71116 failed before wallet: logout Text tap was offscreen at y611 and hit bottom navigation; expected settings route became home. Replaced direct tap with existing _tap reveal helper. MuMu rerun85778 live. Original com.formypet.frontend still installed; only mediatest reinstalled. Backend13518 remains live.
 MuMu85778 completed exit0 All tests passed (54s test execution;69.2s APK build): wallet failed-save/retry, duplicate-submit guard, create12000, edit, delete cancellation, actual delete, API food/hospital filters and total/count checks; listed20 native routes without framework exceptions. Isolated local backend18083, real MySQL3318. Screen filter/report interactions and merged-SHA/relaunch persistence remain pending. Backend13518 still running with growing output at23:32KST.
 Final backend13518 completed BUILD SUCCESSFUL11m39s:380 tests,0failures,0errors,0skipped from XML. Dart analyze14821 for android_ux_test.dart completed No issues found. Ready to publish wallet PR; native UI filters/report and merged-SHA/relaunch checks remain explicit follow-up gates.
+Commit804b8b8 pushed; PR99 created via signed-in GitHub Chrome UI after connector create403 Resource not accessible by integration. PR https://github.com/minyeophan/formypet/pull/99 attached. Head804b8b829e16c943d79642b14cbce1e2350fca14. CI pending; no merge yet.
+Added wallet_migration_test.dart for actual report total, category taps, month navigation and second-process existing-credentials persistence; not verified yet. It restricts to mediatest external storage and local18083. Existing passing test remains unchanged.
+Wallet screen test8254 passed WALLET_UI_VERIFIED in13s: report20000, food/hospital inclusion/exclusion, previous month0 and return20000. dart analyze45671 No issues found. Starting second-process VERIFY_EXISTING_WALLET=true run; no fixture registration/writes in that mode.
+PR804b8b8 all6 push/PR checks success. Screen test8254 and analyzer45671 passed. Restart35414 failed auth false because Flutter test defaults uninstall=true; source integration_test_device.kill and commands/test.dart confirmed, adb pm listed only original app afterwards. No backend regression inferred. Rerun fixture85223 uses --no-uninstall; next existing-mode MUST also --no-uninstall. Reviewer found only month-boundary fixture issue, addressed by choosing stored expense month before UI checks.
+
+MuMu fixture85223 passed WALLET_UI_VERIFIED; restart18288 passed WALLET_RESTART_VERIFIED (8s), both --no-uninstall. Analyzer91905 No issues found. Actual category/month/report and new-process credential/data persistence verified. New test and ledger ready for final PR update; merged SHA verification still required.
