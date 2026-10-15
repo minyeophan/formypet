@@ -1,4 +1,4 @@
-package com.formypet.wallet;
+package com.formypet.domain.wallet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
@@ -39,6 +39,53 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
     private static final String AUTH_URL = "/api/v1/auth/register";
     private static final String PETS_URL = "/api/v1/pets";
 
+    @Test
+    void cursorTraversesTiedTimesAndNullTimesWithoutDuplicates() throws Exception {
+        String token = registerAndGetToken("wallet-ties@example.com", "wallet-ties");
+        Long petId = createPet(token, "Mochi");
+        Long nullFirst = createExpense(token, petId, "2026-06-12", null, 1000, "food", null, null);
+        Long nullSecond = createExpense(token, petId, "2026-06-12", null, 1000, "food", null, null);
+        Long timedFirst = createExpense(token, petId, "2026-06-12", "09:00", 1000, "food", null, null);
+        Long timedSecond = createExpense(token, petId, "2026-06-12", "09:00", 1000, "food", null, null);
+        var expected = java.util.List.of(timedSecond, timedFirst, nullSecond, nullFirst);
+        String cursor = null;
+        for (int i = 0; i < expected.size(); i++) {
+            var request = get(expensesUrl(petId)).header("Authorization", "Bearer " + token).param("limit", "1");
+            if (cursor != null) request.param("cursor", cursor);
+            var result = mockMvc.perform(request).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items", hasSize(1)))
+                    .andExpect(jsonPath("$.data.items[0].id").value(expected.get(i)))
+                    .andExpect(jsonPath("$.data.hasMore").value(i < expected.size() - 1)).andReturn();
+            cursor = objectMapper.readTree(result.getResponse().getContentAsString())
+                    .path("data").path("nextCursor").asText(null);
+        }
+    }
+
+    @Test
+    void mutationsRemainVisibleAfterTransactionCommit() throws Exception {
+        String token = registerAndGetToken("wallet-commit@example.com", "wallet-commit");
+        Long petId = createPet(token, "Mochi");
+        Long expenseId = createExpense(token, petId, "2026-06-12", null, 1000, "food", "original", null);
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
+        try {
+            mockMvc.perform(put(expensesUrl(petId) + "/" + expenseId)
+                            .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("expenseDate", "2026-06-13",
+                                    "amount", 2000, "category", "hospital"))))
+                    .andExpect(status().isOk());
+            mockMvc.perform(get(expensesUrl(petId) + "/" + expenseId)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.amount").value(2000))
+                    .andExpect(jsonPath("$.data.itemName").doesNotExist());
+            mockMvc.perform(delete(expensesUrl(petId) + "/" + expenseId)
+                            .header("Authorization", "Bearer " + token)).andExpect(status().isNoContent());
+            mockMvc.perform(get(expensesUrl(petId) + "/" + expenseId)
+                            .header("Authorization", "Bearer " + token)).andExpect(status().isNotFound());
+        } finally {
+            jdbcTemplate.update("DELETE FROM users WHERE email = ?", "wallet-commit@example.com");
+        }
+    }
     @BeforeEach
     void setUp() {
         refreshTokenRepository.deleteAll();
@@ -447,3 +494,5 @@ class WalletExpenseIntegrationTest extends IntegrationTestSupport {
         return "/api/v1/pets/" + petId + "/wallet/expenses";
     }
 }
+
+

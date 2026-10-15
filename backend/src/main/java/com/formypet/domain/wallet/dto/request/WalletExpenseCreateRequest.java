@@ -1,4 +1,4 @@
-package com.formypet.wallet.dto;
+package com.formypet.domain.wallet.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -19,3 +19,4 @@ public record WalletExpenseCreateRequest(
         @Size(max = 500) String note
 ) {
 }
+

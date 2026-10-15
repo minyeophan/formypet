@@ -1,4 +1,4 @@
-package com.formypet.wallet.dto;
+package com.formypet.domain.wallet.dto.response;
 
 public record WalletExpenseCategorySummary(
         String category,
@@ -7,3 +7,4 @@ public record WalletExpenseCategorySummary(
         Long count
 ) {
 }
+
