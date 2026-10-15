@@ -2,8 +2,8 @@ package com.formypet.user;
 
 import com.formypet.auth.domain.User;
 import com.formypet.auth.repository.UserRepository;
-import com.formypet.media.MediaService;
-import com.formypet.media.dto.MediaResponse;
+import com.formypet.domain.media.service.MediaService;
+import com.formypet.domain.media.dto.response.MediaResponse;
 import com.formypet.user.dto.UserProfileResponse;
 import com.formypet.user.dto.UserProfileUpdateRequest;
 import lombok.RequiredArgsConstructor;

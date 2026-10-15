@@ -22,7 +22,7 @@ public class UserProfileController {
 
     private final UserProfileService userProfileService;
     private final com.formypet.common.idempotency.IdempotencyService idempotency;
-    private final com.formypet.media.MediaService mediaService;
+    private final com.formypet.domain.media.service.MediaService mediaService;
 
     @GetMapping
     @Operation(summary = "내 프로필 조회")

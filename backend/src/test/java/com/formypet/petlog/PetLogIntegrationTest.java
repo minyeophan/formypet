@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.auth.repository.RefreshTokenRepository;
 import com.formypet.auth.repository.UserRepository;
 import com.formypet.support.IntegrationTestSupport;
-import com.formypet.media.MediaService;
+import com.formypet.domain.media.service.MediaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

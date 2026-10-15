@@ -101,11 +101,11 @@ public class IdempotencyService {
         require(jdbc.queryForObject("SELECT COUNT(*) FROM posts WHERE id=? AND user_id=?", Long.class, postId, actorId));
     }
 
-    public com.formypet.media.dto.MediaResponse media(Long actorId, Long mediaId) {
+    public com.formypet.domain.media.dto.response.MediaResponse media(Long actorId, Long mediaId) {
         var rows = jdbc.query("""
                 SELECT id, original_name, content_type, file_size, status FROM media_resources
                 WHERE id=? AND user_id=? AND status='STORED'
-                """, (rs, n) -> com.formypet.media.dto.MediaResponse.of(rs.getLong("id"),
+                """, (rs, n) -> com.formypet.domain.media.dto.response.MediaResponse.of(rs.getLong("id"),
                 rs.getString("original_name"), rs.getString("content_type"), rs.getLong("file_size"), rs.getString("status")),
                 mediaId, actorId);
         require((long) rows.size());

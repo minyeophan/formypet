@@ -7,7 +7,7 @@ import com.formypet.domain.pet.dto.request.PetCreateRequest;
 import com.formypet.domain.pet.dto.response.PetResponse;
 import com.formypet.domain.pet.dto.request.PetUpdateRequest;
 import com.formypet.domain.pet.repository.PetRepository;
-import com.formypet.media.MediaService;
+import com.formypet.domain.media.service.MediaService;
 import lombok.RequiredArgsConstructor;
 import com.formypet.domain.pet.repository.query.PetProfileImageQueryRepository;
 import com.formypet.domain.pet.service.PetService;

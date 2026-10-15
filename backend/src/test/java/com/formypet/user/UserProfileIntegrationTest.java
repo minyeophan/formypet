@@ -41,7 +41,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
     @Autowired UserRepository userRepository;
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired JdbcTemplate jdbcTemplate;
-    @Autowired com.formypet.media.MediaCleanupRunner cleanup;
+    @Autowired com.formypet.domain.media.scheduling.MediaCleanupRunner cleanup;
 
     @BeforeEach
     void setUp() {
@@ -150,6 +150,28 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         cleanup.cleanPending();
         assertThat(Files.exists(profileStoragePath(previousStorageKey))).isFalse();
         assertThat(Files.exists(profileStoragePath(latestStorageKey))).isTrue();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void replacingProfileAtCapacityUsesOnlySizeDifferenceAndKeepsItemCount() throws Exception {
+        String email = "profile-at-capacity@example.com";
+        String token = registerAndGetToken(email, "capacity");
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(image("first.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+        jdbcTemplate.update("UPDATE users SET media_bytes_used=524288000,media_items_used=1000 WHERE email=?", email);
+        mockMvc.perform(multipart("/api/v1/users/me/profile-image")
+                        .file(image("replacement.webp"))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+        Long bytes = jdbcTemplate.queryForObject("SELECT media_bytes_used FROM users WHERE email=?", Long.class, email);
+        Integer items = jdbcTemplate.queryForObject("SELECT media_items_used FROM users WHERE email=?", Integer.class, email);
+        assertThat(bytes).isEqualTo(524288000L);
+        assertThat(items).isEqualTo(1000);
+        Integer files = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_resources m JOIN users u ON u.id=m.user_id WHERE u.email=?", Integer.class, email);
+        assertThat(files).isEqualTo(1);
     }
 
     @Test
