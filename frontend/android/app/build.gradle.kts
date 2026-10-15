@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.Base64
 
 plugins {
     id("com.android.application")
@@ -9,6 +10,11 @@ plugins {
 }
 
 val keystoreProperties = Properties()
+// Run media integration tests alongside the installed Play build without changing its data.
+val isolatedMediaTest = providers.gradleProperty("dart-defines").orNull
+    ?.split(",")?.any {
+        String(Base64.getDecoder().decode(it)) == "ISOLATED_MEDIA_TEST=true"
+    } == true
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
@@ -27,7 +33,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID.
-        applicationId = "com.formypet.frontend"
+        applicationId = if (isolatedMediaTest) "com.formypet.frontend.mediatest" else "com.formypet.frontend"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -50,6 +56,12 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+if (isolatedMediaTest) {
+    tasks.configureEach {
+        if (name.endsWith("GoogleServices")) enabled = false
     }
 }
 
