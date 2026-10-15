@@ -1,4 +1,4 @@
-package com.formypet.wallet.dto;
+package com.formypet.domain.wallet.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-public record WalletExpenseCreateRequest(
+public record WalletExpenseUpdateRequest(
         @NotNull LocalDate expenseDate,
         LocalTime expenseTime,
         @NotNull @Min(1) @Max(999_999_999) Long amount,

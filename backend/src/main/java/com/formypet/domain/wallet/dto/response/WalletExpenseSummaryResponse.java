@@ -1,4 +1,4 @@
-package com.formypet.wallet.dto;
+package com.formypet.domain.wallet.dto.response;
 
 import java.time.LocalDate;
 import java.util.List;
