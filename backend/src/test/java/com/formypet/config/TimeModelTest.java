@@ -13,7 +13,7 @@ class TimeModelTest {
                 "auth.domain.User", "createdAt",
                 "auth.domain.RefreshToken", "expiresAt",
                 "auth.domain.OAuthAccount", "createdAt",
-                "pet.domain.Pet", "updatedAt",
+                "domain.pet.entity.Pet", "updatedAt",
                 "community.dto.PostResponse", "createdAt",
                 "community.dto.PostCommentResponse", "updatedAt",
                 "community.dto.MyActivityResponse$Item", "activityAt",

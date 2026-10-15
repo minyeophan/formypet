@@ -1,7 +1,7 @@
-package com.formypet.pet;
+package com.formypet.domain.pet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.pet.dto.PetCreateRequest;
+import com.formypet.domain.pet.dto.request.PetCreateRequest;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

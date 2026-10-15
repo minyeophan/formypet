@@ -1,7 +1,7 @@
-package com.formypet.pet.dto;
+package com.formypet.domain.pet.dto.response;
 
-import com.formypet.pet.domain.Gender;
-import com.formypet.pet.domain.Pet;
+import com.formypet.domain.pet.entity.Gender;
+import com.formypet.domain.pet.entity.Pet;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

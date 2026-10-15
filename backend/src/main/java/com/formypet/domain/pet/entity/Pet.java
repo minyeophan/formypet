@@ -1,4 +1,4 @@
-package com.formypet.pet.domain;
+package com.formypet.domain.pet.entity;
 
 import com.formypet.auth.domain.User;
 import jakarta.persistence.*;
@@ -17,6 +17,17 @@ import java.time.Instant;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Pet {
+    private static final String[] ACCENT_COLORS = {
+            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
+            "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"
+    };
+
+    private static final String[] BG_LIGHTS = {
+            "#FFE5E5", "#E0F7F5", "#E0F4FB", "#EAF7EE", "#FFF9E6",
+            "#F5E6F5", "#E6F7F4", "#FEF9E7", "#F0E6F6", "#E8F4FD"
+    };
+
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,14 +97,15 @@ public class Pet {
     private Instant updatedAt;
 
     public static Pet create(User user, String name, String species, LocalDate birthDate,
-                             String accentColor, String bgLight) {
+                             String accentColor, String bgLight, long existingPetCount) {
+        int colorIdx = (int) (existingPetCount % ACCENT_COLORS.length);
         Pet pet = new Pet();
         pet.user        = user;
         pet.name        = name;
         pet.species     = species;
         pet.birthDate   = birthDate;
-        pet.accentColor = accentColor;
-        pet.bgLight     = bgLight;
+        pet.accentColor = fallbackIfBlank(accentColor, ACCENT_COLORS[colorIdx]);
+        pet.bgLight     = fallbackIfBlank(bgLight, BG_LIGHTS[colorIdx]);
         pet.createdAt   = Instant.now();
         pet.updatedAt   = Instant.now();
         return pet;
@@ -104,15 +116,16 @@ public class Pet {
         this.updatedAt = Instant.now();
     }
 
-    public void update(String name, String species, LocalDate birthDate,
+    public void update(String name, String species, LocalDate birthDate, Boolean birthDateUnknown,
                        Gender gender, BigDecimal weight, String animalRegistrationNumber,
                        Boolean neutered, String diseases, String specialNotes,
                        String breed, LocalDate adoptionDate, String guardianNickname,
                        String specialStatus, String personality, String primaryHospitalName,
                        String accentColor, String bgLight) {
         this.name                       = name;
-        this.species                    = species;
-        this.birthDate                  = birthDate;
+        this.species                    = species != null ? species : this.species;
+        this.birthDate                  = Boolean.TRUE.equals(birthDateUnknown) ? null
+                : birthDate != null ? birthDate : this.birthDate;
         this.gender                     = gender;
         this.weight                     = weight;
         this.animalRegistrationNumber   = animalRegistrationNumber;
@@ -125,14 +138,18 @@ public class Pet {
         this.specialStatus              = specialStatus;
         this.personality                = personality;
         this.primaryHospitalName        = primaryHospitalName;
-        this.accentColor                = accentColor;
-        this.bgLight                    = bgLight;
+        this.accentColor                = fallbackIfBlank(accentColor, this.accentColor);
+        this.bgLight                    = fallbackIfBlank(bgLight, this.bgLight);
         this.updatedAt                  = Instant.now();
     }
 
     public void softDelete() {
         this.deleted   = true;
         this.updatedAt = Instant.now();
+    }
+
+    private static String fallbackIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     public boolean isOwnedBy(Long userId) {
