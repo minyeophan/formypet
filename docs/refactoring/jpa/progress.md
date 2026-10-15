@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: policy (7/12); wallet, pet, routine, record, community and media complete
-Status: media completed6/12; policy baseline inspection starting
-Base: origin/develop 9ef997043e767bc165192710d66f4b5e536a4726
-Branch: refactor/jpa-policy
+Current domain: notification (8/12); wallet, pet, routine, record, community, media and policy complete
+Status: policy completed7/12; notification baseline inspection starting
+Base: origin/develop 7936cb86cd95a8a6cb2884d01d865b17adf7b032
+Branch: refactor/jpa-notification
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated merged media QA backend37583/PID39664 are running on18083.
+Docker and isolated merged policy QA backend11848/PID37784 are running on18083.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -199,3 +199,20 @@ MuMu signup23225 succeeded17s POLICY_SIGNUP_VERIFIED. Updated TEMP catalog only 
 MuMu reaccept57809 passed20s POLICY_REACCEPT_VERIFIED againstv2 QA25144. Existing45755 LIVE build with --no-uninstall. Analyzer64811 clean. Full60418 confirmed LIVE, no terminal yet; latestdevelop9ef9970 unchanged. Source/testreview nofindings. Need existing+full terminal/SQLcountXML before commit; all changes still uncommitted. Next create refactor commit/push/develop PR only when bothgreen. Merged repeat must use currentv2 existing then freshsignup+newv3 reaccept and existing, common smoke after controlled QA fixture reset; restore QAenforcementfalse before otherdomain tests.
 
 Full60418 succeeded7m42s XML468/0/0/0. ExistingMuMu45755 passed8s POLICY_EXISTING_VERIFIED; signup23225(17s),reaccept57809(20s),review/analyzer allpass. Latestdevelop9ef9970 unchanged. Ready to commit/push policy and create developPR; noPRyet. QA25144/PID26760 v2 live. Merged actualSHA verification must precede notification start.
+
+Committed1640298923da0571502835983479968addff1734 refactor : 약관 및 동의 도메인 JPA 전환, pushedrefactor/jpa-policy. PR105 created/attached base develop. Browser3 unavailable; inventory showedChrome4, selected4 and named policyJPA. policyTab pointsPR105 markedDeliverable; screenshotpolicy-pr-105-created.png saved+embedded. PRheadverified1640298. CI pending, notmerged. Local468/0 andMuMu signup/reaccept/existing allpass. QA25144 v2live; currentappfixturev1/v2 retained. Next all6CI/review check then squash, fetchactualSHA/rebuild/mergedexisting/signup/newv3reaccept/existing/common/developCI. No nextdomain beforeallgates.
+
+PR105 CI handles: push38801663953 and PR38801815887 confirmedin_progress head1640298. Reviews/comments empty. Browser4 policyTab171956220. Both full backend and localFlutter runs terminal; only QA25144 server and GitHubCI live. Evidence docs are only uncommitted changes afterimplementationcommit.
+
+PR105 merged7936cb86cd95a8a6cb2884d01d865b17adf7b032 afterall6CIgreen and emptyreview/comments. UI merged screenshotpolicy-pr-105-merged.png saved+embedded. Fetchedmerge tree identical1640298. Detached actualmerge preserving2docs; stoppedQA25144, bootJar29585 LIVE rerun-tasks. TEMP catalogstillv2. Next startmergedQA and runexisting (currentv1/v2fixture), signupcurrentv2, updateTEMPv3/r3/year2003+restart, reaccept/existing, reset onlysynthetic QA enforcement forcommon smoke, developCI/logs beforepolicy7/12.
+
+Resumed after user's Docker-ready reply: Docker isolated formypet-jpa-wallet-mysql3318 and original3308 both running; MuMu16384 connected. Merged bootJar29585 succeeded46s. QA60471/PID5072 healthy18083, actual merge7936cb8, catalogv2/enforced. Merged existing MuMu46575 LIVE; developCI38802609143 still in_progress. A read-only probe used wrong /api/v1/policies path and returned401; corrected /api/v1/public/policies confirms v1/v2 and currentv2. No implementation changes. Next existing terminal, signupv2, TEMPv3/restart, reaccept+existing, QAfixture enforcement restore/common and CI.
+
+Merged existing46575 passed9s POLICY_EXISTING_VERIFIED. Develop CI38802609143 all3success confirmed. Signup v2 MuMu21247 LIVE. QA60471 healthy; do not change catalog until signup terminal. Then TEMPv3/restart/reaccept/existing/QArestore/common gates remain.
+
+Merged signup21247 passed16s POLICY_SIGNUP_VERIFIED(v2). Updated TEMP test catalog only to v3/r3/effective2003. Stopped60471; same merged jar QA5880/PID29080 starting. Need health/currentv3 then reaccept/existing; common after synthetic QA enforcement restore. Develop CI allgreen.
+
+Merged reaccept72909 passed20s; freshprocess existing91924 passed8s. QA5880 logs no new errors, stopped for common smoke. Verified container3318/DBformypet_jpa and restored only synthetic QA policy_runtime enforcement=false (original test state), retaining all publications/consents. Started same merged jar QA11848/PID37784 with classpath catalog/enforcementfalse. Common smoke remains; all developCIgreen. No nextdomain yet.
+
+
+Policy complete7/12: merged existing46575(9s), signup21247(16s), reaccept72909(20s), existing91924(8s), common28544(52s) passed; develop38802609143 all3green; QA11848 logs clean. Latestdevelop7936cb8 fetched; created refactor/jpa-notification. No notification changes yet. Next inspect baseline/schema/contracts, targeted baseline and detailed plan. QA11848 remains mergedpolicy with synthetic enforcementfalse.
