@@ -1,9 +1,9 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: notification (8/12); wallet, pet, routine, record, community, media and policy complete
-Status: policy completed7/12; notification implemented, targeted46/review/MuMu passed; full regression pending
-Base: origin/develop 7936cb86cd95a8a6cb2884d01d865b17adf7b032
-Branch: refactor/jpa-notification
+Current domain: support (9/12); wallet, pet, routine, record, community, media, policy and notification complete
+Status: notification completed8/12; support baseline inspection starting
+Base: origin/develop 1b57d77f0486ec0a13666519815efbbdfb9677c6
+Branch: refactor/jpa-support
 MuMu ADB: 127.0.0.1:16384
 Docker and isolated notification QA backend55551/PID34692 are running on18083; scheduler=true.
 Chronological entries below describe earlier states; latest entries supersede them.
@@ -244,3 +244,9 @@ Fullbackend8146 reported TimeModelTest ClassNotFoundException line23: reflection
 MuMu83982 existing-mode passed NOTIFICATION_RESTART_VERIFIED5s, preserved original fixture IDs, firstread timestamp/allread and disabled setting. Fullbackend8146 still live with known reflection-test failure, no production change.
 Fullbackend8146 terminal FAILED8m8s, 481tests/1failure: only TimeModelTest stale reflection name. Fixed path and staged all75files; diff--cached--check clean after whitespace cleanup. Full rerun10713 LIVE Asia/Seoul, poll samehandle. MuMu full59187/restart83982 already passed; QA55551 unchanged. Previous goal turn made progress: UI gates passed and regression root cause fixed. NoPRyet.
 Fullbackend10713 terminal SUCCESS8m39s. Fresh XML481/0/0/0, TimeModelTest1/0 confirmed (old pre-run aggregate buffered at terminal is not fresh). QA55551 logs no request errors; expected no-active-device2 only. Latestdevelop7936cb8 unchanged. Alllocal gates passed, committing notification implementation and preparing PR.
+PR106 https://github.com/minyeophan/formypet/pull/106 created/attached at479668f. All6 push38811389759/PR38811442048 CI passed; no reviews/comments outstanding. Squash merged1b57d77f0486ec0a13666519815efbbdfb9677c6, identical tree to testedhead. Worktree detached at actualmerge. ForcedbootJar82964 LIVE; oldQA55551 stopped. Merged MuMu and develop CI pending; do not start support yet.
+Merged1b57d77 forcedbootJar82964 passed46s. QA69236/PID13340 starting/healthy18083 schema43 schedulertrue1000ms; old55551stopped. MuMu existing-fixture verification launched before fresh fixture. Develop CI38812249038 inprogress.
+Merged MuMu66870 existing premerge fixture passed7s; full44913 passed25s. Develop1b57d77 CI38812249038 all3 success. New-fixture existing-mode run launched; common regression stillpending. QA69236/PID13340 continues actualmerge; support notstarted.
+Merged newfixture restart7521 passed5s. Common android_ux_test93975 LIVE QA_API_BASE_URL18083 and --no-uninstall. Onlycommon terminal/log gate remains before notification8/12complete and support9/12start.
+
+Merged common93975 passed52s; QA69236 log clean. Notification complete8/12, allmerged gatespassed. Latestdevelop1b57d77 fetched, new support branch available (noexisting local/remote). Creating refactor/jpa-support; no supportcodechangesyet.
