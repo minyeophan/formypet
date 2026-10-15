@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: community (5/12); wallet, pet, routine and record complete
-Status: record merged verification complete; community baseline inspection starting
-Base: origin/develop 509bb551af7e7d0f3a2855fe9e688f340acc2462
-Branch: refactor/jpa-community
+Current domain: policy (7/12); wallet, pet, routine, record, community and media complete
+Status: media completed6/12; policy baseline inspection starting
+Base: origin/develop 9ef997043e767bc165192710d66f4b5e536a4726
+Branch: refactor/jpa-policy
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated merged record QA backend9473/PID1916 are running.
+Docker and isolated merged media QA backend37583/PID39664 are running on18083.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -163,3 +163,11 @@ Extended MuMu22022 LIVE --no-uninstall. Poll same handle before another Flutter 
 Correction: full backend61173 just completed successfully8m16s (terminal exit0). Inspect XML totals before claiming count. Only extended MuMu22022 remains live; production unchanged after full suite. Do not rerun backend without source changes.
 
 Full backend61173 XML451/0/0/0 confirmed. Extended MuMu22022 succeeded19s incl public post deletion and pet cascade draft/log file deletion; prior restart61628 passed same production. All local gates pass; latest origin/develop607299e. Stage latest test/evidence then commit refactor rule and push refactor/jpa-media for develop PR. CI/merge/merged-SHA tests still pending.
+
+PR104 created/attached https://github.com/minyeophan/formypet/pull/104, head23dbf3e632e66ab8d330b143b671d0f75407c606 base develop607299e. All local gates backend451/0/fullMuMu22022(19s)/restart61628(11s)/review/analyzer passed. PushCI38794988045 and PRCI38795271135 LIVE. BrowserAX compare-page timed out after inputs succeeded; recovered via browser.tabs.get+Playwright DOM, PR creation verified UI+REST. Screenshot media-pr-104-created.png saved+embedded. Current mediaTab171956217 browser3 markedDeliverable. No merge yet; wait all6CI and review checks then squash and actual merged SHA bootJar/MuMu existing/full/common/developCI. QA98746 live.
+
+PR104 merged9ef997043e767bc165192710d66f4b5e536a4726 after all6 CI success and no review findings. Tree identical to tested23dbf3e. Detached merged SHA preserving evidence docs. Stopped QA98746; bootJar24147 LIVE. DevelopCI38796161447 LIVE. Next start merged backend then MuMu existing/full/common and logs before marking media6/12. No policy work yet.
+
+Merged bootJar24147 passed43s; QA37583/PID39664 healthy18083/schema43. Existing MuMu74468 passed10s MEDIA_RESTART_VERIFIED. Full62989 LIVE; develop CI backend+monitoring success, Flutter pending. Common smoke/logs remain. Do not start policy yet.
+
+Media merged verification complete6/12: existing74468 passed10s, full62989 passed19s, common44145 passed51s, developCI38796161447 all3success, QA37583 logs clean. Latest origin/develop9ef9970 fetched; created refactor/jpa-policy. No policy implementation yet. QA37583 remains merged media9ef9970. Next inspect policy contracts/schema/tests and baseline.
