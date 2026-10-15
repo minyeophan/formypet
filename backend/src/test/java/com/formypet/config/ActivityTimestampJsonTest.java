@@ -2,10 +2,10 @@ package com.formypet.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.formypet.community.dto.PostCommentResponse;
-import com.formypet.community.dto.PostCommentReportResponse;
-import com.formypet.community.dto.PostResponse;
-import com.formypet.community.dto.MyActivityResponse;
+import com.formypet.domain.community.dto.response.PostCommentResponse;
+import com.formypet.domain.community.dto.response.PostCommentReportResponse;
+import com.formypet.domain.community.dto.response.PostResponse;
+import com.formypet.domain.community.dto.response.MyActivityResponse;
 import com.formypet.notification.NotificationType;
 import com.formypet.notification.dto.NotificationResponse;
 import java.time.LocalDateTime;
