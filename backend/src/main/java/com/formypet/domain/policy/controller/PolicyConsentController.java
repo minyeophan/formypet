@@ -1,10 +1,14 @@
-package com.formypet.policy;
+package com.formypet.domain.policy.controller;
+import com.formypet.domain.policy.dto.response.PolicyConsentStatusResponse;
+import com.formypet.domain.policy.service.PolicyConsentService;
+import com.formypet.domain.policy.dto.request.PolicyAcceptance;
 
 import com.formypet.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
+import com.formypet.domain.policy.dto.response.PolicyConsentHistoryResponse;
 
 @RestController
 @RequiredArgsConstructor
@@ -12,15 +16,15 @@ import java.util.*;
 public class PolicyConsentController {
     private final PolicyConsentService service;
     @GetMapping("/policy-status")
-    public ApiResponse<PolicyConsentService.Status> status(@AuthenticationPrincipal(expression="id") Long id) {
+    public ApiResponse<PolicyConsentStatusResponse> status(@AuthenticationPrincipal(expression="id") Long id) {
         return ApiResponse.of(service.status(id));
     }
     @GetMapping("/policy-consents")
-    public ApiResponse<List<Map<String,Object>>> history(@AuthenticationPrincipal(expression="id") Long id) {
+    public ApiResponse<List<PolicyConsentHistoryResponse>> history(@AuthenticationPrincipal(expression="id") Long id) {
         return ApiResponse.of(service.history(id));
     }
     @PostMapping("/policy-consents")
-    public ApiResponse<PolicyConsentService.Status> accept(@AuthenticationPrincipal(expression="id") Long id,
+    public ApiResponse<PolicyConsentStatusResponse> accept(@AuthenticationPrincipal(expression="id") Long id,
                                                           @RequestBody PolicyAcceptance acceptance) {
         return ApiResponse.of(service.accept(id, acceptance));
     }

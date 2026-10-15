@@ -1,4 +1,4 @@
-package com.formypet.auth;
+package com.formypet.domain.policy;
 
 import com.formypet.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;

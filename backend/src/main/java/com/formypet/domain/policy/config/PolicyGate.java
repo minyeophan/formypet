@@ -1,4 +1,5 @@
-package com.formypet.policy;
+package com.formypet.domain.policy.config;
+import com.formypet.domain.policy.service.PolicyConsentService;
 
 import com.formypet.auth.AuthenticatedUser;
 import jakarta.servlet.http.*;

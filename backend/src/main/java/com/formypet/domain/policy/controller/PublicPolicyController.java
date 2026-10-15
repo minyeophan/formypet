@@ -1,4 +1,7 @@
-package com.formypet.policy;
+package com.formypet.domain.policy.controller;
+import com.formypet.domain.policy.dto.response.PolicyCatalogResponse;
+import com.formypet.domain.policy.dto.response.PolicyDocumentResponse;
+import com.formypet.domain.policy.service.PolicyCatalog;
 
 import com.formypet.common.exception.ApiException;
 import com.formypet.common.response.ApiResponse;
@@ -13,9 +16,9 @@ public class PublicPolicyController {
     private static final MediaType HTML = new MediaType("text", "html", java.nio.charset.StandardCharsets.UTF_8);
     private final PolicyCatalog policies;
     @GetMapping("/api/v1/public/policies")
-    public ApiResponse<PolicyCatalog.Status> list() { return ApiResponse.of(policies.status()); }
+    public ApiResponse<PolicyCatalogResponse> list() { return ApiResponse.of(policies.status()); }
     @GetMapping("/api/v1/public/policies/{type}/{version}")
-    public ApiResponse<PolicyCatalog.Document> document(@PathVariable String type, @PathVariable String version) {
+    public ApiResponse<PolicyDocumentResponse> document(@PathVariable String type, @PathVariable String version) {
         return ApiResponse.of(policies.version(type, version));
     }
     @GetMapping(value = {"/privacy", "/terms"}, produces = "text/html;charset=UTF-8")
@@ -30,7 +33,7 @@ public class PublicPolicyController {
     public ResponseEntity<String> archived(@PathVariable String type, @PathVariable String version) {
         return render(policies.version(type, version));
     }
-    private ResponseEntity<String> render(PolicyCatalog.Document doc) {
+    private ResponseEntity<String> render(PolicyDocumentResponse doc) {
         String details = "<p>버전 " + escape(doc.version()) + " · 게시일 " + doc.publishedAt()
                 + " · 시행일 " + doc.effectiveAt() + "</p><article style='white-space:pre-wrap'>" + escape(doc.body()) + "</article>";
         return ResponseEntity.ok().contentType(HTML).body(page(doc.title(), details));

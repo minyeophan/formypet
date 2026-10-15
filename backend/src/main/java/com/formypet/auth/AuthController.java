@@ -61,7 +61,7 @@ public class AuthController {
         var response = authService.kakaoLogin(request);
         if (response.signupRequired() && !"1".equals(policyFlow)) {
             // The committed intent expires into cleanup even for an old client.
-            throw com.formypet.policy.PolicyCatalog.error(HttpStatus.UPGRADE_REQUIRED,
+            throw com.formypet.domain.policy.service.PolicyCatalog.error(HttpStatus.UPGRADE_REQUIRED,
                     "APP_UPDATE_REQUIRED", "가입 동의를 지원하는 최신 앱으로 업데이트해 주세요.");
         }
         return ApiResponse.of(response);
