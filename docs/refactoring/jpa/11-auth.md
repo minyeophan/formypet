@@ -37,8 +37,8 @@
 4. [x] Recovery 상태/typed 저장소/limiter/cleanup/mail 분리. UTC, 잘못된 시도 커밋, 같은 요청 재시도, rollback 메일 미전송, 단일 pool, 경쟁 confirm 회귀(116 tests 성공).
 5. [x] 전체 auth 패키지/서비스 인터페이스/DTO/설정/클라이언트/스케줄러 이동 및 외부 참조/시간 모델 reflection 갱신(120 tests 성공).
 6. [x] 전체 backend Asia/Seoul 512 tests, 독립 최종 리뷰(수정 사항 없음), MuMu 기존 세션/전체/재실행 통과. 가입/로그인/로그아웃/갱신/복구 비활성 UI 계약 검증. 활성 복구·외부 카카오·SMTP는 mock 계약으로 검증.
-7. [ ] refactor : 인증 및 계정 복구 도메인 JPA 접근 정리 commit/push/develop PR. exact head 모든 CI 성공 후 squash.
-8. [ ] 실제 merge SHA 강제 빌드, MuMu 기존/전체/재실행/공통과 develop CI/로그 성공 후 global 단계로 진행.
+7. [x] refactor : 인증 및 계정 복구 도메인 JPA 접근 정리 commit/push/develop PR. exact head 모든 CI 성공 후 squash.
+8. [x] 실제 merge SHA 강제 빌드, MuMu 기존/전체/재실행/공통과 develop CI/로그 성공 후 global 단계로 진행.
 
 ## 리뷰 중점
 트랜잭션 전파/락 순서, JPA persistence-context와 current-read 충돌, 토큰 회전 단일 사용, 복구 실패 횟수 커밋, unknown/OAuth 비노출, 제한기 연결 점유, afterCommit/메일 유효성 확인, state machine 재시도 경계, schema/UTC/annotation 및 scheduler 중복 여부.
@@ -56,3 +56,12 @@
 - synthetic 신규 계정 가입→로그아웃→잘못된 비밀번호 거부→정상 로그인→토큰 갱신→앱 재실행 후 인증 유지 순서로 검증한다.
 - 기존 QA에서는 복구 비활성(503) UI 응답을 실제 API로 검증한다. 활성 복구의 메일/검증/확정·동시성은 backend mock SMTP 통합 tests로 증명하며 외부 실제 메일/카카오 호출 성공으로 보고하지 않는다.
 - merged SHA에서 기존/전체/재실행/공통 검증을 다시 실행한다.
+
+
+
+## 완료 증적
+- PR #109: https://github.com/minyeophan/formypet/pull/109
+- 실제 merge: 6b83f4af9f2257cbf8ffd06a6ab91637835cb245; forced bootJar23885 34s/4 tasks 성공.
+- exact head push38842587605 및 PR38842768642 각 3개 검사 성공; develop38843245621도 3개 성공.
+- 실제 merge QA70632/18083: MuMu 기존97028(10s), 전체4908(18s), 재실행49772(3s), 공통82972(51s) 모두 성공. 서버 ERROR/Exception 없음.
+- 인증 단계 완료. 실제 외부 Kakao/SMTP 전송은 성공으로 주장하지 않으며 위 mock 계약 범위를 유지한다.
