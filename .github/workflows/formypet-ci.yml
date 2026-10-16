@@ -82,3 +82,6 @@ jobs:
 
       - name: Run backend tests
         run: bash ./gradlew test --no-daemon
+
+      - name: Verify migrated domain and global time mappings in Asia/Seoul
+        run: bash ./gradlew test --tests 'com.formypet.domain.*' --tests 'com.formypet.global.*' -PtestTimezone=Asia/Seoul --rerun-tasks --no-daemon

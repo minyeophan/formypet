@@ -1,0 +1,52 @@
+package com.formypet.global.exception;
+
+import org.springframework.http.HttpStatus;
+
+import java.net.URI;
+
+public class ApiException extends RuntimeException {
+
+    private final HttpStatus status;
+    private final URI type;
+    private final String title;
+    private final String errorCode;
+    private final Integer retryAfterSeconds;
+
+    public ApiException(HttpStatus status, String typeSlug, String title, String detail, String errorCode) {
+        this(status, typeSlug, title, detail, errorCode, null);
+    }
+
+    public ApiException(HttpStatus status, String typeSlug, String title, String detail, String errorCode,
+                        Integer retryAfterSeconds) {
+        super(detail);
+        this.status = status;
+        this.type = URI.create("https://formypet.com/errors/" + typeSlug);
+        this.title = title;
+        this.errorCode = errorCode;
+        this.retryAfterSeconds = retryAfterSeconds;
+    }
+
+    public HttpStatus status() {
+        return status;
+    }
+
+    public URI type() {
+        return type;
+    }
+
+    public String title() {
+        return title;
+    }
+
+    public String detail() {
+        return getMessage();
+    }
+
+    public String errorCode() {
+        return errorCode;
+    }
+
+    public Integer retryAfterSeconds() {
+        return retryAfterSeconds;
+    }
+}

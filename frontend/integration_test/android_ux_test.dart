@@ -41,7 +41,16 @@ void main() {
       );
     }
     // Do not invoke production main: no Firebase/Kakao startup or push registration.
-    initApiClient('http://127.0.0.1:8094');
+    const qaUrl = String.fromEnvironment(
+      'QA_API_BASE_URL',
+      defaultValue: 'http://127.0.0.1:8094',
+    );
+    expect(
+      {'http://127.0.0.1:8094', 'http://127.0.0.1:18083'},
+      contains(qaUrl),
+      reason: 'QA fixtures must use an explicitly isolated local backend.',
+    );
+    initApiClient(qaUrl);
     final random = Random.secure();
     final nonce =
         '${DateTime.now().microsecondsSinceEpoch}${random.nextInt(100000)}';
@@ -99,7 +108,7 @@ void main() {
     router.go('/my/settings');
     await tester.pumpAndSettle();
     final homePoint = tester.getCenter(homeTab);
-    await tester.tap(find.text('로그아웃'));
+    await _tap(tester, find.text('로그아웃'));
     await tester.pumpAndSettle();
     await tester.tapAt(homePoint);
     await tester.pumpAndSettle();
@@ -206,6 +215,26 @@ void main() {
     await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
     expect(await WalletExpenseService().listAllExpenses(pet.id), hasLength(1));
+    final wallet = WalletExpenseService();
+    expect((await wallet.getSummary(pet.id)).totalAmount, 12000);
+    expect((await wallet.getSummary(pet.id)).count, 1);
+    expect(
+      (await wallet.listExpenses(pet.id, category: 'food')).items,
+      hasLength(1),
+    );
+    expect(
+      (await wallet.listExpenses(pet.id, category: 'hospital')).items,
+      isEmpty,
+    );
+    await _tap(tester, find.byKey(const Key('expense-delete-button')));
+    await _tap(tester, find.byKey(const Key('expense-delete-confirm-button')));
+    await _until(
+      tester,
+      () => find.byType(ExpenseWalletScreen).evaluate().isNotEmpty,
+    );
+    expect(await wallet.listAllExpenses(pet.id), isEmpty);
+    expect((await wallet.getSummary(pet.id)).totalAmount, 0);
+    expect((await wallet.getSummary(pet.id)).count, 0);
     expect(tester.takeException(), isNull);
     for (final route in [
       '/home',

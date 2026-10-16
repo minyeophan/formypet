@@ -1,4 +1,8 @@
 app:
+  media:
+    # Cached test contexts share one DB but use different roots or mocked storage.
+    # Tests invoke cleanup explicitly; avoid another context draining their queue.
+    cleanup-interval-ms: 3600000
   kakao:
     app-id: 1453687
   account-deletion:
