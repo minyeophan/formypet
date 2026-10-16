@@ -1,6 +1,6 @@
 package com.formypet.monitoring;
 
-import com.formypet.auth.JwtService;
+import com.formypet.domain.auth.security.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;

@@ -1,0 +1,49 @@
+package com.formypet.domain.auth.entity;
+
+import com.formypet.domain.user.entity.User;
+
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.springframework.lang.NonNull;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "refresh_tokens")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class RefreshToken {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false, unique = true)
+    private String token;
+
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @NonNull
+    public static RefreshToken create(User user, String token, Instant expiresAt) {
+        RefreshToken rt = new RefreshToken();
+        rt.user      = user;
+        rt.token     = token;
+        rt.expiresAt = expiresAt;
+        rt.createdAt = Instant.now();
+        return rt;
+    }
+
+    public boolean isExpired() {
+        return Instant.now().isAfter(expiresAt);
+    }
+}

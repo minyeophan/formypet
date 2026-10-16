@@ -1,7 +1,7 @@
 package com.formypet.domain.policy.config;
 import com.formypet.domain.policy.service.PolicyConsentService;
 
-import com.formypet.auth.AuthenticatedUser;
+import com.formypet.domain.auth.security.AuthenticatedUser;
 import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

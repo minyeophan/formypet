@@ -1,9 +1,9 @@
 package com.formypet.config;
 
 import com.formypet.domain.user.entity.User;
-import com.formypet.auth.domain.RefreshToken;
+import com.formypet.domain.auth.entity.RefreshToken;
 import com.formypet.domain.user.repository.UserRepository;
-import com.formypet.auth.repository.RefreshTokenRepository;
+import com.formypet.domain.auth.repository.RefreshTokenRepository;
 import com.formypet.support.IntegrationTestSupport;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;

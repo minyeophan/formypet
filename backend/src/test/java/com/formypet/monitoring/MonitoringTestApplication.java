@@ -1,8 +1,8 @@
 package com.formypet.monitoring;
 
-import com.formypet.auth.JwtAuthFilter;
-import com.formypet.auth.JwtService;
-import com.formypet.auth.SessionGuard;
+import com.formypet.domain.auth.security.JwtAuthFilter;
+import com.formypet.domain.auth.security.JwtService;
+import com.formypet.domain.auth.security.SessionGuard;
 import com.formypet.common.exception.GlobalExceptionHandler;
 import com.formypet.config.SecurityConfig;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;

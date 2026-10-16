@@ -5,8 +5,8 @@ import com.formypet.domain.policy.service.PolicyConsentService;
 import com.formypet.domain.policy.service.PolicyCatalog;
 import com.formypet.domain.policy.dto.request.PolicyAcceptance;
 
-import com.formypet.auth.SessionGuard;
-import com.formypet.auth.recovery.RecoveryCrypto;
+import com.formypet.domain.auth.security.SessionGuard;
+import com.formypet.domain.auth.security.RecoveryCrypto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import com.formypet.domain.policy.repository.PolicyConsentRepository;

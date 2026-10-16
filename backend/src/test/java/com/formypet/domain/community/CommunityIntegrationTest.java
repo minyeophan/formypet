@@ -5,7 +5,7 @@ import com.formypet.domain.community.service.impl.CommunityServiceImpl;
 import com.formypet.domain.community.controller.MyActivityController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.auth.repository.RefreshTokenRepository;
+import com.formypet.domain.auth.repository.RefreshTokenRepository;
 import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.support.IntegrationTestSupport;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,5 +1,7 @@
 package com.formypet.domain.support;
 
+import com.formypet.domain.auth.security.AuthenticatedUser;
+
 import com.formypet.support.IntegrationTestSupport;
 import com.formypet.domain.support.service.SupportService;
 import com.formypet.domain.support.service.SupportMailWorker;
@@ -320,7 +322,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
         return Map.of("type", "BUG", "replyEmail", "reply@example.test", "title", "문의 제목", "body", "문의 본문", "requestId", key);
     }
     private MockHttpServletRequestBuilder authPost(String path, Object data) throws Exception {
-        return post(path).with(authentication(new UsernamePasswordAuthenticationToken(new com.formypet.auth.AuthenticatedUser(uid, 0), null, List.of())))
+        return post(path).with(authentication(new UsernamePasswordAuthenticationToken(new com.formypet.domain.auth.security.AuthenticatedUser(uid, 0), null, List.of())))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(data));
     }
     private int count(String table) { return jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class); }

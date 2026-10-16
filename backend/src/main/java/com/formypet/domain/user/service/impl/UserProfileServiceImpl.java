@@ -1,5 +1,7 @@
 package com.formypet.domain.user.service.impl;
 
+import com.formypet.domain.auth.security.SessionGuard;
+
 import com.formypet.domain.user.service.UserProfileService;
 
 import com.formypet.domain.user.entity.User;
@@ -19,7 +21,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserRepository userRepository;
     private final MediaService mediaService;
-    private final com.formypet.auth.SessionGuard sessions;
+    private final com.formypet.domain.auth.security.SessionGuard sessions;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(Long actorId) {

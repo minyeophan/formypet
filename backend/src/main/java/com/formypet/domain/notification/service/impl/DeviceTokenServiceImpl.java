@@ -1,6 +1,6 @@
 package com.formypet.domain.notification.service.impl;
 
-import com.formypet.auth.SessionGuard;
+import com.formypet.domain.auth.security.SessionGuard;
 import com.formypet.domain.notification.dto.request.DeviceTokenRequest;
 import com.formypet.domain.notification.repository.jdbc.NotificationCommands;
 import com.formypet.domain.notification.service.DeviceTokenService;

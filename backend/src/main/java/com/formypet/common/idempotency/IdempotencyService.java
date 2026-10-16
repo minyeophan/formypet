@@ -2,7 +2,7 @@ package com.formypet.common.idempotency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.auth.SessionGuard;
+import com.formypet.domain.auth.security.SessionGuard;
 import com.formypet.common.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
