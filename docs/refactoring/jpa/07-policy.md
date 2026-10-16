@@ -44,9 +44,9 @@ JPA 영속성 컨텍스트의 오래된 runtime/publication 값이 기존 curren
 - [x] 기존11개 기준선 결과 확인
 - [x] 엔티티/복합키/UTC 매핑 RED → GREEN
 - [x] 기존 JDBC 기록의 JSON 날짜/필드/정렬 호환성 회귀
-- [ ] 동의 중복·부분 동의·선택 privacy·가입 전체 rollback·다른 사용자 접근/세션 폐기
+- [x] 동의 중복·부분 동의·선택 privacy·가입 전체 rollback·다른 사용자 접근/세션 폐기
 - [x] publication immutable hash/부분 batch rollback/동시 게시 및 activate=false 보존
-- [ ] 미래 게시/발효·마이크로초·동일 시각 버전 정렬·DB 시계
+- [x] 미래 게시/발효·마이크로초·동일 시각 버전 정렬·DB 시계
 - [x] 서비스 SQL/Map 행 매핑 제거, 인터페이스/패키지/호출부 정리
 - [x] 관련/전체 backend 테스트 및 대표 조회 비용, 독립 리뷰
 - [x] MuMu 실제 격리 테스트용 정책: 열람·동의·이력·재동의 제한·앱 재실행
@@ -89,3 +89,4 @@ JPA 영속성 컨텍스트의 오래된 runtime/publication 값이 기존 curren
 - 실제 merge7936cb8의 bootJar29585 성공46초. 기존계정46575 성공9초, 신규 v2 가입21247 성공16초, v3 개정 재동의72909 성공20초. develop CI38802609143 세 검사 모두 성공. QA5880/PID29080은 동일 머지 jar/v3로 동작 중. 마지막 재실행 및 공통 smoke 남음.
 
 - 최종 merge 검증: 재실행91924 성공8초, 공통28544 성공52초. QA11848/PID37784 로그 신규 오류 없음. 합성 QA enforcement만 false로 복원하고 게시·동의 이력 유지. develop CI38802609143 전체 성공. 약관 단계7/12 완료.
+- 최종 감사 추가 검증60762: domain.policy 전체 25개 성공(1m25s). 부분 동의 거절/선택 privacy 생략/타 사용자 이력 격리/폐기 JWT401을 명시적으로 추가 검증했다. 기존 게시 DB 시계·미래 발효·마이크로초·동일 시각 정렬 테스트도 함께 통과했다.

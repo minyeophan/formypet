@@ -1,7 +1,7 @@
 package com.formypet.domain.community.entity;
 
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.time.UtcTime;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

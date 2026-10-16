@@ -1,6 +1,6 @@
 package com.formypet.domain.auth.security;
 
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import com.formypet.domain.auth.repository.jdbc.OAuthLifecycleLockRepository;

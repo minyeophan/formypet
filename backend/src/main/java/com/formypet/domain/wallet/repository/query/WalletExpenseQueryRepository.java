@@ -1,7 +1,7 @@
 package com.formypet.domain.wallet.repository.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.common.exception.InvalidInputException;
+import com.formypet.global.exception.InvalidInputException;
 import com.formypet.domain.wallet.dto.response.WalletExpenseCategorySummary;
 import com.formypet.domain.wallet.dto.response.WalletExpenseListResponse;
 import com.formypet.domain.wallet.dto.response.WalletExpenseResponse;

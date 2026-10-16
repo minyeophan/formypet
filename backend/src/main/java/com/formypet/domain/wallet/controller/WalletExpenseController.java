@@ -1,7 +1,7 @@
 package com.formypet.domain.wallet.controller;
 import com.formypet.domain.wallet.service.WalletExpenseService;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.wallet.dto.request.WalletExpenseCreateRequest;
 import com.formypet.domain.wallet.dto.response.WalletExpenseListResponse;
 import com.formypet.domain.wallet.dto.response.WalletExpenseResponse;

@@ -4,8 +4,8 @@ import com.formypet.domain.user.dto.request.PublicAccountDeletionRequest;
 import com.formypet.domain.user.service.PublicAccountDeletionRequestService;
 import com.formypet.domain.user.dto.response.PublicAccountDeletionReceipt;
 
-import com.formypet.common.response.ApiResponse;
-import com.formypet.common.ratelimit.ClientAddressResolver;
+import com.formypet.global.response.ApiResponse;
+import com.formypet.global.ratelimit.ClientAddressResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

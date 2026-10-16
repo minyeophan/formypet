@@ -1,9 +1,9 @@
 package com.formypet.domain.routine.service.impl;
 
-import com.formypet.common.exception.ForbiddenException;
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.exception.NotFoundException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.ForbiddenException;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.exception.NotFoundException;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.routine.dto.request.CareScheduleRequest;
 import com.formypet.domain.routine.dto.response.CareScheduleResponse;
 import com.formypet.domain.routine.entity.CareSchedule;

@@ -3,7 +3,7 @@ package com.formypet.domain.user.controller;
 import com.formypet.domain.user.entity.User;
 import com.formypet.domain.user.service.UserProfileService;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.user.dto.response.UserProfileResponse;
 import com.formypet.domain.user.dto.request.UserProfileUpdateRequest;
 import jakarta.validation.Valid;
@@ -24,7 +24,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
-    private final com.formypet.common.idempotency.IdempotencyService idempotency;
+    private final com.formypet.global.idempotency.IdempotencyService idempotency;
     private final com.formypet.domain.media.service.MediaService mediaService;
 
     @GetMapping

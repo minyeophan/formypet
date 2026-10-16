@@ -134,8 +134,8 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
         var updated = jdbc.queryForObject("SELECT updated_at FROM activity_records WHERE id=?",
                 (rs, n) -> rs.getObject(1, java.time.LocalDateTime.class), id);
         org.assertj.core.api.Assertions.assertThat(updated)
-                .isBetween(com.formypet.common.time.UtcTime.toDatabase(java.time.Instant.now().minusSeconds(30)),
-                        com.formypet.common.time.UtcTime.toDatabase(java.time.Instant.now()));
+                .isBetween(com.formypet.global.time.UtcTime.toDatabase(java.time.Instant.now().minusSeconds(30)),
+                        com.formypet.global.time.UtcTime.toDatabase(java.time.Instant.now()));
     }
 
     @Test

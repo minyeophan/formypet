@@ -3,7 +3,7 @@ import com.formypet.domain.policy.dto.response.PolicyConsentStatusResponse;
 import com.formypet.domain.policy.service.PolicyConsentService;
 import com.formypet.domain.policy.dto.request.PolicyAcceptance;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

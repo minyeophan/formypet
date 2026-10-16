@@ -5,7 +5,7 @@ import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.media.entity.MediaResource;
 import com.formypet.domain.media.repository.MediaResourceRepository;
 import com.formypet.domain.media.repository.jdbc.MediaAttachmentRepository;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import com.formypet.domain.media.storage.LoadedMedia;
 import com.formypet.domain.media.storage.MediaStorage;
 import com.formypet.domain.media.storage.MediaImageDimensions;

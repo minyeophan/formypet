@@ -1,7 +1,7 @@
 package com.formypet.domain.community.entity;
 
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.time.UtcTime;
 import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import static org.assertj.core.api.Assertions.*;

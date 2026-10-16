@@ -3,8 +3,8 @@ import com.formypet.domain.policy.dto.response.PolicyCatalogResponse;
 import com.formypet.domain.policy.dto.response.PolicyDocumentResponse;
 import com.formypet.domain.policy.service.PolicyCatalog;
 
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;

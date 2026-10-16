@@ -1,7 +1,7 @@
 package com.formypet.domain.record.service.impl;
 
 import com.formypet.domain.user.repository.UserRepository;
-import com.formypet.common.exception.NotFoundException;
+import com.formypet.global.exception.NotFoundException;
 import com.formypet.domain.pet.entity.Pet;
 import com.formypet.domain.pet.repository.PetRepository;
 import com.formypet.domain.record.dto.request.ActivityRecordCreateRequest;

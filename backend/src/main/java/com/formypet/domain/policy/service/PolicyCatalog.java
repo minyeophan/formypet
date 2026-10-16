@@ -1,5 +1,5 @@
 package com.formypet.domain.policy.service;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import com.formypet.domain.policy.dto.response.PolicyCatalogResponse;
 import com.formypet.domain.policy.dto.response.PolicyDocumentResponse;
 import org.springframework.http.HttpStatus;

@@ -1,6 +1,6 @@
 package com.formypet.domain.support.entity;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDateTime;

@@ -1,6 +1,6 @@
 package com.formypet.domain.media.validation;
 
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;

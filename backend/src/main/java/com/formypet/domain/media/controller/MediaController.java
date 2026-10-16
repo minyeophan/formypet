@@ -2,7 +2,7 @@ package com.formypet.domain.media.controller;
 
 import com.formypet.domain.media.service.MediaService;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.media.dto.response.MediaResponse;
 import com.formypet.domain.media.storage.LoadedMedia;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class MediaController {
 
     private final MediaService mediaService;
-    private final com.formypet.common.idempotency.IdempotencyService idempotency;
+    private final com.formypet.global.idempotency.IdempotencyService idempotency;
 
     @PostMapping("/api/v1/pets/{petId}/media")
     @Operation(summary = "반려동물 미디어 업로드")

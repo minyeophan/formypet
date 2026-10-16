@@ -4,9 +4,9 @@ import com.formypet.domain.user.dto.request.PublicAccountDeletionRequest;
 import com.formypet.domain.user.service.PublicAccountDeletionRequestService;
 import com.formypet.domain.user.dto.response.PublicAccountDeletionReceipt;
 
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.ratelimit.RequestRateLimiter;
-import com.formypet.common.ratelimit.RequestRateLimitProperties;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.ratelimit.RequestRateLimiter;
+import com.formypet.global.ratelimit.RequestRateLimitProperties;
 import com.formypet.domain.support.config.SupportMailProperties;
 import com.formypet.domain.support.client.SupportMailTransport;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package com.formypet.domain.routine.entity;
 
-import com.formypet.common.exception.InvalidInputException;
+import com.formypet.global.exception.InvalidInputException;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalTime;

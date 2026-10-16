@@ -1,7 +1,7 @@
 package com.formypet.domain.notification.service.impl;
 
 import com.formypet.domain.auth.security.SessionGuard;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.notification.dto.request.NotificationSettingsRequest;
 import com.formypet.domain.notification.dto.response.NotificationSettingsResponse;
 import com.formypet.domain.notification.repository.jdbc.NotificationCommands;

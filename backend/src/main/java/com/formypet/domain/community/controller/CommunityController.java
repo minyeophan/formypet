@@ -4,7 +4,7 @@ import com.formypet.domain.community.service.CommunityService;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.community.dto.request.PostCreateRequest;
 import com.formypet.domain.community.dto.request.PostCommentCreateRequest;
 import com.formypet.domain.community.dto.response.PostCommentFeedResponse;
@@ -38,7 +38,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 public class CommunityController {
 
     private final CommunityService communityService;
-    private final com.formypet.common.idempotency.IdempotencyService idempotency;
+    private final com.formypet.global.idempotency.IdempotencyService idempotency;
     private final ObjectMapper objectMapper;
     private final com.formypet.domain.media.service.MediaService mediaService;
 

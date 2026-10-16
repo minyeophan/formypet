@@ -1,6 +1,6 @@
 package com.formypet.domain.community;
 
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import com.formypet.domain.community.dto.*;
 import com.formypet.domain.community.dto.request.*;
 import com.formypet.domain.community.dto.response.*;
