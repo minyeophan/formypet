@@ -1,5 +1,7 @@
 package com.formypet.auth.domain;
 
+import com.formypet.domain.user.entity.User;
+
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

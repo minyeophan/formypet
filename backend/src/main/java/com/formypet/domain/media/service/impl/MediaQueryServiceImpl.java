@@ -1,7 +1,7 @@
 package com.formypet.domain.media.service.impl;
 
-import com.formypet.auth.domain.User;
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.entity.User;
+import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.media.entity.MediaResource;
 import com.formypet.domain.media.repository.MediaResourceRepository;
 import com.formypet.domain.media.repository.jdbc.MediaAttachmentRepository;

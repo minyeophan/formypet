@@ -4,8 +4,8 @@ import com.formypet.domain.community.service.CommunityService;
 import com.formypet.domain.community.service.impl.CommunityServiceImpl;
 import com.formypet.domain.community.controller.MyActivityController;
 
-import com.formypet.auth.domain.User;
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.entity.User;
+import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.community.entity.Post;
 import com.formypet.domain.community.repository.PostRepository;
 import com.formypet.domain.community.dto.request.PostCreateRequest;

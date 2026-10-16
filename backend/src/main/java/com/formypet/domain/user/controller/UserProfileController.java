@@ -1,0 +1,59 @@
+package com.formypet.domain.user.controller;
+
+import com.formypet.domain.user.entity.User;
+import com.formypet.domain.user.service.UserProfileService;
+
+import com.formypet.common.response.ApiResponse;
+import com.formypet.domain.user.dto.response.UserProfileResponse;
+import com.formypet.domain.user.dto.request.UserProfileUpdateRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
+@RestController
+@RequestMapping("/api/v1/users/me")
+@RequiredArgsConstructor
+@Tag(name = "User Profile", description = "내 프로필 관리 API")
+@SecurityRequirement(name = "bearerAuth")
+public class UserProfileController {
+
+    private final UserProfileService userProfileService;
+    private final com.formypet.common.idempotency.IdempotencyService idempotency;
+    private final com.formypet.domain.media.service.MediaService mediaService;
+
+    @GetMapping
+    @Operation(summary = "내 프로필 조회")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 조회 성공")
+    public ApiResponse<UserProfileResponse> getProfile(@AuthenticationPrincipal(expression = "id") Long actorId) {
+        return ApiResponse.of(userProfileService.getProfile(actorId));
+    }
+
+    @PatchMapping
+    @Operation(summary = "내 프로필 수정")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 수정 성공")
+    public ApiResponse<UserProfileResponse> updateProfile(@AuthenticationPrincipal(expression = "id") Long actorId,
+                                                          @Valid @RequestBody UserProfileUpdateRequest request) {
+        return ApiResponse.of(userProfileService.updateProfile(actorId, request));
+    }
+
+    @PostMapping("/profile-image")
+    @Operation(summary = "프로필 이미지 업로드")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "이미지 업로드 성공")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<UserProfileResponse> uploadProfileImage(@AuthenticationPrincipal(expression = "id") Long actorId,
+                                                               @RequestHeader(value = "Idempotency-Key", required = false) String key,
+                                                               @RequestParam("file") MultipartFile file) {
+        return ApiResponse.of(idempotency.execute(actorId, "profile-media", "account", key, null,
+                java.util.List.of(file), () -> {
+                    if (key != null) mediaService.validateKeyedUpload(file);
+                    mediaService.admitUpload(actorId, 1);
+                    return userProfileService.uploadProfileImage(actorId, file);
+                }, UserProfileResponse::id, id -> userProfileService.getProfile(actorId)));
+    }
+}

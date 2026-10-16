@@ -1,6 +1,6 @@
 package com.formypet.domain.record.service.impl;
 
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.common.exception.NotFoundException;
 import com.formypet.domain.pet.entity.Pet;
 import com.formypet.domain.pet.repository.PetRepository;

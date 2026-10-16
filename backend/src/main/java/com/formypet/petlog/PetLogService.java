@@ -1,7 +1,7 @@
 package com.formypet.petlog;
 
-import com.formypet.auth.domain.User;
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.entity.User;
+import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.common.exception.NotFoundException;
 import com.formypet.common.exception.ApiException;
 import com.formypet.common.time.UtcTime;

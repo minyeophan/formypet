@@ -1,0 +1,30 @@
+package com.formypet.domain.user.controller;
+
+import com.formypet.domain.user.dto.request.PublicAccountDeletionRequest;
+import com.formypet.domain.user.service.PublicAccountDeletionRequestService;
+import com.formypet.domain.user.dto.response.PublicAccountDeletionReceipt;
+
+import com.formypet.common.response.ApiResponse;
+import com.formypet.common.ratelimit.ClientAddressResolver;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequiredArgsConstructor
+public class PublicAccountDeletionController {
+    private final PublicAccountDeletionRequestService service;
+    private final ClientAddressResolver clientAddressResolver;
+
+    @PostMapping("/api/v1/public/account-deletion-requests")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<PublicAccountDeletionReceipt> submit(
+            @Valid @RequestBody PublicAccountDeletionRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
+        return ApiResponse.of(service.submit(request, clientAddressResolver.resolve(servletRequest)));
+    }
+}
