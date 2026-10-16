@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: user (10/12); wallet, pet, routine, record, community, media, policy, notification and support complete
-Status: support completed9/12; user implementation/review/backend499/branch MuMu full passed; branch restart running before PR
-Base: origin/develop c366cfbe4cba5d38b0898263211e1faaa5ea2c09
-Branch: refactor/jpa-user
+Current domain: auth/recovery (11/12); wallet, pet, routine, record, community, media, policy, notification, support and user complete
+Status: user completed10/12; auth baseline inspection starting
+Base: origin/develop f4039a37f43035bda46f7b765385c39f66059692
+Branch: refactor/jpa-auth
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated merged-support QA38446/PID37608 run on18083; scheduler=false.
+Docker and isolated merged-user QA21262 run on18083; scheduler=false.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -307,3 +307,14 @@ Userbranch existing8915 SUCCESS6s USER_RESTART_VERIFIED againstuserQA3017. Stage
 Branchfull32021 SUCCESS23s USER_FULL_VERIFIED againstuserQA3017. Existing8915 SUCCESS6s. Newfixture restart launched frontend/user-branch-restart.log, remaininggate beforecommit/pushPR. No productionchanges since499greenreview. BrowserChrome4 renamedsession 회원 JPA PR; tabs empty, createcompareafterpush; APIUI remainsknownwritepath.
 
 Branchrestart61951 SUCCESS7s USER_RESTART_VERIFIED. UserprePRgates complete: fullbackend499/0, reviewclean, MuMu existing8915/full32021/restart61951, QA3017 noERROR/Exception. origin/develop recheckedc366cfb. Commit/pushnext; merge/postmerge notdone.
+Committed9e658156688b66541026ae2ed79b33dccab4e1f4 refactor : 회원 도메인 구조 및 계정 처리 정리; pushedrefactor/jpa-user. PR108 created UI todevelop, attachedartifact. PRcreateclick timedout butDOMverifiedcreated; no duplicate. Await exacthead6CI then squash/actualmergeforcebuild/MuMu existing-full-restart-common/developCI. UserQA3017 stillbranch. Backend499/reviewclean/branchMuMuallpassed.
+CI wait verified: push38836013271 Flutter+Monitoring success; PR38836066904 Monitoring success, remainingtests live asof10:40KST. No restart/retry, exacthead9e65815 unchanged. UserQA3017 and preservedMuMufixture ready formergedchecks.
+PR108 exacthead9e65815 all6CI success push38836013271/PR38836066904; squashmergedf4039a37f43035bda46f7b765385c39f66059692. BrowserMergedconfirmed, initialRESTlag returnedoldopen, gitfetchactualdevelopf4039a3. gitdiffhead-vsmergeempty. Detachedcheckoutactualf4039a3 preservinguncommittedledger; forcedbootJar72354 LIVE build/user-merged-bootjar.log. OlduserQA3017 stillliveuntilbuildsuccess thenreplacewithactualmergeQA. Need merged existing/full/restart/common+developCI beforeauth. Screenshot user-pr-108-merged.png saved/PRdeliverablemarked.
+Actualmergef4039a3 forcedbootJar72354 SUCCESS1m31 all4tasks executed. StoppedverifiedbranchQA38828; mergedQA21262 LIVE log backend/build/user-merged-qa.log isolated3318/18083. DevelopCI38836638760 running Flutter/backend, Monitoringgreen. Need mergedexisting/full/restart/common thenCI/logbeforeauth. No nextdomainstarted.
+MergedQA21262 healthsuccess; mergedexisting6487 LIVE frontend/user-merged-existing.log. Pollsamehandle beforefull; existingfixturefrombranch61951 preserved. Userdomain10 notcompleteuntil mergedfull/restart/common/developCI. gitHEADdetachedf4039a3, onlyledgeruncommitted. No test/build concurrent otherthanFlutter6487/QA21262.
+Mergedexisting6487 SUCCESS10s USER_RESTART_VERIFIED atactualf4039a3/QA21262. Mergedfull launched frontend/user-merged-full.log. Needterminalthennewfixture restart beforecommonandroid_ux_test replacesauthfixture. DevelopCI38836638760 stillrunning lastcheck. No nextdomain.
+DevelopCI38836638760 all3SUCCESS confirmedactualf4039a3. Mergedfull35159 LIVE, remainingfullterminal/newfixture restart/common/log. QA21262 unchanged. 10-user step7checked, step8incomplete.
+Mergedfull35159 SUCCESS24s USER_FULL_VERIFIED. Mergednewfixture restart launched frontend/user-merged-restart.log. Next terminal→common android_ux_test with --dart-define=QA_API_BASE_URL=http://127.0.0.1:18083 (separatefromAPI_BASE_URL; includeboth), isolated/allowwrites/no-uninstall. DevelopCIall3green, existing6487green. Stillneedcommon/logbeforeauth.
+Mergedrestart89883 SUCCESS5s USER_RESTART_VERIFIED (marker4s). QA21262 noERROR/Exception. Common android_ux_test launched frontend/user-merged-common.log bothQA_API_BASE_URL/API_BASE_URL18083 isolated/no-uninstall. Aftercommonterminal checkQAlog/developlatest→completeuser10/12→create refactor/jpa-auth latestdevelop→completiondocscommit beforeauthbaseline. Noauthchangesyet.
+
+User complete10/12: PR108 squashf4039a3, exactheadCI6green/developCI38836638760all3green; actualmergedbootJar72354 SUCCESS; mergedexisting6487(10s),full35159(24s),restart89883(5s),common13316(51s)passed. QA21262 noERROR/Exception. Latestdevelopf4039a3 verified andcreatedrefactor/jpa-auth; noauthsourcechangesyet.
