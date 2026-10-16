@@ -35,7 +35,7 @@ class RecoveryFlowIntegrationTest extends IntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     @Autowired AuthService auth;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
-    @Autowired com.formypet.auth.repository.UserRepository users;
+    @Autowired com.formypet.domain.user.repository.UserRepository users;
     @Autowired com.formypet.domain.notification.service.DeviceTokenService devices;
     @Autowired com.formypet.auth.recovery.RecoveryCleanup cleanup;
     @Autowired com.formypet.auth.recovery.RecoveryCrypto recoveryCrypto;

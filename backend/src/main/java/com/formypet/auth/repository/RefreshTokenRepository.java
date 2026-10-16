@@ -1,7 +1,7 @@
 package com.formypet.auth.repository;
 
 import com.formypet.auth.domain.RefreshToken;
-import com.formypet.auth.domain.User;
+import com.formypet.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

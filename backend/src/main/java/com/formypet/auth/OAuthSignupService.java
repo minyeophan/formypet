@@ -2,9 +2,9 @@ package com.formypet.auth;
 
 import com.formypet.auth.client.KakaoUserInfo;
 import com.formypet.auth.domain.OAuthAccount;
-import com.formypet.auth.domain.User;
+import com.formypet.domain.user.entity.User;
 import com.formypet.auth.repository.OAuthAccountRepository;
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;

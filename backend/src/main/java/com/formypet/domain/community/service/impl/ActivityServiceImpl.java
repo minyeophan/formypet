@@ -1,6 +1,6 @@
 package com.formypet.domain.community.service.impl;
 
-import com.formypet.auth.domain.User;
+import com.formypet.domain.user.entity.User;
 import com.formypet.domain.community.entity.*;
 import com.formypet.common.exception.InvalidInputException;
 import lombok.RequiredArgsConstructor;

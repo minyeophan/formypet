@@ -30,7 +30,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
 
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
-    @Autowired com.formypet.auth.repository.UserRepository userRepository;
+    @Autowired com.formypet.domain.user.repository.UserRepository userRepository;
     @Autowired OAuthAccountRepository oauthAccountRepository;
 
     @MockitoBean KakaoUserClient kakaoUserClient;
@@ -45,7 +45,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     private static final String PROTECTED_URL = "/api/v1/pets";
 
     @BeforeEach
-    void setUp(@Autowired com.formypet.auth.repository.UserRepository userRepository,
+    void setUp(@Autowired com.formypet.domain.user.repository.UserRepository userRepository,
                @Autowired com.formypet.auth.repository.RefreshTokenRepository refreshTokenRepository) {
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();

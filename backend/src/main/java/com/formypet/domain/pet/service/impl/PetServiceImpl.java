@@ -1,7 +1,7 @@
 package com.formypet.domain.pet.service.impl;
 
-import com.formypet.auth.domain.User;
-import com.formypet.auth.repository.UserRepository;
+import com.formypet.domain.user.entity.User;
+import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.pet.entity.Pet;
 import com.formypet.domain.pet.dto.request.PetCreateRequest;
 import com.formypet.domain.pet.dto.response.PetResponse;

@@ -3,7 +3,7 @@ package com.formypet.domain.community.service.impl;
 import com.formypet.domain.community.repository.query.CommentProjectionRepository;
 import com.formypet.domain.community.repository.query.CommentProjectionRepository.CommentSnapshot;
 
-import com.formypet.auth.domain.User;
+import com.formypet.domain.user.entity.User;
 import com.formypet.domain.community.entity.*;
 import com.formypet.domain.community.entity.PostComment;
 import com.formypet.domain.community.repository.PostCommentRepository;

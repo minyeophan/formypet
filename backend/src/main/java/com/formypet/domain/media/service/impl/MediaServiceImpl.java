@@ -1,6 +1,6 @@
 package com.formypet.domain.media.service.impl;
 
-import com.formypet.auth.domain.User;
+import com.formypet.domain.user.entity.User;
 import com.formypet.domain.media.dto.response.MediaResponse;
 import com.formypet.domain.media.storage.LoadedMedia;
 import org.springframework.web.multipart.MultipartFile;
