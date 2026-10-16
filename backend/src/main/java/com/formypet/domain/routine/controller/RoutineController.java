@@ -1,6 +1,6 @@
 package com.formypet.domain.routine.controller;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.routine.dto.request.*;
 import com.formypet.domain.routine.dto.response.*;
 import com.formypet.domain.routine.service.RoutineService;

@@ -16,8 +16,8 @@ import com.formypet.domain.community.dto.request.PostCommentReportRequest;
 import com.formypet.domain.community.dto.response.PostCommentReportResponse;
 import com.formypet.domain.notification.service.NotificationService;
 import com.formypet.domain.notification.entity.NotificationType;
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.exception.ForbiddenException;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.exception.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import java.util.*;
 
 import com.formypet.domain.community.service.*;

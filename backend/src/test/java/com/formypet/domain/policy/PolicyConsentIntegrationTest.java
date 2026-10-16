@@ -32,6 +32,37 @@ class PolicyConsentIntegrationTest extends IntegrationTestSupport {
     Map<String,Object> registration(String email) {
         return new HashMap<>(Map.of("email",email,"password","Password1!","nickname","tester"));
     }
+    @Test void partialAcceptanceAndOtherOrRevokedSessionsCannotExposeConsentHistory() throws Exception {
+        String ownerEmail = UUID.randomUUID() + "@policy-owner.test";
+        String otherEmail = UUID.randomUUID() + "@policy-other.test";
+        jdbc.update("INSERT INTO users(email,password_hash,nickname) VALUES (?,'unused','owner'), (?,'unused','other')", ownerEmail, otherEmail);
+        long owner = jdbc.queryForObject("SELECT id FROM users WHERE email=?", Long.class, ownerEmail);
+        long other = jdbc.queryForObject("SELECT id FROM users WHERE email=?", Long.class, otherEmail);
+        String token = jwt.generateAccessToken(owner, 0);
+        try {
+            for (var partial : List.of(
+                    Map.of("termsVersion", "test-1", "termsAccepted", false, "age14Confirmed", true),
+                    Map.of("termsVersion", "test-1", "termsAccepted", true, "age14Confirmed", false))) {
+                mvc.perform(post("/api/v1/users/me/policy-consents").header("Authorization", "Bearer " + token)
+                                .contentType("application/json").content(json.writeValueAsString(partial)))
+                        .andExpect(status().isBadRequest());
+            }
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM policy_consents WHERE user_id=?", Integer.class, owner)).isZero();
+            // Optional privacy acknowledgement is absent, so only the two required actions are stored.
+            mvc.perform(post("/api/v1/users/me/policy-consents").header("Authorization", "Bearer " + token)
+                            .contentType("application/json").content(json.writeValueAsString(acceptance("test-1"))))
+                    .andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM policy_consents WHERE user_id=?", Integer.class, owner)).isEqualTo(2);
+            mvc.perform(get("/api/v1/users/me/policy-consents").header("Authorization", "Bearer " + jwt.generateAccessToken(other, 0)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+            jdbc.update("UPDATE users SET auth_version=auth_version+1 WHERE id=?", owner);
+            mvc.perform(get("/api/v1/users/me/policy-consents").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isUnauthorized());
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id IN (?,?)", owner, other);
+        }
+    }
+
     @Test void missingAndStaleAcceptanceCannotCreateAccounts() throws Exception {
         String email=UUID.randomUUID()+"@policy.test";
         var body=registration(email);

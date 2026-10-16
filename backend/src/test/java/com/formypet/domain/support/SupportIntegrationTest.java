@@ -190,7 +190,7 @@ class SupportIntegrationTest extends IntegrationTestSupport {
         try {
             service.report(uid, postId, new ReportRequest("SPAM", "광고", requestId));
             return "accepted";
-        } catch (com.formypet.common.exception.ApiException conflict) {
+        } catch (com.formypet.global.exception.ApiException conflict) {
             assertEquals(org.springframework.http.HttpStatus.CONFLICT, conflict.status());
             return conflict.errorCode();
         }

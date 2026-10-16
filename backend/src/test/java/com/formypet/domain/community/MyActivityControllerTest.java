@@ -4,7 +4,7 @@ import com.formypet.domain.community.service.CommunityService;
 import com.formypet.domain.community.service.impl.CommunityServiceImpl;
 import com.formypet.domain.community.controller.MyActivityController;
 
-import com.formypet.common.exception.GlobalExceptionHandler;
+import com.formypet.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;

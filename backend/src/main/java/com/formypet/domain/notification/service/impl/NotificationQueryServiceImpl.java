@@ -1,8 +1,8 @@
 package com.formypet.domain.notification.service.impl;
 
 import com.formypet.domain.user.repository.UserRepository;
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.notification.dto.response.NotificationFeedResponse;
 import com.formypet.domain.notification.dto.response.NotificationResponse;
 import com.formypet.domain.notification.entity.Notification;

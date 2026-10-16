@@ -5,7 +5,7 @@ import com.formypet.domain.user.dto.response.BlockedUser;
 import com.formypet.domain.user.dto.response.BlockList;
 
 import com.formypet.domain.user.repository.UserRepository;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import com.formypet.domain.user.repository.UserBlockRepository;

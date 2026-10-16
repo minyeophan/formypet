@@ -2,7 +2,7 @@ package com.formypet.domain.media;
 
 import com.formypet.domain.media.validation.MediaFileValidation;
 
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import static org.assertj.core.api.Assertions.*;

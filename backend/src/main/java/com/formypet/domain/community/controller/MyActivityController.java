@@ -2,7 +2,7 @@ package com.formypet.domain.community.controller;
 
 import com.formypet.domain.community.service.CommunityService;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.community.dto.response.MyActivityResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

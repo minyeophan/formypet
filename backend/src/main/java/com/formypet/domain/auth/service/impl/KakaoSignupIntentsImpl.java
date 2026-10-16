@@ -5,7 +5,7 @@ import com.formypet.domain.auth.security.OAuthLifecycleGuard;
 import com.formypet.domain.auth.dto.response.SignupCancellationResponse;
 
 import com.formypet.domain.auth.security.RecoveryCrypto;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;

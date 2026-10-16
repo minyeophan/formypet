@@ -7,7 +7,7 @@ import com.formypet.domain.auth.dto.request.ResetConfirmRequest;
 import com.formypet.domain.auth.dto.response.ResetChallengeResponse;
 import com.formypet.domain.auth.dto.response.ResetVerifiedResponse;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

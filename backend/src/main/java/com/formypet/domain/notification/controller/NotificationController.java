@@ -1,6 +1,6 @@
 package com.formypet.domain.notification.controller;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.notification.dto.request.DeviceTokenRequest;
 import com.formypet.domain.notification.dto.request.NotificationSettingsRequest;
 import com.formypet.domain.notification.dto.response.NotificationFeedResponse;

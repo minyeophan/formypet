@@ -1,6 +1,6 @@
 package com.formypet.domain.wallet.entity;
 
-import com.formypet.common.exception.InvalidInputException;
+import com.formypet.global.exception.InvalidInputException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

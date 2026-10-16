@@ -1,6 +1,6 @@
 package com.formypet.domain.auth.repository.jdbc;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;

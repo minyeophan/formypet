@@ -1,8 +1,8 @@
 package com.formypet.domain.wallet.service.impl;
 
-import com.formypet.common.exception.NotFoundException;
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.exception.ForbiddenException;
+import com.formypet.global.exception.NotFoundException;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.exception.ForbiddenException;
 import com.formypet.domain.wallet.dto.request.*;
 import com.formypet.domain.wallet.dto.response.*;
 import com.formypet.domain.wallet.entity.WalletExpense;

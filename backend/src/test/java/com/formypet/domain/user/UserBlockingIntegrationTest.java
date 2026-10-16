@@ -5,7 +5,7 @@ import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.community.service.CommunityService;
 import com.formypet.domain.community.dto.request.PostCommentCreateRequest;
 import com.formypet.domain.community.dto.request.PostCreateRequest;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import com.formypet.domain.notification.service.NotificationService;
 import com.formypet.domain.notification.entity.NotificationType;
 import com.formypet.support.IntegrationTestSupport;

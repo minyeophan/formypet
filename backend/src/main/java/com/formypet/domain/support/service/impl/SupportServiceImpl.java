@@ -7,7 +7,7 @@ import com.formypet.domain.support.dto.response.SupportReceipt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import com.formypet.domain.support.entity.SupportMailOutbox;
 import com.formypet.domain.support.entity.SupportTicket;
 import com.formypet.domain.support.repository.SupportMailOutboxRepository;

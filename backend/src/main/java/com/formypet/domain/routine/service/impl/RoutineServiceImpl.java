@@ -1,8 +1,8 @@
 package com.formypet.domain.routine.service.impl;
 
 import com.formypet.domain.user.repository.UserRepository;
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.notification.config.NotificationProperties;
 import com.formypet.domain.pet.entity.Pet;
 import com.formypet.domain.pet.repository.PetRepository;

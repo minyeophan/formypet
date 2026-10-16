@@ -2,7 +2,7 @@ package com.formypet.domain.record.controller;
 
 import com.formypet.domain.record.service.ActivityRecordService;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import com.formypet.domain.record.dto.request.ActivityRecordCreateRequest;
 import com.formypet.domain.record.dto.response.ActivityRecordResponse;
 import com.formypet.domain.record.dto.request.ActivityRecordUpdateRequest;
@@ -29,7 +29,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class ActivityRecordController {
 
     private final ActivityRecordService activityRecordService;
-    private final com.formypet.common.idempotency.IdempotencyService idempotency;
+    private final com.formypet.global.idempotency.IdempotencyService idempotency;
 
     @PostMapping
     @Operation(summary = "활동 기록 생성")

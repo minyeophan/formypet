@@ -1,6 +1,6 @@
 package com.formypet.domain.support.repository.jdbc;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.support.entity.MailRetryPolicy;
 import java.time.Instant;
 import java.util.UUID;

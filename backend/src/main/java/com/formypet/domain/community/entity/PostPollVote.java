@@ -1,6 +1,6 @@
 package com.formypet.domain.community.entity;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcType;

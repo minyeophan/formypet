@@ -2,7 +2,7 @@ package com.formypet.domain.community.repository.query;
 
 import com.formypet.domain.community.dto.response.PostResponse;
 import com.formypet.domain.community.dto.response.PostFeedResponse;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

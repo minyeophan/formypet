@@ -2,7 +2,7 @@ package com.formypet.domain.community.service.impl;
 
 import com.formypet.domain.user.entity.User;
 import com.formypet.domain.community.entity.*;
-import com.formypet.common.exception.InvalidInputException;
+import com.formypet.global.exception.InvalidInputException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

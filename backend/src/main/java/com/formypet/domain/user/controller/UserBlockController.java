@@ -3,7 +3,7 @@ package com.formypet.domain.user.controller;
 import com.formypet.domain.user.service.UserBlockService;
 import com.formypet.domain.user.dto.response.BlockList;
 
-import com.formypet.common.response.ApiResponse;
+import com.formypet.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

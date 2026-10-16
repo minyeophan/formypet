@@ -2,9 +2,9 @@ package com.formypet.domain.community.repository.query;
 
 import com.formypet.domain.community.dto.response.PostCommentResponse;
 import com.formypet.domain.community.dto.response.PostCommentFeedResponse;
-import com.formypet.common.exception.ApiException;
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.ApiException;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.time.UtcTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

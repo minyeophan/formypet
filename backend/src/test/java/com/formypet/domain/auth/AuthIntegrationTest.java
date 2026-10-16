@@ -37,7 +37,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
 
     @MockitoBean KakaoUserClient kakaoUserClient;
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
-    com.formypet.common.ratelimit.RequestRateLimiter rateLimiter;
+    com.formypet.global.ratelimit.RequestRateLimiter rateLimiter;
 
     private static final String REGISTER_URL = "/api/v1/auth/register";
     private static final String LOGIN_URL    = "/api/v1/auth/login";
@@ -103,8 +103,8 @@ class AuthIntegrationTest extends IntegrationTestSupport {
         var captured = org.mockito.ArgumentCaptor.forClass(List.class);
         org.mockito.Mockito.verify(rateLimiter, org.mockito.Mockito.times(2)).consume(captured.capture());
         assertThat(captured.getAllValues()).allSatisfy(buckets -> {
-            assertThat(((List<com.formypet.common.ratelimit.RequestRateLimiter.Bucket>) buckets)
-                    .stream().map(com.formypet.common.ratelimit.RequestRateLimiter.Bucket::scope))
+            assertThat(((List<com.formypet.global.ratelimit.RequestRateLimiter.Bucket>) buckets)
+                    .stream().map(com.formypet.global.ratelimit.RequestRateLimiter.Bucket::scope))
                     .contains("auth-client", "auth-global");
         });
     }
@@ -149,7 +149,7 @@ class AuthIntegrationTest extends IntegrationTestSupport {
         var captured = org.mockito.ArgumentCaptor.forClass(List.class);
         org.mockito.Mockito.verify(rateLimiter, org.mockito.Mockito.times(2)).consume(captured.capture());
         var accountClientBuckets = captured.getAllValues().stream()
-                .map(buckets -> ((List<com.formypet.common.ratelimit.RequestRateLimiter.Bucket>) buckets).stream()
+                .map(buckets -> ((List<com.formypet.global.ratelimit.RequestRateLimiter.Bucket>) buckets).stream()
                         .filter(bucket -> bucket.scope().equals("login-account"))
                         .findFirst().orElseThrow().identifier())
                 .toList();

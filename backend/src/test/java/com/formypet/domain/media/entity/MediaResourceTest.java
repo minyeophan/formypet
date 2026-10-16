@@ -1,6 +1,6 @@
 package com.formypet.domain.media.entity;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;

@@ -8,7 +8,7 @@ import com.formypet.domain.user.service.AccountDeletionTransaction;
 import com.formypet.domain.auth.security.SessionGuard;
 import com.formypet.domain.auth.security.RecoveryCrypto;
 import com.formypet.domain.user.repository.jdbc.AccountDeletionCommands;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;

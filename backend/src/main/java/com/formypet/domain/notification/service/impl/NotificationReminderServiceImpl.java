@@ -1,6 +1,6 @@
 package com.formypet.domain.notification.service.impl;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import com.formypet.domain.notification.config.NotificationProperties;
 import com.formypet.domain.notification.entity.NotificationType;
 import com.formypet.domain.notification.repository.NotificationRepository;

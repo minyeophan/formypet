@@ -9,8 +9,8 @@ import com.formypet.domain.auth.service.OAuthSignupService;
 import com.formypet.domain.auth.security.SessionGuard;
 
 import com.formypet.domain.auth.client.KakaoUserClient;
-import com.formypet.common.ratelimit.RequestRateLimiter;
-import com.formypet.common.ratelimit.RequestRateLimitProperties;
+import com.formypet.global.ratelimit.RequestRateLimiter;
+import com.formypet.global.ratelimit.RequestRateLimitProperties;
 import com.formypet.domain.auth.client.KakaoUserInfo;
 import com.formypet.domain.auth.entity.RefreshToken;
 import com.formypet.domain.user.entity.User;

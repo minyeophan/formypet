@@ -10,7 +10,7 @@ import com.formypet.domain.community.dto.response.PostResponse;
 import com.formypet.domain.community.dto.request.PostUpdateRequest;
 import com.formypet.domain.media.service.MediaService;
 import com.formypet.domain.media.dto.response.MediaResponse;
-import com.formypet.common.exception.ForbiddenException;
+import com.formypet.global.exception.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

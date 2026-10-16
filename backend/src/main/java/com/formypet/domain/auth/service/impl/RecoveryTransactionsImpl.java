@@ -11,7 +11,7 @@ import com.formypet.domain.auth.dto.response.ResetVerifiedResponse;
 import com.formypet.domain.auth.exception.RecoveryErrors;
 
 import com.formypet.domain.auth.security.SessionGuard;
-import com.formypet.common.exception.ApiException;
+import com.formypet.global.exception.ApiException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import com.formypet.domain.auth.entity.PasswordResetChallenge;
 import com.formypet.domain.auth.repository.PasswordResetChallengeRepository;

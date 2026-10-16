@@ -1,6 +1,6 @@
 package com.formypet.domain.user.entity;
 
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.time.UtcTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;

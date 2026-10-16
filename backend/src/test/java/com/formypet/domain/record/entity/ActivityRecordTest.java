@@ -1,7 +1,7 @@
 package com.formypet.domain.record.entity;
 
-import com.formypet.common.exception.InvalidInputException;
-import com.formypet.common.time.UtcTime;
+import com.formypet.global.exception.InvalidInputException;
+import com.formypet.global.time.UtcTime;
 import org.junit.jupiter.api.Test;
 import java.time.*;
 import java.util.List;
