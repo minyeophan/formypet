@@ -1,6 +1,6 @@
 package com.formypet.common.exception;
 
-import com.formypet.auth.OAuthLoginConflictException;
+import com.formypet.domain.auth.exception.OAuthLoginConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;

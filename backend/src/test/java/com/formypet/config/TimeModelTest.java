@@ -11,8 +11,8 @@ class TimeModelTest {
     void eventFieldsCarryAnInstantRatherThanAnUnspecifiedWallClock() throws Exception {
         for (var entry : Map.of(
                 "domain.user.entity.User", "createdAt",
-                "auth.domain.RefreshToken", "expiresAt",
-                "auth.domain.OAuthAccount", "createdAt",
+                "domain.auth.entity.RefreshToken", "expiresAt",
+                "domain.auth.entity.OAuthAccount", "createdAt",
                 "domain.pet.entity.Pet", "updatedAt",
                 "domain.community.dto.response.PostResponse", "createdAt",
                 "domain.community.dto.response.PostCommentResponse", "updatedAt",

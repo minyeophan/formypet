@@ -3,7 +3,7 @@ package com.formypet.domain.user.service.impl;
 import com.formypet.domain.user.service.AccountDeletionTransaction;
 import com.formypet.domain.user.service.KakaoUnlinkWebhookEventProcessor;
 
-import com.formypet.auth.OAuthLifecycleGuard;
+import com.formypet.domain.auth.security.OAuthLifecycleGuard;
 import com.formypet.domain.user.repository.jdbc.KakaoWebhookRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

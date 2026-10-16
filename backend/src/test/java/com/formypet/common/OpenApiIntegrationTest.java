@@ -1,6 +1,8 @@
 package com.formypet.common;
 
-import com.formypet.auth.JwtService;
+import com.formypet.domain.auth.dto.request.RegisterRequest;
+
+import com.formypet.domain.auth.security.JwtService;
 import com.formypet.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

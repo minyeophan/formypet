@@ -2,7 +2,7 @@ package com.formypet.domain.policy.service.impl;
 import com.formypet.domain.policy.dto.response.PolicyDocumentResponse;
 import com.formypet.domain.policy.service.PolicyPublicationRegistry;
 
-import com.formypet.auth.recovery.RecoveryCrypto;
+import com.formypet.domain.auth.security.RecoveryCrypto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import com.formypet.domain.policy.entity.PolicyPublication;

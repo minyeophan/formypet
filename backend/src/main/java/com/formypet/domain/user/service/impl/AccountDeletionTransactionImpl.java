@@ -1,10 +1,12 @@
 package com.formypet.domain.user.service.impl;
 
+import com.formypet.domain.auth.security.OAuthLifecycleGuard;
+
 import com.formypet.domain.user.dto.response.AccountDeletionReceipt;
 import com.formypet.domain.user.service.AccountDeletionTransaction;
 
-import com.formypet.auth.SessionGuard;
-import com.formypet.auth.recovery.RecoveryCrypto;
+import com.formypet.domain.auth.security.SessionGuard;
+import com.formypet.domain.auth.security.RecoveryCrypto;
 import com.formypet.domain.user.repository.jdbc.AccountDeletionCommands;
 import com.formypet.common.exception.ApiException;
 import lombok.RequiredArgsConstructor;
@@ -19,14 +21,14 @@ import java.util.List;
 public class AccountDeletionTransactionImpl implements AccountDeletionTransaction {
     private final AccountDeletionCommands commands;
     private final SessionGuard sessions;
-    private final com.formypet.auth.OAuthLifecycleGuard oauthLifecycle;
+    private final com.formypet.domain.auth.security.OAuthLifecycleGuard oauthLifecycle;
     private final PasswordEncoder passwords;
     private final RecoveryCrypto recoveryCrypto;
 
     @Transactional
     public AccountDeletionReceipt delete(Long actorId, String password, String kakaoUserId) {
         if (kakaoUserId != null) oauthLifecycle.lock(kakaoUserId);
-        SessionGuard.Snapshot user = sessions.lockCurrent(actorId);
+        com.formypet.domain.auth.entity.SessionSnapshot user = sessions.lockCurrent(actorId);
         if ("LOCAL".equals(user.source())) {
             if (password == null || !passwords.matches(password, user.passwordHash())) throw SessionGuard.invalid();
             if (kakaoUserId != null) throw SessionGuard.invalid();
@@ -44,14 +46,14 @@ public class AccountDeletionTransactionImpl implements AccountDeletionTransactio
         oauthLifecycle.lock(providerUserId);
         List<Long> users = commands.lockKakaoUsers(providerUserId);
         if (users.isEmpty()) return;
-        SessionGuard.Snapshot user = sessions.lock(users.getFirst());
+        com.formypet.domain.auth.entity.SessionSnapshot user = sessions.lock(users.getFirst());
         if (!"KAKAO".equals(user.source())) {
             throw new IllegalStateException("Kakao account source does not match the unlink event");
         }
         deleteAccountData(user, providerUserId, false);
     }
 
-    private AccountDeletionReceipt deleteAccountData(SessionGuard.Snapshot user, String kakaoUserId,
+    private AccountDeletionReceipt deleteAccountData(com.formypet.domain.auth.entity.SessionSnapshot user, String kakaoUserId,
                                                        boolean queueProviderUnlink) {
         List<Long> affectedPosts = commands.affectedPosts(user.id());
         List<Long> affectedOptions = commands.affectedOptions(user.id());

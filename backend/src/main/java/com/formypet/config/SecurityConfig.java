@@ -1,6 +1,6 @@
 package com.formypet.config;
 
-import com.formypet.auth.JwtAuthFilter;
+import com.formypet.domain.auth.security.JwtAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;

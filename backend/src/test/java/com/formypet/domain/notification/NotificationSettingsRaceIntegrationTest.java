@@ -1,5 +1,7 @@
 package com.formypet.domain.notification;
 
+import com.formypet.domain.auth.security.AuthenticatedUser;
+
 import com.formypet.domain.notification.dto.request.NotificationSettingsRequest;
 import com.formypet.domain.notification.entity.NotificationType;
 import com.formypet.domain.notification.service.NotificationService;
@@ -34,7 +36,7 @@ class NotificationSettingsRaceIntegrationTest extends IntegrationTestSupport {
         jdbc.update("DELETE FROM users WHERE id=?", userId);
     }
     void authenticate(long version) {
-        var auth = new UsernamePasswordAuthenticationToken(new com.formypet.auth.AuthenticatedUser(userId, version), null, List.of());
+        var auth = new UsernamePasswordAuthenticationToken(new com.formypet.domain.auth.security.AuthenticatedUser(userId, version), null, List.of());
         auth.setDetails(version);
         SecurityContextHolder.getContext().setAuthentication(auth);
     }

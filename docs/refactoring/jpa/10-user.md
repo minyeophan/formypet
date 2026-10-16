@@ -35,8 +35,8 @@
 4. [x] User 및 전체 user 패키지 이동, DTO/서비스 인터페이스 분리, 외부 참조 수정. 기존 테스트 assertion 보존.
 5. [x] 관련 suite와 전체 backend Asia/Seoul, 독립 최종 리뷰, Dart분석.
 6. [x] MuMu 프로필/이미지/차단·해제/재실행/로컬 탈퇴·토큰 무효화. 외부 Kakao·메일은 mock 계약으로 검증.
-7. [ ] refactor : 회원 도메인 구조 및 계정 처리 정리 commit/push/develop PR, 모든head CI후 squash.
-8. [ ] 실제 mergeSHA 빌드 및 MuMu 기존/전체/재실행/공통, develop CI/log 검증 후 auth 진행.
+7. [x] refactor : 회원 도메인 구조 및 계정 처리 정리 commit/push/develop PR, 모든head CI후 squash.
+8. [x] 실제 mergeSHA 빌드 및 MuMu 기존/전체/재실행/공통, develop CI/log 검증 후 auth 진행.
 
 ## Review focus
 JPA persistence-context와 JDBC bulk 삭제의 상호작용, auth_version/media counters의 stale overwrite, OAuth lock 순서, 동일연결 advisory lock 해제, provider I/O와 DB트랜잭션 경계, cross-domain cascade/카운터/cleanup 원자성, 차단 멱등과 정렬, 공개 요청 rate-limit/메일 보안.
@@ -56,3 +56,8 @@ JPA persistence-context와 JDBC bulk 삭제의 상호작용, auth_version/media 
 - 사용자 빌드 기존 데이터8915(6초), 전체32021(23초) MuMu 성공. 새 fixture 재실행61951 진행 중.
 
 - 사용자 새 fixture 재실행61951 성공(7초). 서버 ERROR/Exception 없음. PR 전 검증 완료.
+
+- PR108: head9e65815, CI6개 성공 후 f4039a3으로 squash merge. 실제 merge 강제 bootJar72354 성공(1분31초), QA21262 정상.
+- 머지 후 기존 데이터6487 검증 성공(10초). 전체35159 진행 중, 재실행·공통·develop CI 확인은 남음.
+
+- 완료: 머지 후 재실행89883(5초), 공통13316(51초) 성공. develop CI38836638760 3개 모두 성공. 서버 ERROR/Exception 없음. 회원 도메인 10/12 완료.

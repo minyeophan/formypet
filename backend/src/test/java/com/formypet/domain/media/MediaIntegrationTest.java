@@ -4,7 +4,7 @@ import com.formypet.domain.media.service.MediaService;
 import com.formypet.domain.media.scheduling.MediaCleanupRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.auth.repository.RefreshTokenRepository;
+import com.formypet.domain.auth.repository.RefreshTokenRepository;
 import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Assertions;

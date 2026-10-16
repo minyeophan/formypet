@@ -1,7 +1,7 @@
 package com.formypet.domain.notification;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.formypet.auth.repository.RefreshTokenRepository;
+import com.formypet.domain.auth.repository.RefreshTokenRepository;
 import com.formypet.domain.user.repository.UserRepository;
 import com.formypet.domain.notification.entity.NotificationType;
 import com.formypet.domain.notification.service.NotificationService;

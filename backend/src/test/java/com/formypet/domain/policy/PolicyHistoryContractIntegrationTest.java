@@ -1,5 +1,5 @@
 package com.formypet.domain.policy;
-import com.formypet.auth.JwtService;
+import com.formypet.domain.auth.security.JwtService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formypet.support.IntegrationTestSupport;
