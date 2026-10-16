@@ -1,11 +1,11 @@
 # JPA migration progress
 Plan: docs/refactoring/jpa/plan.md
-Current domain: support (9/12); wallet, pet, routine, record, community, media, policy and notification complete
-Status: notification completed8/12; support baseline inspection starting
-Base: origin/develop 1b57d77f0486ec0a13666519815efbbdfb9677c6
-Branch: refactor/jpa-support
+Current domain: user (10/12); wallet, pet, routine, record, community, media, policy, notification and support complete
+Status: support completed9/12; user baseline inspection starting
+Base: origin/develop c366cfbe4cba5d38b0898263211e1faaa5ea2c09
+Branch: refactor/jpa-user
 MuMu ADB: 127.0.0.1:16384
-Docker and isolated notification QA backend55551/PID34692 are running on18083; scheduler=true.
+Docker and isolated merged-support QA38446/PID37608 run on18083; scheduler=false.
 Chronological entries below describe earlier states; latest entries supersede them.
 Ruling: Use this persistent tracked ledger for the multi-PR goal; each domain begins only after preceding merged-version UI verification.
 Baseline Gradle execution session: 86336 (still running at last observation; Java/test compilation succeeded).
@@ -263,3 +263,16 @@ Fullbackend31069 terminal SUCCESS8m, freshXML489/0/0/0 across100suites. MuMu1201
 MuMu rerun88718 LIVE output frontend/support-mumu-scroll.log. QA93315 current support healthy18083; noGradlebackend live now. Next MuMu result then existing replay; allbackend489green and independent reviewclean permit commit only afterUIgates.
 MuMu88718 terminal SUCCESS23s SUPPORT_FULL_VERIFIED, all inquiry/report/validation/retry/deleted-target replay passed. Existing-mode9194 LIVE frontend/support-mumu-existing.log --no-uninstall. Fullbackend489/0 alreadygreen; QA93315 logs no newerrors. Need existing terminal then commit/push/developPR. CUA documentation refreshed, browser binding4 stillselected; no supporttab yet.
 MuMu existing9194 terminal SUCCESS4s SUPPORT_RESTART_VERIFIED. All branch gates pass: fullbackend489/0, targeted30/0, independent nofindings, analyzerclean, MuMu full23s/restart4s. Stagingfinaldocs and committing support, thenpush/developPR. QA93315 remains support; retain fixture for actualmerge existingcheck.
+Committed/pushed201eb495a783ac62efa20b117f5ca7b1fb33bbb6 refactor : 문의 도메인 JPA 전환 및 메일 처리 분리. Created/attached develop PR107 https://github.com/minyeophan/formypet/pull/107 (browser create timedout but subsequentDOM confirmedcreated; no duplicate). Alllocalgatespassed. CI pending; no merge. QA93315 current support; keep fixture for merged existing.
+PR107 currenthead201eb49/base1b57d77 verified. CI PR38817065108 andpush38817010551 LIVE: Monitoring bothsuccess, Backend/Flutter inprogress. No reviews/comments. mergeabletrue/unstable pendingCI; notmerged. Keep QA93315 and supportfixture. Next all6green then squash/actualSHA rebuild/MuMu existing/full/existing/common/developCI.
+PR107 all6CI passed, emptyreviews/comments, squashed c366cfbe4cba5d38b0898263211e1faaa5ea2c09. First REST read brieflynotmerged; stoppedQA93315 and mistakenly launched88794 build onoldhead201eb49 (passed45s, NOT mergedSHA evidence). Waitedterminal, fetchedactualmerge/treeidentical201eb49, detached c366cfb. Now rerun forcedbootJar on actualmerge. NoQA currently. Need mergedexisting/full/restart/common/developCI beforeuser.
+Actualmerge forcedbootJar47705 LIVE output backend/build/support-actual-merge-build.log. OldQA93315 stopped. supportTab PR107 markedDeliverable; merged screenshot saved support-pr-107-merged.png. Next poll47705 then launchQA currentSHA and existing fixture first.
+Actualmerge c366cfb bootJar47705 passed43s forcedrerun. MergedQA38446 healthy18083 with isolated3318 schema43/schedulerfalse/SMTPdisabled, log backend/build/support-merged-qa.log. DevelopCI38817685206 inprogress. Launched MuMu merged existingfirst against premerge fixture, then full/existing/common stillneeded. No userdomain started.
+Mergedexisting44417 terminal passed6s SUPPORT_RESTART_VERIFIED against c366cfb QA38446. Premerge fixture receipts/time and deleted-target replay preserved. Starting mergedfull test next; then newfixture existing/common smoke/developCI/logs. No nextdomain yet.
+Mergedfull92565 LIVE frontend/support-merged-full.log. QA38446 liveactualmerge. Keep polling samehandle; then existing --VERIFY_EXISTING_SUPPORT=true before common android_ux_test (which replacesauthfixture).
+Develop CI38817685206 all3success confirmed at actualmergec366cfb. Mergedfull92565 stillLIVE building/running; QA38446 no newerrors. Remaining fullterminal,newfixture restart,common smoke.
+Mergedfull92565 terminal SUCCESS23s SUPPORT_FULL_VERIFIED actualc366cfb. DevelopCI38817685206 all3green. Launching newfixture restart thencommon smoke, QA38446 live clean. Remaining noimplementation changes.
+Mergednewfixture restart62072 SUCCESS7s SUPPORT_RESTART_VERIFIED. Launched common android_ux_test at18083 --no-uninstall (log frontend/support-merged-common.log). Only commonterminal/serverlog/finaldevelop recheck remains before support9/12complete. QA38446 actualc366cfb.
+Common9180 LIVE; pollsamehandle. No other test/build running. Next success→QAlogcheck→mark09/support complete→latestdevelop new refactor/jpa-user and completiondocscommit; do not prematurelystartuser.
+
+Support complete9/12: mergedcommon9180 passed54s; previousfixture44417(6s),full92565(23s),newfixture62072(7s) allpassed. DevelopCI38817685206 all3green. QA38446 log has startup warnings and one clockleap at08:48 (no requestERROR/Exception, subsequenthealth/UIpassed). Latestdevelopc366cfb fetched and created refactor/jpa-user. User baseline next; no usercodechanges.

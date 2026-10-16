@@ -36,8 +36,8 @@
 4. [x] 패키지/DTO/인터페이스 이동, 외부 계정삭제 호출 import 변경. 서비스 SQL/Map 행매핑 제거.
 5. [x] 추가 시간/snapshot/fencing/query-cost/commit 검증, 관련 및 전체 테스트, 독립 최종 리뷰.
 6. [x] MuMu 문의/신고/중복 제출/검증 오류/재실행. 실제 외부 SMTP는 QA 자격증명 없이 전송하지 않으며 transport mock 및 DBworker 계약 검증과 구분한다.
-7. [ ] refactor : 문의 도메인 JPA 전환 및 메일 처리 분리 커밋/push/develop PR, 최신 head CI 후 squash.
-8. [ ] 실제 merge SHA 재빌드/MuMu 기존+전체+공통/develop CI/log 확인 후 user 진행.
+7. [x] refactor : 문의 도메인 JPA 전환 및 메일 처리 분리 커밋/push/develop PR, 최신 head CI 후 squash.
+8. [x] 실제 merge SHA 재빌드/MuMu 기존+전체+공통/develop CI/log 확인 후 user 진행.
 
 - 기준선67829:19/0/0/0,1분34초. 순수 엔티티/재시도 RED77961은 신규 타입3개 부재9오류로 실패. 구현 후99299:22/0/0/0,1분43초. 추가 DB 매핑2개 포함38050 실행 중.
 
@@ -55,3 +55,10 @@
 - MuMu88718 전체 시나리오: SUPPORT_FULL_VERIFIED / All tests passed, 23초. 앱 재실행9194 진행 중.
 
 - 앱 새 프로세스9194: SUPPORT_RESTART_VERIFIED / All tests passed, 4초. 기존 문의/삭제된 대상 신고의 동일 접수번호와 receivedAt 유지 확인. 브랜치 로컬 검증 완료.
+
+## 완료
+- PR107: https://github.com/minyeophan/formypet/pull/107, head201eb49, 6 CI 통과 후 squash c366cfbe4cba5d38b0898263211e1faaa5ea2c09 (tree 동일).
+- 실제 merge SHA forced bootJar47705 성공43초. QA38446/PID37608/18083.
+- MuMu 머지 전 fixture44417 6초, 전체92565 23초, 새 fixture재실행62072 7초, 공통9180 54초 모두 통과.
+- develop CI38817685206 3개 통과. 서버 요청 오류 없음. 시간 간격 증가 경고1건 이후 health와 전체UI 정상.
+- 문의 완료9/12, 회원 도메인10/12 착수.
